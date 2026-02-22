@@ -12,14 +12,13 @@ from cataclysm.coaching import (
     CoachingContext,
     CoachingReport,
     _build_coaching_prompt,
-    _format_corner_comparison,
+    _format_all_laps_corners,
     _format_lap_summaries,
     _parse_coaching_response,
     ask_followup,
     generate_coaching_report,
 )
 from cataclysm.corners import Corner
-from cataclysm.delta import CornerDelta
 from cataclysm.engine import LapSummary
 
 
@@ -56,11 +55,21 @@ def sample_corners() -> list[Corner]:
 
 
 @pytest.fixture
-def sample_deltas() -> list[CornerDelta]:
-    return [
-        CornerDelta(corner_number=1, delta_s=0.15),
-        CornerDelta(corner_number=2, delta_s=0.32),
-    ]
+def sample_all_lap_corners(
+    sample_corners: list[Corner],
+) -> dict[int, list[Corner]]:
+    """Corner data for 3 laps — lap 1 is best, laps 2-3 vary slightly."""
+    return {
+        1: sample_corners,
+        2: [
+            Corner(1, 200.0, 350.0, 285.0, 21.0, 148.0, -0.75, 375.0, "mid"),
+            Corner(2, 800.0, 950.0, 875.0, 17.5, 745.0, -0.95, 975.0, "late"),
+        ],
+        3: [
+            Corner(1, 200.0, 350.0, 282.0, 21.5, 152.0, -0.82, 368.0, "mid"),
+            Corner(2, 800.0, 950.0, 868.0, 17.0, 755.0, -1.05, 965.0, "mid"),
+        ],
+    }
 
 
 def _make_mock_anthropic(
@@ -99,26 +108,38 @@ class TestFormatLapSummaries:
         assert "100" in text
 
 
-class TestFormatCornerComparison:
+class TestFormatAllLapsCorners:
+    def test_includes_all_laps(
+        self,
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        text = _format_all_laps_corners(sample_all_lap_corners, best_lap=1)
+        assert "L1" in text
+        assert "L2" in text
+        assert "L3" in text
+
+    def test_marks_best_lap(
+        self,
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        text = _format_all_laps_corners(sample_all_lap_corners, best_lap=1)
+        assert "L1 *" in text
+        # Other laps should NOT be marked
+        assert "L2 *" not in text
+
     def test_includes_corner_numbers(
         self,
-        sample_corners: list[Corner],
-        sample_deltas: list[CornerDelta],
+        sample_all_lap_corners: dict[int, list[Corner]],
     ) -> None:
-        text = _format_corner_comparison(
-            sample_corners, sample_corners, sample_deltas
-        )
+        text = _format_all_laps_corners(sample_all_lap_corners, best_lap=1)
         assert "T1" in text
         assert "T2" in text
 
     def test_includes_speed_in_mph(
         self,
-        sample_corners: list[Corner],
-        sample_deltas: list[CornerDelta],
+        sample_all_lap_corners: dict[int, list[Corner]],
     ) -> None:
-        text = _format_corner_comparison(
-            sample_corners, sample_corners, sample_deltas
-        )
+        text = _format_all_laps_corners(sample_all_lap_corners, best_lap=1)
         # 22 m/s = ~49.2 mph
         assert "49" in text
 
@@ -172,48 +193,54 @@ class TestBuildCoachingPrompt:
     def test_includes_track_name(
         self,
         sample_summaries: list[LapSummary],
-        sample_corners: list[Corner],
-        sample_deltas: list[CornerDelta],
+        sample_all_lap_corners: dict[int, list[Corner]],
     ) -> None:
         prompt = _build_coaching_prompt(
-            sample_summaries, sample_corners,
-            sample_corners, sample_deltas, "Barber",
+            sample_summaries, sample_all_lap_corners, "Barber",
         )
         assert "Barber" in prompt
 
     def test_includes_json_structure(
         self,
         sample_summaries: list[LapSummary],
-        sample_corners: list[Corner],
-        sample_deltas: list[CornerDelta],
+        sample_all_lap_corners: dict[int, list[Corner]],
     ) -> None:
         prompt = _build_coaching_prompt(
-            sample_summaries, sample_corners,
-            sample_corners, sample_deltas, "Test",
+            sample_summaries, sample_all_lap_corners, "Test",
         )
         assert "priority_corners" in prompt
         assert "corner_grades" in prompt
+
+    def test_includes_all_laps_data(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        prompt = _build_coaching_prompt(
+            sample_summaries, sample_all_lap_corners, "Test",
+        )
+        assert "All Laps" in prompt
+        assert "L1" in prompt
+        assert "L2" in prompt
+        assert "L3" in prompt
 
 
 class TestGenerateCoachingReport:
     def test_no_api_key_returns_message(
         self,
         sample_summaries: list[LapSummary],
-        sample_corners: list[Corner],
-        sample_deltas: list[CornerDelta],
+        sample_all_lap_corners: dict[int, list[Corner]],
     ) -> None:
         with patch.dict("os.environ", {}, clear=True):
             report = generate_coaching_report(
-                sample_summaries, sample_corners,
-                sample_corners, sample_deltas, "Test",
+                sample_summaries, sample_all_lap_corners, "Test",
             )
         assert "ANTHROPIC_API_KEY" in report.summary
 
     def test_calls_api_with_key(
         self,
         sample_summaries: list[LapSummary],
-        sample_corners: list[Corner],
-        sample_deltas: list[CornerDelta],
+        sample_all_lap_corners: dict[int, list[Corner]],
     ) -> None:
         mock_anthropic = _make_mock_anthropic(json.dumps({
             "summary": "AI says hi",
@@ -231,8 +258,7 @@ class TestGenerateCoachingReport:
             ),
         ):
             report = generate_coaching_report(
-                sample_summaries, sample_corners,
-                sample_corners, sample_deltas, "Test",
+                sample_summaries, sample_all_lap_corners, "Test",
             )
         assert report.summary == "AI says hi"
 

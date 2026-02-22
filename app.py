@@ -19,6 +19,9 @@ from cataclysm.charts import (
 from cataclysm.coaching import CoachingContext, ask_followup, generate_coaching_report
 from cataclysm.corners import Corner, detect_corners, extract_corner_kpis_for_lap
 from cataclysm.delta import compute_delta
+
+# Type alias for readability
+AllLapCorners = dict[int, list[Corner]]
 from cataclysm.engine import ProcessedSession, process_session
 from cataclysm.parser import ParsedSession, parse_racechrono_csv
 
@@ -331,43 +334,27 @@ with tab_coaching:
             "```bash\nexport ANTHROPIC_API_KEY=sk-ant-...\n```"
         )
 
-    # Pick comparison lap for coaching
-    coaching_other = [
-        lap_num for lap_num in all_laps
-        if lap_num != processed.best_lap
-    ]
-    median_lap = sorted(all_laps)[len(all_laps) // 2]
-
-    def _coaching_label(n: int) -> str:
-        return f"Lap {n} (median)" if n == median_lap else f"Lap {n}"
-
-    coaching_comp = st.selectbox(
-        "Compare best lap against",
-        coaching_other,
-        format_func=_coaching_label,
-        key="coaching_comp",
+    st.caption(
+        f"Analyzes all {len(all_laps)} laps across "
+        f"{len(corners)} detected corners."
     )
 
     if st.button("Generate Coaching Report", disabled=not has_key):
-        with st.spinner("Analyzing your driving..."):
-            coaching_corners = extract_corner_kpis_for_lap(
-                processed.resampled_laps.get(
-                    coaching_comp, best_lap_df
-                ),
-                corners,
-            )
-            delta = compute_delta(
-                processed.resampled_laps[processed.best_lap],
-                processed.resampled_laps.get(
-                    coaching_comp, best_lap_df
-                ),
-                corners,
-            )
+        with st.spinner("Extracting corner data for all laps..."):
+            all_lap_corners: AllLapCorners = {}
+            for lap_num in all_laps:
+                lap_df = processed.resampled_laps[lap_num]
+                if lap_num == processed.best_lap:
+                    all_lap_corners[lap_num] = corners
+                else:
+                    all_lap_corners[lap_num] = extract_corner_kpis_for_lap(
+                        lap_df, corners
+                    )
+
+        with st.spinner("AI coach is analyzing your session..."):
             report = generate_coaching_report(
                 summaries,
-                corners,
-                coaching_corners,
-                delta.corner_deltas,
+                all_lap_corners,
                 meta.track_name,
             )
             st.session_state["coaching_report"] = report

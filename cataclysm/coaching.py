@@ -7,7 +7,6 @@ import os
 from dataclasses import dataclass, field
 
 from cataclysm.corners import Corner
-from cataclysm.delta import CornerDelta
 from cataclysm.engine import LapSummary
 
 MPS_TO_MPH = 2.23694
@@ -55,76 +54,76 @@ def _format_lap_summaries(summaries: list[LapSummary]) -> str:
     return "\n".join(lines)
 
 
-def _format_corner_comparison(
-    best_corners: list[Corner],
-    comp_corners: list[Corner],
-    deltas: list[CornerDelta],
+def _format_all_laps_corners(
+    all_lap_corners: dict[int, list[Corner]],
+    best_lap: int,
 ) -> str:
-    """Format corner KPI comparison between best and comparison laps."""
-    delta_map = {d.corner_number: d.delta_s for d in deltas}
-    comp_map = {c.number: c for c in comp_corners}
-
+    """Format corner KPIs for every lap in the session."""
     lines = [
-        "Corner | Best Min Speed | Comp Min Speed | Best Brake Pt | Comp Brake Pt "
-        "| Corner Delta(s) | Best Apex | Comp Apex"
+        "Lap | Corner | Min Speed (mph) | Brake Pt (m) | Peak Brake (G) "
+        "| Throttle (m) | Apex"
     ]
-    lines.append("--- | --- | --- | --- | --- | --- | --- | ---")
+    lines.append("--- | --- | --- | --- | --- | --- | ---")
 
-    for bc in best_corners:
-        cc = comp_map.get(bc.number)
-        delta = delta_map.get(bc.number, 0.0)
-
-        best_speed = f"{bc.min_speed_mps * MPS_TO_MPH:.1f}"
-        comp_speed = f"{cc.min_speed_mps * MPS_TO_MPH:.1f}" if cc else "N/A"
-
-        best_brake = f"{bc.brake_point_m:.0f}m" if bc.brake_point_m is not None else "N/A"
-        comp_brake = f"{cc.brake_point_m:.0f}m" if cc and cc.brake_point_m is not None else "N/A"
-
-        lines.append(
-            f"T{bc.number} | {best_speed} mph | {comp_speed} mph | {best_brake} | "
-            f"{comp_brake} | {delta:+.3f}s | {bc.apex_type} | "
-            f"{cc.apex_type if cc else 'N/A'}"
-        )
+    for lap_num in sorted(all_lap_corners):
+        tag = " *" if lap_num == best_lap else ""
+        for c in all_lap_corners[lap_num]:
+            speed = f"{c.min_speed_mps * MPS_TO_MPH:.1f}"
+            brake = f"{c.brake_point_m:.0f}" if c.brake_point_m is not None else "—"
+            peak_g = f"{c.peak_brake_g:.2f}" if c.peak_brake_g is not None else "—"
+            throttle = (
+                f"{c.throttle_commit_m:.0f}"
+                if c.throttle_commit_m is not None
+                else "—"
+            )
+            lines.append(
+                f"L{lap_num}{tag} | T{c.number} | {speed} | {brake} "
+                f"| {peak_g} | {throttle} | {c.apex_type}"
+            )
 
     return "\n".join(lines)
 
 
 def _build_coaching_prompt(
     summaries: list[LapSummary],
-    best_corners: list[Corner],
-    comp_corners: list[Corner],
-    deltas: list[CornerDelta],
+    all_lap_corners: dict[int, list[Corner]],
     track_name: str,
 ) -> str:
     """Build the full coaching prompt for Claude."""
     lap_text = _format_lap_summaries(summaries)
-    corner_text = _format_corner_comparison(best_corners, comp_corners, deltas)
-
     best = min(summaries, key=lambda s: s.lap_time_s)
     best_min = int(best.lap_time_s // 60)
     best_sec = best.lap_time_s % 60
+    corner_text = _format_all_laps_corners(all_lap_corners, best.lap_number)
 
-    return f"""You are an expert motorsport driving coach analyzing telemetry data from a track day.
+    return f"""You are an expert motorsport driving coach analyzing telemetry from a full track day session.
 The driver is an enthusiast at an HPDE (High Performance Driving Education) event.
-Give practical, actionable advice. Be specific about distances and speeds.
+Give practical, actionable advice. Be specific about distances and speeds (mph).
 
 Track: {track_name}
 Best Lap: L{best.lap_number} ({best_min}:{best_sec:05.2f})
+Total laps: {len(summaries)}
 
 ## Lap Times
 {lap_text}
 
-## Corner-by-Corner Comparison (Best Lap vs Median Lap)
+## Corner KPIs — All Laps (best lap marked with *)
 {corner_text}
+
+Analyze the FULL session. Look at every lap's data for each corner to identify:
+- Consistency: which corners are repeatable vs high-variance across laps
+- Trends: whether the driver improved or degraded through the session (fatigue, tire wear, learning)
+- Best-vs-rest gaps: where the best lap gained time vs the driver's typical performance
+- Technique patterns: brake point consistency, apex type shifts, min-speed spread
 
 Respond in JSON with this exact structure:
 {{
-  "summary": "2-3 sentence overview of the session",
+  "summary": "2-3 sentence overview of the full session — mention consistency, progression, and key strengths",
   "priority_corners": [
     {{
       "corner": <number>,
-      "time_cost_s": <float>,
-      "issue": "<brief description>",
+      "time_cost_s": <estimated avg time lost vs best lap at this corner>,
+      "issue": "<what the data shows across all laps>",
       "tip": "<actionable advice, max 20 words>"
     }}
   ],
@@ -135,15 +134,19 @@ Respond in JSON with this exact structure:
       "trail_braking": "<A-F>",
       "min_speed": "<A-F>",
       "throttle": "<A-F>",
-      "notes": "<one sentence>"
+      "notes": "<one sentence referencing lap-to-lap data>"
     }}
   ],
-  "patterns": ["<global pattern 1>", "<global pattern 2>"]
+  "patterns": ["<session-wide pattern 1>", "<session-wide pattern 2>", "<pattern 3>"]
 }}
 
-Sort priority_corners by time_cost_s descending (biggest time loss first).
-Grade A = excellent consistency between best and comparison laps.
-Grade F = major inconsistency or clear technique error.
+Sort priority_corners by time_cost_s descending (biggest avg time loss first).
+Grades reflect consistency across ALL laps, not just one comparison:
+  A = very consistent, close to best-lap performance every lap
+  B = mostly consistent with minor variance
+  C = moderate variance or a clear technique gap on some laps
+  D = high variance, inconsistent execution
+  F = major issue across most laps
 Be encouraging but honest. Focus on the 2-3 biggest improvements."""
 
 
@@ -193,12 +196,12 @@ def _parse_coaching_response(text: str) -> CoachingReport:
 
 def generate_coaching_report(
     summaries: list[LapSummary],
-    best_corners: list[Corner],
-    comp_corners: list[Corner],
-    deltas: list[CornerDelta],
+    all_lap_corners: dict[int, list[Corner]],
     track_name: str,
 ) -> CoachingReport:
     """Generate an AI coaching report using the Claude API.
+
+    Analyzes corner KPIs across ALL laps in the session.
 
     Requires ANTHROPIC_API_KEY environment variable.
     Returns a CoachingReport. If the API key is not set, returns a report
@@ -216,7 +219,7 @@ def generate_coaching_report(
     import anthropic
 
     client = anthropic.Anthropic(api_key=api_key)
-    prompt = _build_coaching_prompt(summaries, best_corners, comp_corners, deltas, track_name)
+    prompt = _build_coaching_prompt(summaries, all_lap_corners, track_name)
 
     try:
         message = client.messages.create(

@@ -276,7 +276,8 @@ def corner_kpi_table(
         go.Table(
             header={"values": headers, "fill_color": "#2a2a2a", "font_color": "white",
                      "align": "center"},
-            cells={"values": cells, "fill_color": "#f8f8f8", "align": "center"},
+            cells={"values": cells, "fill_color": "#1e1e1e", "font_color": "white",
+                    "align": "center"},
         )
     )
     fig.update_layout(title="Corner KPIs", height=max(300, 60 * len(best_corners) + 100))
