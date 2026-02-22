@@ -218,11 +218,19 @@ def generate_coaching_report(
     client = anthropic.Anthropic(api_key=api_key)
     prompt = _build_coaching_prompt(summaries, best_corners, comp_corners, deltas, track_name)
 
-    message = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=2048,
-        messages=[{"role": "user", "content": prompt}],
-    )
+    try:
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=2048,
+            messages=[{"role": "user", "content": prompt}],
+        )
+    except Exception as e:
+        return CoachingReport(
+            summary=f"AI coaching error: {e}",
+            priority_corners=[],
+            corner_grades=[],
+            patterns=[],
+        )
 
     response_text = message.content[0].text
     report = _parse_coaching_response(response_text)
@@ -261,12 +269,15 @@ def ask_followup(
         "practical, and encouraging. Reference corner numbers and speeds in mph."
     )
 
-    message = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=1024,
-        system=system,
-        messages=context.messages,
-    )
+    try:
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1024,
+            system=system,
+            messages=context.messages,
+        )
+    except Exception as e:
+        return f"AI coaching error: {e}"
 
     response_text = str(message.content[0].text)
     context.messages.append({"role": "assistant", "content": response_text})
