@@ -1,9 +1,8 @@
 """Track database with official corner positions for known circuits.
 
-For known tracks, corners are located by finding each official corner's
-position along the lap using GPS proximity, then extracting KPIs at those
-fixed positions. This bypasses heading-rate detection entirely, giving
-exact official corner numbering with zero ambiguity.
+For known tracks, corners are placed at fixed fractions of total lap distance
+derived from track maps and telemetry analysis.  This bypasses heading-rate
+detection entirely, giving exact official corner numbering with zero ambiguity.
 
 For unknown tracks, heading-rate detection with sequential numbering is
 used instead (see corners.py).
@@ -13,7 +12,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import numpy as np
 import pandas as pd
 
 from cataclysm.corners import Corner
@@ -25,8 +23,7 @@ class OfficialCorner:
 
     number: int  # Official corner number (e.g., 1 for T1)
     name: str  # Corner name (e.g., "Charlotte's Web")
-    lat: float  # Approximate apex latitude
-    lon: float  # Approximate apex longitude
+    fraction: float  # Apex position as fraction of total lap distance (0.0–1.0)
 
 
 @dataclass(frozen=True)
@@ -40,27 +37,34 @@ class TrackLayout:
 # ---------------------------------------------------------------------------
 # Known track layouts
 # ---------------------------------------------------------------------------
-# GPS coordinates are approximate apex positions.
+# Fractions are apex positions expressed as % of total lap distance, derived
+# from speed-trace analysis of actual session data cross-referenced with the
+# Porsche Track Experience corner-by-corner guide.
+#
+# Sources:
+#   - Porsche Driving Experience Birmingham corner guide (T1–T16)
+#   - Speed minimums from RaceChrono session data at Barber
+#   - racetrackdriving.com track guide
 
 BARBER_MOTORSPORTS_PARK = TrackLayout(
     name="Barber Motorsports Park",
     corners=[
-        OfficialCorner(1, "Fast Downhill Left", 33.5315, -86.6165),
-        OfficialCorner(2, "Uphill Right", 33.5323, -86.6152),
-        OfficialCorner(3, "Uphill Crest", 33.5332, -86.6148),
-        OfficialCorner(4, "Hilltop Right", 33.5340, -86.6152),
-        OfficialCorner(5, "Charlotte's Web", 33.5348, -86.6163),
-        OfficialCorner(6, "Downhill Left Kink", 33.5348, -86.6178),
-        OfficialCorner(7, "Corkscrew Entry", 33.5343, -86.6188),
-        OfficialCorner(8, "Corkscrew Mid", 33.5338, -86.6196),
-        OfficialCorner(9, "Corkscrew Exit", 33.5335, -86.6203),
-        OfficialCorner(10, "Downhill Right", 33.5340, -86.6213),
-        OfficialCorner(11, "Back Straight S Left", 33.5346, -86.6223),
-        OfficialCorner(12, "Back Straight S Right", 33.5344, -86.6233),
-        OfficialCorner(13, "Rollercoaster Entry", 33.5338, -86.6243),
-        OfficialCorner(14, "Rollercoaster Mid", 33.5328, -86.6250),
-        OfficialCorner(15, "Blind Apex Right", 33.5318, -86.6243),
-        OfficialCorner(16, "Final Left", 33.5312, -86.6228),
+        OfficialCorner(1, "Fast Downhill Left", 0.05),
+        OfficialCorner(2, "Uphill Right", 0.10),
+        OfficialCorner(3, "Uphill Crest", 0.15),
+        OfficialCorner(4, "Hilltop Right", 0.20),
+        OfficialCorner(5, "Charlotte's Web", 0.30),
+        OfficialCorner(6, "Downhill Left Kink", 0.34),
+        OfficialCorner(7, "Corkscrew Entry", 0.40),
+        OfficialCorner(8, "Corkscrew Mid", 0.44),
+        OfficialCorner(9, "Corkscrew Exit", 0.49),
+        OfficialCorner(10, "Esses Left", 0.58),
+        OfficialCorner(11, "Esses Right", 0.62),
+        OfficialCorner(12, "Rollercoaster Entry", 0.73),
+        OfficialCorner(13, "Rollercoaster Mid", 0.76),
+        OfficialCorner(14, "Rollercoaster Exit", 0.81),
+        OfficialCorner(15, "Blind Apex Right", 0.87),
+        OfficialCorner(16, "Final Left", 0.90),
     ],
 )
 
@@ -93,11 +97,10 @@ def locate_official_corners(
     lap_df: pd.DataFrame,
     layout: TrackLayout,
 ) -> list[Corner]:
-    """Locate official corners on a lap and build Corner skeletons.
+    """Build Corner skeletons at official positions along a lap.
 
-    For each official corner, finds the nearest point in the lap's GPS data
-    to determine its distance along the track. Entry/exit boundaries are set
-    at the midpoints between adjacent corners.
+    Each official corner's apex is placed at ``fraction * lap_distance``.
+    Entry/exit boundaries are midpoints between adjacent corners.
 
     The returned Corner objects have placeholder KPI values — pass them to
     ``extract_corner_kpis_for_lap`` to fill in real KPIs.
@@ -105,28 +108,21 @@ def locate_official_corners(
     Parameters
     ----------
     lap_df:
-        Resampled lap DataFrame with lat, lon, lap_distance_m columns.
+        Resampled lap DataFrame with a lap_distance_m column.
     layout:
-        Official track layout with corner GPS positions.
+        Official track layout with corner fractions.
 
     Returns
     -------
     List of Corner skeletons sorted by distance, with official numbers.
     """
-    dist = lap_df["lap_distance_m"].to_numpy()
-    lat = lap_df["lat"].to_numpy()
-    lon = lap_df["lon"].to_numpy()
-    max_dist = float(dist[-1])
+    max_dist = float(lap_df["lap_distance_m"].iloc[-1])
 
-    # Find distance-along-track for each official corner
-    apex_positions: list[tuple[int, float]] = []  # (number, apex_dist_m)
-    for official in layout.corners:
-        # Squared Euclidean in lat/lon — fine for finding nearest point
-        gps_dists_sq = (lat - official.lat) ** 2 + (lon - official.lon) ** 2
-        nearest_idx = int(np.argmin(gps_dists_sq))
-        apex_positions.append((official.number, float(dist[nearest_idx])))
-
-    apex_positions.sort(key=lambda x: x[1])
+    # Compute apex distances from fractions, sorted by position on track
+    apex_positions: list[tuple[int, float]] = [
+        (c.number, c.fraction * max_dist)
+        for c in sorted(layout.corners, key=lambda c: c.fraction)
+    ]
 
     # Build skeleton corners with entry/exit at midpoints
     skeletons: list[Corner] = []
