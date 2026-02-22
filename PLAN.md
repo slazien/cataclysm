@@ -107,58 +107,119 @@ The mathematical foundation. Everything else depends on this being correct.
 
 **Goal**: Accept both RaceBox and RaceChrono CSV formats, normalize to a common internal representation.
 
-#### RaceBox CSV Format (expected columns)
+#### RaceChrono CSV v3 Format (VERIFIED from real export)
+
+**Metadata header** (8 lines before data):
 ```
-Timestamp, Latitude, Longitude, Speed (km/h), Heading, Altitude, HDOP, Satellites
+This file is created using RaceChrono v9.1.3 ( http://racechrono.com/ ).
+Format,3
+Session title,"Barber Motorsports Park"
+Session type,Lap timing
+Track name,"Barber Motorsports Park"
+Driver name,
+Created,21/02/2026,22:12
+Note,
 ```
 
-#### RaceChrono CSV Format (expected columns)
+**Three header rows** (column names, units, data sources):
 ```
-Time (s), Latitude (deg), Longitude (deg), Speed (m/s), Bearing (deg),
-Lateral acceleration (G), Longitudinal acceleration (G), Distance (m), Lap #
+timestamp,fragment_id,lap_number,elapsed_time,distance_traveled,accuracy,altitude,bearing,device_battery_level,device_update_rate,fix_type,latitude,longitude,satellites,speed,combined_acc,device_update_rate,lateral_acc,lean_angle,longitudinal_acc,speed,device_update_rate,x_acc,y_acc,z_acc,device_update_rate,x_rate_of_rotation,y_rate_of_rotation,z_rate_of_rotation
+unix time,,,s,m,m,m,deg,%,Hz,,deg,deg,sats,m/s,G,Hz,G,deg,G,m/s,Hz,G,G,G,Hz,deg/s,deg/s,deg/s
+,,,,,100: gps,100: gps,100: gps,100: gps,100: gps,100: gps,100: gps,100: gps,100: gps,100: gps,calc,calc,calc,calc,calc,calc,101: acc,101: acc,101: acc,101: acc,102: gyro,102: gyro,102: gyro,102: gyro
+```
+
+**29 columns by position** (IMPORTANT: column names are duplicated — must parse by position):
+
+| Pos | Column | Unit | Source | Description |
+|-----|--------|------|--------|-------------|
+| 0 | `timestamp` | unix time | — | Unix epoch with centisecond precision |
+| 1 | `fragment_id` | — | — | Session fragment index |
+| 2 | `lap_number` | — | — | Lap number (empty before first S/F crossing) |
+| 3 | `elapsed_time` | s | — | Seconds from session start |
+| 4 | `distance_traveled` | m | — | **Cumulative distance (RaceChrono pre-computes!)** |
+| 5 | `accuracy` | m | gps | GPS accuracy (~0.9m typical) |
+| 6 | `altitude` | m | gps | Altitude MSL |
+| 7 | `bearing` | deg | gps | Heading / bearing |
+| 8 | `device_battery_level` | % | gps | RaceBox battery |
+| 9 | `device_update_rate` | Hz | gps | 25Hz for RaceBox Mini |
+| 10 | `fix_type` | — | gps | 3 = 3D fix |
+| 11 | `latitude` | deg | gps | Decimal degrees, 7 decimal places |
+| 12 | `longitude` | deg | gps | Decimal degrees, 7 decimal places |
+| 13 | `satellites` | sats | gps | Satellite count |
+| 14 | `speed` | m/s | gps | GPS-derived speed |
+| 15 | `combined_acc` | G | calc | Combined acceleration magnitude |
+| 16 | `device_update_rate` | Hz | calc | Calc channel rate (20Hz) |
+| 17 | `lateral_acc` | G | calc | Lateral G (GPS-derived) |
+| 18 | `lean_angle` | deg | calc | 0 for cars |
+| 19 | `longitudinal_acc` | G | calc | Longitudinal G (GPS-derived) |
+| 20 | `speed` | m/s | calc | Calculated speed (duplicate!) |
+| 21 | `device_update_rate` | Hz | acc | Accelerometer rate (25Hz) |
+| 22 | `x_acc` | G | acc | Raw IMU accelerometer X |
+| 23 | `y_acc` | G | acc | Raw IMU accelerometer Y |
+| 24 | `z_acc` | G | acc | Raw IMU accelerometer Z (gravity ~0.97G) |
+| 25 | `device_update_rate` | Hz | gyro | Gyroscope rate (25Hz) |
+| 26 | `x_rate_of_rotation` | deg/s | gyro | Roll rate |
+| 27 | `y_rate_of_rotation` | deg/s | gyro | Pitch rate |
+| 28 | `z_rate_of_rotation` | deg/s | gyro | Yaw rate |
+
+**Key observations from real data**:
+- `distance_traveled` is pre-computed by RaceChrono — use as primary, validate with Haversine
+- GPS accuracy ~0.9m (sub-meter!) — excellent for distance calculations
+- Variable timestamp intervals (~10-40ms) because 25Hz GPS + 25Hz IMU are interleaved → ~50Hz effective
+- `lap_number` column handles lap splitting when track is defined in RaceChrono
+- Raw IMU data (x/y/z_acc, x/y/z_rate_of_rotation) available alongside GPS-derived G-forces
+- `z_acc` reads ~0.97G at rest (gravity) — must subtract 1.0G for vertical accel analysis
+
+#### RaceBox Direct CSV Format (Telemetry Overlay preset)
+```
+utc (ms),lat (deg),lon (deg),alt (m),speed (m/s),heading (deg),pitch angle (deg),bank (deg),accel x (m/s²),accel y (m/s²),accel z (m/s²),gyro x (deg/s),gyro y (deg/s),gyro z (deg/s)
 ```
 
 **Key differences to handle**:
-- Speed units: RaceBox = km/h, RaceChrono = m/s
-- Time format: RaceBox = absolute timestamps, RaceChrono = relative seconds
-- RaceChrono may include accelerometer-derived G-force columns
-- RaceChrono may include lap markers; RaceBox does not
+- RaceBox: no `distance_traveled` column — must compute via Haversine
+- RaceBox: no `lap_number` column — must auto-detect laps via S/F line crossing
+- RaceBox: acceleration in m/s² (divide by 9.81 for G)
+- RaceBox: single timestamp format (unix ms), no elapsed_time
+- RaceChrono: duplicate column names — parser must use positional indexing
+- RaceChrono: metadata header (8 lines) + 3 header rows before data
 
 **Implementation**:
-1. **Format detector**: Examine CSV headers to auto-detect RaceBox vs. RaceChrono format
-2. **Parser per format**: Dedicated parser for each, normalizing to a `TelemetryFrame` dataclass:
+1. **Format detector**: Check for "RaceChrono" in first line or "Format,3" in second line
+2. **Positional parser for RaceChrono v3**: Parse by column position (not name) due to duplicates
+3. **Normalize to `TelemetryFrame`**:
    ```python
    @dataclass
    class TelemetryFrame:
-       timestamp: float       # seconds from session start
-       lat: float             # decimal degrees
-       lon: float             # decimal degrees
-       speed_mps: float       # meters per second (canonical unit)
-       heading_deg: float     # degrees from north
+       timestamp: float         # unix epoch seconds
+       elapsed_time: float      # seconds from session start
+       lat: float               # decimal degrees
+       lon: float               # decimal degrees
+       speed_mps: float         # meters per second
+       heading_deg: float       # degrees from north
        altitude_m: float | None
-       lat_g: float | None    # lateral G (if available)
-       lon_g: float | None    # longitudinal G (if available)
+       accuracy_m: float | None # GPS accuracy
+       distance_m: float | None # cumulative distance (if available from source)
+       lap_number: int | None   # lap number (if available from source)
+       lat_g: float | None      # lateral G (calc or derived)
+       lon_g: float | None      # longitudinal G (calc or derived)
+       x_acc_g: float | None    # raw IMU X
+       y_acc_g: float | None    # raw IMU Y
+       z_acc_g: float | None    # raw IMU Z
+       yaw_rate: float | None   # gyro Z (deg/s) — most useful for corner detection
+       satellites: int | None
    ```
-3. **Validation**: Reject frames with HDOP > 2.0 or satellite count < 6 (GPS quality filter)
-4. **Smoothing**: Apply Savitzky-Golay filter to speed and position to reduce GPS jitter while preserving signal shape (window=7 at 25Hz = 280ms window, appropriate for automotive dynamics)
+4. **Validation**: Reject frames with accuracy > 2.0m or satellite count < 6
+5. **Smoothing**: Savitzky-Golay filter on speed and position (window=7 at 25Hz = 280ms)
 
 ### 1.3 Distance Integration (The RaceChrono Math)
 
 **Goal**: Convert time-domain GPS data to distance-domain, the foundation of all analysis.
 
-**Step 1: Point-to-Point Distance**
-```python
-def haversine(lat1, lon1, lat2, lon2) -> float:
-    """Returns distance in meters between two GPS coordinates."""
-    R = 6371000  # Earth radius in meters
-    phi1, phi2 = radians(lat1), radians(lat2)
-    dphi = radians(lat2 - lat1)
-    dlambda = radians(lon2 - lon1)
-    a = sin(dphi/2)**2 + cos(phi1) * cos(phi2) * sin(dlambda/2)**2
-    return R * 2 * atan2(sqrt(a), sqrt(1-a))
-```
+**For RaceChrono CSV v3**: The `distance_traveled` column is pre-computed. Use it as the primary distance source. Validate by cross-checking against our own Haversine calculation (should agree within <1%).
 
-For the distances involved (meters, not kilometers), a local flat-earth projection is more efficient and equally accurate:
+**For RaceBox CSV (no distance column)**: Compute cumulative distance from GPS coordinates.
+
+**Step 1: Point-to-Point Distance** (used for RaceBox CSVs and for validation)
 ```python
 def flat_distance(lat1, lon1, lat2, lon2) -> float:
     """Fast local flat-earth distance. Accurate within ~0.1% for <10km."""
@@ -171,12 +232,16 @@ def flat_distance(lat1, lon1, lat2, lon2) -> float:
 
 **Step 2: Cumulative Distance Column**
 ```python
-distances = [0.0]
-for i in range(1, len(frames)):
-    d = flat_distance(frames[i-1].lat, frames[i-1].lon,
-                      frames[i].lat, frames[i].lon)
-    distances.append(distances[-1] + d)
-# frames now have: frame.cumulative_distance_m
+# For RaceChrono: use pre-computed distance
+if source == 'racechrono':
+    distances = frames['distance_traveled'].values  # already cumulative
+else:
+    # For RaceBox: compute from GPS
+    distances = [0.0]
+    for i in range(1, len(frames)):
+        d = flat_distance(frames[i-1].lat, frames[i-1].lon,
+                          frames[i].lat, frames[i].lon)
+        distances.append(distances[-1] + d)
 ```
 
 **Step 3: 0.7m Distance-Domain Resampling**
