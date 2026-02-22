@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cataclysm"
+version = "0.1.0"
+description = "Post-session telemetry analysis and AI coaching for track days"
+requires-python = ">=3.11"
+dependencies = [
+    "streamlit>=1.30",
+    "plotly>=5.18",
+    "numpy>=1.26",
+    "scipy>=1.12",
+    "pandas>=2.1",
+    "anthropic>=0.40",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=4.1",
+    "ruff>=0.4",
+    "mypy>=1.9",
+    "pandas-stubs>=2.1",
+]
+
+[tool.setuptools.packages.find]
+include = ["cataclysm*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "plotly.*",
+    "streamlit.*",
+    "scipy.*",
+    "numpy",
+    "numpy.*",
+    "pandas",
+    "pandas.*",
+    "anthropic",
+    "anthropic.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--tb=short"
+
+[tool.coverage.run]
+source = ["cataclysm"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
