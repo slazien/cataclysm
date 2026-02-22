@@ -161,9 +161,20 @@ def _parse_coaching_response(text: str) -> CoachingReport:
         json_text = json_text.split("```", 1)[1]
         json_text = json_text.split("```", 1)[0]
 
+    # Fallback: find outermost { ... } if code-block extraction didn't work
+    data = None
     try:
         data = json.loads(json_text.strip())
     except json.JSONDecodeError:
+        start = text.find("{")
+        end = text.rfind("}")
+        if start != -1 and end > start:
+            try:
+                data = json.loads(text[start : end + 1])
+            except json.JSONDecodeError:
+                pass
+
+    if data is None:
         return CoachingReport(
             summary="Could not parse AI coaching response.",
             priority_corners=[],
@@ -224,7 +235,7 @@ def generate_coaching_report(
     try:
         message = client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=2048,
+            max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
     except Exception as e:

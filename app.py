@@ -371,6 +371,10 @@ with tab_coaching:
         st.subheader("Session Summary")
         st.write(report.summary)
 
+        if report.raw_response and not report.priority_corners:
+            with st.expander("Raw AI response (parsing failed)"):
+                st.code(report.raw_response)
+
         if report.priority_corners:
             st.subheader("Priority Corners")
             for pc in report.priority_corners:
