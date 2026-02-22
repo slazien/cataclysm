@@ -8,12 +8,14 @@ import pytest
 
 from cataclysm.engine import (
     RESAMPLE_STEP_M,
+    LapSummary,
     ProcessedSession,
     _compute_lap_distance,
     _compute_lap_time,
     _filter_short_laps,
     _resample_lap,
     _split_laps,
+    find_anomalous_laps,
     process_session,
 )
 
@@ -180,3 +182,51 @@ class TestProcessSession:
         })
         with pytest.raises(ValueError, match="No laps found"):
             process_session(df)
+
+
+def _make_summary(lap: int, time: float) -> LapSummary:
+    return LapSummary(lap_number=lap, lap_time_s=time, lap_distance_m=3669.0, max_speed_mps=45.0)
+
+
+class TestFindAnomalousLaps:
+    def test_flags_obvious_outlier(self) -> None:
+        # L1–L6 tight cluster, L7 nearly double
+        sums = [
+            _make_summary(1, 109.57),
+            _make_summary(2, 108.43),
+            _make_summary(3, 110.24),
+            _make_summary(4, 110.94),
+            _make_summary(5, 113.12),
+            _make_summary(6, 116.02),
+            _make_summary(7, 208.79),
+        ]
+        assert find_anomalous_laps(sums) == {7}
+
+    def test_no_anomalies_in_tight_session(self) -> None:
+        sums = [
+            _make_summary(1, 110.0),
+            _make_summary(2, 108.5),
+            _make_summary(3, 111.0),
+            _make_summary(4, 109.5),
+        ]
+        assert find_anomalous_laps(sums) == set()
+
+    def test_fewer_than_three_laps_returns_empty(self) -> None:
+        sums = [_make_summary(1, 110.0), _make_summary(2, 200.0)]
+        assert find_anomalous_laps(sums) == set()
+
+    def test_multiple_outliers(self) -> None:
+        sums = [
+            _make_summary(1, 109.0),
+            _make_summary(2, 108.5),
+            _make_summary(3, 110.0),
+            _make_summary(4, 111.0),
+            _make_summary(5, 110.5),
+            _make_summary(6, 109.5),
+            _make_summary(7, 210.0),
+            _make_summary(8, 250.0),
+        ]
+        anomalous = find_anomalous_laps(sums)
+        assert 7 in anomalous
+        assert 8 in anomalous
+        assert 1 not in anomalous

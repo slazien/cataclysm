@@ -19,6 +19,7 @@ from cataclysm.charts import (
 from cataclysm.coaching import CoachingContext, ask_followup, generate_coaching_report
 from cataclysm.corners import Corner, detect_corners, extract_corner_kpis_for_lap
 from cataclysm.delta import compute_delta
+from cataclysm.engine import find_anomalous_laps
 from cataclysm.track_db import locate_official_corners, lookup_track
 
 # Type alias for readability
@@ -344,10 +345,18 @@ with tab_coaching:
         f"{len(corners)} detected corners."
     )
 
+    anomalous = find_anomalous_laps(summaries)
+    if anomalous:
+        excluded = ", ".join(f"L{n}" for n in sorted(anomalous))
+        st.info(f"Excluding anomalous laps from analysis: {excluded}")
+
+    coaching_laps = [n for n in all_laps if n not in anomalous]
+    coaching_summaries = [s for s in summaries if s.lap_number not in anomalous]
+
     if st.button("Generate Coaching Report", disabled=not has_key):
         with st.spinner("Extracting corner data for all laps..."):
             all_lap_corners: AllLapCorners = {}
-            for lap_num in all_laps:
+            for lap_num in coaching_laps:
                 lap_df = processed.resampled_laps[lap_num]
                 if lap_num == processed.best_lap:
                     all_lap_corners[lap_num] = corners
@@ -358,7 +367,7 @@ with tab_coaching:
 
         with st.spinner("AI coach is analyzing your session..."):
             report = generate_coaching_report(
-                summaries,
+                coaching_summaries,
                 all_lap_corners,
                 meta.track_name,
             )

@@ -132,6 +132,31 @@ def _filter_short_laps(
     }
 
 
+def find_anomalous_laps(
+    summaries: list[LapSummary],
+    *,
+    iqr_factor: float = 2.0,
+) -> set[int]:
+    """Identify anomalous laps (cooldown, traffic, offs) by lap time.
+
+    A lap is anomalous if its time exceeds ``median + iqr_factor * IQR``.
+    The median and IQR are robust to outliers, so one terrible lap won't
+    shift the threshold.
+
+    Returns a set of anomalous lap numbers.
+    """
+    if len(summaries) < 3:
+        return set()
+
+    times = np.array([s.lap_time_s for s in summaries])
+    q1 = float(np.percentile(times, 25))
+    q3 = float(np.percentile(times, 75))
+    iqr = q3 - q1
+    upper = float(np.median(times)) + iqr_factor * iqr
+
+    return {s.lap_number for s in summaries if s.lap_time_s > upper}
+
+
 def process_session(df: pd.DataFrame) -> ProcessedSession:
     """Process a parsed session DataFrame into resampled, aligned laps.
 
