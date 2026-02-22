@@ -1,7 +1,12 @@
 """Track database with official corner positions for known circuits.
 
-Maps detected corners to official track corner numbers using GPS proximity
-matching. For unknown tracks, corners keep their sequential numbering.
+For known tracks, corners are located by finding each official corner's
+position along the lap using GPS proximity, then extracting KPIs at those
+fixed positions. This bypasses heading-rate detection entirely, giving
+exact official corner numbering with zero ambiguity.
+
+For unknown tracks, heading-rate detection with sequential numbering is
+used instead (see corners.py).
 """
 
 from __future__ import annotations
@@ -19,7 +24,7 @@ class OfficialCorner:
     """An official corner definition for a known track."""
 
     number: int  # Official corner number (e.g., 1 for T1)
-    name: str  # Optional corner name (e.g., "Charlotte's Web")
+    name: str  # Corner name (e.g., "Charlotte's Web")
     lat: float  # Approximate apex latitude
     lon: float  # Approximate apex longitude
 
@@ -35,8 +40,7 @@ class TrackLayout:
 # ---------------------------------------------------------------------------
 # Known track layouts
 # ---------------------------------------------------------------------------
-# GPS coordinates are approximate apex positions. The matching algorithm uses
-# a generous radius so exact precision is not required.
+# GPS coordinates are approximate apex positions.
 
 BARBER_MOTORSPORTS_PARK = TrackLayout(
     name="Barber Motorsports Park",
@@ -80,106 +84,75 @@ def lookup_track(track_name: str) -> TrackLayout | None:
 
 
 # ---------------------------------------------------------------------------
-# GPS distance helper
+# Default corner zone margin
 # ---------------------------------------------------------------------------
-_EARTH_RADIUS_M = 6_371_000
+_ZONE_MARGIN_M = 50.0  # entry/exit margin for first/last corners
 
 
-def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Approximate distance in meters between two GPS points."""
-    lat1_r, lon1_r = np.radians(lat1), np.radians(lon1)
-    lat2_r, lon2_r = np.radians(lat2), np.radians(lon2)
-    dlat = lat2_r - lat1_r
-    dlon = lon2_r - lon1_r
-    a = np.sin(dlat / 2) ** 2 + np.cos(lat1_r) * np.cos(lat2_r) * np.sin(dlon / 2) ** 2
-    return float(2 * _EARTH_RADIUS_M * np.arcsin(np.sqrt(a)))
-
-
-# ---------------------------------------------------------------------------
-# Corner matching
-# ---------------------------------------------------------------------------
-MAX_MATCH_DISTANCE_M = 200  # Maximum distance to match a detected corner to an official one
-
-
-def assign_official_numbers(
-    corners: list[Corner],
-    track_name: str,
+def locate_official_corners(
     lap_df: pd.DataFrame,
+    layout: TrackLayout,
 ) -> list[Corner]:
-    """Re-number detected corners using official track corner numbers.
+    """Locate official corners on a lap and build Corner skeletons.
 
-    For each detected corner, finds the nearest official corner by GPS
-    proximity and assigns its official number. Detected corners that don't
-    match any official corner keep a high number (100+) to sort last.
+    For each official corner, finds the nearest point in the lap's GPS data
+    to determine its distance along the track. Entry/exit boundaries are set
+    at the midpoints between adjacent corners.
 
-    For unknown tracks, returns the original corners unchanged.
+    The returned Corner objects have placeholder KPI values — pass them to
+    ``extract_corner_kpis_for_lap`` to fill in real KPIs.
 
     Parameters
     ----------
-    corners:
-        Detected corners with sequential numbering.
-    track_name:
-        Track name from session metadata.
     lap_df:
-        Resampled lap DataFrame with lat, lon, lap_distance_m columns
-        (used to look up GPS position of each corner apex).
+        Resampled lap DataFrame with lat, lon, lap_distance_m columns.
+    layout:
+        Official track layout with corner GPS positions.
 
     Returns
     -------
-    New list of Corner objects with official numbers, sorted by number.
+    List of Corner skeletons sorted by distance, with official numbers.
     """
-    layout = lookup_track(track_name)
-    if layout is None or not corners:
-        return corners
-
     dist = lap_df["lap_distance_m"].to_numpy()
     lat = lap_df["lat"].to_numpy()
     lon = lap_df["lon"].to_numpy()
+    max_dist = float(dist[-1])
 
-    # Build a list of (detected_corner_index, official_corner, distance)
-    # for all possible pairings within MAX_MATCH_DISTANCE_M.
-    candidates: list[tuple[int, OfficialCorner, float]] = []
-    for ci, corner in enumerate(corners):
-        apex_idx = int(np.searchsorted(dist, corner.apex_distance_m))
-        apex_idx = min(apex_idx, len(lat) - 1)
-        apex_lat = float(lat[apex_idx])
-        apex_lon = float(lon[apex_idx])
+    # Find distance-along-track for each official corner
+    apex_positions: list[tuple[int, float]] = []  # (number, apex_dist_m)
+    for official in layout.corners:
+        # Squared Euclidean in lat/lon — fine for finding nearest point
+        gps_dists_sq = (lat - official.lat) ** 2 + (lon - official.lon) ** 2
+        nearest_idx = int(np.argmin(gps_dists_sq))
+        apex_positions.append((official.number, float(dist[nearest_idx])))
 
-        for official in layout.corners:
-            d = _haversine_m(apex_lat, apex_lon, official.lat, official.lon)
-            if d <= MAX_MATCH_DISTANCE_M:
-                candidates.append((ci, official, d))
+    apex_positions.sort(key=lambda x: x[1])
 
-    # Greedy matching: assign closest pairs first, no double-assignment.
-    candidates.sort(key=lambda c: c[2])
-    used_detected: set[int] = set()
-    used_official: set[int] = set()
-    assignments: dict[int, int] = {}  # detected_index -> official_number
+    # Build skeleton corners with entry/exit at midpoints
+    skeletons: list[Corner] = []
+    for i, (number, apex_m) in enumerate(apex_positions):
+        if i == 0:
+            entry_m = max(0.0, apex_m - _ZONE_MARGIN_M)
+        else:
+            entry_m = (apex_positions[i - 1][1] + apex_m) / 2
 
-    for ci, official, _ in candidates:
-        if ci in used_detected or official.number in used_official:
-            continue
-        assignments[ci] = official.number
-        used_detected.add(ci)
-        used_official.add(official.number)
+        if i == len(apex_positions) - 1:
+            exit_m = min(max_dist, apex_m + _ZONE_MARGIN_M)
+        else:
+            exit_m = (apex_m + apex_positions[i + 1][1]) / 2
 
-    # Build new corner list with official numbers
-    result: list[Corner] = []
-    for ci, corner in enumerate(corners):
-        official_num = assignments.get(ci, 100 + corner.number)
-        result.append(
+        skeletons.append(
             Corner(
-                number=official_num,
-                entry_distance_m=corner.entry_distance_m,
-                exit_distance_m=corner.exit_distance_m,
-                apex_distance_m=corner.apex_distance_m,
-                min_speed_mps=corner.min_speed_mps,
-                brake_point_m=corner.brake_point_m,
-                peak_brake_g=corner.peak_brake_g,
-                throttle_commit_m=corner.throttle_commit_m,
-                apex_type=corner.apex_type,
+                number=number,
+                entry_distance_m=round(entry_m, 1),
+                exit_distance_m=round(exit_m, 1),
+                apex_distance_m=round(apex_m, 1),
+                min_speed_mps=0.0,
+                brake_point_m=None,
+                peak_brake_g=None,
+                throttle_commit_m=None,
+                apex_type="mid",
             )
         )
 
-    result.sort(key=lambda c: c.entry_distance_m)
-    return result
+    return skeletons

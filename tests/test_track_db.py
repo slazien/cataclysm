@@ -8,8 +8,9 @@ import pytest
 
 from cataclysm.corners import Corner
 from cataclysm.track_db import (
-    _haversine_m,
-    assign_official_numbers,
+    TrackLayout,
+    OfficialCorner,
+    locate_official_corners,
     lookup_track,
 )
 
@@ -32,107 +33,112 @@ class TestLookupTrack:
         assert layout is not None
 
 
-class TestHaversine:
-    def test_same_point(self) -> None:
-        d = _haversine_m(33.5, -86.6, 33.5, -86.6)
-        assert d == pytest.approx(0.0, abs=0.01)
-
-    def test_known_distance(self) -> None:
-        # ~111 km per degree of latitude
-        d = _haversine_m(33.0, -86.0, 34.0, -86.0)
-        assert d == pytest.approx(111_195, rel=0.01)
-
-
-class TestAssignOfficialNumbers:
-    def _make_corner(self, number: int, apex_m: float) -> Corner:
-        return Corner(
-            number=number,
-            entry_distance_m=apex_m - 20,
-            exit_distance_m=apex_m + 20,
-            apex_distance_m=apex_m,
-            min_speed_mps=20.0,
-            brake_point_m=apex_m - 40,
-            peak_brake_g=-0.5,
-            throttle_commit_m=apex_m + 10,
-            apex_type="mid",
-        )
-
+class TestLocateOfficialCorners:
     def _make_lap_df(
-        self, distances: list[float], lats: list[float], lons: list[float]
+        self, n: int, lats: list[float], lons: list[float]
     ) -> pd.DataFrame:
+        """Build a simple lap DataFrame with evenly spaced points."""
+        assert len(lats) == n
+        assert len(lons) == n
         return pd.DataFrame({
-            "lap_distance_m": distances,
+            "lap_distance_m": np.linspace(0, 1000, n),
             "lat": lats,
             "lon": lons,
         })
 
-    def test_unknown_track_returns_unchanged(self) -> None:
-        corners = [self._make_corner(1, 100.0), self._make_corner(2, 200.0)]
-        lap_df = self._make_lap_df(
-            [0.0, 100.0, 200.0, 300.0],
-            [33.53, 33.53, 33.53, 33.53],
-            [-86.62, -86.62, -86.62, -86.62],
+    def test_returns_all_corners(self) -> None:
+        """Every official corner should appear in the output."""
+        layout = TrackLayout(
+            name="Test",
+            corners=[
+                OfficialCorner(1, "Turn 1", 0.0, 0.0),
+                OfficialCorner(2, "Turn 2", 1.0, 0.0),
+                OfficialCorner(3, "Turn 3", 2.0, 0.0),
+            ],
         )
-        result = assign_official_numbers(corners, "Unknown Track", lap_df)
-        assert result is corners  # exact same object
-
-    def test_empty_corners(self) -> None:
-        lap_df = self._make_lap_df([0.0], [33.53], [-86.62])
-        result = assign_official_numbers([], "Barber Motorsports Park", lap_df)
-        assert result == []
-
-    def test_matches_nearby_official_corner(self) -> None:
-        """A detected corner near official T5 (Charlotte's Web) should get number 5."""
-        # T5 is at (33.5348, -86.6163) in the database
-        corners = [self._make_corner(1, 50.0)]
+        n = 100
         lap_df = self._make_lap_df(
-            [0.0, 50.0, 100.0],
-            [33.534, 33.5348, 33.535],
-            [-86.617, -86.6163, -86.616],
+            n,
+            lats=np.linspace(0, 3, n).tolist(),
+            lons=[0.0] * n,
         )
-        result = assign_official_numbers(corners, "Barber Motorsports Park", lap_df)
+        result = locate_official_corners(lap_df, layout)
+        assert len(result) == 3
+        assert [c.number for c in result] == [1, 2, 3]
+
+    def test_corners_sorted_by_distance(self) -> None:
+        """Corners should be sorted by their position on track."""
+        layout = TrackLayout(
+            name="Test",
+            corners=[
+                OfficialCorner(3, "Turn 3", 2.0, 0.0),
+                OfficialCorner(1, "Turn 1", 0.0, 0.0),
+                OfficialCorner(2, "Turn 2", 1.0, 0.0),
+            ],
+        )
+        n = 100
+        lap_df = self._make_lap_df(
+            n,
+            lats=np.linspace(0, 3, n).tolist(),
+            lons=[0.0] * n,
+        )
+        result = locate_official_corners(lap_df, layout)
+        # Should be in track order (by distance), not by number
+        distances = [c.apex_distance_m for c in result]
+        assert distances == sorted(distances)
+
+    def test_entry_exit_boundaries(self) -> None:
+        """Entry/exit should be midpoints between adjacent corners."""
+        layout = TrackLayout(
+            name="Test",
+            corners=[
+                OfficialCorner(1, "A", 0.0, 0.0),
+                OfficialCorner(2, "B", 1.0, 0.0),
+            ],
+        )
+        n = 100
+        lap_df = self._make_lap_df(
+            n,
+            lats=np.linspace(0, 2, n).tolist(),
+            lons=[0.0] * n,
+        )
+        result = locate_official_corners(lap_df, layout)
+        assert len(result) == 2
+        # The exit of corner 1 should equal the entry of corner 2
+        assert result[0].exit_distance_m == pytest.approx(
+            result[1].entry_distance_m, abs=1.0
+        )
+
+    def test_finds_correct_apex_position(self) -> None:
+        """Apex should be at the lap point closest to the official GPS."""
+        layout = TrackLayout(
+            name="Test",
+            corners=[
+                OfficialCorner(1, "Turn 1", 5.0, 10.0),
+            ],
+        )
+        # Place a point exactly at (5.0, 10.0) at distance 500m
+        n = 11
+        lats = np.linspace(0, 10, n).tolist()  # [0, 1, 2, ..., 10]
+        lons = np.linspace(0, 20, n).tolist()  # [0, 2, 4, ..., 20]
+        # Point at index 5 is (5.0, 10.0) which matches the official corner
+        lap_df = self._make_lap_df(n, lats, lons)
+        result = locate_official_corners(lap_df, layout)
         assert len(result) == 1
-        assert result[0].number == 5
+        assert result[0].apex_distance_m == pytest.approx(500.0, abs=1.0)
 
-    def test_no_match_too_far(self) -> None:
-        """A corner far from any official corner gets a fallback number."""
-        corners = [self._make_corner(1, 50.0)]
-        # GPS position far from any Barber corner
-        lap_df = self._make_lap_df(
-            [0.0, 50.0, 100.0],
-            [34.0, 34.0, 34.0],
-            [-87.0, -87.0, -87.0],
+    def test_skeleton_has_placeholder_kpis(self) -> None:
+        """Returned corners should have placeholder KPI values."""
+        layout = TrackLayout(
+            name="Test",
+            corners=[OfficialCorner(1, "T1", 0.0, 0.0)],
         )
-        result = assign_official_numbers(corners, "Barber Motorsports Park", lap_df)
-        assert len(result) == 1
-        assert result[0].number >= 100  # fallback numbering
-
-    def test_preserves_kpi_data(self) -> None:
-        """Official numbering should not lose corner KPI data."""
-        corners = [self._make_corner(1, 50.0)]
+        n = 20
         lap_df = self._make_lap_df(
-            [0.0, 50.0, 100.0],
-            [33.534, 33.5348, 33.535],
-            [-86.617, -86.6163, -86.616],
+            n, lats=np.linspace(0, 1, n).tolist(), lons=[0.0] * n
         )
-        result = assign_official_numbers(corners, "Barber Motorsports Park", lap_df)
-        assert result[0].min_speed_mps == 20.0
-        assert result[0].brake_point_m == 10.0
-        assert result[0].apex_type == "mid"
-
-    def test_no_duplicate_assignments(self) -> None:
-        """Two detected corners near the same official corner: only closest gets it."""
-        corners = [
-            self._make_corner(1, 50.0),
-            self._make_corner(2, 60.0),
-        ]
-        # Both near T5, but corner 1 is closer
-        lap_df = self._make_lap_df(
-            [0.0, 50.0, 60.0, 100.0],
-            [33.534, 33.5348, 33.5347, 33.535],
-            [-86.617, -86.6163, -86.6164, -86.616],
-        )
-        result = assign_official_numbers(corners, "Barber Motorsports Park", lap_df)
-        numbers = [c.number for c in result]
-        # Only one should get 5, the other gets a fallback
-        assert numbers.count(5) == 1
+        result = locate_official_corners(lap_df, layout)
+        assert result[0].min_speed_mps == 0.0
+        assert result[0].brake_point_m is None
+        assert result[0].peak_brake_g is None
+        assert result[0].throttle_commit_m is None
