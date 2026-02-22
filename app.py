@@ -19,6 +19,7 @@ from cataclysm.charts import (
 from cataclysm.coaching import CoachingContext, ask_followup, generate_coaching_report
 from cataclysm.corners import Corner, detect_corners, extract_corner_kpis_for_lap
 from cataclysm.delta import compute_delta
+from cataclysm.track_db import assign_official_numbers
 
 # Type alias for readability
 AllLapCorners = dict[int, list[Corner]]
@@ -140,6 +141,9 @@ def cached_corners(
 corners = cached_corners(
     f"{file_key}_L{processed.best_lap}", best_lap_df
 )
+
+# Re-number corners to match official track numbering (if track is known)
+corners = assign_official_numbers(corners, meta.track_name, best_lap_df)
 
 # ---------------------------------------------------------------------------
 # Tabs
