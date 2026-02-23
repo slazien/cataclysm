@@ -8,15 +8,20 @@ import plotly.graph_objects as go
 import pytest
 
 from cataclysm.charts import (
+    brake_consistency_chart,
+    brake_throttle_chart,
+    corner_detail_chart,
     corner_kpi_table,
     corner_mini_map,
     delta_t_chart,
     g_force_chart,
     gain_per_corner_chart,
+    ideal_lap_overlay_chart,
     lap_times_chart,
     speed_trace_chart,
     track_map_chart,
     track_median_speed_map,
+    traction_utilization_chart,
 )
 from cataclysm.consistency import TrackPositionConsistency
 from cataclysm.corners import Corner
@@ -331,3 +336,175 @@ class TestTrackMedianSpeedMap:
         cs = fig.data[0].marker.colorscale
         assert cs[0][0] == 0.0
         assert "165" in cs[0][1]  # rgb(165,0,38) is RdYlGn start
+
+
+class TestBrakeThrottleChart:
+    def test_returns_figure(self, sample_resampled_lap: pd.DataFrame) -> None:
+        laps = {1: sample_resampled_lap}
+        fig = brake_throttle_chart(laps, [1])
+        assert isinstance(fig, go.Figure)
+
+    def test_has_traces(self, sample_resampled_lap: pd.DataFrame) -> None:
+        laps = {1: sample_resampled_lap, 2: sample_resampled_lap}
+        fig = brake_throttle_chart(laps, [1, 2])
+        assert len(fig.data) == 2
+
+    def test_with_corners(self, sample_resampled_lap: pd.DataFrame) -> None:
+        corners = [
+            Corner(
+                number=1,
+                entry_distance_m=80.0,
+                exit_distance_m=120.0,
+                apex_distance_m=100.0,
+                min_speed_mps=25.0,
+                brake_point_m=70.0,
+                peak_brake_g=-0.5,
+                throttle_commit_m=110.0,
+                apex_type="mid",
+            )
+        ]
+        laps = {1: sample_resampled_lap}
+        fig = brake_throttle_chart(laps, [1], corners)
+        assert isinstance(fig, go.Figure)
+
+
+class TestCornerDetailChart:
+    def test_returns_figure(self, sample_resampled_lap: pd.DataFrame) -> None:
+        corner = Corner(
+            number=1,
+            entry_distance_m=80.0,
+            exit_distance_m=120.0,
+            apex_distance_m=100.0,
+            min_speed_mps=25.0,
+            brake_point_m=70.0,
+            peak_brake_g=-0.5,
+            throttle_commit_m=110.0,
+            apex_type="mid",
+        )
+        laps = {1: sample_resampled_lap}
+        fig = corner_detail_chart(laps, [1], corner)
+        assert isinstance(fig, go.Figure)
+
+    def test_multiple_laps(self, sample_resampled_lap: pd.DataFrame) -> None:
+        corner = Corner(
+            number=1,
+            entry_distance_m=80.0,
+            exit_distance_m=120.0,
+            apex_distance_m=100.0,
+            min_speed_mps=25.0,
+            brake_point_m=None,
+            peak_brake_g=None,
+            throttle_commit_m=None,
+            apex_type="late",
+        )
+        laps = {1: sample_resampled_lap, 2: sample_resampled_lap}
+        fig = corner_detail_chart(laps, [1, 2], corner)
+        # 2 laps * 2 subplots = 4 traces
+        assert len(fig.data) == 4
+
+    def test_title_includes_corner(self, sample_resampled_lap: pd.DataFrame) -> None:
+        corner = Corner(
+            number=5,
+            entry_distance_m=80.0,
+            exit_distance_m=120.0,
+            apex_distance_m=100.0,
+            min_speed_mps=25.0,
+            brake_point_m=None,
+            peak_brake_g=None,
+            throttle_commit_m=None,
+            apex_type="mid",
+        )
+        laps = {1: sample_resampled_lap}
+        fig = corner_detail_chart(laps, [1], corner)
+        assert "T5" in fig.layout.title.text
+
+
+class TestIdealLapOverlayChart:
+    def test_returns_figure(self, sample_resampled_lap: pd.DataFrame) -> None:
+        dist = sample_resampled_lap["lap_distance_m"].to_numpy()
+        speed = sample_resampled_lap["speed_mps"].to_numpy()
+        fig = ideal_lap_overlay_chart({1: sample_resampled_lap}, 1, dist, speed)
+        assert isinstance(fig, go.Figure)
+
+    def test_has_two_main_traces(self, sample_resampled_lap: pd.DataFrame) -> None:
+        dist = sample_resampled_lap["lap_distance_m"].to_numpy()
+        speed = sample_resampled_lap["speed_mps"].to_numpy()
+        fig = ideal_lap_overlay_chart({1: sample_resampled_lap}, 1, dist, speed)
+        # At least best lap + ideal lap traces
+        assert len(fig.data) >= 2
+
+    def test_title_mentions_ideal(self, sample_resampled_lap: pd.DataFrame) -> None:
+        dist = sample_resampled_lap["lap_distance_m"].to_numpy()
+        speed = sample_resampled_lap["speed_mps"].to_numpy()
+        fig = ideal_lap_overlay_chart({1: sample_resampled_lap}, 1, dist, speed)
+        assert "ideal" in fig.layout.title.text.lower()
+
+
+class TestBrakeConsistencyChart:
+    def test_returns_figure(self) -> None:
+        corners = [
+            Corner(
+                number=1,
+                entry_distance_m=80.0,
+                exit_distance_m=120.0,
+                apex_distance_m=100.0,
+                min_speed_mps=25.0,
+                brake_point_m=70.0,
+                peak_brake_g=-0.5,
+                throttle_commit_m=110.0,
+                apex_type="mid",
+            )
+        ]
+        all_laps = {
+            1: [
+                Corner(
+                    number=1,
+                    entry_distance_m=80.0,
+                    exit_distance_m=120.0,
+                    apex_distance_m=100.0,
+                    min_speed_mps=25.0,
+                    brake_point_m=70.0,
+                    peak_brake_g=-0.5,
+                    throttle_commit_m=110.0,
+                    apex_type="mid",
+                )
+            ],
+            2: [
+                Corner(
+                    number=1,
+                    entry_distance_m=80.0,
+                    exit_distance_m=120.0,
+                    apex_distance_m=100.0,
+                    min_speed_mps=26.0,
+                    brake_point_m=72.0,
+                    peak_brake_g=-0.4,
+                    throttle_commit_m=112.0,
+                    apex_type="mid",
+                )
+            ],
+        }
+        fig = brake_consistency_chart(all_laps, corners)
+        assert isinstance(fig, go.Figure)
+
+    def test_empty_corners(self) -> None:
+        fig = brake_consistency_chart({}, [])
+        assert isinstance(fig, go.Figure)
+
+
+class TestTractionUtilizationChart:
+    def test_returns_figure(self, sample_resampled_lap: pd.DataFrame) -> None:
+        fig = traction_utilization_chart(sample_resampled_lap, 1)
+        assert isinstance(fig, go.Figure)
+
+    def test_title_includes_utilization(self, sample_resampled_lap: pd.DataFrame) -> None:
+        fig = traction_utilization_chart(sample_resampled_lap, 1)
+        assert "utilization" in fig.layout.title.text.lower()
+
+    def test_has_circle_and_data_traces(self, sample_resampled_lap: pd.DataFrame) -> None:
+        fig = traction_utilization_chart(sample_resampled_lap, 1)
+        # Should have grip limit circle, 80% circle, and data points
+        assert len(fig.data) >= 3
+
+    def test_dark_theme(self, sample_resampled_lap: pd.DataFrame) -> None:
+        fig = traction_utilization_chart(sample_resampled_lap, 1)
+        assert fig.layout.plot_bgcolor == "#0e1117"

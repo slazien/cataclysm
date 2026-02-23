@@ -1247,3 +1247,535 @@ def gain_per_corner_chart(
     )
 
     return fig
+
+
+def brake_throttle_chart(
+    laps: dict[int, pd.DataFrame],
+    selected_laps: list[int],
+    corners: list[Corner] | None = None,
+) -> go.Figure:
+    """Longitudinal G vs distance overlay showing braking and acceleration zones.
+
+    Negative G = braking (shown below zero line, red-tinted).
+    Positive G = acceleration (shown above zero line, green-tinted).
+    """
+    fig = go.Figure()
+
+    for i, lap_num in enumerate(selected_laps):
+        if lap_num not in laps:
+            continue
+        df = laps[lap_num]
+        dist = df["lap_distance_m"].to_numpy()
+        lon_g = df["longitudinal_g"].to_numpy()
+
+        fig.add_trace(
+            go.Scattergl(
+                x=dist,
+                y=lon_g,
+                mode="lines",
+                name=f"Lap {lap_num}",
+                line={"color": _lap_color(i), "width": 1.5},
+            )
+        )
+
+    # Corner shading
+    if corners:
+        for corner in corners:
+            fig.add_vrect(
+                x0=corner.entry_distance_m,
+                x1=corner.exit_distance_m,
+                fillcolor="rgba(128, 128, 128, 0.1)",
+                layer="below",
+                line_width=0,
+                annotation_text=f"T{corner.number}",
+                annotation_position="top left",
+                annotation_font_size=10,
+                annotation_font_color="gray",
+            )
+
+    # Zero line and zone shading
+    fig.add_hline(y=0, line_dash="dash", line_color="gray", line_width=0.5)
+
+    fig.update_layout(
+        title="Brake / Throttle Trace (Longitudinal G)",
+        xaxis_title="Distance (m)",
+        yaxis_title="Longitudinal G",
+        height=400,
+        hovermode="x unified",
+        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02},
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font={"color": "#ddd"},
+        xaxis={"color": "#aaa", "gridcolor": "#333"},
+        yaxis={"color": "#aaa", "gridcolor": "#333"},
+    )
+    return fig
+
+
+def corner_detail_chart(
+    laps: dict[int, pd.DataFrame],
+    selected_laps: list[int],
+    corner: Corner,
+    padding_m: float = 50.0,
+) -> go.Figure:
+    """Detailed corner analysis: speed and longitudinal G for a single corner.
+
+    Shows zoomed speed trace (top) and brake/throttle trace (bottom) for the
+    corner region (entry - padding to exit + padding), overlaid for all
+    selected laps.
+    """
+    fig = make_subplots(
+        rows=2,
+        cols=1,
+        shared_xaxes=True,
+        row_heights=[0.6, 0.4],
+        vertical_spacing=0.08,
+        subplot_titles=("Speed", "Longitudinal G"),
+    )
+
+    x_min = corner.entry_distance_m - padding_m
+    x_max = corner.exit_distance_m + padding_m
+
+    for i, lap_num in enumerate(selected_laps):
+        if lap_num not in laps:
+            continue
+        df = laps[lap_num]
+        dist = df["lap_distance_m"].to_numpy()
+        speed_mph = df["speed_mps"].to_numpy() * MPS_TO_MPH
+        lon_g = df["longitudinal_g"].to_numpy()
+
+        mask = (dist >= x_min) & (dist <= x_max)
+        color = _lap_color(i)
+
+        fig.add_trace(
+            go.Scatter(
+                x=dist[mask],
+                y=speed_mph[mask],
+                mode="lines",
+                name=f"Lap {lap_num}",
+                line={"color": color, "width": 1.5},
+                legendgroup=f"L{lap_num}",
+            ),
+            row=1,
+            col=1,
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=dist[mask],
+                y=lon_g[mask],
+                mode="lines",
+                name=f"Lap {lap_num}",
+                line={"color": color, "width": 1.5},
+                legendgroup=f"L{lap_num}",
+                showlegend=False,
+            ),
+            row=2,
+            col=1,
+        )
+
+    # Mark corner boundaries
+    for row in [1, 2]:
+        fig.add_vrect(
+            x0=corner.entry_distance_m,
+            x1=corner.exit_distance_m,
+            fillcolor="rgba(128, 128, 128, 0.15)",
+            layer="below",
+            line_width=0,
+            row=row,
+            col=1,
+        )
+
+    # Mark apex
+    fig.add_vline(
+        x=corner.apex_distance_m,
+        line_dash="dot",
+        line_color="rgba(255,255,255,0.4)",
+        line_width=1,
+        row=1,
+        col=1,
+    )
+    fig.add_vline(
+        x=corner.apex_distance_m,
+        line_dash="dot",
+        line_color="rgba(255,255,255,0.4)",
+        line_width=1,
+        row=2,
+        col=1,
+    )
+
+    # Mark brake point and throttle commit if available
+    if corner.brake_point_m is not None:
+        for row in [1, 2]:
+            fig.add_vline(
+                x=corner.brake_point_m,
+                line_dash="dash",
+                line_color="rgba(239, 85, 59, 0.6)",
+                line_width=1,
+                row=row,
+                col=1,
+            )
+
+    if corner.throttle_commit_m is not None:
+        for row in [1, 2]:
+            fig.add_vline(
+                x=corner.throttle_commit_m,
+                line_dash="dash",
+                line_color="rgba(0, 204, 150, 0.6)",
+                line_width=1,
+                row=row,
+                col=1,
+            )
+
+    # Zero line on G trace
+    fig.add_hline(
+        y=0,
+        line_dash="dash",
+        line_color="gray",
+        line_width=0.5,
+        row=2,
+        col=1,
+    )
+
+    fig.update_layout(
+        title=(
+            f"T{corner.number} Detail"
+            f" — {corner.min_speed_mps * MPS_TO_MPH:.0f} mph apex"
+            f" ({corner.apex_type})"
+        ),
+        height=450,
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font={"color": "#ddd"},
+        legend={"orientation": "h", "yanchor": "bottom", "y": 1.08},
+        margin={"l": 55, "r": 15, "t": 60, "b": 40},
+    )
+    fig.update_xaxes(color="#aaa", gridcolor="#333")
+    fig.update_yaxes(color="#aaa", gridcolor="#333")
+    fig.update_yaxes(title_text="Speed (mph)", row=1, col=1)
+    fig.update_yaxes(title_text="Long G", row=2, col=1)
+    fig.update_xaxes(title_text="Distance (m)", row=2, col=1)
+
+    return fig
+
+
+def ideal_lap_overlay_chart(
+    laps: dict[int, pd.DataFrame],
+    best_lap: int,
+    ideal_distance: np.ndarray,
+    ideal_speed_mps: np.ndarray,
+    corners: list[Corner] | None = None,
+) -> go.Figure:
+    """Speed trace overlay: best lap vs composite ideal lap."""
+    fig = go.Figure()
+
+    # Best lap trace
+    if best_lap in laps:
+        df = laps[best_lap]
+        fig.add_trace(
+            go.Scattergl(
+                x=df["lap_distance_m"].to_numpy(),
+                y=df["speed_mps"].to_numpy() * MPS_TO_MPH,
+                mode="lines",
+                name=f"Best Lap (L{best_lap})",
+                line={"color": "#636EFA", "width": 2},
+            )
+        )
+
+    # Ideal lap trace
+    fig.add_trace(
+        go.Scattergl(
+            x=ideal_distance,
+            y=ideal_speed_mps * MPS_TO_MPH,
+            mode="lines",
+            name="Ideal Lap (composite)",
+            line={"color": "#FFD700", "width": 2, "dash": "dash"},
+        )
+    )
+
+    # Shade regions where ideal is faster
+    if best_lap in laps:
+        df = laps[best_lap]
+        best_dist = df["lap_distance_m"].to_numpy()
+        best_speed = df["speed_mps"].to_numpy() * MPS_TO_MPH
+        # Interpolate ideal onto best's distance grid
+        ideal_interp = np.interp(best_dist, ideal_distance, ideal_speed_mps * MPS_TO_MPH)
+        diff = ideal_interp - best_speed
+
+        # Only shade where ideal is meaningfully faster (> 0.5 mph)
+        faster_mask = diff > 0.5
+        if faster_mask.any():
+            fig.add_trace(
+                go.Scatter(
+                    x=best_dist[faster_mask],
+                    y=ideal_interp[faster_mask],
+                    mode="markers",
+                    marker={
+                        "color": "rgba(255, 215, 0, 0.2)",
+                        "size": 4,
+                    },
+                    name="Ideal faster",
+                    hoverinfo="skip",
+                    showlegend=False,
+                )
+            )
+
+    # Corner shading
+    if corners:
+        for c in corners:
+            fig.add_vrect(
+                x0=c.entry_distance_m,
+                x1=c.exit_distance_m,
+                fillcolor="rgba(128, 128, 128, 0.1)",
+                layer="below",
+                line_width=0,
+                annotation_text=f"T{c.number}",
+                annotation_position="top left",
+                annotation_font_size=10,
+                annotation_font_color="gray",
+            )
+
+    fig.update_layout(
+        title="Best Lap vs Ideal Lap (Composite Best Segments)",
+        xaxis_title="Distance (m)",
+        yaxis_title="Speed (mph)",
+        height=500,
+        hovermode="x unified",
+        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02},
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font={"color": "#ddd"},
+        xaxis={"color": "#aaa", "gridcolor": "#333"},
+        yaxis={"color": "#aaa", "gridcolor": "#333"},
+    )
+    return fig
+
+
+def brake_consistency_chart(
+    all_lap_corners: dict[int, list[Corner]],
+    corners: list[Corner],
+) -> go.Figure:
+    """Brake point and min speed variation per corner across all laps.
+
+    Shows a scatter of brake points (x) and min speeds (y) for each corner,
+    with mean marker and std-dev bands.
+    """
+    fig = make_subplots(
+        rows=1,
+        cols=2,
+        subplot_titles=("Brake Point Variation", "Min Speed Variation"),
+        horizontal_spacing=0.12,
+    )
+
+    corner_numbers = [c.number for c in corners]
+
+    for cn in corner_numbers:
+        brake_points: list[float] = []
+        min_speeds: list[float] = []
+        lap_labels: list[str] = []
+
+        for lap_num in sorted(all_lap_corners):
+            for c in all_lap_corners[lap_num]:
+                if c.number == cn:
+                    if c.brake_point_m is not None:
+                        brake_points.append(c.brake_point_m)
+                    min_speeds.append(c.min_speed_mps * MPS_TO_MPH)
+                    lap_labels.append(f"L{lap_num}")
+
+        if len(brake_points) >= 2:
+            bp_mean = float(np.mean(brake_points))
+            bp_std = float(np.std(brake_points))
+            fig.add_trace(
+                go.Scatter(
+                    x=brake_points,
+                    y=[f"T{cn}"] * len(brake_points),
+                    mode="markers",
+                    marker={
+                        "color": "#636EFA",
+                        "size": 8,
+                        "opacity": 0.6,
+                    },
+                    name=f"T{cn} brake",
+                    text=lap_labels[: len(brake_points)],
+                    hovertemplate=("T%{y} %{text}: %{x:.0f}m<extra></extra>"),
+                    showlegend=False,
+                ),
+                row=1,
+                col=1,
+            )
+            # Mean marker
+            fig.add_trace(
+                go.Scatter(
+                    x=[bp_mean],
+                    y=[f"T{cn}"],
+                    mode="markers",
+                    marker={
+                        "color": "#EF553B",
+                        "size": 12,
+                        "symbol": "diamond",
+                    },
+                    name=f"T{cn} mean",
+                    hovertemplate=(f"T{cn} mean: %{{x:.0f}}m (\u00b1{bp_std:.0f}m)<extra></extra>"),
+                    showlegend=False,
+                ),
+                row=1,
+                col=1,
+            )
+
+        if len(min_speeds) >= 2:
+            sp_mean = float(np.mean(min_speeds))
+            sp_std = float(np.std(min_speeds))
+            fig.add_trace(
+                go.Scatter(
+                    x=min_speeds,
+                    y=[f"T{cn}"] * len(min_speeds),
+                    mode="markers",
+                    marker={
+                        "color": "#00CC96",
+                        "size": 8,
+                        "opacity": 0.6,
+                    },
+                    name=f"T{cn} speed",
+                    text=lap_labels,
+                    hovertemplate=("T%{y} %{text}: %{x:.1f} mph<extra></extra>"),
+                    showlegend=False,
+                ),
+                row=1,
+                col=2,
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=[sp_mean],
+                    y=[f"T{cn}"],
+                    mode="markers",
+                    marker={
+                        "color": "#EF553B",
+                        "size": 12,
+                        "symbol": "diamond",
+                    },
+                    name=f"T{cn} mean",
+                    hovertemplate=(
+                        f"T{cn} mean: %{{x:.1f}} mph (\u00b1{sp_std:.1f})<extra></extra>"
+                    ),
+                    showlegend=False,
+                ),
+                row=1,
+                col=2,
+            )
+
+    fig.update_layout(
+        title="Brake Point & Min Speed Consistency",
+        height=max(350, 45 * len(corner_numbers) + 150),
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font={"color": "#ddd"},
+        showlegend=False,
+    )
+    fig.update_xaxes(color="#aaa", gridcolor="#333")
+    fig.update_yaxes(color="#aaa", gridcolor="#333")
+    fig.update_xaxes(title_text="Brake Point (m)", row=1, col=1)
+    fig.update_xaxes(title_text="Min Speed (mph)", row=1, col=2)
+
+    return fig
+
+
+def traction_utilization_chart(
+    lap_df: pd.DataFrame,
+    lap_number: int,
+    corners: list[Corner] | None = None,
+) -> go.Figure:
+    """G-G diagram with traction circle overlay and utilization score.
+
+    Computes grip utilization as the percentage of data points that are
+    within 80-100% of the estimated maximum grip radius.
+    """
+    lat_g = lap_df["lateral_g"].to_numpy()
+    lon_g = lap_df["longitudinal_g"].to_numpy()
+    speed_mph = lap_df["speed_mps"].to_numpy() * MPS_TO_MPH
+
+    # Compute total G at each point
+    total_g = np.sqrt(lat_g**2 + lon_g**2)
+
+    # Estimate max grip radius (95th percentile to ignore spikes)
+    max_g = float(np.percentile(total_g, 95))
+    if max_g < 0.1:
+        max_g = 1.0  # Fallback
+
+    # Utilization: % of points using > 80% of max grip
+    high_util_mask = total_g > (0.8 * max_g)
+    utilization_pct = float(np.mean(high_util_mask) * 100)
+
+    # Reference circle
+    theta = np.linspace(0, 2 * np.pi, 100)
+    circle_x = max_g * np.cos(theta)
+    circle_y = max_g * np.sin(theta)
+
+    fig = go.Figure()
+
+    # Traction circle boundary
+    fig.add_trace(
+        go.Scatter(
+            x=circle_x,
+            y=circle_y,
+            mode="lines",
+            line={
+                "color": "rgba(255,255,255,0.3)",
+                "width": 2,
+                "dash": "dash",
+            },
+            name=f"Grip limit ({max_g:.2f}G)",
+            hoverinfo="skip",
+        )
+    )
+
+    # 80% circle (high-utilization threshold)
+    fig.add_trace(
+        go.Scatter(
+            x=0.8 * max_g * np.cos(theta),
+            y=0.8 * max_g * np.sin(theta),
+            mode="lines",
+            line={
+                "color": "rgba(255,255,255,0.15)",
+                "width": 1,
+                "dash": "dot",
+            },
+            name="80% threshold",
+            hoverinfo="skip",
+        )
+    )
+
+    # Data points colored by speed
+    fig.add_trace(
+        go.Scattergl(
+            x=lat_g,
+            y=lon_g,
+            mode="markers",
+            marker={
+                "color": speed_mph,
+                "colorscale": "Viridis",
+                "size": 2,
+                "colorbar": {"title": "mph", "thickness": 15},
+            },
+            name="G-forces",
+            hovertemplate=("Lat G: %{x:.2f}<br>Lon G: %{y:.2f}<extra></extra>"),
+        )
+    )
+
+    fig.update_layout(
+        title=(f"Traction Circle — Lap {lap_number} (Utilization: {utilization_pct:.0f}%)"),
+        xaxis_title="Lateral G",
+        yaxis_title="Longitudinal G",
+        height=500,
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font={"color": "#ddd"},
+        xaxis={"color": "#aaa", "gridcolor": "#333"},
+        yaxis={
+            "scaleanchor": "x",
+            "scaleratio": 1,
+            "color": "#aaa",
+            "gridcolor": "#333",
+        },
+        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02},
+    )
+    return fig

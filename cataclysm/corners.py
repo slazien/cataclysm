@@ -35,6 +35,44 @@ BRAKE_G_THRESHOLD = -0.2  # longitudinal G threshold for braking
 THROTTLE_G_THRESHOLD = 0.1  # longitudinal G threshold for throttle application
 THROTTLE_SUSTAIN_M = 10.0  # throttle must be sustained for this distance
 
+# Corner type classification thresholds (mph)
+SLOW_CORNER_MPH = 40.0
+MEDIUM_CORNER_MPH = 80.0
+
+CornerType = str  # "slow", "medium", "fast"
+
+
+def classify_corner_type(corner: Corner) -> CornerType:
+    """Classify a corner as slow, medium, or fast based on min apex speed.
+
+    - Slow: < 40 mph apex
+    - Medium: 40-80 mph apex
+    - Fast: > 80 mph apex
+    """
+    speed_mph = corner.min_speed_mps * 2.23694
+    if speed_mph < SLOW_CORNER_MPH:
+        return "slow"
+    if speed_mph < MEDIUM_CORNER_MPH:
+        return "medium"
+    return "fast"
+
+
+# Technique tips for each corner type
+CORNER_TYPE_TIPS: dict[str, str] = {
+    "slow": (
+        "Slow corner (<40 mph): Prioritize exit speed over mid-corner speed. "
+        "Brake later, use a late apex, and get on throttle early for the following straight."
+    ),
+    "medium": (
+        "Medium corner (40-80 mph): Balance entry speed with exit speed. "
+        "Trail brake to the apex, maintain smooth inputs to maximize grip through the turn."
+    ),
+    "fast": (
+        "Fast corner (>80 mph): Prioritize carrying speed — stay close to the geometric line. "
+        "Minimize steering input, use progressive brake release, and trust the car's grip."
+    ),
+}
+
 
 def _compute_heading_rate(heading_deg: np.ndarray, step_m: float) -> np.ndarray:
     """Compute heading rate of change in deg/m, handling 360/0 wrap."""

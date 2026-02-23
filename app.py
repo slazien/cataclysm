@@ -9,22 +9,38 @@ import numpy as np
 import streamlit as st
 
 from cataclysm.charts import (
+    brake_consistency_chart,
+    brake_throttle_chart,
+    corner_detail_chart,
     corner_kpi_table,
     corner_mini_map,
-    g_force_chart,
     gain_per_corner_chart,
+    ideal_lap_overlay_chart,
     lap_consistency_chart,
     lap_times_chart,
     linked_speed_map_html,
     track_consistency_map,
     track_median_speed_map,
+    traction_utilization_chart,
 )
 from cataclysm.coaching import CoachingContext, ask_followup, generate_coaching_report
 from cataclysm.consistency import compute_session_consistency
-from cataclysm.corners import Corner, detect_corners, extract_corner_kpis_for_lap
+from cataclysm.corners import (
+    CORNER_TYPE_TIPS,
+    Corner,
+    classify_corner_type,
+    detect_corners,
+    extract_corner_kpis_for_lap,
+)
 from cataclysm.delta import compute_delta
 from cataclysm.engine import ProcessedSession, find_anomalous_laps, process_session
-from cataclysm.gains import GainEstimate, estimate_gains
+from cataclysm.gains import (
+    GainEstimate,
+    build_segments,
+    compute_segment_times,
+    estimate_gains,
+    reconstruct_ideal_lap,
+)
 from cataclysm.parser import ParsedSession, parse_racechrono_csv
 from cataclysm.track_db import locate_official_corners, lookup_track
 
@@ -118,6 +134,15 @@ st.sidebar.markdown(
     f"**Worst**: L{worst_summary.lap_number} — {fmt_time(worst_summary.lap_time_s)}"
 )
 st.sidebar.markdown(f"**Average**: {fmt_time(avg_time)}")
+
+st.sidebar.markdown("---")
+st.sidebar.header("Settings")
+skill_level = st.sidebar.selectbox(
+    "Skill Level",
+    ["novice", "intermediate", "advanced"],
+    index=1,
+    help="Adjusts AI coaching tone and focus areas",
+)
 
 # ---------------------------------------------------------------------------
 # Detect corners on best lap
@@ -246,7 +271,7 @@ with tab_overview:
         st.info("Need at least 2 clean laps to compute consistency metrics.")
 
     st.plotly_chart(
-        g_force_chart(best_lap_df, processed.best_lap),
+        traction_utilization_chart(best_lap_df, processed.best_lap, corners),
         use_container_width=True,
     )
 
@@ -285,6 +310,12 @@ with tab_speed:
         )
         height = 1020 if len(selected_laps) == 2 else 770
         st.components.v1.html(html, height=height)
+
+        # Brake/throttle trace
+        st.plotly_chart(
+            brake_throttle_chart(processed.resampled_laps, selected_laps, corners),
+            use_container_width=True,
+        )
     else:
         st.info("Select at least one lap to display.")
 
@@ -326,6 +357,39 @@ with tab_corners:
 
         fig = corner_kpi_table(corners, comp_corners or None, delta_dicts)
         st.plotly_chart(fig, use_container_width=True)
+
+        # Per-corner detail cards
+        st.markdown("---")
+        st.subheader("Corner Details")
+
+        detail_laps = [processed.best_lap]
+        if corner_comp_lap and corner_comp_lap != processed.best_lap:
+            detail_laps.append(corner_comp_lap)
+
+        for c in corners:
+            ctype = classify_corner_type(c)
+            ctype_label = {"slow": "Slow", "medium": "Medium", "fast": "Fast"}
+            speed_mph = c.min_speed_mps * MPS_TO_MPH
+            header = (
+                f"T{c.number} — {speed_mph:.0f} mph "
+                f"({ctype_label.get(ctype, ctype)}, {c.apex_type} apex)"
+            )
+            with st.expander(header):
+                st.caption(CORNER_TYPE_TIPS.get(ctype, ""))
+                st.plotly_chart(
+                    corner_detail_chart(processed.resampled_laps, detail_laps, c),
+                    use_container_width=True,
+                    key=f"corner_detail_{c.number}",
+                )
+
+        # Brake point consistency
+        if len(coaching_laps) >= 2:
+            st.markdown("---")
+            st.subheader("Brake Point & Speed Consistency")
+            st.plotly_chart(
+                brake_consistency_chart(all_lap_corners, corners),
+                use_container_width=True,
+            )
 
 # --- AI Coach Tab ---
 with tab_coaching:
@@ -412,6 +476,55 @@ with tab_coaching:
             gain_per_corner_chart(gains.consistency, gains.composite),
             use_container_width=True,
         )
+
+        # Ideal lap overlay
+        st.markdown("---")
+        st.subheader("Ideal Lap (Composite Best Segments)")
+        st.caption(
+            "Stitches together the fastest segment from any lap to show "
+            "your theoretical best speed trace."
+        )
+
+        @st.cache_data(show_spinner="Reconstructing ideal lap...")
+        def cached_ideal(
+            _key: str,
+            _resampled: object,
+            _corners: object,
+            _coaching_laps: list[int],
+            _best_lap: int,
+        ) -> object:
+            segs = build_segments(
+                corners,
+                float(  # type: ignore[arg-type]
+                    processed.resampled_laps[_best_lap]["lap_distance_m"].iloc[-1]
+                ),
+            )
+            seg_times = compute_segment_times(processed.resampled_laps, segs, _coaching_laps)
+            return reconstruct_ideal_lap(
+                processed.resampled_laps,
+                segs,
+                seg_times,
+                _coaching_laps,
+                _best_lap,
+            )
+
+        ideal = cached_ideal(
+            f"{file_key}_ideal",
+            processed.resampled_laps,
+            corners,
+            coaching_laps,
+            processed.best_lap,
+        )
+        st.plotly_chart(
+            ideal_lap_overlay_chart(
+                processed.resampled_laps,
+                processed.best_lap,
+                ideal.distance_m,  # type: ignore[attr-defined]
+                ideal.speed_mps,  # type: ignore[attr-defined]
+                corners,
+            ),
+            use_container_width=True,
+        )
     else:
         st.info("Need at least 2 clean laps to estimate gains.")
 
@@ -423,6 +536,7 @@ with tab_coaching:
                 all_lap_corners,
                 meta.track_name,
                 gains=gains,
+                skill_level=skill_level,
             )
             st.session_state["coaching_report"] = report
             st.session_state["coaching_context"] = CoachingContext()
@@ -513,6 +627,12 @@ with tab_coaching:
             st.subheader("Patterns")
             for p in report.patterns:
                 st.markdown(f"- {p}")
+
+        if report.drills:
+            st.subheader("Practice Drills")
+            st.caption("Specific exercises for your next session:")
+            for i, drill in enumerate(report.drills, 1):
+                st.markdown(f"**{i}.** {drill}")
 
         # Chat follow-up
         st.markdown("---")

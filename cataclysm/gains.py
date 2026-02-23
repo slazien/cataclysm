@@ -392,3 +392,78 @@ def estimate_gains(
         clean_lap_numbers=sorted(clean_laps),
         best_lap_number=best_lap,
     )
+
+
+@dataclass
+class IdealLap:
+    """A composite 'ideal' lap stitched from best segments across all clean laps."""
+
+    distance_m: np.ndarray
+    speed_mps: np.ndarray
+    segment_sources: list[tuple[str, int]]  # (segment_name, source_lap_number)
+
+
+def reconstruct_ideal_lap(
+    resampled_laps: dict[int, pd.DataFrame],
+    segments: list[SegmentDefinition],
+    segment_times: dict[str, dict[int, float]],
+    clean_laps: list[int],
+    best_lap: int,
+) -> IdealLap:
+    """Reconstruct a composite ideal lap by stitching best-speed segments.
+
+    For each segment, picks the lap with the fastest time through that segment
+    and uses its speed trace. The result is a continuous speed-vs-distance trace
+    representing the driver's theoretical best performance.
+
+    Parameters
+    ----------
+    resampled_laps:
+        Dict of lap_number -> resampled DataFrame (0.7m intervals).
+    segments:
+        Ordered list of track segments (corners + straights).
+    segment_times:
+        Per-segment elapsed times per lap (from compute_segment_times).
+    clean_laps:
+        Lap numbers considered clean.
+    best_lap:
+        The fastest overall lap number (used as distance grid reference).
+
+    Returns
+    -------
+    IdealLap with stitched speed trace and source lap for each segment.
+    """
+    ref_df = resampled_laps[best_lap]
+    ref_distance = ref_df["lap_distance_m"].to_numpy()
+
+    ideal_speed = np.zeros_like(ref_distance, dtype=float)
+    segment_sources: list[tuple[str, int]] = []
+
+    for seg in segments:
+        times = segment_times.get(seg.name, {})
+        source_lap = best_lap if not times else min(times, key=lambda k: times[k])
+
+        segment_sources.append((seg.name, source_lap))
+
+        # Get the source lap's speed data
+        if source_lap not in resampled_laps:
+            source_lap = best_lap
+        source_df = resampled_laps[source_lap]
+        source_dist = source_df["lap_distance_m"].to_numpy()
+        source_speed = source_df["speed_mps"].to_numpy()
+
+        # Find indices in the reference distance grid for this segment
+        mask = (ref_distance >= seg.entry_distance_m) & (ref_distance <= seg.exit_distance_m)
+
+        if not mask.any():
+            continue
+
+        # Interpolate source lap speed onto reference distance grid
+        interp_speed = np.interp(ref_distance[mask], source_dist, source_speed)
+        ideal_speed[mask] = interp_speed
+
+    return IdealLap(
+        distance_m=ref_distance,
+        speed_mps=ideal_speed,
+        segment_sources=segment_sources,
+    )

@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 
 from cataclysm.corners import (
+    CORNER_TYPE_TIPS,
     Corner,
     _classify_apex,
     _compute_heading_rate,
@@ -15,6 +16,7 @@ from cataclysm.corners import (
     _find_throttle_commit,
     _merge_regions,
     _smooth,
+    classify_corner_type,
     detect_corners,
     extract_corner_kpis_for_lap,
 )
@@ -214,3 +216,90 @@ class TestExtractCornerKpis:
             assert rc.entry_distance_m == cc.entry_distance_m
             # Min speed should be the same since same lap
             assert abs(rc.min_speed_mps - cc.min_speed_mps) < 0.1
+
+
+class TestClassifyCornerType:
+    def test_slow_corner(self) -> None:
+        """Corner with <40 mph apex should be classified as slow."""
+        c = Corner(
+            number=1,
+            entry_distance_m=0,
+            exit_distance_m=100,
+            apex_distance_m=50,
+            min_speed_mps=15.0,  # ~33.6 mph
+            brake_point_m=None,
+            peak_brake_g=None,
+            throttle_commit_m=None,
+            apex_type="mid",
+        )
+        assert classify_corner_type(c) == "slow"
+
+    def test_medium_corner(self) -> None:
+        """Corner with 40-80 mph apex should be classified as medium."""
+        c = Corner(
+            number=1,
+            entry_distance_m=0,
+            exit_distance_m=100,
+            apex_distance_m=50,
+            min_speed_mps=25.0,  # ~55.9 mph
+            brake_point_m=None,
+            peak_brake_g=None,
+            throttle_commit_m=None,
+            apex_type="mid",
+        )
+        assert classify_corner_type(c) == "medium"
+
+    def test_fast_corner(self) -> None:
+        """Corner with >80 mph apex should be classified as fast."""
+        c = Corner(
+            number=1,
+            entry_distance_m=0,
+            exit_distance_m=100,
+            apex_distance_m=50,
+            min_speed_mps=40.0,  # ~89.5 mph
+            brake_point_m=None,
+            peak_brake_g=None,
+            throttle_commit_m=None,
+            apex_type="mid",
+        )
+        assert classify_corner_type(c) == "fast"
+
+    def test_boundary_slow_medium(self) -> None:
+        """Exactly 40 mph should be medium (not slow)."""
+        speed_mps = 40.0 / 2.23694
+        c = Corner(
+            number=1,
+            entry_distance_m=0,
+            exit_distance_m=100,
+            apex_distance_m=50,
+            min_speed_mps=speed_mps,
+            brake_point_m=None,
+            peak_brake_g=None,
+            throttle_commit_m=None,
+            apex_type="mid",
+        )
+        assert classify_corner_type(c) == "medium"
+
+    def test_boundary_medium_fast(self) -> None:
+        """Exactly 80 mph should be fast (not medium)."""
+        speed_mps = 80.0 / 2.23694
+        c = Corner(
+            number=1,
+            entry_distance_m=0,
+            exit_distance_m=100,
+            apex_distance_m=50,
+            min_speed_mps=speed_mps,
+            brake_point_m=None,
+            peak_brake_g=None,
+            throttle_commit_m=None,
+            apex_type="mid",
+        )
+        assert classify_corner_type(c) == "fast"
+
+
+class TestCornerTypeTips:
+    def test_all_types_have_tips(self) -> None:
+        """Every corner type should have a technique tip."""
+        for ctype in ["slow", "medium", "fast"]:
+            assert ctype in CORNER_TYPE_TIPS
+            assert len(CORNER_TYPE_TIPS[ctype]) > 0

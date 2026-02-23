@@ -11,6 +11,7 @@ from cataclysm.engine import LapSummary
 from cataclysm.gains import (
     CompositeGainResult,
     ConsistencyGainResult,
+    SegmentDefinition,
     TheoreticalBestResult,
     build_segments,
     compute_composite_gain,
@@ -18,6 +19,7 @@ from cataclysm.gains import (
     compute_segment_times,
     compute_theoretical_best,
     estimate_gains,
+    reconstruct_ideal_lap,
 )
 
 # ---------------------------------------------------------------------------
@@ -542,3 +544,143 @@ class TestIntegration:
         # All segments covered
         segs = build_segments(corners, float(dist[-1]))
         assert len(result.consistency.segment_gains) == len(segs)
+
+
+# ===========================================================================
+# TestReconstructIdealLap
+# ===========================================================================
+
+
+class TestReconstructIdealLap:
+    """Tests for reconstruct_ideal_lap."""
+
+    def test_returns_ideal_lap(self) -> None:
+        """Should return an IdealLap dataclass."""
+        # Two laps with different speed profiles
+        n = 100
+        step = 0.7
+        dist = np.arange(n) * step
+        time1 = np.cumsum(np.full(n, step / 30.0))
+        time2 = np.cumsum(np.full(n, step / 28.0))
+
+        base = {
+            "lap_distance_m": dist,
+            "heading_deg": np.zeros(n),
+            "lat": np.full(n, 33.53),
+            "lon": np.full(n, -86.62),
+            "lateral_g": np.zeros(n),
+            "longitudinal_g": np.zeros(n),
+            "yaw_rate_dps": np.zeros(n),
+            "altitude_m": np.full(n, 200.0),
+            "x_acc_g": np.zeros(n),
+            "y_acc_g": np.zeros(n),
+            "z_acc_g": np.ones(n),
+        }
+
+        lap1 = pd.DataFrame({**base, "speed_mps": np.full(n, 30.0), "lap_time_s": time1})
+        lap2 = pd.DataFrame({**base, "speed_mps": np.full(n, 28.0), "lap_time_s": time2})
+        resampled = {1: lap1, 2: lap2}
+
+        corners = [
+            Corner(
+                number=1,
+                entry_distance_m=10.0,
+                exit_distance_m=30.0,
+                apex_distance_m=20.0,
+                min_speed_mps=25.0,
+                brake_point_m=5.0,
+                peak_brake_g=-0.5,
+                throttle_commit_m=25.0,
+                apex_type="mid",
+            ),
+        ]
+        segments = build_segments(corners, float(dist[-1]))
+        seg_times = compute_segment_times(resampled, segments, [1, 2])
+
+        ideal = reconstruct_ideal_lap(resampled, segments, seg_times, [1, 2], 1)
+
+        assert hasattr(ideal, "distance_m")
+        assert hasattr(ideal, "speed_mps")
+        assert hasattr(ideal, "segment_sources")
+        assert len(ideal.distance_m) == n
+        assert len(ideal.speed_mps) == n
+
+    def test_picks_fastest_segment(self) -> None:
+        """Should pick the lap with fastest time for each segment."""
+        n = 100
+        step = 0.7
+        dist = np.arange(n) * step
+
+        base = {
+            "lap_distance_m": dist,
+            "heading_deg": np.zeros(n),
+            "lat": np.full(n, 33.53),
+            "lon": np.full(n, -86.62),
+            "lateral_g": np.zeros(n),
+            "longitudinal_g": np.zeros(n),
+            "yaw_rate_dps": np.zeros(n),
+            "altitude_m": np.full(n, 200.0),
+            "x_acc_g": np.zeros(n),
+            "y_acc_g": np.zeros(n),
+            "z_acc_g": np.ones(n),
+        }
+
+        # Lap 1 is faster overall, lap 2 slower
+        time1 = np.cumsum(np.full(n, step / 30.0))
+        time2 = np.cumsum(np.full(n, step / 25.0))
+        lap1 = pd.DataFrame({**base, "speed_mps": np.full(n, 30.0), "lap_time_s": time1})
+        lap2 = pd.DataFrame({**base, "speed_mps": np.full(n, 25.0), "lap_time_s": time2})
+        resampled = {1: lap1, 2: lap2}
+
+        segments = [
+            SegmentDefinition("S0-1", 0.0, float(dist[-1]), is_corner=False),
+        ]
+        seg_times = compute_segment_times(resampled, segments, [1, 2])
+
+        ideal = reconstruct_ideal_lap(resampled, segments, seg_times, [1, 2], 1)
+        # Lap 1 is faster, so ideal should use lap 1's speed
+        assert ideal.segment_sources[0] == ("S0-1", 1)
+
+    def test_segment_sources_populated(self) -> None:
+        """Each segment should have a source entry."""
+        n = 100
+        step = 0.7
+        dist = np.arange(n) * step
+        time1 = np.cumsum(np.full(n, step / 30.0))
+
+        base = {
+            "lap_distance_m": dist,
+            "heading_deg": np.zeros(n),
+            "lat": np.full(n, 33.53),
+            "lon": np.full(n, -86.62),
+            "lateral_g": np.zeros(n),
+            "longitudinal_g": np.zeros(n),
+            "yaw_rate_dps": np.zeros(n),
+            "altitude_m": np.full(n, 200.0),
+            "x_acc_g": np.zeros(n),
+            "y_acc_g": np.zeros(n),
+            "z_acc_g": np.ones(n),
+            "speed_mps": np.full(n, 30.0),
+            "lap_time_s": time1,
+        }
+        lap1 = pd.DataFrame(base)
+        resampled = {1: lap1}
+
+        corners = [
+            Corner(
+                number=1,
+                entry_distance_m=10.0,
+                exit_distance_m=30.0,
+                apex_distance_m=20.0,
+                min_speed_mps=25.0,
+                brake_point_m=None,
+                peak_brake_g=None,
+                throttle_commit_m=None,
+                apex_type="mid",
+            ),
+        ]
+        segments = build_segments(corners, float(dist[-1]))
+        seg_times = compute_segment_times(resampled, segments, [1])
+
+        ideal = reconstruct_ideal_lap(resampled, segments, seg_times, [1], 1)
+        assert len(ideal.segment_sources) == len(segments)

@@ -1,5 +1,54 @@
 # CLAUDE.md
 
+## Workflow Orchestration
+
+### 1. Plan Mode Default
+- Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions) - If something goes sideways, STOP and re-plan immediately - don't keep pushing - Use plan mode for verification steps, not just building
+- Write detailed specs upfront to reduce ambiguity
+
+### 2. Subagent Strategy
+Use subagents liberally to keep main context window clean
+- Offload research, exploration, and parallel analysis to subagents
+- For complex problems, throw more compute at it via subagents
+- One task per subagent for focused execution
+
+### 3. Self-Improvement Loop
+- After ANY correction from the user: update `tasks/lessons.md with the pattern
+- Write rules for yourself that prevent the same mistake
+- Ruthlessly iterate on these lessons until mistake rate drops
+- Review lessons at session start for relevant project
+
+### 4. Verification Before Done
+- Never mark a task complete without proving it works
+- Diff behavior between main and your changes when relevant
+- Ask yourself: "Would a staff engineer approve this?"
+- Run tests, check logs, demonstrate correctness
+
+### 5. Demand Elegance (Balanced)
+- For non-trivial changes: pause and ask "is there a more elegant way?"
+- If a fix feels hacky: "Knowing everything I know now, implement the elegant solution" Skip this for simple, obvious fixes - don't over-engineer
+- Challenge your own work before presenting it
+
+### 6. Autonomous Bug Fizing
+- When given a bug report: just fix it. Don't ask for hand-holding
+- Point at logs, errors, failing tests then resolve them
+- Zero context switching required from the user
+- Go fix failing CI tests without being told how
+
+## Task Management
+
+1. *Plan First*: Write plan to tasks/todo.md with checkable items
+2. *Verify Plan*: Check in before starting implementation
+3. *Track Progress*: Mark items complete as you go
+4. *Explain Changes*: High-level summary at each step
+5. *Document Results*: Add review section to tasks/todo.md`
+6. *Capture Lessons*: Update tasks/lessons.md after corrections
+
+## Core Principles
+
+- *Simplicity First*: Make every change as simple as possible. Impact minimal code. - *No Laziness*: Find root causes. No temporary fixes. Senior developer standards.
+- *Minimat Impact*: Changes should only touch what's necessary. Avoid introducing bugs.
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
@@ -21,12 +70,18 @@ streamlit run app.py
 pytest
 pytest tests/test_engine.py              # single module
 pytest tests/test_engine.py::test_name   # single test
-pytest --cov=cataclysm --cov-report=term-missing  # with coverage (90% required)
+pytest --cov=cataclysm --cov-report=term-missing  # with coverage
 
-# Linting and type checking
-ruff check cataclysm/ tests/
-ruff format --check cataclysm/ tests/
-mypy cataclysm/
+# Linting, formatting, and type checking — run ALL THREE before committing
+ruff check cataclysm/ tests/ app.py      # lint errors
+ruff format cataclysm/ tests/ app.py     # auto-format
+mypy cataclysm/ app.py                   # type checking (must pass with 0 errors)
+
+# Debugging
+pytest -x --tb=short                     # stop on first failure, short traceback
+pytest --pdb                             # drop into debugger on failure
+pytest -k "test_name" -v                 # run specific test verbosely
+streamlit run app.py --logger.level=debug  # verbose Streamlit logging
 ```
 
 ## Architecture
@@ -62,6 +117,24 @@ All structured data uses **dataclasses**: `ParsedSession`, `SessionMetadata`, `L
 - Module-level constants in UPPER_SNAKE_CASE (e.g., `RESAMPLE_STEP_M`, `MIN_CORNER_LENGTH_M`)
 - All files start with `from __future__ import annotations`
 - Test fixtures in `tests/conftest.py` generate synthetic RaceChrono CSV data
+
+## Quality Gates
+
+All of these must pass before committing:
+
+1. **Ruff check** — zero lint errors: `ruff check cataclysm/ tests/ app.py`
+2. **Ruff format** — auto-format first, then verify: `ruff format cataclysm/ tests/ app.py`
+3. **Mypy** — zero type errors: `mypy cataclysm/ app.py`
+4. **Tests** — all pass: `pytest tests/ -v`
+5. **Coverage** — write tests targeting as close to 100% coverage as realistically possible. Every new module needs a companion test file. Test edge cases, error paths, and boundary conditions, not just the happy path.
+
+## Testing Philosophy
+
+- Every new module gets a `tests/test_<module>.py` companion
+- Test edge cases: empty inputs, single-element inputs, None values, boundary conditions
+- Use synthetic data fixtures in `conftest.py` — never depend on real session files in tests
+- Mock external APIs (Claude API) to keep tests fast and deterministic
+- Run `pytest --cov=cataclysm --cov-report=term-missing` to find untested lines and fill gaps
 
 ## Workflow
 

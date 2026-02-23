@@ -523,3 +523,158 @@ class TestGenerateCoachingReportWithGains:
         call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args
         prompt_text = call_kwargs.kwargs["messages"][0]["content"]
         assert "Gain Estimation" in prompt_text
+
+
+class TestSkillLevelPrompts:
+    """Test skill-level prompt customization."""
+
+    def test_novice_prompt_includes_skill_section(self) -> None:
+        summaries = [
+            LapSummary(lap_number=1, lap_time_s=90.0, lap_distance_m=500.0, max_speed_mps=40.0),
+        ]
+        corners_map: dict[int, list[Corner]] = {
+            1: [
+                Corner(
+                    number=1,
+                    entry_distance_m=100,
+                    exit_distance_m=200,
+                    apex_distance_m=150,
+                    min_speed_mps=20.0,
+                    brake_point_m=80.0,
+                    peak_brake_g=-0.5,
+                    throttle_commit_m=170.0,
+                    apex_type="mid",
+                ),
+            ],
+        }
+        prompt = _build_coaching_prompt(summaries, corners_map, "Test Track", skill_level="novice")
+        assert "Novice" in prompt
+        assert "information overload" in prompt.lower() or "smooth inputs" in prompt.lower()
+
+    def test_advanced_prompt_includes_skill_section(self) -> None:
+        summaries = [
+            LapSummary(lap_number=1, lap_time_s=90.0, lap_distance_m=500.0, max_speed_mps=40.0),
+        ]
+        corners_map: dict[int, list[Corner]] = {
+            1: [
+                Corner(
+                    number=1,
+                    entry_distance_m=100,
+                    exit_distance_m=200,
+                    apex_distance_m=150,
+                    min_speed_mps=20.0,
+                    brake_point_m=80.0,
+                    peak_brake_g=-0.5,
+                    throttle_commit_m=170.0,
+                    apex_type="mid",
+                ),
+            ],
+        }
+        prompt = _build_coaching_prompt(
+            summaries, corners_map, "Test Track", skill_level="advanced"
+        )
+        assert "Advanced" in prompt
+        assert "marginal gains" in prompt.lower() or "micro-optimization" in prompt.lower()
+
+    def test_default_is_intermediate(self) -> None:
+        summaries = [
+            LapSummary(lap_number=1, lap_time_s=90.0, lap_distance_m=500.0, max_speed_mps=40.0),
+        ]
+        corners_map: dict[int, list[Corner]] = {
+            1: [
+                Corner(
+                    number=1,
+                    entry_distance_m=100,
+                    exit_distance_m=200,
+                    apex_distance_m=150,
+                    min_speed_mps=20.0,
+                    brake_point_m=80.0,
+                    peak_brake_g=-0.5,
+                    throttle_commit_m=170.0,
+                    apex_type="mid",
+                ),
+            ],
+        }
+        prompt = _build_coaching_prompt(summaries, corners_map, "Test Track")
+        assert "Intermediate" in prompt
+
+    def test_unknown_level_falls_back_to_intermediate(self) -> None:
+        summaries = [
+            LapSummary(lap_number=1, lap_time_s=90.0, lap_distance_m=500.0, max_speed_mps=40.0),
+        ]
+        corners_map: dict[int, list[Corner]] = {1: []}
+        prompt = _build_coaching_prompt(summaries, corners_map, "Test Track", skill_level="bogus")
+        assert "Intermediate" in prompt
+
+
+class TestDrillsInPrompt:
+    """Test that drill instructions appear in the prompt."""
+
+    def test_prompt_includes_drills_schema(self) -> None:
+        summaries = [
+            LapSummary(lap_number=1, lap_time_s=90.0, lap_distance_m=500.0, max_speed_mps=40.0),
+        ]
+        corners_map: dict[int, list[Corner]] = {1: []}
+        prompt = _build_coaching_prompt(summaries, corners_map, "Test Track")
+        assert '"drills"' in prompt
+
+    def test_prompt_includes_drill_instruction(self) -> None:
+        summaries = [
+            LapSummary(lap_number=1, lap_time_s=90.0, lap_distance_m=500.0, max_speed_mps=40.0),
+        ]
+        corners_map: dict[int, list[Corner]] = {1: []}
+        prompt = _build_coaching_prompt(summaries, corners_map, "Test Track")
+        assert "practice drill" in prompt.lower()
+
+
+class TestParseDrills:
+    """Test extraction of drills from coaching response."""
+
+    def test_parses_drills_from_json(self) -> None:
+        response = json.dumps(
+            {
+                "summary": "Good session.",
+                "priority_corners": [],
+                "corner_grades": [],
+                "patterns": [],
+                "drills": ["Practice trail braking at T5", "Work on throttle at T3"],
+            }
+        )
+        report = _parse_coaching_response(response)
+        assert len(report.drills) == 2
+        assert "T5" in report.drills[0]
+
+    def test_missing_drills_defaults_to_empty(self) -> None:
+        response = json.dumps(
+            {
+                "summary": "Good session.",
+                "priority_corners": [],
+                "corner_grades": [],
+                "patterns": [],
+            }
+        )
+        report = _parse_coaching_response(response)
+        assert report.drills == []
+
+
+class TestCoachingReportDrillsField:
+    """Test CoachingReport dataclass drills field."""
+
+    def test_default_drills_empty(self) -> None:
+        report = CoachingReport(
+            summary="test",
+            priority_corners=[],
+            corner_grades=[],
+            patterns=[],
+        )
+        assert report.drills == []
+
+    def test_drills_can_be_set(self) -> None:
+        report = CoachingReport(
+            summary="test",
+            priority_corners=[],
+            corner_grades=[],
+            patterns=[],
+            drills=["drill 1", "drill 2"],
+        )
+        assert len(report.drills) == 2

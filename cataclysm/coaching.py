@@ -14,6 +14,98 @@ from cataclysm.gains import GainEstimate
 
 MPS_TO_MPH = 2.23694
 
+SkillLevel = str  # "novice", "intermediate", "advanced"
+
+_SKILL_PROMPTS: dict[str, str] = {
+    "novice": (
+        "\n## Skill Level: Novice (HPDE Group 1-2)\n"
+        "This driver is relatively new to track driving. "
+        "Focus your coaching on:\n"
+        "- Line consistency: are they hitting the same line each lap?\n"
+        "- Smooth inputs: abrupt braking/throttle transitions hurt "
+        "novices most\n"
+        "- Basic braking: are they braking in a straight line before "
+        "turn-in?\n"
+        "- Limit advice to 1-2 priorities per corner — avoid "
+        "information overload\n"
+        "- Do NOT discuss trail braking, threshold braking, or "
+        "advanced techniques\n"
+        "- Grade trail_braking as 'N/A' for novices (not expected "
+        "at this level)\n"
+        "- Use encouraging language and celebrate what they're "
+        "doing well\n"
+    ),
+    "intermediate": (
+        "\n## Skill Level: Intermediate (HPDE Group 3)\n"
+        "This driver has solid fundamentals and is ready for "
+        "technique refinement:\n"
+        "- Trail braking: are they carrying brake into the corner "
+        "entry?\n"
+        "- Brake point optimization: can they brake later or "
+        "release more gradually?\n"
+        "- Throttle timing: are they getting on throttle at the "
+        "right point?\n"
+        "- Consistency: compare their best corner executions vs "
+        "typical ones\n"
+        "- Show all metrics and be specific about what to work on\n"
+    ),
+    "advanced": (
+        "\n## Skill Level: Advanced (HPDE Group 4+ / Instructor)\n"
+        "This driver has strong technique and is looking for "
+        "marginal gains:\n"
+        "- Micro-optimization: tenths and hundredths at each "
+        "corner\n"
+        "- Composite/theoretical gap analysis: where are they "
+        "leaving time?\n"
+        "- Setup correlation hints: do certain corners suggest "
+        "car balance issues?\n"
+        "- Discuss advanced concepts: trail brake modulation, "
+        "weight transfer mgmt\n"
+        "- Be precise with distances and speed differentials\n"
+    ),
+}
+
+_DRILL_TEMPLATES: dict[str, str] = {
+    "brake_consistency": (
+        "Brake marker drill: Pick a fixed reference point "
+        "(cone, crack, shadow) for T{corner} braking. Spend "
+        "3 laps hitting that exact point every time — "
+        "consistency before speed."
+    ),
+    "trail_braking": (
+        "Trail brake drill for T{corner}: Spend 2 laps "
+        "focusing on slowly releasing brake pressure after "
+        "turn-in. Feel the front load helping the car rotate. "
+        "Brake trace should taper gradually, not drop off a "
+        "cliff."
+    ),
+    "throttle_timing": (
+        "Throttle commit drill for T{corner}: On your next "
+        "3 laps, deliberately wait until you feel the car "
+        "rotating before applying throttle. Start with light "
+        "throttle and progressively squeeze to full power as "
+        "you unwind steering."
+    ),
+    "min_speed": (
+        "Corner speed drill for T{corner}: This lap, focus "
+        "on carrying 2-3 mph more through the apex by braking "
+        "a touch earlier and trailing off smoothly. The goal "
+        "is a rounder, faster arc — not a V-shaped speed trace."
+    ),
+    "line_consistency": (
+        "Line consistency drill for T{corner}: Pick 3 visual "
+        "references — turn-in point, apex curb, and track-out "
+        "point. Spend 3 laps hitting all three every time. "
+        "Consistent line before fast line."
+    ),
+    "smoothness": (
+        "Smoothness drill for T{corner}: Spend 2 laps at 80% "
+        "pace focusing purely on smooth transitions — gradual "
+        "brake release, gentle turn-in, progressive throttle. "
+        "Smooth is fast; jerky inputs cost grip."
+    ),
+}
+
 _FOLLOWUP_SYSTEM = (
     COACHING_SYSTEM_PROMPT
     + "\nThe driver is asking follow-up questions about their telemetry data and your "
@@ -42,6 +134,7 @@ class CoachingReport:
     priority_corners: list[dict[str, object]]
     corner_grades: list[CornerGrade]
     patterns: list[str]
+    drills: list[str] = field(default_factory=list)
     raw_response: str = ""
 
 
@@ -127,6 +220,7 @@ def _build_coaching_prompt(
     track_name: str,
     *,
     gains: GainEstimate | None = None,
+    skill_level: SkillLevel = "intermediate",
 ) -> str:
     """Build the full coaching prompt for Claude."""
     lap_text = _format_lap_summaries(summaries)
@@ -144,6 +238,8 @@ def _build_coaching_prompt(
             "The consistency gain shows where the driver loses time vs their own best.\n"
         )
 
+    skill_section = _SKILL_PROMPTS.get(skill_level, _SKILL_PROMPTS["intermediate"])
+
     return f"""Track: {track_name}
 Best Lap: L{best.lap_number} ({best_min}:{best_sec:05.2f})
 Total laps: {len(summaries)}
@@ -153,7 +249,7 @@ Total laps: {len(summaries)}
 
 ## Corner KPIs — All Laps (best lap marked with *)
 {corner_text}
-{gains_section}
+{gains_section}{skill_section}
 Analyze the FULL session. Look at every lap's data for each corner to identify:
 - Consistency: which corners are repeatable vs high-variance across laps
 - Trends: whether the driver improved or degraded through the session (fatigue, tire wear, learning)
@@ -181,8 +277,16 @@ Respond in JSON with this exact structure:
       "notes": "<one sentence referencing lap-to-lap data>"
     }}
   ],
-  "patterns": ["<session-wide pattern 1>", "<session-wide pattern 2>", "<pattern 3>"]
+  "patterns": ["<session-wide pattern 1>", "<session-wide pattern 2>", "<pattern 3>"],
+  "drills": [
+    "<specific practice drill for weakness 1>",
+    "<specific practice drill for weakness 2>"
+  ]
 }}
+
+Include 1-2 specific practice drills tailored to the driver's weakest areas. \
+Each drill should reference a specific corner number and give the driver \
+something concrete to practice on their next session.
 
 Sort priority_corners by time_cost_s descending (biggest avg time loss first).
 Grades reflect consistency across ALL laps, not just one comparison:
@@ -238,11 +342,14 @@ def _parse_coaching_response(text: str) -> CoachingReport:
             )
         )
 
+    drills = data.get("drills", [])
+
     return CoachingReport(
         summary=data.get("summary", ""),
         priority_corners=data.get("priority_corners", []),
         corner_grades=grades,
         patterns=data.get("patterns", []),
+        drills=drills,
         raw_response=text,
     )
 
@@ -253,6 +360,7 @@ def generate_coaching_report(
     track_name: str,
     *,
     gains: GainEstimate | None = None,
+    skill_level: SkillLevel = "intermediate",
 ) -> CoachingReport:
     """Generate an AI coaching report using the Claude API.
 
@@ -274,7 +382,13 @@ def generate_coaching_report(
     import anthropic
 
     client = anthropic.Anthropic(api_key=api_key)
-    prompt = _build_coaching_prompt(summaries, all_lap_corners, track_name, gains=gains)
+    prompt = _build_coaching_prompt(
+        summaries,
+        all_lap_corners,
+        track_name,
+        gains=gains,
+        skill_level=skill_level,
+    )
 
     try:
         message = client.messages.create(
