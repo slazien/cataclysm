@@ -193,10 +193,30 @@ with tab_speed:
         format_func=lambda n: f"Lap {n}",
     )
     if selected_laps:
+        delta_dist: list[float] | None = None
+        delta_time: list[float] | None = None
+        ref: int | None = None
+        comp: int | None = None
+        if len(selected_laps) == 2:
+            ref, comp = selected_laps
+            delta_result = compute_delta(
+                processed.resampled_laps[ref],
+                processed.resampled_laps[comp],
+                corners,
+            )
+            delta_dist = delta_result.distance_m.tolist()
+            delta_time = delta_result.delta_time_s.tolist()
         html = linked_speed_map_html(
-            processed.resampled_laps, selected_laps, corners
+            processed.resampled_laps,
+            selected_laps,
+            corners,
+            delta_distance=delta_dist,
+            delta_time=delta_time,
+            ref_lap=ref,
+            comp_lap=comp,
         )
-        st.components.v1.html(html, height=600)
+        height = 1020 if len(selected_laps) == 2 else 770
+        st.components.v1.html(html, height=height)
     else:
         st.info("Select at least one lap to display.")
 

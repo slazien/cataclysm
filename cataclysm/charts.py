@@ -321,14 +321,20 @@ def linked_speed_map_html(
     selected_laps: list[int],
     corners: list[Corner] | None = None,
     map_lap: int | None = None,
+    delta_distance: list[float] | None = None,
+    delta_time: list[float] | None = None,
+    ref_lap: int | None = None,
+    comp_lap: int | None = None,
 ) -> str:
-    """Return an HTML string with linked speed trace + track map.
+    """Return HTML with linked speed trace, optional delta-T, and track map.
 
-    Hover on the speed trace moves a directional cursor on the track map.
-    All interaction is client-side JavaScript — no Streamlit reruns.
+    Single-column 3-row layout. Hover on speed or delta chart moves a
+    directional cursor on the track map. All client-side JS.
     """
     if not selected_laps:
         return "<p style='color:#ccc'>No laps selected.</p>"
+
+    has_delta = delta_distance is not None and delta_time is not None
 
     map_lap_num = map_lap if map_lap is not None else selected_laps[0]
     if map_lap_num not in laps:
@@ -355,6 +361,13 @@ def linked_speed_map_html(
         "distance": map_df["lap_distance_m"].tolist(),
     }
 
+    delta_data: dict[str, list[float]] = {}
+    if has_delta:
+        delta_data = {
+            "distance": delta_distance,  # type: ignore[dict-item]
+            "delta": delta_time,  # type: ignore[dict-item]
+        }
+
     corner_data: list[dict[str, object]] = []
     if corners:
         dist = map_df["lap_distance_m"].to_numpy()
@@ -375,7 +388,21 @@ def linked_speed_map_html(
     for i, lap_num in enumerate(selected_laps):
         lap_colors[str(lap_num)] = _lap_color(i)
 
+    # Height allocation
+    speed_h = 350
+    delta_h = 250 if has_delta else 0
+    map_h = 400
+    total_h = speed_h + delta_h + map_h + 16  # 16 for gaps
+
+    delta_title = ""
+    if has_delta and ref_lap is not None and comp_lap is not None:
+        delta_title = f"Delta-T: L{comp_lap} vs L{ref_lap} (ref)"
+
     # --- Build HTML ---------------------------------------------------------------
+    delta_div = ""
+    if has_delta:
+        delta_div = f'<div id="deltaDiv" style="width:100%;height:{delta_h}px;"></div>'
+
     return f"""\
 <!DOCTYPE html>
 <html>
@@ -385,16 +412,17 @@ def linked_speed_map_html(
 <style>
   * {{ margin: 0; padding: 0; box-sizing: border-box; }}
   body {{ background: #0e1117; font-family: sans-serif; }}
-  .container {{ display: flex; gap: 8px; width: 100%; height: 580px; }}
-  .speed-panel {{ flex: 6; min-width: 0; }}
-  .map-panel {{ flex: 4; min-width: 0; }}
-  #speedDiv, #mapDiv {{ width: 100%; height: 100%; }}
+  .container {{
+    display: flex; flex-direction: column;
+    gap: 4px; width: 100%; height: {total_h}px;
+  }}
 </style>
 </head>
 <body>
 <div class="container">
-  <div class="speed-panel"><div id="speedDiv"></div></div>
-  <div class="map-panel"><div id="mapDiv"></div></div>
+  <div id="speedDiv" style="width:100%;height:{speed_h}px;"></div>
+  {delta_div}
+  <div id="mapDiv" style="width:100%;height:{map_h}px;"></div>
 </div>
 <script>
 (function() {{
@@ -402,6 +430,8 @@ def linked_speed_map_html(
   var mapData = {json.dumps(map_data)};
   var corners = {json.dumps(corner_data)};
   var lapColors = {json.dumps(lap_colors)};
+  var hasDelta = {'true' if has_delta else 'false'};
+  var deltaData = {json.dumps(delta_data) if has_delta else '{}'};
 
   // ---- Speed trace ----
   var speedTraces = [];
@@ -424,96 +454,150 @@ def linked_speed_map_html(
   for (var ci = 0; ci < corners.length; ci++) {{
     var c = corners[ci];
     speedShapes.push({{
-      type: 'rect',
-      xref: 'x', yref: 'paper',
-      x0: c.entry, x1: c.exit,
-      y0: 0, y1: 1,
+      type: 'rect', xref: 'x', yref: 'paper',
+      x0: c.entry, x1: c.exit, y0: 0, y1: 1,
       fillcolor: 'rgba(128,128,128,0.1)',
-      line: {{ width: 0 }},
-      layer: 'below',
+      line: {{ width: 0 }}, layer: 'below',
     }});
     speedAnnotations.push({{
-      x: c.entry, y: 1,
-      xref: 'x', yref: 'paper',
-      text: 'T' + c.number,
-      showarrow: false,
+      x: c.entry, y: 1, xref: 'x', yref: 'paper',
+      text: 'T' + c.number, showarrow: false,
       font: {{ size: 10, color: '#888' }},
       xanchor: 'left', yanchor: 'bottom',
     }});
   }}
 
   var speedLayout = {{
-    title: {{ text: 'Speed vs Distance', font: {{ color: '#ddd', size: 14 }} }},
-    xaxis: {{ title: 'Distance (m)', color: '#aaa', gridcolor: '#333' }},
-    yaxis: {{ title: 'Speed (mph)', color: '#aaa', gridcolor: '#333' }},
+    title: {{ text: 'Speed vs Distance',
+             font: {{ color: '#ddd', size: 14 }} }},
+    xaxis: {{ title: hasDelta ? '' : 'Distance (m)',
+              color: '#aaa', gridcolor: '#333' }},
+    yaxis: {{ title: 'Speed (mph)',
+              color: '#aaa', gridcolor: '#333' }},
     plot_bgcolor: '#0e1117',
     paper_bgcolor: '#0e1117',
     font: {{ color: '#ddd' }},
     hovermode: 'x unified',
-    legend: {{ orientation: 'h', y: 1.12, font: {{ color: '#ccc' }} }},
+    legend: {{ orientation: 'h', y: 1.15,
+               font: {{ color: '#ccc' }} }},
     shapes: speedShapes,
     annotations: speedAnnotations,
-    margin: {{ l: 55, r: 15, t: 45, b: 40 }},
+    margin: {{ l: 55, r: 15, t: 45, b: hasDelta ? 10 : 40 }},
   }};
 
-  Plotly.newPlot('speedDiv', speedTraces, speedLayout, {{ responsive: true }});
+  Plotly.newPlot('speedDiv', speedTraces, speedLayout,
+                 {{ responsive: true }});
+
+  // ---- Delta-T (optional) ----
+  if (hasDelta) {{
+    var dd = deltaData.distance;
+    var dt = deltaData.delta;
+
+    // Positive fill (comp slower — red)
+    var posY = dt.map(function(v) {{ return v >= 0 ? v : 0; }});
+    // Negative fill (comp faster — green)
+    var negY = dt.map(function(v) {{ return v < 0 ? v : 0; }});
+
+    var deltaTraces = [
+      {{
+        x: dd, y: posY, type: 'scatter', fill: 'tozeroy',
+        fillcolor: 'rgba(239,85,59,0.3)',
+        line: {{ color: 'rgba(239,85,59,0.5)', width: 0.5 }},
+        name: 'L{comp_lap or ""} slower',
+        hoverinfo: 'skip',
+      }},
+      {{
+        x: dd, y: negY, type: 'scatter', fill: 'tozeroy',
+        fillcolor: 'rgba(0,204,150,0.3)',
+        line: {{ color: 'rgba(0,204,150,0.5)', width: 0.5 }},
+        name: 'L{comp_lap or ""} faster',
+        hoverinfo: 'skip',
+      }},
+      {{
+        x: dd, y: dt, type: 'scatter', mode: 'lines',
+        line: {{ color: '#999', width: 1.5 }},
+        name: 'Delta-T',
+      }},
+    ];
+
+    var deltaShapes = corners.map(function(c) {{
+      return {{
+        type: 'rect', xref: 'x', yref: 'paper',
+        x0: c.entry, x1: c.exit, y0: 0, y1: 1,
+        fillcolor: 'rgba(128,128,128,0.1)',
+        line: {{ width: 0 }}, layer: 'below',
+      }};
+    }});
+
+    var deltaLayout = {{
+      title: {{ text: '{delta_title}',
+               font: {{ color: '#ddd', size: 14 }} }},
+      xaxis: {{ title: '', color: '#aaa', gridcolor: '#333' }},
+      yaxis: {{ title: 'Delta (s)',
+                color: '#aaa', gridcolor: '#333' }},
+      plot_bgcolor: '#0e1117',
+      paper_bgcolor: '#0e1117',
+      font: {{ color: '#ddd' }},
+      hovermode: 'x unified',
+      legend: {{ orientation: 'h', y: 1.18,
+                 font: {{ color: '#ccc', size: 10 }} }},
+      shapes: deltaShapes.concat([{{
+        type: 'line', xref: 'paper', yref: 'y',
+        x0: 0, x1: 1, y0: 0, y1: 0,
+        line: {{ color: '#666', width: 0.5, dash: 'dash' }},
+      }}]),
+      margin: {{ l: 55, r: 15, t: 40, b: 10 }},
+    }};
+
+    Plotly.newPlot('deltaDiv', deltaTraces, deltaLayout,
+                   {{ responsive: true }});
+  }}
 
   // ---- Track map ----
   var mapTraces = [];
 
-  // Trace 0: track colored by speed
   mapTraces.push({{
-    x: mapData.lon,
-    y: mapData.lat,
-    type: 'scattergl',
-    mode: 'markers',
+    x: mapData.lon, y: mapData.lat,
+    type: 'scattergl', mode: 'markers',
     marker: {{
-      color: mapData.speed,
-      colorscale: 'RdYlGn',
-      size: 3,
+      color: mapData.speed, colorscale: 'RdYlGn', size: 3,
       colorbar: {{ title: 'mph', thickness: 12,
-        tickfont: {{ color: '#aaa' }}, titlefont: {{ color: '#aaa' }} }},
+        tickfont: {{ color: '#aaa' }},
+        titlefont: {{ color: '#aaa' }} }},
     }},
-    hoverinfo: 'skip',
-    showlegend: false,
+    hoverinfo: 'skip', showlegend: false,
   }});
 
-  // Trace 1: cursor arrow (initially hidden)
+  // Cursor arrow (initially hidden)
   mapTraces.push({{
-    x: [mapData.lon[0]],
-    y: [mapData.lat[0]],
-    type: 'scatter',
-    mode: 'markers',
+    x: [mapData.lon[0]], y: [mapData.lat[0]],
+    type: 'scatter', mode: 'markers',
     marker: {{
       symbol: 'triangle-up',
-      angle: [mapData.heading[0]],
-      angleref: 'up',
-      size: 16,
-      color: '#ffffff',
+      angle: [mapData.heading[0]], angleref: 'up',
+      size: 16, color: '#ffffff',
       line: {{ color: '#000', width: 2 }},
       opacity: 0,
     }},
-    hoverinfo: 'skip',
-    showlegend: false,
+    hoverinfo: 'skip', showlegend: false,
   }});
 
-  var mapAnnotations = [];
-  for (var ci = 0; ci < corners.length; ci++) {{
-    var c = corners[ci];
-    mapAnnotations.push({{
-      x: c.apex_lon,
-      y: c.apex_lat,
-      text: 'T' + c.number,
-      showarrow: false,
+  var mapAnnotations = corners.map(function(c) {{
+    return {{
+      x: c.apex_lon, y: c.apex_lat,
+      text: 'T' + c.number, showarrow: false,
       font: {{ size: 10, color: '#000' }},
       bgcolor: 'rgba(255,255,255,0.8)',
-    }});
-  }}
+    }};
+  }});
 
   var mapLayout = {{
-    title: {{ text: 'Track Map — Lap {map_lap_num}', font: {{ color: '#ddd', size: 14 }} }},
-    xaxis: {{ title: 'Longitude', color: '#aaa', gridcolor: '#333', showgrid: false }},
-    yaxis: {{ title: 'Latitude', color: '#aaa', gridcolor: '#333', showgrid: false,
+    title: {{ text: 'Track Map — Lap {map_lap_num}',
+             font: {{ color: '#ddd', size: 14 }} }},
+    xaxis: {{ title: 'Longitude', color: '#aaa',
+              gridcolor: '#333', showgrid: false }},
+    yaxis: {{ title: 'Latitude', color: '#aaa',
+              gridcolor: '#333', showgrid: false,
               scaleanchor: 'x', scaleratio: 1 }},
     plot_bgcolor: '#0e1117',
     paper_bgcolor: '#0e1117',
@@ -523,7 +607,8 @@ def linked_speed_map_html(
     margin: {{ l: 55, r: 15, t: 45, b: 40 }},
   }};
 
-  Plotly.newPlot('mapDiv', mapTraces, mapLayout, {{ responsive: true }});
+  Plotly.newPlot('mapDiv', mapTraces, mapLayout,
+                 {{ responsive: true }});
 
   // ---- Hover linking ----
   var distArr = mapData.distance;
@@ -538,25 +623,36 @@ def linked_speed_map_html(
     return lo;
   }}
 
-  var speedDiv = document.getElementById('speedDiv');
-
-  speedDiv.on('plotly_hover', function(evt) {{
-    if (!evt.points || !evt.points.length) return;
-    var xVal = evt.points[0].x;
+  function moveCursor(xVal) {{
     var idx = bisect(distArr, xVal);
     if (idx >= distArr.length) idx = distArr.length - 1;
-
     Plotly.restyle('mapDiv', {{
       'x': [[mapData.lon[idx]]],
       'y': [[mapData.lat[idx]]],
       'marker.angle': [[mapData.heading[idx]]],
       'marker.opacity': [1],
     }}, [1]);
-  }});
+  }}
 
-  speedDiv.on('plotly_unhover', function() {{
+  function hideCursor() {{
     Plotly.restyle('mapDiv', {{ 'marker.opacity': [0] }}, [1]);
+  }}
+
+  var speedDiv = document.getElementById('speedDiv');
+  speedDiv.on('plotly_hover', function(evt) {{
+    if (evt.points && evt.points.length)
+      moveCursor(evt.points[0].x);
   }});
+  speedDiv.on('plotly_unhover', hideCursor);
+
+  if (hasDelta) {{
+    var deltaDiv = document.getElementById('deltaDiv');
+    deltaDiv.on('plotly_hover', function(evt) {{
+      if (evt.points && evt.points.length)
+        moveCursor(evt.points[0].x);
+    }});
+    deltaDiv.on('plotly_unhover', hideCursor);
+  }}
 }})();
 </script>
 </body>
