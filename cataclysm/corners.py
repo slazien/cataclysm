@@ -30,8 +30,9 @@ MIN_CORNER_LENGTH_M = 15.0  # discard shorter segments
 MERGE_GAP_M = 30.0  # merge corners closer than this
 
 # KPI search parameters
-BRAKE_SEARCH_M = 80.0  # search for braking this far before corner entry
-BRAKE_G_THRESHOLD = -0.2  # longitudinal G threshold for braking
+BRAKE_SEARCH_BEFORE_M = 150.0  # search for braking this far before corner entry
+BRAKE_SEARCH_INTO_CORNER = 0.4  # search up to 40% of the way to the apex
+BRAKE_G_THRESHOLD = -0.1  # longitudinal G threshold for braking
 THROTTLE_G_THRESHOLD = 0.1  # longitudinal G threshold for throttle application
 THROTTLE_SUSTAIN_M = 10.0  # throttle must be sustained for this distance
 
@@ -129,25 +130,34 @@ def _merge_regions(regions: list[tuple[int, int]], gap_points: int) -> list[tupl
 def _find_brake_point(
     longitudinal_g: np.ndarray,
     entry_idx: int,
+    apex_idx: int,
     step_m: float,
 ) -> tuple[int | None, float | None]:
-    """Find brake point before corner entry.
+    """Find brake point before corner entry or in the early part of the corner.
+
+    Searches from ``BRAKE_SEARCH_BEFORE_M`` before entry through 40% of the
+    way to the apex.  Trail braking means drivers often begin braking at or
+    slightly inside the heading-rate corner boundary.
 
     Returns (brake_idx, peak_brake_g) or (None, None).
     """
-    search_points = int(BRAKE_SEARCH_M / step_m)
-    search_start = max(0, entry_idx - search_points)
-    segment = longitudinal_g[search_start:entry_idx]
+    search_before_pts = int(BRAKE_SEARCH_BEFORE_M / step_m)
+    search_start = max(0, entry_idx - search_before_pts)
+
+    # Allow search into the corner up to BRAKE_SEARCH_INTO_CORNER of the way to apex
+    into_corner_pts = int((apex_idx - entry_idx) * BRAKE_SEARCH_INTO_CORNER)
+    search_end = min(len(longitudinal_g), entry_idx + into_corner_pts)
+
+    segment = longitudinal_g[search_start:search_end]
 
     if len(segment) == 0:
         return None, None
 
-    # Find where braking begins (first crossing below threshold, searching backwards)
     braking_mask = segment < BRAKE_G_THRESHOLD
     if not braking_mask.any():
         return None, None
 
-    # Find the first braking point (earliest in the search window)
+    # First braking point (earliest in the search window)
     brake_indices = np.where(braking_mask)[0]
     brake_local_idx = int(brake_indices[0])
     brake_idx = search_start + brake_local_idx
@@ -275,7 +285,7 @@ def detect_corners(
         geo_apex_idx = entry_idx + int(np.argmax(corner_rate))
 
         # Brake point
-        brake_idx, peak_g = _find_brake_point(lon_g, entry_idx, step_m)
+        brake_idx, peak_g = _find_brake_point(lon_g, entry_idx, apex_idx, step_m)
 
         # Throttle commit
         throttle_idx = _find_throttle_commit(lon_g, apex_idx, exit_idx, step_m)
@@ -343,7 +353,7 @@ def extract_corner_kpis_for_lap(
         corner_rate = smoothed_rate[entry_idx:exit_idx]
         geo_apex_idx = entry_idx + int(np.argmax(corner_rate))
 
-        brake_idx, peak_g = _find_brake_point(lon_g, entry_idx, step_m)
+        brake_idx, peak_g = _find_brake_point(lon_g, entry_idx, apex_idx, step_m)
         throttle_idx = _find_throttle_commit(lon_g, apex_idx, exit_idx, step_m)
 
         brake_m = round(float(distance[brake_idx]), 1) if brake_idx is not None else None

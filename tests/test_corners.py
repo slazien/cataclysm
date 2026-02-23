@@ -124,15 +124,25 @@ class TestFindBrakePoint:
         lon_g = np.zeros(200)
         # Braking starts at index 80
         lon_g[80:100] = -0.5
-        brake_idx, peak_g = _find_brake_point(lon_g, entry_idx=100, step_m=0.7)
+        brake_idx, peak_g = _find_brake_point(lon_g, entry_idx=100, apex_idx=130, step_m=0.7)
         assert brake_idx is not None
         assert brake_idx == 80
         assert peak_g is not None
-        assert peak_g < -0.2
+        assert peak_g < -0.1
+
+    def test_braking_inside_corner(self) -> None:
+        """Braking that starts inside the corner zone should still be detected."""
+        lon_g = np.zeros(200)
+        # Braking starts at index 105, inside the corner (entry=100, apex=130)
+        lon_g[105:125] = -0.4
+        brake_idx, peak_g = _find_brake_point(lon_g, entry_idx=100, apex_idx=130, step_m=0.7)
+        assert brake_idx is not None
+        assert brake_idx == 105
+        assert peak_g is not None
 
     def test_no_braking(self) -> None:
         lon_g = np.zeros(200)
-        brake_idx, peak_g = _find_brake_point(lon_g, entry_idx=100, step_m=0.7)
+        brake_idx, peak_g = _find_brake_point(lon_g, entry_idx=100, apex_idx=130, step_m=0.7)
         assert brake_idx is None
         assert peak_g is None
 
