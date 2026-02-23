@@ -414,27 +414,43 @@ def compute_convex_hull(
 
 
 def _build_composite_envelope(
-    ellipse: EllipseParams,
+    directional: DirectionalPeaksResult,
     composite_max_g: float,
     n_points: int = ENVELOPE_N_POINTS,
 ) -> tuple[list[float], list[float]]:
-    """Build envelope by scaling fitted ellipse to match composite_max_g.
+    """Build envelope from actual directional peaks, scaled to composite magnitude.
 
-    The ellipse is scaled so its geometric-mean radius equals composite_max_g.
-    This preserves directional asymmetry while anchoring to the consensus magnitude.
+    Instead of fitting an ellipse and scaling it (which smooths away real
+    directional peaks), this interpolates the measured peak-G at each angle
+    and uniformly scales so the mean radius matches ``composite_max_g``.
+    This preserves the true shape—including braking peaks that exceed the
+    lateral grip—while anchoring the overall magnitude to the consensus.
     """
-    geo_mean = np.sqrt(ellipse.semi_major * ellipse.semi_minor)
-    if geo_mean < 1e-6:
-        geo_mean = 1.0
-    scale = composite_max_g / geo_mean
+    if len(directional.bin_angles) < 4:
+        # Not enough directional data — fall back to circle
+        theta = np.linspace(0, 2 * np.pi, n_points, endpoint=False)
+        lat_g = (composite_max_g * np.cos(theta)).tolist()
+        lon_g = (composite_max_g * np.sin(theta)).tolist()
+        return lat_g, lon_g
 
-    theta = np.linspace(0, 2 * np.pi, n_points, endpoint=False)
-    r = _polar_ellipse_radius(
-        theta,
-        ellipse.semi_major * scale,
-        ellipse.semi_minor * scale,
-        ellipse.rotation_rad,
-    )
+    bin_angles = np.array(directional.bin_angles)
+    bin_peaks = np.array(directional.bin_peaks)
+
+    # Sort by angle for interpolation
+    order = np.argsort(bin_angles)
+    sorted_angles = bin_angles[order]
+    sorted_peaks = bin_peaks[order]
+
+    # Interpolate peaks onto a fine uniform grid
+    theta = np.linspace(-np.pi, np.pi, n_points, endpoint=False)
+    r = np.interp(theta, sorted_angles, sorted_peaks, period=2 * np.pi)
+
+    # Scale so the mean radius matches the composite scalar
+    mean_r = float(np.mean(r))
+    if mean_r < 1e-6:
+        mean_r = 1.0
+    r = r * (composite_max_g / mean_r)
+
     lat_g = (r * np.cos(theta)).tolist()
     lon_g = (r * np.sin(theta)).tolist()
     return lat_g, lon_g
@@ -490,8 +506,8 @@ def estimate_grip_limit(
     composite_max_g = sum(weights[k] * scalars[k] for k in weights)
     composite_max_g = max(composite_max_g, MIN_COMPOSITE_G)
 
-    # Build composite envelope shape from directional ellipse
-    envelope_lat, envelope_lon = _build_composite_envelope(directional.ellipse, composite_max_g)
+    # Build composite envelope shape from directional peaks
+    envelope_lat, envelope_lon = _build_composite_envelope(directional, composite_max_g)
 
     return GripEstimate(
         multi_lap=multi_lap,
