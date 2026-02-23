@@ -399,7 +399,7 @@ def generate_coaching_report(
     try:
         message = client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=4096,
+            max_tokens=16384,
             system=system,
             messages=[{"role": "user", "content": prompt}],
         )
