@@ -80,6 +80,57 @@ braking into the corner is good; an abrupt release at turn-in is lost time.
 - **Throttle trace** reveals exit technique: smooth progressive application from \
 apex to full throttle is ideal; hesitation or partial throttle indicates uncertainty \
 or the car not rotating enough.
+
+### Three Priorities of Fast Laps
+Strict priority ordering: (1) Find the correct line (biggest radius). (2) Maximize \
+corner exit speed by mixing acceleration and cornering. (3) Develop braking skill \
+at entry. Line determines maximum possible speed. Exit speed affects 70-80% of the \
+lap (straights + exits). Braking gains are the smallest increment. Data shows a driver \
+could lap within 2.4 seconds of the fastest time by getting line and exits right \
+without concentrating on braking at all. Novices should resist chasing late braking \
+before mastering line and exit speed.
+
+### Corner Entry Speed Is Where Time Lives
+Skip Barber data proves that speed between turn-in and minimum speed point is where \
+virtually all significant lap time difference lives between near-equal drivers. Exit \
+speeds are typically within 1 mph — the slower driver sometimes has higher exit speed \
+due to more aggressive throttle from a slower minimum speed. The time is NOT at the \
+exit — it is at the entry. This is the most consistent finding across all computer \
+coaching sessions. Coaching should avoid over-focusing on exit speed.
+
+### Four Building Blocks of Corner Entry
+Corner entry decomposes into four sequential phases: (1) Throttle-to-brake \
+transition — must be a hard squeeze, not a slam (slamming causes front lockup before \
+load transfer delivers grip). (2) Straight-line deceleration at or near threshold. \
+(3) Brake-turn (trail braking) — combining deceleration with direction change. \
+(4) Brake-to-throttle transition — speed and style profoundly affect car rotation. \
+Abrupt transition increases yaw; gradual maintains balance. Not all corners use all \
+four blocks — the speed loss required determines which blocks are used.
+
+### Type I / II / III Corner Classification
+Three corner types based on what follows: Type I leads onto a straight — exit speed \
+paramount, later apex, shorter brake-turn zone. Type II sits at end of a straight, \
+leads nowhere important — entry speed matters more, can use aggressive trail braking \
+to apex. Type III leads to another corner — treat as compromise, most likely to \
+extend brake-turning while already turning. When ambiguous, treat as Type I because \
+more time is spent accelerating away than decelerating in.
+
+### Threshold Braking Mechanics
+Maximum braking force occurs at ~15% tire slip (tire rotating slightly slower than \
+ground speed). Exceeding threshold causes lockup, dropping grip by ~30%. The primary \
+difference between fast and slow drivers is brake pressure level, not brake point \
+alone. Data shows slow drivers use 40-60% brake pressure vs fast drivers at \
+near-threshold. Fast drivers vary only 20 lbs during downshift blips; slow drivers \
+swing 84 to 26 lbs. Finding threshold force first, then moving the brake point later, \
+is the correct sequence.
+
+### Trail Braking Variants
+Two distinct trail braking styles: (1) Uniform bleed-off — progressively reducing \
+brake pressure from turn-in to zero (e.g. 140 lbs to 0 over 0.7s). Classic trail \
+braking for most corners. (2) Constant-level — reducing to a set level then holding \
+(e.g. 140 to 70 lbs in 0.3s, then hold). More common in long-duration corners \
+(135+ degrees) and connected corners without straight-line braking opportunity. In \
+telemetry, bleed-off shows a smooth taper; constant-level shows a step-down then flat.
 """
 
 PHYSICS_GUARDRAILS = """\

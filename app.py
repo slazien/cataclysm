@@ -654,7 +654,14 @@ with tab_coaching:
         if question:
             ctx = st.session_state.get("coaching_context", CoachingContext())
             with st.spinner("Thinking..."):
-                answer = ask_followup(ctx, question, report)
+                answer = ask_followup(
+                    ctx,
+                    question,
+                    report,
+                    all_lap_corners=all_lap_corners,
+                    skill_level=skill_level,
+                    gains=gains,
+                )
             st.session_state["coaching_context"] = ctx
 
             # Display conversation

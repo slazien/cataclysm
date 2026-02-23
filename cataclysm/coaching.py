@@ -11,6 +11,7 @@ from cataclysm.corners import Corner
 from cataclysm.driving_physics import COACHING_SYSTEM_PROMPT
 from cataclysm.engine import LapSummary
 from cataclysm.gains import GainEstimate
+from cataclysm.kb_selector import select_kb_snippets
 
 MPS_TO_MPH = 2.23694
 
@@ -390,11 +391,16 @@ def generate_coaching_report(
         skill_level=skill_level,
     )
 
+    system = COACHING_SYSTEM_PROMPT
+    kb_context = select_kb_snippets(all_lap_corners, skill_level, gains=gains)
+    if kb_context:
+        system += "\n\n" + kb_context
+
     try:
         message = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=4096,
-            system=COACHING_SYSTEM_PROMPT,
+            system=system,
             messages=[{"role": "user", "content": prompt}],
         )
     except Exception as e:
@@ -415,6 +421,10 @@ def ask_followup(
     context: CoachingContext,
     question: str,
     coaching_report: CoachingReport,
+    *,
+    all_lap_corners: dict[int, list[Corner]] | None = None,
+    skill_level: str = "intermediate",
+    gains: GainEstimate | None = None,
 ) -> str:
     """Ask a follow-up question to the AI coach.
 
@@ -439,11 +449,17 @@ def ask_followup(
 
     context.messages.append({"role": "user", "content": question})
 
+    system = _FOLLOWUP_SYSTEM
+    if all_lap_corners is not None:
+        kb_context = select_kb_snippets(all_lap_corners, skill_level, gains=gains)
+        if kb_context:
+            system += "\n\n" + kb_context
+
     try:
         message = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=1024,
-            system=_FOLLOWUP_SYSTEM,
+            system=system,
             messages=context.messages,  # type: ignore[arg-type]
         )
     except Exception as e:
