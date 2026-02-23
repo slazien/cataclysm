@@ -869,11 +869,25 @@ def corner_consistency_chart(
     return fig
 
 
+def _score_to_rgb(score: float) -> str:
+    """Map a 0-100 consistency score to an RGB color (red→green)."""
+    t = max(0.0, min(score, 100.0)) / 100.0
+    r = int(239 - (239 - 0) * t)
+    g = int(85 + (204 - 85) * t)
+    b = int(59 + (150 - 59) * t)
+    return f"rgb({r},{g},{b})"
+
+
 def track_consistency_map(
     track: TrackPositionConsistency,
     corners: list[Corner] | None = None,
+    corner_consistency: list[CornerConsistencyEntry] | None = None,
 ) -> go.Figure:
-    """Track map colored by speed std dev (consistency profile)."""
+    """Track map colored by speed std dev with corner consistency labels.
+
+    Corner labels show "T<n> <score>" and are colored from red (low score)
+    to green (high score) when ``corner_consistency`` is provided.
+    """
     fig = go.Figure()
 
     fig.add_trace(
@@ -901,22 +915,32 @@ def track_consistency_map(
         )
     )
 
-    # Label corners on the map
+    # Label corners on the map, colored by consistency score when available
     if corners:
+        cc_map = {e.corner_number: e for e in (corner_consistency or [])}
         dist = track.distance_m
         lat = track.lat
         lon = track.lon
         for corner in corners:
             apex_idx = int(np.searchsorted(dist, corner.apex_distance_m))
             apex_idx = min(apex_idx, len(lat) - 1)
+            entry = cc_map.get(corner.number)
+            if entry is not None:
+                label = f"T{corner.number} {entry.consistency_score:.0f}"
+                bg = _score_to_rgb(entry.consistency_score)
+                font_color = "white"
+            else:
+                label = f"T{corner.number}"
+                bg = "white"
+                font_color = "black"
             fig.add_annotation(
                 x=lon[apex_idx],
                 y=lat[apex_idx],
-                text=f"T{corner.number}",
+                text=label,
                 showarrow=False,
-                font={"size": 10, "color": "black"},
-                bgcolor="white",
-                opacity=0.8,
+                font={"size": 10, "color": font_color},
+                bgcolor=bg,
+                opacity=0.9,
             )
 
     fig.update_layout(

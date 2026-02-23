@@ -10,7 +10,6 @@ import pandas as pd
 import streamlit as st
 
 from cataclysm.charts import (
-    corner_consistency_chart,
     corner_kpi_table,
     g_force_chart,
     lap_consistency_chart,
@@ -225,18 +224,14 @@ with tab_overview:
 
         st.plotly_chart(lap_consistency_chart(lc), use_container_width=True)
 
-        cc_col, tm_col = st.columns(2)
-        with cc_col:
-            if consistency.corner_consistency:
-                st.plotly_chart(
-                    corner_consistency_chart(consistency.corner_consistency),
-                    use_container_width=True,
-                )
-        with tm_col:
-            st.plotly_chart(
-                track_consistency_map(consistency.track_position, corners),
-                use_container_width=True,
-            )
+        st.plotly_chart(
+            track_consistency_map(
+                consistency.track_position,
+                corners,
+                consistency.corner_consistency or None,
+            ),
+            use_container_width=True,
+        )
     else:
         st.info("Need at least 2 clean laps to compute consistency metrics.")
 
