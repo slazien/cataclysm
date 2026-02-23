@@ -187,15 +187,26 @@ def _find_throttle_commit(
     return None
 
 
-def _classify_apex(entry_idx: int, apex_idx: int, exit_idx: int) -> str:
-    """Classify apex position as early, mid, or late."""
+def _classify_apex(
+    speed_apex_idx: int,
+    geo_apex_idx: int,
+    entry_idx: int,
+    exit_idx: int,
+) -> str:
+    """Classify apex position relative to geometric apex (peak curvature).
+
+    Compares where the minimum-speed point falls vs the point of maximum
+    heading rate (geometric apex).  Using entry/exit midpoint as the reference
+    gives a systematic "late" bias because the speed minimum naturally occurs
+    past the midpoint of the heading-rate zone.
+    """
     span = exit_idx - entry_idx
     if span == 0:
         return "mid"
-    position = (apex_idx - entry_idx) / span
-    if position < 0.4:
+    offset = (speed_apex_idx - geo_apex_idx) / span
+    if offset < -0.10:
         return "early"
-    if position > 0.6:
+    if offset > 0.10:
         return "late"
     return "mid"
 
@@ -259,6 +270,10 @@ def detect_corners(
         apex_local = int(np.argmin(corner_speed))
         apex_idx = entry_idx + apex_local
 
+        # Geometric apex = peak curvature (max heading rate) within corner
+        corner_rate = smoothed_rate[entry_idx:exit_idx]
+        geo_apex_idx = entry_idx + int(np.argmax(corner_rate))
+
         # Brake point
         brake_idx, peak_g = _find_brake_point(lon_g, entry_idx, step_m)
 
@@ -277,7 +292,7 @@ def detect_corners(
                 brake_point_m=brake_m,
                 peak_brake_g=(round(peak_g, 3) if peak_g is not None else None),
                 throttle_commit_m=throttle_m,
-                apex_type=_classify_apex(entry_idx, apex_idx, exit_idx),
+                apex_type=_classify_apex(apex_idx, geo_apex_idx, entry_idx, exit_idx),
             )
         )
 
@@ -296,7 +311,13 @@ def extract_corner_kpis_for_lap(
     speed = lap_df["speed_mps"].to_numpy()
     distance = lap_df["lap_distance_m"].to_numpy()
     lon_g = lap_df["longitudinal_g"].to_numpy()
+    heading = lap_df["heading_deg"].to_numpy()
     max_dist = distance[-1]
+
+    # Compute smoothed heading rate for geometric apex detection
+    heading_rate = _compute_heading_rate(heading, step_m)
+    window_pts = max(2, int(SMOOTHING_WINDOW_M / step_m))
+    smoothed_rate = _smooth(np.abs(heading_rate), window_pts)
 
     corners: list[Corner] = []
     for ref in reference_corners:
@@ -318,6 +339,10 @@ def extract_corner_kpis_for_lap(
         apex_local = int(np.argmin(corner_speed))
         apex_idx = entry_idx + apex_local
 
+        # Geometric apex = peak curvature within corner
+        corner_rate = smoothed_rate[entry_idx:exit_idx]
+        geo_apex_idx = entry_idx + int(np.argmax(corner_rate))
+
         brake_idx, peak_g = _find_brake_point(lon_g, entry_idx, step_m)
         throttle_idx = _find_throttle_commit(lon_g, apex_idx, exit_idx, step_m)
 
@@ -333,7 +358,7 @@ def extract_corner_kpis_for_lap(
                 brake_point_m=brake_m,
                 peak_brake_g=(round(peak_g, 3) if peak_g is not None else None),
                 throttle_commit_m=throttle_m,
-                apex_type=_classify_apex(entry_idx, apex_idx, exit_idx),
+                apex_type=_classify_apex(apex_idx, geo_apex_idx, entry_idx, exit_idx),
             )
         )
 

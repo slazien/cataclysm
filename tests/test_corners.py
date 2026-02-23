@@ -160,17 +160,40 @@ class TestFindThrottleCommit:
 
 
 class TestClassifyApex:
+    """Apex classification is now relative to the geometric apex (peak curvature).
+
+    geo_apex_idx=50 in all tests means peak curvature is at the midpoint.
+    The speed apex is compared against that reference.
+    """
+
     def test_early(self) -> None:
-        assert _classify_apex(entry_idx=0, apex_idx=20, exit_idx=100) == "early"
+        # Speed apex at 20, geometric apex at 50 → offset = -0.30 → early
+        assert (
+            _classify_apex(speed_apex_idx=20, geo_apex_idx=50, entry_idx=0, exit_idx=100) == "early"
+        )
 
     def test_mid(self) -> None:
-        assert _classify_apex(entry_idx=0, apex_idx=50, exit_idx=100) == "mid"
+        # Speed apex at 50, geometric apex at 50 → offset = 0 → mid
+        assert (
+            _classify_apex(speed_apex_idx=50, geo_apex_idx=50, entry_idx=0, exit_idx=100) == "mid"
+        )
 
     def test_late(self) -> None:
-        assert _classify_apex(entry_idx=0, apex_idx=80, exit_idx=100) == "late"
+        # Speed apex at 70, geometric apex at 50 → offset = 0.20 → late
+        assert (
+            _classify_apex(speed_apex_idx=70, geo_apex_idx=50, entry_idx=0, exit_idx=100) == "late"
+        )
 
     def test_zero_span(self) -> None:
-        assert _classify_apex(entry_idx=50, apex_idx=50, exit_idx=50) == "mid"
+        assert (
+            _classify_apex(speed_apex_idx=50, geo_apex_idx=50, entry_idx=50, exit_idx=50) == "mid"
+        )
+
+    def test_within_tolerance_is_mid(self) -> None:
+        # Speed apex at 55, geometric apex at 50 → offset = 0.05 → within ±0.10 → mid
+        assert (
+            _classify_apex(speed_apex_idx=55, geo_apex_idx=50, entry_idx=0, exit_idx=100) == "mid"
+        )
 
 
 class TestDetectCorners:
