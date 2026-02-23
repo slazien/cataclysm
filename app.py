@@ -168,7 +168,9 @@ corners = cached_corners(f"{file_key}_L{processed.best_lap}", best_lap_df, meta.
 # ---------------------------------------------------------------------------
 anomalous = find_anomalous_laps(summaries)
 all_laps = sorted(processed.resampled_laps.keys())
-coaching_laps = [n for n in all_laps if n not in anomalous]
+# Exclude first/last laps (in-lap and out-lap) plus statistical anomalies
+in_out_laps = {all_laps[0], all_laps[-1]} if len(all_laps) >= 2 else set()
+coaching_laps = [n for n in all_laps if n not in anomalous and n not in in_out_laps]
 
 
 @st.cache_data(show_spinner="Extracting corner data...")
@@ -418,11 +420,21 @@ with tab_coaching:
 
     st.caption(f"Analyzes all {len(all_laps)} laps across {len(corners)} detected corners.")
 
-    if anomalous:
-        excluded = ", ".join(f"L{n}" for n in sorted(anomalous))
-        st.info(f"Excluding anomalous laps from analysis: {excluded}")
+    excluded_all = sorted(anomalous | in_out_laps)
+    if excluded_all:
+        parts: list[str] = []
+        if in_out_laps:
+            io = ", ".join(f"L{n}" for n in sorted(in_out_laps))
+            parts.append(f"in/out laps: {io}")
+        anom_only = sorted(anomalous - in_out_laps)
+        if anom_only:
+            ao = ", ".join(f"L{n}" for n in anom_only)
+            parts.append(f"anomalous: {ao}")
+        st.info(f"Excluding from analysis — {'; '.join(parts)}")
 
-    coaching_summaries = [s for s in summaries if s.lap_number not in anomalous]
+    coaching_summaries = [
+        s for s in summaries if s.lap_number not in anomalous and s.lap_number not in in_out_laps
+    ]
 
     # --- Estimated Time Gains (deterministic, no API key needed) ---
     gains: GainEstimate | None = None
