@@ -224,6 +224,16 @@ class TestBuildCoachingPrompt:
         assert "L2" in prompt
         assert "L3" in prompt
 
+    def test_role_text_not_in_user_prompt(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        prompt = _build_coaching_prompt(
+            sample_summaries, sample_all_lap_corners, "Test",
+        )
+        assert "You are an expert motorsport driving coach" not in prompt
+
 
 class TestGenerateCoachingReport:
     def test_no_api_key_returns_message(
@@ -261,6 +271,12 @@ class TestGenerateCoachingReport:
                 sample_summaries, sample_all_lap_corners, "Test",
             )
         assert report.summary == "AI says hi"
+        call_kwargs = (
+            mock_anthropic.Anthropic.return_value
+            .messages.create.call_args
+        )
+        assert "system" in call_kwargs.kwargs
+        assert "traction circle" in call_kwargs.kwargs["system"].lower()
 
 
 class TestAskFollowup:
@@ -300,3 +316,9 @@ class TestAskFollowup:
         assert ctx.messages[0]["role"] == "assistant"
         assert ctx.messages[1]["role"] == "user"
         assert ctx.messages[2]["role"] == "assistant"
+        call_kwargs = (
+            mock_anthropic.Anthropic.return_value
+            .messages.create.call_args
+        )
+        assert "system" in call_kwargs.kwargs
+        assert "traction circle" in call_kwargs.kwargs["system"].lower()

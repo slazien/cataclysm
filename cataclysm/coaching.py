@@ -7,9 +7,17 @@ import os
 from dataclasses import dataclass, field
 
 from cataclysm.corners import Corner
+from cataclysm.driving_physics import COACHING_SYSTEM_PROMPT
 from cataclysm.engine import LapSummary
 
 MPS_TO_MPH = 2.23694
+
+_FOLLOWUP_SYSTEM = (
+    COACHING_SYSTEM_PROMPT
+    + "\nThe driver is asking follow-up questions about their telemetry data and your "
+    "coaching report. Be specific, practical, and encouraging. "
+    "Reference corner numbers and speeds in mph."
+)
 
 
 @dataclass
@@ -96,11 +104,7 @@ def _build_coaching_prompt(
     best_sec = best.lap_time_s % 60
     corner_text = _format_all_laps_corners(all_lap_corners, best.lap_number)
 
-    return f"""You are an expert motorsport driving coach analyzing telemetry from a full track day session.
-The driver is an enthusiast at an HPDE (High Performance Driving Education) event.
-Give practical, actionable advice. Be specific about distances and speeds (mph).
-
-Track: {track_name}
+    return f"""Track: {track_name}
 Best Lap: L{best.lap_number} ({best_min}:{best_sec:05.2f})
 Total laps: {len(summaries)}
 
@@ -236,6 +240,7 @@ def generate_coaching_report(
         message = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=4096,
+            system=COACHING_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": prompt}],
         )
     except Exception as e:
@@ -277,17 +282,11 @@ def ask_followup(
 
     context.messages.append({"role": "user", "content": question})
 
-    system = (
-        "You are an expert motorsport driving coach. The driver is asking follow-up "
-        "questions about their telemetry data and your coaching report. Be specific, "
-        "practical, and encouraging. Reference corner numbers and speeds in mph."
-    )
-
     try:
         message = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=1024,
-            system=system,
+            system=_FOLLOWUP_SYSTEM,
             messages=context.messages,
         )
     except Exception as e:
