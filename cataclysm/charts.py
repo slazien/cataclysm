@@ -1552,6 +1552,108 @@ def ideal_lap_overlay_chart(
     return fig
 
 
+def ideal_lap_delta_chart(
+    best_lap_df: pd.DataFrame,
+    best_lap: int,
+    ideal_distance: np.ndarray,
+    ideal_speed_mps: np.ndarray,
+    corners: list[Corner] | None = None,
+) -> go.Figure:
+    """Delta-T chart: best lap vs composite ideal lap.
+
+    Computes cumulative time for the ideal lap from its speed trace,
+    then shows delta (best - ideal) so positive = best lap is slower.
+    """
+    best_dist = best_lap_df["lap_distance_m"].to_numpy()
+    best_time = best_lap_df["lap_time_s"].to_numpy()
+
+    # Interpolate ideal speed onto best lap's distance grid
+    ideal_speed_interp = np.interp(best_dist, ideal_distance, ideal_speed_mps)
+
+    # Compute ideal cumulative time: dt = ds / v
+    ds = np.diff(best_dist)
+    # Use average speed between consecutive points for each segment
+    avg_speed = (ideal_speed_interp[:-1] + ideal_speed_interp[1:]) / 2.0
+    # Avoid division by zero for stationary points
+    avg_speed = np.maximum(avg_speed, 0.1)
+    dt_segments = ds / avg_speed
+    ideal_time = np.zeros_like(best_dist)
+    ideal_time[1:] = np.cumsum(dt_segments)
+
+    # Delta: positive = best lap is slower than ideal (time to gain)
+    delta = best_time - ideal_time
+
+    fig = go.Figure()
+
+    # Split into positive (best slower) and negative (best faster) for coloring
+    positive = np.where(delta >= 0, delta, 0)
+    negative = np.where(delta < 0, delta, 0)
+
+    fig.add_trace(
+        go.Scatter(
+            x=best_dist,
+            y=positive,
+            fill="tozeroy",
+            fillcolor="rgba(239, 85, 59, 0.3)",
+            line={"color": "rgba(239, 85, 59, 0.5)", "width": 0.5},
+            name="Best lap slower",
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=best_dist,
+            y=negative,
+            fill="tozeroy",
+            fillcolor="rgba(0, 204, 150, 0.3)",
+            line={"color": "rgba(0, 204, 150, 0.5)", "width": 0.5},
+            name="Best lap faster",
+        )
+    )
+
+    # Main delta line
+    fig.add_trace(
+        go.Scatter(
+            x=best_dist,
+            y=delta,
+            mode="lines",
+            line={"color": "#ddd", "width": 1.5},
+            name="Delta-T",
+        )
+    )
+
+    # Corner shading
+    if corners:
+        for c in corners:
+            fig.add_vrect(
+                x0=c.entry_distance_m,
+                x1=c.exit_distance_m,
+                fillcolor="rgba(128, 128, 128, 0.1)",
+                layer="below",
+                line_width=0,
+                annotation_text=f"T{c.number}",
+                annotation_position="top left",
+                annotation_font_size=10,
+                annotation_font_color="gray",
+            )
+
+    total_delta = float(delta[-1]) if len(delta) > 0 else 0.0
+    fig.add_hline(y=0, line_dash="dash", line_color="gray", line_width=0.5)
+    fig.update_layout(
+        title=f"Delta-T: Best Lap (L{best_lap}) vs Ideal Lap "
+        f"(+{total_delta:.2f}s gap)",
+        xaxis_title="Distance (m)",
+        yaxis_title="Delta (s)",
+        height=400,
+        hovermode="x unified",
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font={"color": "#ddd"},
+        xaxis={"color": "#aaa", "gridcolor": "#333"},
+        yaxis={"color": "#aaa", "gridcolor": "#333"},
+    )
+    return fig
+
+
 def brake_consistency_chart(
     all_lap_corners: dict[int, list[Corner]],
     corners: list[Corner],

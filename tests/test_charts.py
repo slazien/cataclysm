@@ -16,6 +16,7 @@ from cataclysm.charts import (
     delta_t_chart,
     g_force_chart,
     gain_per_corner_chart,
+    ideal_lap_delta_chart,
     ideal_lap_overlay_chart,
     lap_times_chart,
     speed_trace_chart,
@@ -438,6 +439,55 @@ class TestIdealLapOverlayChart:
         speed = sample_resampled_lap["speed_mps"].to_numpy()
         fig = ideal_lap_overlay_chart({1: sample_resampled_lap}, 1, dist, speed)
         assert "ideal" in fig.layout.title.text.lower()
+
+
+class TestIdealLapDeltaChart:
+    def test_returns_figure(self, sample_resampled_lap: pd.DataFrame) -> None:
+        dist = sample_resampled_lap["lap_distance_m"].to_numpy()
+        speed = sample_resampled_lap["speed_mps"].to_numpy()
+        fig = ideal_lap_delta_chart(sample_resampled_lap, 1, dist, speed)
+        assert isinstance(fig, go.Figure)
+
+    def test_has_delta_traces(self, sample_resampled_lap: pd.DataFrame) -> None:
+        dist = sample_resampled_lap["lap_distance_m"].to_numpy()
+        speed = sample_resampled_lap["speed_mps"].to_numpy()
+        fig = ideal_lap_delta_chart(sample_resampled_lap, 1, dist, speed)
+        # positive fill + negative fill + main delta line = 3
+        assert len(fig.data) >= 3
+
+    def test_title_mentions_delta(self, sample_resampled_lap: pd.DataFrame) -> None:
+        dist = sample_resampled_lap["lap_distance_m"].to_numpy()
+        speed = sample_resampled_lap["speed_mps"].to_numpy()
+        fig = ideal_lap_delta_chart(sample_resampled_lap, 1, dist, speed)
+        assert "delta" in fig.layout.title.text.lower()
+
+    def test_with_corners(self, sample_resampled_lap: pd.DataFrame) -> None:
+        dist = sample_resampled_lap["lap_distance_m"].to_numpy()
+        speed = sample_resampled_lap["speed_mps"].to_numpy()
+        corners = [
+            Corner(
+                number=1,
+                entry_distance_m=80.0,
+                exit_distance_m=120.0,
+                apex_distance_m=100.0,
+                min_speed_mps=25.0,
+                brake_point_m=70.0,
+                peak_brake_g=-0.5,
+                throttle_commit_m=110.0,
+                apex_type="mid",
+            )
+        ]
+        fig = ideal_lap_delta_chart(sample_resampled_lap, 1, dist, speed, corners)
+        assert isinstance(fig, go.Figure)
+
+    def test_identical_speed_zero_delta(self, sample_resampled_lap: pd.DataFrame) -> None:
+        """When ideal speed equals best lap speed, delta should be near zero."""
+        dist = sample_resampled_lap["lap_distance_m"].to_numpy()
+        speed = sample_resampled_lap["speed_mps"].to_numpy()
+        fig = ideal_lap_delta_chart(sample_resampled_lap, 1, dist, speed)
+        # The delta-T trace (3rd trace) should be near zero
+        delta_y = fig.data[2].y
+        assert max(abs(v) for v in delta_y) < 0.1
 
 
 class TestBrakeConsistencyChart:

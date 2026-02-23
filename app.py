@@ -15,6 +15,7 @@ from cataclysm.charts import (
     corner_kpi_table,
     corner_mini_map,
     gain_per_corner_chart,
+    ideal_lap_delta_chart,
     ideal_lap_overlay_chart,
     lap_consistency_chart,
     lap_times_chart,
@@ -531,6 +532,16 @@ with tab_coaching:
         st.plotly_chart(
             ideal_lap_overlay_chart(
                 processed.resampled_laps,
+                processed.best_lap,
+                ideal.distance_m,  # type: ignore[attr-defined]
+                ideal.speed_mps,  # type: ignore[attr-defined]
+                corners,
+            ),
+            use_container_width=True,
+        )
+        st.plotly_chart(
+            ideal_lap_delta_chart(
+                processed.resampled_laps[processed.best_lap],
                 processed.best_lap,
                 ideal.distance_m,  # type: ignore[attr-defined]
                 ideal.speed_mps,  # type: ignore[attr-defined]
