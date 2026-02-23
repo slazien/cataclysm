@@ -9,6 +9,7 @@ import pytest
 
 from cataclysm.charts import (
     corner_kpi_table,
+    corner_mini_map,
     delta_t_chart,
     g_force_chart,
     gain_per_corner_chart,
@@ -139,6 +140,36 @@ class TestTrackMapChart:
     def test_no_corners(self, sample_laps: dict[int, pd.DataFrame]) -> None:
         fig = track_map_chart(sample_laps[1], lap_number=1)
         assert isinstance(fig, go.Figure)
+
+
+class TestCornerMiniMap:
+    def test_returns_figure(
+        self, sample_laps: dict[int, pd.DataFrame], sample_corners: list[Corner]
+    ) -> None:
+        fig = corner_mini_map(sample_laps[1], sample_corners[0], sample_corners)
+        assert isinstance(fig, go.Figure)
+
+    def test_has_full_track_and_highlight(
+        self, sample_laps: dict[int, pd.DataFrame], sample_corners: list[Corner]
+    ) -> None:
+        fig = corner_mini_map(sample_laps[1], sample_corners[0], sample_corners)
+        # At least 2 traces: full track (gray) + highlighted section (colored)
+        assert len(fig.data) >= 2
+
+    def test_zoomed_to_corner(
+        self, sample_laps: dict[int, pd.DataFrame], sample_corners: list[Corner]
+    ) -> None:
+        fig = corner_mini_map(sample_laps[1], sample_corners[0], sample_corners)
+        # x-axis should have explicit range (zoomed in), not autorange
+        assert fig.layout.xaxis.range is not None
+
+    def test_labels_target_corner(
+        self, sample_laps: dict[int, pd.DataFrame], sample_corners: list[Corner]
+    ) -> None:
+        fig = corner_mini_map(sample_laps[1], sample_corners[0], sample_corners)
+        annotations = fig.layout.annotations
+        target_label = [a for a in annotations if "<b>T1</b>" in a.text]
+        assert len(target_label) == 1
 
 
 class TestCornerKpiTable:

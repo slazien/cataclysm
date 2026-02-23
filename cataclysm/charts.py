@@ -236,6 +236,121 @@ def track_map_chart(
     return fig
 
 
+def corner_mini_map(
+    lap_df: pd.DataFrame,
+    target_corner: Corner,
+    all_corners: list[Corner],
+    padding_m: float = 100.0,
+) -> go.Figure:
+    """Small track map zoomed to a single corner with context.
+
+    Shows the full track as a faint gray line, highlights the region
+    around ``target_corner`` (entry - padding to exit + padding) colored
+    by speed, and labels the target corner and its immediate neighbours.
+    """
+    dist = lap_df["lap_distance_m"].to_numpy()
+    lat = lap_df["lat"].to_numpy()
+    lon = lap_df["lon"].to_numpy()
+    speed_mph = lap_df["speed_mps"].to_numpy() * MPS_TO_MPH
+
+    # Full track outline (faint)
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scattergl(
+            x=lon,
+            y=lat,
+            mode="markers",
+            marker={"color": "#333", "size": 2},
+            hoverinfo="skip",
+            showlegend=False,
+        )
+    )
+
+    # Highlighted region around the corner
+    lo = max(0.0, target_corner.entry_distance_m - padding_m)
+    hi = min(float(dist[-1]), target_corner.exit_distance_m + padding_m)
+    i_lo = int(np.searchsorted(dist, lo))
+    i_hi = min(int(np.searchsorted(dist, hi)), len(dist) - 1)
+    sl = slice(i_lo, i_hi + 1)
+
+    fig.add_trace(
+        go.Scattergl(
+            x=lon[sl],
+            y=lat[sl],
+            mode="markers",
+            marker={
+                "color": speed_mph[sl],
+                "colorscale": "RdYlGn",
+                "size": 5,
+                "colorbar": {"title": "mph", "thickness": 10, "len": 0.6},
+            },
+            hovertemplate="Speed: %{marker.color:.1f} mph<extra></extra>",
+            showlegend=False,
+        )
+    )
+
+    # Label target corner prominently
+    apex_idx = min(int(np.searchsorted(dist, target_corner.apex_distance_m)), len(lat) - 1)
+    fig.add_annotation(
+        x=lon[apex_idx],
+        y=lat[apex_idx],
+        text=f"<b>T{target_corner.number}</b>",
+        showarrow=True,
+        arrowhead=2,
+        arrowcolor="#fff",
+        font={"size": 14, "color": "#fff"},
+        bgcolor="rgba(50,50,50,0.9)",
+        bordercolor="#888",
+        borderwidth=1,
+        borderpad=4,
+    )
+
+    # Label neighbouring corners (faint)
+    for c in all_corners:
+        if c.number == target_corner.number:
+            continue
+        c_idx = min(int(np.searchsorted(dist, c.apex_distance_m)), len(lat) - 1)
+        fig.add_annotation(
+            x=lon[c_idx],
+            y=lat[c_idx],
+            text=f"T{c.number}",
+            showarrow=False,
+            font={"size": 10, "color": "#666"},
+            bgcolor="rgba(50,50,50,0.6)",
+            borderpad=2,
+        )
+
+    # Zoom to highlighted area with some padding
+    lat_sl = lat[sl]
+    lon_sl = lon[sl]
+    lat_pad = (lat_sl.max() - lat_sl.min()) * 0.3 + 1e-5
+    lon_pad = (lon_sl.max() - lon_sl.min()) * 0.3 + 1e-5
+
+    fig.update_layout(
+        height=300,
+        margin={"l": 0, "r": 0, "t": 0, "b": 0},
+        xaxis={
+            "range": [lon_sl.min() - lon_pad, lon_sl.max() + lon_pad],
+            "showticklabels": False,
+            "showgrid": False,
+            "zeroline": False,
+        },
+        yaxis={
+            "range": [lat_sl.min() - lat_pad, lat_sl.max() + lat_pad],
+            "showticklabels": False,
+            "showgrid": False,
+            "zeroline": False,
+            "scaleanchor": "x",
+            "scaleratio": 1,
+        },
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        showlegend=False,
+    )
+
+    return fig
+
+
 def corner_kpi_table(
     best_corners: list[Corner],
     comp_corners: list[Corner] | None = None,

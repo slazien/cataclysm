@@ -6,11 +6,11 @@ import glob
 import os
 
 import numpy as np
-import pandas as pd
 import streamlit as st
 
 from cataclysm.charts import (
     corner_kpi_table,
+    corner_mini_map,
     g_force_chart,
     gain_per_corner_chart,
     lap_consistency_chart,
@@ -430,6 +430,19 @@ with tab_coaching:
     if "coaching_report" in st.session_state:
         report = st.session_state["coaching_report"]
 
+        # Build corner lookup for mini-map popovers
+        corner_map: dict[int, Corner] = {c.number: c for c in corners}
+
+        def _show_corner_popover(corner_num: int, label: str) -> None:
+            """Render a popover button that shows a mini track map for a corner."""
+            c = corner_map.get(corner_num)
+            if c is None:
+                st.markdown(label)
+                return
+            with st.popover(label):
+                fig = corner_mini_map(best_lap_df, c, corners)
+                st.plotly_chart(fig, use_container_width=True, key=f"cmap_{corner_num}_{id(label)}")
+
         st.subheader("Session Summary")
         st.write(report.summary)
 
@@ -441,16 +454,20 @@ with tab_coaching:
             st.subheader("Priority Corners")
             for pc in report.priority_corners:
                 cost = pc.get("time_cost_s", 0)
-                st.markdown(
-                    f"**T{pc.get('corner', '?')}** "
-                    f"— {pc.get('issue', '')} "
-                    f"({cost:+.3f}s)\n\n"
-                    f"> {pc.get('tip', '')}"
-                )
+                cn = pc.get("corner", "?")
+                pcol_label, pcol_text = st.columns([0.12, 0.88])
+                with pcol_label:
+                    if isinstance(cn, int) and cn in corner_map:
+                        _show_corner_popover(cn, f"T{cn}")
+                    else:
+                        st.markdown(f"**T{cn}**")
+                with pcol_text:
+                    st.markdown(
+                        f"**{pc.get('issue', '')}** ({cost:+.3f}s)\n\n> {pc.get('tip', '')}"
+                    )
 
         if report.corner_grades:
             st.subheader("Corner Grades")
-            grade_cols = ["Braking", "Trail Brake", "Min Speed", "Throttle"]
             grade_score = {"A": 5, "B": 4, "C": 3, "D": 2, "F": 1}
             grade_color = {
                 "A": "#2d6a2e",
@@ -459,32 +476,38 @@ with tab_coaching:
                 "D": "#a85e00",
                 "F": "#a83232",
             }
-            df_grades = pd.DataFrame(
-                {
-                    "Corner": [f"T{g.corner}" for g in report.corner_grades],
-                    "Braking": [g.braking for g in report.corner_grades],
-                    "Trail Brake": [g.trail_braking for g in report.corner_grades],
-                    "Min Speed": [g.min_speed for g in report.corner_grades],
-                    "Throttle": [g.throttle for g in report.corner_grades],
-                    "Notes": [g.notes for g in report.corner_grades],
-                }
-            )
-            df_grades["_avg"] = (
-                df_grades[grade_cols].map(lambda v: grade_score.get(v, 0)).mean(axis=1)
-            )
-            df_grades = df_grades.sort_values("_avg").drop(columns="_avg").reset_index(drop=True)
 
-            def _color_grade(val: object) -> str:
-                bg = grade_color.get(str(val), "")
-                if bg:
-                    return f"background-color: {bg}; color: white"
-                return ""
-
-            styled = df_grades.style.map(
-                _color_grade,
-                subset=grade_cols,  # type: ignore[arg-type]
+            # Sort grades by worst-first
+            sorted_grades = sorted(
+                report.corner_grades,
+                key=lambda g: sum(
+                    grade_score.get(v, 0)
+                    for v in [g.braking, g.trail_braking, g.min_speed, g.throttle]
+                ),
             )
-            st.dataframe(styled, use_container_width=True)
+
+            def _grade_badge(val: str) -> str:
+                bg = grade_color.get(val, "#555")
+                return (
+                    f'<span style="background:{bg};color:#fff;'
+                    f'padding:2px 7px;border-radius:4px;font-weight:bold">'
+                    f"{val}</span>"
+                )
+
+            for g in sorted_grades:
+                gcol_label, gcol_grades = st.columns([0.12, 0.88])
+                with gcol_label:
+                    _show_corner_popover(g.corner, f"T{g.corner}")
+                with gcol_grades:
+                    html = (
+                        f"{_grade_badge(g.braking)} Brk &nbsp; "
+                        f"{_grade_badge(g.trail_braking)} Trail &nbsp; "
+                        f"{_grade_badge(g.min_speed)} Spd &nbsp; "
+                        f"{_grade_badge(g.throttle)} Thr"
+                    )
+                    st.markdown(html, unsafe_allow_html=True)
+                    if g.notes:
+                        st.caption(g.notes)
 
         if report.patterns:
             st.subheader("Patterns")
