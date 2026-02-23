@@ -187,7 +187,9 @@ with tab_speed:
     selected_laps = st.multiselect(
         "Select laps to overlay",
         all_laps,
-        default=all_laps[:2],
+        default=[all_laps[0], processed.best_lap]
+        if len(all_laps) >= 2 and all_laps[0] != processed.best_lap
+        else all_laps[:2],
         format_func=lambda n: f"Lap {n}",
     )
     if selected_laps:
