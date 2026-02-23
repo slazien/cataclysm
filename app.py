@@ -11,7 +11,6 @@ import streamlit as st
 
 from cataclysm.charts import (
     corner_kpi_table,
-    delta_t_chart,
     g_force_chart,
     lap_times_chart,
     linked_speed_map_html,
@@ -151,10 +150,9 @@ corners = cached_corners(
 # ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
-tab_overview, tab_speed, tab_map, tab_delta, tab_corners, tab_coaching = (
+tab_overview, tab_speed, tab_map, tab_corners, tab_coaching = (
     st.tabs(
-        ["Overview", "Speed Trace", "Track Map", "Delta-T", "Corners",
-         "AI Coach"]
+        ["Overview", "Speed Trace", "Track Map", "Corners", "AI Coach"]
     )
 )
 
@@ -189,7 +187,7 @@ with tab_speed:
     selected_laps = st.multiselect(
         "Select laps to overlay",
         all_laps,
-        default=all_laps[:3],
+        default=all_laps[:2],
         format_func=lambda n: f"Lap {n}",
     )
     if selected_laps:
@@ -237,71 +235,6 @@ with tab_map:
             processed.resampled_laps[map_lap], map_lap, corners
         )
         st.plotly_chart(fig, use_container_width=True)
-
-# --- Delta-T Tab ---
-with tab_delta:
-    col_ref, col_comp = st.columns(2)
-    with col_ref:
-        ref_lap = st.selectbox(
-            "Reference lap",
-            all_laps,
-            index=(
-                all_laps.index(processed.best_lap)
-                if processed.best_lap in all_laps else 0
-            ),
-            format_func=lambda n: f"Lap {n}",
-            key="delta_ref",
-        )
-    with col_comp:
-        comp_default = [
-            lap_num for lap_num in all_laps if lap_num != ref_lap
-        ]
-        comp_lap = st.selectbox(
-            "Comparison lap",
-            comp_default,
-            format_func=lambda n: f"Lap {n}",
-            key="delta_comp",
-        )
-
-    if (
-        ref_lap in processed.resampled_laps
-        and comp_lap in processed.resampled_laps
-        and ref_lap != comp_lap
-    ):
-        delta = compute_delta(
-            processed.resampled_laps[ref_lap],
-            processed.resampled_laps[comp_lap],
-            corners,
-        )
-        st.plotly_chart(
-            delta_t_chart(delta, ref_lap, comp_lap),
-            use_container_width=True,
-        )
-
-        st.metric(
-            "Total Delta",
-            f"{delta.total_delta_s:+.3f}s",
-            delta=(
-                f"L{comp_lap} "
-                f"{'slower' if delta.total_delta_s > 0 else 'faster'}"
-            ),
-            delta_color="inverse",
-        )
-
-        if delta.corner_deltas:
-            st.markdown("**Per-corner deltas:**")
-            corner_cols = st.columns(
-                min(len(delta.corner_deltas), 6)
-            )
-            for i, cd in enumerate(delta.corner_deltas):
-                col = corner_cols[i % len(corner_cols)]
-                col.metric(
-                    f"T{cd.corner_number}",
-                    f"{cd.delta_s:+.3f}s",
-                    delta_color="inverse",
-                )
-    elif ref_lap == comp_lap:
-        st.warning("Select different laps for reference and comparison.")
 
 # --- Corners Tab ---
 with tab_corners:

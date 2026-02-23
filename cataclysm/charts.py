@@ -362,11 +362,18 @@ def linked_speed_map_html(
     }
 
     delta_data: dict[str, list[float]] = {}
+    map_delta: list[float] = []
     if has_delta:
         delta_data = {
             "distance": delta_distance,  # type: ignore[dict-item]
             "delta": delta_time,  # type: ignore[dict-item]
         }
+        # Interpolate delta onto map lap's distance grid for track coloring
+        map_delta = np.interp(
+            map_df["lap_distance_m"].to_numpy(),
+            np.asarray(delta_distance),
+            np.asarray(delta_time),
+        ).tolist()
 
     corner_data: list[dict[str, object]] = []
     if corners:
@@ -432,6 +439,7 @@ def linked_speed_map_html(
   var lapColors = {json.dumps(lap_colors)};
   var hasDelta = {'true' if has_delta else 'false'};
   var deltaData = {json.dumps(delta_data) if has_delta else '{}'};
+  var mapDelta = {json.dumps(map_delta) if map_delta else '[]'};
 
   // ---- Speed trace ----
   var speedTraces = [];
@@ -556,15 +564,33 @@ def linked_speed_map_html(
   // ---- Track map ----
   var mapTraces = [];
 
-  mapTraces.push({{
-    x: mapData.lon, y: mapData.lat,
-    type: 'scattergl', mode: 'markers',
-    marker: {{
+  // Color by delta-T when available, otherwise by speed
+  var mapMarker;
+  if (hasDelta && mapDelta.length > 0) {{
+    var absMax = Math.max.apply(null, mapDelta.map(Math.abs)) || 0.5;
+    mapMarker = {{
+      color: mapDelta, colorscale: [
+        [0, '#00CC96'], [0.5, '#eeeeee'], [1, '#EF553B']
+      ],
+      cmin: -absMax, cmax: absMax,
+      size: 3,
+      colorbar: {{ title: 'delta (s)', thickness: 12,
+        tickfont: {{ color: '#aaa' }},
+        titlefont: {{ color: '#aaa' }} }},
+    }};
+  }} else {{
+    mapMarker = {{
       color: mapData.speed, colorscale: 'RdYlGn', size: 3,
       colorbar: {{ title: 'mph', thickness: 12,
         tickfont: {{ color: '#aaa' }},
         titlefont: {{ color: '#aaa' }} }},
-    }},
+    }};
+  }}
+
+  mapTraces.push({{
+    x: mapData.lon, y: mapData.lat,
+    type: 'scattergl', mode: 'markers',
+    marker: mapMarker,
     hoverinfo: 'skip', showlegend: false,
   }});
 
@@ -591,8 +617,11 @@ def linked_speed_map_html(
     }};
   }});
 
+  var mapTitle = hasDelta && mapDelta.length > 0
+    ? 'Track Map — Delta-T (Lap {map_lap_num})'
+    : 'Track Map — Speed (Lap {map_lap_num})';
   var mapLayout = {{
-    title: {{ text: 'Track Map — Lap {map_lap_num}',
+    title: {{ text: mapTitle,
              font: {{ color: '#ddd', size: 14 }} }},
     xaxis: {{ title: 'Longitude', color: '#aaa',
               gridcolor: '#333', showgrid: false }},
