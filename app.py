@@ -18,7 +18,7 @@ from cataclysm.charts import (
     lap_times_chart,
     linked_speed_map_html,
     track_consistency_map,
-    track_map_chart,
+    track_median_speed_map,
 )
 from cataclysm.coaching import CoachingContext, ask_followup, generate_coaching_report
 from cataclysm.consistency import compute_session_consistency
@@ -177,8 +177,8 @@ all_lap_corners = cached_all_lap_corners(
 # ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
-tab_overview, tab_speed, tab_map, tab_corners, tab_coaching = st.tabs(
-    ["Overview", "Speed Trace", "Track Map", "Corners", "AI Coach"]
+tab_overview, tab_speed, tab_corners, tab_coaching = st.tabs(
+    ["Overview", "Speed Trace", "Corners", "AI Coach"]
 )
 
 # --- Overview Tab ---
@@ -201,10 +201,6 @@ with tab_overview:
     )
 
     st.plotly_chart(lap_times_chart(summaries), use_container_width=True)
-    st.plotly_chart(
-        g_force_chart(best_lap_df, processed.best_lap),
-        use_container_width=True,
-    )
 
     # --- Session Consistency ---
     st.markdown("---")
@@ -227,16 +223,33 @@ with tab_overview:
 
         st.plotly_chart(lap_consistency_chart(lc), use_container_width=True)
 
-        st.plotly_chart(
-            track_consistency_map(
-                consistency.track_position,
-                corners,
-                consistency.corner_consistency or None,
-            ),
-            use_container_width=True,
-        )
+        # Track maps: median speed + consistency side by side
+        map_col1, map_col2 = st.columns(2)
+        with map_col1:
+            st.plotly_chart(
+                track_median_speed_map(
+                    consistency.track_position,
+                    corners,
+                    consistency.corner_consistency or None,
+                ),
+                use_container_width=True,
+            )
+        with map_col2:
+            st.plotly_chart(
+                track_consistency_map(
+                    consistency.track_position,
+                    corners,
+                    consistency.corner_consistency or None,
+                ),
+                use_container_width=True,
+            )
     else:
         st.info("Need at least 2 clean laps to compute consistency metrics.")
+
+    st.plotly_chart(
+        g_force_chart(best_lap_df, processed.best_lap),
+        use_container_width=True,
+    )
 
 # --- Speed Trace Tab ---
 with tab_speed:
@@ -275,19 +288,6 @@ with tab_speed:
         st.components.v1.html(html, height=height)
     else:
         st.info("Select at least one lap to display.")
-
-# --- Track Map Tab ---
-with tab_map:
-    map_lap = st.selectbox(
-        "Show map for lap",
-        all_laps,
-        index=(all_laps.index(processed.best_lap) if processed.best_lap in all_laps else 0),
-        format_func=lambda n: f"Lap {n}",
-        key="map_lap",
-    )
-    if map_lap in processed.resampled_laps:
-        fig = track_map_chart(processed.resampled_laps[map_lap], map_lap, corners)
-        st.plotly_chart(fig, use_container_width=True)
 
 # --- Corners Tab ---
 with tab_corners:

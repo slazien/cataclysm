@@ -174,6 +174,7 @@ class TestTrackPositionConsistency:
         assert len(result.distance_m) == len(lap_a)
         assert len(result.speed_std_mph) == len(lap_a)
         assert len(result.speed_mean_mph) == len(lap_a)
+        assert len(result.speed_median_mph) == len(lap_a)
         assert len(result.lat) == len(lap_a)
         assert len(result.lon) == len(lap_a)
 

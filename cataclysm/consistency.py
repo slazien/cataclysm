@@ -48,6 +48,7 @@ class TrackPositionConsistency:
     distance_m: np.ndarray
     speed_std_mph: np.ndarray
     speed_mean_mph: np.ndarray
+    speed_median_mph: np.ndarray
     n_laps: int
     lat: np.ndarray
     lon: np.ndarray
@@ -250,11 +251,13 @@ def compute_track_position_consistency(
     stacked = np.vstack(speed_arrays)
     speed_std = np.std(stacked, axis=0) * MPS_TO_MPH
     speed_mean = np.mean(stacked, axis=0) * MPS_TO_MPH
+    speed_median = np.median(stacked, axis=0) * MPS_TO_MPH
 
     return TrackPositionConsistency(
         distance_m=ref_distance,
         speed_std_mph=speed_std,
         speed_mean_mph=speed_mean,
+        speed_median_mph=speed_median,
         n_laps=len(clean_keys),
         lat=ref_lat,
         lon=ref_lon,

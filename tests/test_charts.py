@@ -16,7 +16,9 @@ from cataclysm.charts import (
     lap_times_chart,
     speed_trace_chart,
     track_map_chart,
+    track_median_speed_map,
 )
+from cataclysm.consistency import TrackPositionConsistency
 from cataclysm.corners import Corner
 from cataclysm.delta import DeltaResult
 from cataclysm.engine import LapSummary
@@ -281,3 +283,40 @@ class TestGainPerCornerChart:
     def test_dark_theme(self, sample_gains: GainEstimate) -> None:
         fig = gain_per_corner_chart(sample_gains.consistency, sample_gains.composite)
         assert fig.layout.plot_bgcolor == "#0e1117"
+
+
+@pytest.fixture
+def sample_track_position() -> TrackPositionConsistency:
+    n = 500
+    return TrackPositionConsistency(
+        distance_m=np.arange(n) * 0.7,
+        speed_std_mph=np.random.default_rng(42).uniform(0.5, 3.0, n),
+        speed_mean_mph=np.full(n, 60.0) + np.sin(np.arange(n) * 0.05) * 10,
+        speed_median_mph=np.full(n, 59.0) + np.sin(np.arange(n) * 0.05) * 10,
+        n_laps=5,
+        lat=33.53 + np.sin(np.arange(n) * 0.01) * 0.001,
+        lon=-86.62 + np.cos(np.arange(n) * 0.01) * 0.002,
+    )
+
+
+class TestTrackMedianSpeedMap:
+    def test_returns_figure(
+        self, sample_track_position: TrackPositionConsistency, sample_corners: list[Corner]
+    ) -> None:
+        fig = track_median_speed_map(sample_track_position, sample_corners)
+        assert isinstance(fig, go.Figure)
+
+    def test_no_corners(self, sample_track_position: TrackPositionConsistency) -> None:
+        fig = track_median_speed_map(sample_track_position)
+        assert isinstance(fig, go.Figure)
+
+    def test_dark_theme(self, sample_track_position: TrackPositionConsistency) -> None:
+        fig = track_median_speed_map(sample_track_position)
+        assert fig.layout.plot_bgcolor == "#0e1117"
+
+    def test_uses_rdylgn_colorscale(self, sample_track_position: TrackPositionConsistency) -> None:
+        fig = track_median_speed_map(sample_track_position)
+        # Plotly expands named colorscales to tuples; check first color matches RdYlGn
+        cs = fig.data[0].marker.colorscale
+        assert cs[0][0] == 0.0
+        assert "165" in cs[0][1]  # rgb(165,0,38) is RdYlGn start

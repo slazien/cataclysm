@@ -966,6 +966,80 @@ def track_consistency_map(
     return fig
 
 
+def track_median_speed_map(
+    track: TrackPositionConsistency,
+    corners: list[Corner] | None = None,
+    corner_consistency: list[CornerConsistencyEntry] | None = None,
+) -> go.Figure:
+    """Track map colored by median speed across all clean laps.
+
+    Corner labels show "T<n> <score>" colored by consistency score
+    when ``corner_consistency`` is provided.
+    """
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Scattergl(
+            x=track.lon,
+            y=track.lat,
+            mode="markers",
+            marker={
+                "color": track.speed_median_mph,
+                "colorscale": "RdYlGn",
+                "size": 3,
+                "colorbar": {"title": "Median mph", "thickness": 15},
+            },
+            hovertemplate=(
+                "Median Speed: %{marker.color:.1f} mph<br>"
+                "Lat: %{y:.6f}<br>"
+                "Lon: %{x:.6f}<extra></extra>"
+            ),
+        )
+    )
+
+    if corners:
+        cc_map = {e.corner_number: e for e in (corner_consistency or [])}
+        dist = track.distance_m
+        lat = track.lat
+        lon = track.lon
+        for corner in corners:
+            apex_idx = int(np.searchsorted(dist, corner.apex_distance_m))
+            apex_idx = min(apex_idx, len(lat) - 1)
+            entry = cc_map.get(corner.number)
+            if entry is not None:
+                label = f"T{corner.number} {entry.consistency_score:.0f}"
+                bg = _score_to_rgb(entry.consistency_score)
+                font_color = "white"
+            else:
+                label = f"T{corner.number}"
+                bg = "rgba(50,50,50,0.85)"
+                font_color = "white"
+            fig.add_annotation(
+                x=lon[apex_idx],
+                y=lat[apex_idx],
+                text=label,
+                showarrow=False,
+                font={"size": 12, "color": font_color},
+                bgcolor=bg,
+                borderpad=2,
+                opacity=0.9,
+            )
+
+    fig.update_layout(
+        title=f"Track Map — Median Speed ({track.n_laps} laps)",
+        xaxis_title="Longitude",
+        yaxis_title="Latitude",
+        height=600,
+        yaxis={"scaleanchor": "x", "scaleratio": 1},
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font={"color": "#ddd"},
+        showlegend=False,
+    )
+
+    return fig
+
+
 def _fmt_laptime(t: float) -> str:
     """Format seconds as m:ss.xx."""
     m = int(t // 60)
