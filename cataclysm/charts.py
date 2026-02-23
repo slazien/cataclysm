@@ -645,9 +645,12 @@ def linked_speed_map_html(
   var mapAnnotations = corners.map(function(c) {{
     return {{
       x: c.apex_lon, y: c.apex_lat,
-      text: 'T' + c.number, showarrow: false,
-      font: {{ size: 10, color: '#000' }},
-      bgcolor: 'rgba(255,255,255,0.8)',
+      text: '<b>T' + c.number + '</b>', showarrow: false,
+      font: {{ size: 13, color: '#fff' }},
+      bgcolor: 'rgba(50,50,50,0.85)',
+      bordercolor: '#888',
+      borderwidth: 1,
+      borderpad: 3,
     }};
   }});
 
