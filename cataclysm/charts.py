@@ -717,6 +717,30 @@ def linked_speed_map_html(
         moveCursor(evt.points[0].x);
     }});
     deltaDiv.on('plotly_unhover', hideCursor);
+
+    // Sync x-axis zoom/pan between speed and delta charts
+    var syncing = false;
+    function syncXRange(source, target, evtData) {{
+      if (syncing) return;
+      syncing = true;
+      var update = {{}};
+      if (evtData['xaxis.range[0]'] !== undefined) {{
+        update['xaxis.range[0]'] = evtData['xaxis.range[0]'];
+        update['xaxis.range[1]'] = evtData['xaxis.range[1]'];
+      }} else if (evtData['xaxis.autorange']) {{
+        update['xaxis.autorange'] = true;
+      }}
+      if (Object.keys(update).length > 0)
+        Plotly.relayout(target, update);
+      syncing = false;
+    }}
+
+    speedDiv.on('plotly_relayout', function(evtData) {{
+      syncXRange('speedDiv', 'deltaDiv', evtData);
+    }});
+    deltaDiv.on('plotly_relayout', function(evtData) {{
+      syncXRange('deltaDiv', 'speedDiv', evtData);
+    }});
   }}
 }})();
 </script>
