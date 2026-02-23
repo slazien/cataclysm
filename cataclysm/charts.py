@@ -1672,6 +1672,32 @@ def brake_consistency_chart(
 
     corner_numbers = [c.number for c in corners]
 
+    # Pre-compute std for each corner to determine sort order
+    brake_std_by_corner: dict[int, float] = {}
+    speed_std_by_corner: dict[int, float] = {}
+    for cn in corner_numbers:
+        bp_vals: list[float] = []
+        sp_vals: list[float] = []
+        for lap_corners in all_lap_corners.values():
+            for c in lap_corners:
+                if c.number == cn:
+                    if c.brake_point_m is not None:
+                        bp_vals.append(c.brake_point_m)
+                    sp_vals.append(c.min_speed_mps * MPS_TO_MPH)
+        brake_std_by_corner[cn] = float(np.std(bp_vals)) if len(bp_vals) >= 2 else 0.0
+        speed_std_by_corner[cn] = float(np.std(sp_vals)) if len(sp_vals) >= 2 else 0.0
+
+    # Sort: highest std at top. Plotly y-axis renders bottom-to-top,
+    # so ascending std order puts highest at top.
+    brake_order = [
+        f"T{cn}"
+        for cn in sorted(corner_numbers, key=lambda c: brake_std_by_corner.get(c, 0.0))
+    ]
+    speed_order = [
+        f"T{cn}"
+        for cn in sorted(corner_numbers, key=lambda c: speed_std_by_corner.get(c, 0.0))
+    ]
+
     for cn in corner_numbers:
         brake_points: list[float] = []
         min_speeds: list[float] = []
@@ -1778,6 +1804,8 @@ def brake_consistency_chart(
     fig.update_yaxes(color="#aaa", gridcolor="#333")
     fig.update_xaxes(title_text="Brake Point (m)", row=1, col=1)
     fig.update_xaxes(title_text="Min Speed (mph)", row=1, col=2)
+    fig.update_yaxes(categoryorder="array", categoryarray=brake_order, row=1, col=1)
+    fig.update_yaxes(categoryorder="array", categoryarray=speed_order, row=1, col=2)
 
     return fig
 
