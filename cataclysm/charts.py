@@ -20,7 +20,6 @@ from cataclysm.engine import LapSummary
 from cataclysm.gains import (
     CompositeGainResult,
     ConsistencyGainResult,
-    GainEstimate,
 )
 
 MPS_TO_MPH = 2.23694
@@ -1034,57 +1033,6 @@ def track_median_speed_map(
         plot_bgcolor="#0e1117",
         paper_bgcolor="#0e1117",
         font={"color": "#ddd"},
-        showlegend=False,
-    )
-
-    return fig
-
-
-def _fmt_laptime(t: float) -> str:
-    """Format seconds as m:ss.xx."""
-    m = int(t // 60)
-    s = t % 60
-    return f"{m}:{s:05.2f}"
-
-
-def gain_waterfall_chart(gains: GainEstimate) -> go.Figure:
-    """Horizontal waterfall showing the three gain tiers stacking down from best lap time."""
-    best = gains.consistency.best_lap_time_s
-    cons_gain = gains.consistency.total_gain_s
-    comp_gain = gains.composite.gain_s
-    theo_gain = gains.theoretical.gain_s
-
-    fig = go.Figure(
-        go.Waterfall(
-            orientation="v",
-            measure=["absolute", "relative", "relative", "relative", "total"],
-            x=["Best Lap", "Consistency", "Composite", "Theoretical", "Theoretical Best"],
-            y=[best, -cons_gain, -comp_gain, -theo_gain, 0],
-            text=[
-                _fmt_laptime(best),
-                f"-{cons_gain:.2f}s",
-                f"-{comp_gain:.2f}s",
-                f"-{theo_gain:.2f}s",
-                _fmt_laptime(best - cons_gain - comp_gain - theo_gain),
-            ],
-            textposition="outside",
-            decreasing={"marker": {"color": "#00CC96"}},
-            increasing={"marker": {"color": "#EF553B"}},
-            totals={"marker": {"color": "#636EFA"}},
-            connector={"line": {"color": "#666", "width": 1}},
-            hovertemplate="%{x}: %{text}<extra></extra>",
-        )
-    )
-
-    fig.update_layout(
-        title="Gain Estimation Waterfall",
-        yaxis_title="Lap Time (s)",
-        height=450,
-        plot_bgcolor="#0e1117",
-        paper_bgcolor="#0e1117",
-        font={"color": "#ddd"},
-        xaxis={"color": "#aaa"},
-        yaxis={"color": "#aaa", "gridcolor": "#333"},
         showlegend=False,
     )
 

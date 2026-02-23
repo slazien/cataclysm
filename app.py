@@ -13,7 +13,6 @@ from cataclysm.charts import (
     corner_kpi_table,
     g_force_chart,
     gain_per_corner_chart,
-    gain_waterfall_chart,
     lap_consistency_chart,
     lap_times_chart,
     linked_speed_map_html,
@@ -395,7 +394,20 @@ with tab_coaching:
             help="Gap: best lap vs best 10m micro-sectors from any lap",
         )
 
-        st.plotly_chart(gain_waterfall_chart(gains), use_container_width=True)
+        def _fmt_lt(t: float) -> str:
+            m = int(t // 60)
+            s = t % 60
+            return f"{m}:{s:05.2f}"
+
+        avg_t = _fmt_lt(gains.consistency.avg_lap_time_s)
+        best_t = _fmt_lt(gains.consistency.best_lap_time_s)
+        comp_t = _fmt_lt(gains.composite.composite_time_s)
+        theo_t = _fmt_lt(gains.theoretical.theoretical_time_s)
+        st.caption(
+            f"Avg Lap **{avg_t}** · Best Lap **{best_t}** · "
+            f"Composite **{comp_t}** · Theoretical **{theo_t}**"
+        )
+
         st.plotly_chart(
             gain_per_corner_chart(gains.consistency, gains.composite),
             use_container_width=True,

@@ -12,7 +12,6 @@ from cataclysm.charts import (
     delta_t_chart,
     g_force_chart,
     gain_per_corner_chart,
-    gain_waterfall_chart,
     lap_times_chart,
     speed_trace_chart,
     track_map_chart,
@@ -237,25 +236,6 @@ def sample_gains() -> GainEstimate:
         clean_lap_numbers=[1, 2, 3],
         best_lap_number=1,
     )
-
-
-class TestGainWaterfallChart:
-    def test_returns_figure(self, sample_gains: GainEstimate) -> None:
-        fig = gain_waterfall_chart(sample_gains)
-        assert isinstance(fig, go.Figure)
-
-    def test_has_waterfall_trace(self, sample_gains: GainEstimate) -> None:
-        fig = gain_waterfall_chart(sample_gains)
-        assert any(isinstance(t, go.Waterfall) for t in fig.data)
-
-    def test_has_five_bars(self, sample_gains: GainEstimate) -> None:
-        fig = gain_waterfall_chart(sample_gains)
-        waterfall = [t for t in fig.data if isinstance(t, go.Waterfall)][0]
-        assert len(waterfall.x) == 5
-
-    def test_dark_theme(self, sample_gains: GainEstimate) -> None:
-        fig = gain_waterfall_chart(sample_gains)
-        assert fig.layout.plot_bgcolor == "#0e1117"
 
 
 class TestGainPerCornerChart:
