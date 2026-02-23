@@ -11,6 +11,8 @@ from cataclysm.charts import (
     corner_kpi_table,
     delta_t_chart,
     g_force_chart,
+    gain_per_corner_chart,
+    gain_waterfall_chart,
     lap_times_chart,
     speed_trace_chart,
     track_map_chart,
@@ -18,6 +20,14 @@ from cataclysm.charts import (
 from cataclysm.corners import Corner
 from cataclysm.delta import DeltaResult
 from cataclysm.engine import LapSummary
+from cataclysm.gains import (
+    CompositeGainResult,
+    ConsistencyGainResult,
+    GainEstimate,
+    SegmentDefinition,
+    SegmentGain,
+    TheoreticalBestResult,
+)
 
 
 @pytest.fixture
@@ -156,3 +166,118 @@ class TestGForceChart:
     def test_has_scatter(self, sample_laps: dict[int, pd.DataFrame]) -> None:
         fig = g_force_chart(sample_laps[1], lap_number=1)
         assert len(fig.data) == 1
+
+
+def _make_segment(name: str, entry: float, exit_m: float, *, is_corner: bool) -> SegmentDefinition:
+    return SegmentDefinition(
+        name=name, entry_distance_m=entry, exit_distance_m=exit_m, is_corner=is_corner
+    )
+
+
+def _make_segment_gain(
+    seg: SegmentDefinition,
+    best_time: float,
+    avg_time: float,
+    gain: float,
+    best_lap: int = 1,
+) -> SegmentGain:
+    return SegmentGain(
+        segment=seg,
+        best_time_s=best_time,
+        avg_time_s=avg_time,
+        gain_s=gain,
+        best_lap=best_lap,
+        lap_times_s={1: best_time, 2: avg_time},
+    )
+
+
+@pytest.fixture
+def sample_gains() -> GainEstimate:
+    t1 = _make_segment("T1", 50.0, 120.0, is_corner=True)
+    t2 = _make_segment("T2", 200.0, 280.0, is_corner=True)
+    s1 = _make_segment("S1", 120.0, 200.0, is_corner=False)
+
+    cons_segments = [
+        _make_segment_gain(t1, 3.0, 3.5, 0.50),
+        _make_segment_gain(s1, 2.0, 2.1, 0.10),
+        _make_segment_gain(t2, 4.0, 4.8, 0.80),
+    ]
+    comp_segments = [
+        _make_segment_gain(t1, 3.0, 3.5, 0.20),
+        _make_segment_gain(s1, 2.0, 2.1, 0.05),
+        _make_segment_gain(t2, 4.0, 4.8, 0.30),
+    ]
+
+    consistency = ConsistencyGainResult(
+        segment_gains=cons_segments,
+        total_gain_s=1.40,
+        avg_lap_time_s=94.0,
+        best_lap_time_s=92.5,
+    )
+    composite = CompositeGainResult(
+        segment_gains=comp_segments,
+        composite_time_s=92.0,
+        best_lap_time_s=92.5,
+        gain_s=0.50,
+    )
+    theoretical = TheoreticalBestResult(
+        sector_size_m=100.0,
+        n_sectors=38,
+        theoretical_time_s=91.7,
+        best_lap_time_s=92.5,
+        gain_s=0.30,
+    )
+
+    return GainEstimate(
+        consistency=consistency,
+        composite=composite,
+        theoretical=theoretical,
+        clean_lap_numbers=[1, 2, 3],
+        best_lap_number=1,
+    )
+
+
+class TestGainWaterfallChart:
+    def test_returns_figure(self, sample_gains: GainEstimate) -> None:
+        fig = gain_waterfall_chart(sample_gains)
+        assert isinstance(fig, go.Figure)
+
+    def test_has_waterfall_trace(self, sample_gains: GainEstimate) -> None:
+        fig = gain_waterfall_chart(sample_gains)
+        assert any(isinstance(t, go.Waterfall) for t in fig.data)
+
+    def test_has_five_bars(self, sample_gains: GainEstimate) -> None:
+        fig = gain_waterfall_chart(sample_gains)
+        waterfall = [t for t in fig.data if isinstance(t, go.Waterfall)][0]
+        assert len(waterfall.x) == 5
+
+    def test_dark_theme(self, sample_gains: GainEstimate) -> None:
+        fig = gain_waterfall_chart(sample_gains)
+        assert fig.layout.plot_bgcolor == "#0e1117"
+
+
+class TestGainPerCornerChart:
+    def test_returns_figure(self, sample_gains: GainEstimate) -> None:
+        fig = gain_per_corner_chart(sample_gains.consistency, sample_gains.composite)
+        assert isinstance(fig, go.Figure)
+
+    def test_filters_straights(self, sample_gains: GainEstimate) -> None:
+        fig = gain_per_corner_chart(sample_gains.consistency, sample_gains.composite)
+        # Only corner names should appear, not straight S1
+        for trace in fig.data:
+            y_vals = list(trace.y)
+            assert "S1" not in y_vals
+
+    def test_has_two_trace_groups(self, sample_gains: GainEstimate) -> None:
+        fig = gain_per_corner_chart(sample_gains.consistency, sample_gains.composite)
+        assert len(fig.data) == 2  # consistency + composite bars
+
+    def test_sorted_by_consistency_descending(self, sample_gains: GainEstimate) -> None:
+        fig = gain_per_corner_chart(sample_gains.consistency, sample_gains.composite)
+        cons_trace = fig.data[0]
+        vals = list(cons_trace.x)
+        assert vals == sorted(vals, reverse=True)
+
+    def test_dark_theme(self, sample_gains: GainEstimate) -> None:
+        fig = gain_per_corner_chart(sample_gains.consistency, sample_gains.composite)
+        assert fig.layout.plot_bgcolor == "#0e1117"

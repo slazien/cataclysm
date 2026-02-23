@@ -17,6 +17,11 @@ from cataclysm.consistency import (
 from cataclysm.corners import Corner
 from cataclysm.delta import DeltaResult
 from cataclysm.engine import LapSummary
+from cataclysm.gains import (
+    CompositeGainResult,
+    ConsistencyGainResult,
+    GainEstimate,
+)
 
 MPS_TO_MPH = 2.23694
 M_TO_FT = 3.28084
@@ -953,6 +958,128 @@ def track_consistency_map(
         paper_bgcolor="#0e1117",
         font={"color": "#ddd"},
         showlegend=False,
+    )
+
+    return fig
+
+
+def _fmt_laptime(t: float) -> str:
+    """Format seconds as m:ss.xx."""
+    m = int(t // 60)
+    s = t % 60
+    return f"{m}:{s:05.2f}"
+
+
+def gain_waterfall_chart(gains: GainEstimate) -> go.Figure:
+    """Horizontal waterfall showing the three gain tiers stacking down from best lap time."""
+    best = gains.consistency.best_lap_time_s
+    cons_gain = gains.consistency.total_gain_s
+    comp_gain = gains.composite.gain_s
+    theo_gain = gains.theoretical.gain_s
+
+    fig = go.Figure(
+        go.Waterfall(
+            orientation="v",
+            measure=["absolute", "relative", "relative", "relative", "total"],
+            x=["Best Lap", "Consistency", "Composite", "Theoretical", "Theoretical Best"],
+            y=[best, -cons_gain, -comp_gain, -theo_gain, 0],
+            text=[
+                _fmt_laptime(best),
+                f"-{cons_gain:.2f}s",
+                f"-{comp_gain:.2f}s",
+                f"-{theo_gain:.2f}s",
+                _fmt_laptime(best - cons_gain - comp_gain - theo_gain),
+            ],
+            textposition="outside",
+            decreasing={"marker": {"color": "#00CC96"}},
+            increasing={"marker": {"color": "#EF553B"}},
+            totals={"marker": {"color": "#636EFA"}},
+            connector={"line": {"color": "#666", "width": 1}},
+            hovertemplate="%{x}: %{text}<extra></extra>",
+        )
+    )
+
+    fig.update_layout(
+        title="Gain Estimation Waterfall",
+        yaxis_title="Lap Time (s)",
+        height=450,
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font={"color": "#ddd"},
+        xaxis={"color": "#aaa"},
+        yaxis={"color": "#aaa", "gridcolor": "#333"},
+        showlegend=False,
+    )
+
+    return fig
+
+
+def gain_per_corner_chart(
+    consistency: ConsistencyGainResult,
+    composite: CompositeGainResult,
+) -> go.Figure:
+    """Grouped horizontal bar chart showing per-corner gains."""
+    # Build lookup from composite segment gains keyed by segment name
+    comp_map: dict[str, float] = {}
+    for sg in composite.segment_gains:
+        if sg.segment.is_corner:
+            comp_map[sg.segment.name] = sg.gain_s
+
+    # Collect corner segments from consistency, filter straights and tiny gains
+    rows: list[tuple[str, float, float]] = []
+    for sg in consistency.segment_gains:
+        if not sg.segment.is_corner:
+            continue
+        cons_gain = sg.gain_s
+        comp_gain = comp_map.get(sg.segment.name, 0.0)
+        if cons_gain < 0.01 and comp_gain < 0.01:
+            continue
+        rows.append((sg.segment.name, cons_gain, comp_gain))
+
+    # Sort by consistency gain descending (biggest opportunity at top)
+    rows.sort(key=lambda r: r[1], reverse=True)
+
+    names = [r[0] for r in rows]
+    cons_vals = [r[1] for r in rows]
+    comp_vals = [r[2] for r in rows]
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Bar(
+            y=names,
+            x=cons_vals,
+            orientation="h",
+            name="Consistency (avg \u2192 best)",
+            marker_color="#636EFA",
+            text=[f"{v:.2f}s" for v in cons_vals],
+            textposition="auto",
+        )
+    )
+
+    fig.add_trace(
+        go.Bar(
+            y=names,
+            x=comp_vals,
+            orientation="h",
+            name="Composite (best lap \u2192 best sector)",
+            marker_color="#FFA15A",
+            text=[f"{v:.2f}s" for v in comp_vals],
+            textposition="auto",
+        )
+    )
+
+    fig.update_layout(
+        title="Per-Corner Gain Breakdown",
+        xaxis_title="Time Gain (s)",
+        barmode="group",
+        height=max(350, 50 * len(names) + 150),
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font={"color": "#ddd"},
+        xaxis={"color": "#aaa", "gridcolor": "#333"},
+        yaxis={"color": "#aaa", "autorange": "reversed"},
+        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02},
     )
 
     return fig

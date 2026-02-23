@@ -12,6 +12,8 @@ import streamlit as st
 from cataclysm.charts import (
     corner_kpi_table,
     g_force_chart,
+    gain_per_corner_chart,
+    gain_waterfall_chart,
     lap_consistency_chart,
     lap_times_chart,
     linked_speed_map_html,
@@ -23,6 +25,7 @@ from cataclysm.consistency import compute_session_consistency
 from cataclysm.corners import Corner, detect_corners, extract_corner_kpis_for_lap
 from cataclysm.delta import compute_delta
 from cataclysm.engine import ProcessedSession, find_anomalous_laps, process_session
+from cataclysm.gains import GainEstimate, estimate_gains
 from cataclysm.parser import ParsedSession, parse_racechrono_csv
 from cataclysm.track_db import locate_official_corners, lookup_track
 
@@ -344,12 +347,70 @@ with tab_coaching:
 
     coaching_summaries = [s for s in summaries if s.lap_number not in anomalous]
 
+    # --- Estimated Time Gains (deterministic, no API key needed) ---
+    gains: GainEstimate | None = None
+    if len(coaching_laps) >= 2:
+
+        @st.cache_data(show_spinner="Computing gain estimates...")
+        def cached_gains(
+            _key: str,
+            _resampled: object,
+            _corners: object,
+            _summaries: object,
+            _coaching_laps: list[int],
+            _best_lap: int,
+        ) -> GainEstimate:
+            return estimate_gains(
+                processed.resampled_laps,
+                corners,  # type: ignore[arg-type]
+                summaries,
+                _coaching_laps,
+                _best_lap,
+            )
+
+        gains = cached_gains(
+            f"{file_key}_gains",
+            processed.resampled_laps,
+            corners,
+            summaries,
+            coaching_laps,
+            processed.best_lap,
+        )
+
+        st.subheader("Estimated Time Gains")
+        g1, g2, g3 = st.columns(3)
+        g1.metric(
+            "Consistency",
+            f"{gains.consistency.total_gain_s:.2f}s",
+            help="Avg lap improvement if you hit your best at every section",
+        )
+        g2.metric(
+            "Composite Best",
+            f"{gains.composite.gain_s:.2f}s",
+            help="Gap: best lap vs combining best sectors from any lap",
+        )
+        g3.metric(
+            "Theoretical Best",
+            f"{gains.theoretical.gain_s:.2f}s",
+            help="Gap: best lap vs best 10m micro-sectors from any lap",
+        )
+
+        st.plotly_chart(gain_waterfall_chart(gains), use_container_width=True)
+        st.plotly_chart(
+            gain_per_corner_chart(gains.consistency, gains.composite),
+            use_container_width=True,
+        )
+    else:
+        st.info("Need at least 2 clean laps to estimate gains.")
+
+    # --- Generate Coaching Report ---
     if st.button("Generate Coaching Report", disabled=not has_key):
         with st.spinner("AI coach is analyzing your session..."):
             report = generate_coaching_report(
                 coaching_summaries,
                 all_lap_corners,
                 meta.track_name,
+                gains=gains,
             )
             st.session_state["coaching_report"] = report
             st.session_state["coaching_context"] = CoachingContext()

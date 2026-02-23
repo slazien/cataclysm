@@ -13,6 +13,7 @@ from cataclysm.coaching import (
     CoachingReport,
     _build_coaching_prompt,
     _format_all_laps_corners,
+    _format_gains_for_prompt,
     _format_lap_summaries,
     _parse_coaching_response,
     ask_followup,
@@ -20,6 +21,14 @@ from cataclysm.coaching import (
 )
 from cataclysm.corners import Corner
 from cataclysm.engine import LapSummary
+from cataclysm.gains import (
+    CompositeGainResult,
+    ConsistencyGainResult,
+    GainEstimate,
+    SegmentDefinition,
+    SegmentGain,
+    TheoreticalBestResult,
+)
 
 
 @pytest.fixture
@@ -348,3 +357,169 @@ class TestAskFollowup:
         call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args
         assert "system" in call_kwargs.kwargs
         assert "traction circle" in call_kwargs.kwargs["system"].lower()
+
+
+def _make_seg(name: str, entry: float, exit_m: float, *, is_corner: bool) -> SegmentDefinition:
+    return SegmentDefinition(
+        name=name, entry_distance_m=entry, exit_distance_m=exit_m, is_corner=is_corner
+    )
+
+
+def _make_sg(
+    seg: SegmentDefinition,
+    best_time: float,
+    avg_time: float,
+    gain: float,
+) -> SegmentGain:
+    return SegmentGain(
+        segment=seg,
+        best_time_s=best_time,
+        avg_time_s=avg_time,
+        gain_s=gain,
+        best_lap=1,
+        lap_times_s={1: best_time, 2: avg_time},
+    )
+
+
+@pytest.fixture
+def sample_gain_estimate() -> GainEstimate:
+    t1 = _make_seg("T1", 200.0, 350.0, is_corner=True)
+    t2 = _make_seg("T2", 800.0, 950.0, is_corner=True)
+    s1 = _make_seg("S1", 350.0, 800.0, is_corner=False)
+
+    cons_segments = [
+        _make_sg(t1, 3.0, 3.4, 0.40),
+        _make_sg(s1, 5.0, 5.1, 0.10),
+        _make_sg(t2, 4.0, 4.6, 0.60),
+    ]
+    comp_segments = [
+        _make_sg(t1, 3.0, 3.4, 0.15),
+        _make_sg(s1, 5.0, 5.1, 0.05),
+        _make_sg(t2, 4.0, 4.6, 0.25),
+    ]
+
+    return GainEstimate(
+        consistency=ConsistencyGainResult(
+            segment_gains=cons_segments,
+            total_gain_s=1.10,
+            avg_lap_time_s=94.0,
+            best_lap_time_s=92.5,
+        ),
+        composite=CompositeGainResult(
+            segment_gains=comp_segments,
+            composite_time_s=92.0,
+            best_lap_time_s=92.5,
+            gain_s=0.45,
+        ),
+        theoretical=TheoreticalBestResult(
+            sector_size_m=10.0,
+            n_sectors=38,
+            theoretical_time_s=91.7,
+            best_lap_time_s=92.5,
+            gain_s=0.30,
+        ),
+        clean_lap_numbers=[1, 2, 3],
+        best_lap_number=1,
+    )
+
+
+class TestFormatGainsForPrompt:
+    def test_includes_gain_estimation_header(self, sample_gain_estimate: GainEstimate) -> None:
+        text = _format_gains_for_prompt(sample_gain_estimate)
+        assert "Gain Estimation" in text
+
+    def test_includes_consistency_gain(self, sample_gain_estimate: GainEstimate) -> None:
+        text = _format_gains_for_prompt(sample_gain_estimate)
+        assert "1.10" in text
+
+    def test_includes_per_corner_gains(self, sample_gain_estimate: GainEstimate) -> None:
+        text = _format_gains_for_prompt(sample_gain_estimate)
+        assert "T1" in text
+        assert "T2" in text
+
+    def test_excludes_straights(self, sample_gain_estimate: GainEstimate) -> None:
+        text = _format_gains_for_prompt(sample_gain_estimate)
+        # S1 should not appear in the per-corner list (it's a straight)
+        lines = text.split("\n")
+        corner_lines = [ln for ln in lines if ln.startswith("- T") or ln.startswith("- S")]
+        corner_names = [ln.split(":")[0].strip("- ") for ln in corner_lines]
+        assert "S1" not in corner_names
+
+
+class TestBuildCoachingPromptWithGains:
+    def test_includes_gains_section(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+        sample_gain_estimate: GainEstimate,
+    ) -> None:
+        prompt = _build_coaching_prompt(
+            sample_summaries,
+            sample_all_lap_corners,
+            "Test",
+            gains=sample_gain_estimate,
+        )
+        assert "Gain Estimation" in prompt
+        assert "Consistency" in prompt
+
+    def test_includes_gains_instruction(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+        sample_gain_estimate: GainEstimate,
+    ) -> None:
+        prompt = _build_coaching_prompt(
+            sample_summaries,
+            sample_all_lap_corners,
+            "Test",
+            gains=sample_gain_estimate,
+        )
+        assert "Reference these computed gains" in prompt
+
+    def test_no_gains_backward_compatible(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        prompt = _build_coaching_prompt(
+            sample_summaries,
+            sample_all_lap_corners,
+            "Test",
+        )
+        assert "Gain Estimation" not in prompt
+
+
+class TestGenerateCoachingReportWithGains:
+    def test_passes_gains_to_prompt(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+        sample_gain_estimate: GainEstimate,
+    ) -> None:
+        mock_anthropic = _make_mock_anthropic(
+            json.dumps(
+                {
+                    "summary": "Good with gains",
+                    "priority_corners": [],
+                    "corner_grades": [],
+                    "patterns": [],
+                }
+            )
+        )
+
+        with (
+            patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test"}),
+            patch.dict(sys.modules, {"anthropic": mock_anthropic}),
+        ):
+            report = generate_coaching_report(
+                sample_summaries,
+                sample_all_lap_corners,
+                "Test",
+                gains=sample_gain_estimate,
+            )
+
+        assert report.summary == "Good with gains"
+        # Verify the prompt sent to the API includes gains data
+        call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args
+        prompt_text = call_kwargs.kwargs["messages"][0]["content"]
+        assert "Gain Estimation" in prompt_text

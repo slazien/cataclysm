@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from cataclysm.corners import Corner
 from cataclysm.driving_physics import COACHING_SYSTEM_PROMPT
 from cataclysm.engine import LapSummary
+from cataclysm.gains import GainEstimate
 
 MPS_TO_MPH = 2.23694
 
@@ -86,10 +87,46 @@ def _format_all_laps_corners(
     return "\n".join(lines)
 
 
+def _format_gains_for_prompt(gains: GainEstimate) -> str:
+    """Format gains data into text for the coaching prompt."""
+    lines = [
+        "## Gain Estimation",
+        "",
+        "These metrics quantify how much lap time the driver can recover by "
+        "improving consistency and combining their best sector performances.",
+        "",
+        f"- **Consistency gain: {gains.consistency.total_gain_s:.2f}s** "
+        "(difference between average lap and best lap, broken down by corner. "
+        "Shows where the driver loses time vs their own best execution.)",
+        f"- **Composite gain: {gains.composite.gain_s:.2f}s** "
+        "(difference between best lap and a composite of best-ever sectors. "
+        "Shows additional time available if the driver combines all personal-best corners.)",
+        f"- **Theoretical best gain: {gains.theoretical.gain_s:.2f}s** "
+        "(fine-grained micro-sector analysis limit.)",
+        "",
+        "### Per-Corner Consistency Gains (avg -> best, sorted by opportunity)",
+    ]
+
+    corner_gains = [
+        sg for sg in gains.consistency.segment_gains if sg.segment.is_corner and sg.gain_s >= 0.01
+    ]
+    corner_gains.sort(key=lambda sg: sg.gain_s, reverse=True)
+
+    for sg in corner_gains:
+        lines.append(f"- {sg.segment.name}: {sg.gain_s:.2f}s")
+
+    if not corner_gains:
+        lines.append("- (all corners below 0.01s threshold)")
+
+    return "\n".join(lines)
+
+
 def _build_coaching_prompt(
     summaries: list[LapSummary],
     all_lap_corners: dict[int, list[Corner]],
     track_name: str,
+    *,
+    gains: GainEstimate | None = None,
 ) -> str:
     """Build the full coaching prompt for Claude."""
     lap_text = _format_lap_summaries(summaries)
@@ -97,6 +134,15 @@ def _build_coaching_prompt(
     best_min = int(best.lap_time_s // 60)
     best_sec = best.lap_time_s % 60
     corner_text = _format_all_laps_corners(all_lap_corners, best.lap_number)
+
+    gains_section = ""
+    gains_instruction = ""
+    if gains is not None:
+        gains_section = f"\n{_format_gains_for_prompt(gains)}\n"
+        gains_instruction = (
+            "\nReference these computed gains when discussing priority corners. "
+            "The consistency gain shows where the driver loses time vs their own best.\n"
+        )
 
     return f"""Track: {track_name}
 Best Lap: L{best.lap_number} ({best_min}:{best_sec:05.2f})
@@ -107,13 +153,13 @@ Total laps: {len(summaries)}
 
 ## Corner KPIs — All Laps (best lap marked with *)
 {corner_text}
-
+{gains_section}
 Analyze the FULL session. Look at every lap's data for each corner to identify:
 - Consistency: which corners are repeatable vs high-variance across laps
 - Trends: whether the driver improved or degraded through the session (fatigue, tire wear, learning)
 - Best-vs-rest gaps: where the best lap gained time vs the driver's typical performance
 - Technique patterns: brake point consistency, apex type shifts, min-speed spread
-
+{gains_instruction}
 Respond in JSON with this exact structure:
 {{
   "summary": "2-3 sentence overview — mention consistency, progression, key strengths",
@@ -205,6 +251,8 @@ def generate_coaching_report(
     summaries: list[LapSummary],
     all_lap_corners: dict[int, list[Corner]],
     track_name: str,
+    *,
+    gains: GainEstimate | None = None,
 ) -> CoachingReport:
     """Generate an AI coaching report using the Claude API.
 
@@ -226,7 +274,7 @@ def generate_coaching_report(
     import anthropic
 
     client = anthropic.Anthropic(api_key=api_key)
-    prompt = _build_coaching_prompt(summaries, all_lap_corners, track_name)
+    prompt = _build_coaching_prompt(summaries, all_lap_corners, track_name, gains=gains)
 
     try:
         message = client.messages.create(
