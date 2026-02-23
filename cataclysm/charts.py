@@ -21,6 +21,7 @@ from cataclysm.gains import (
     CompositeGainResult,
     ConsistencyGainResult,
 )
+from cataclysm.grip import GripEstimate
 
 MPS_TO_MPH = 2.23694
 M_TO_FT = 3.28084
@@ -1683,40 +1684,81 @@ def traction_utilization_chart(
     lap_df: pd.DataFrame,
     lap_number: int,
     corners: list[Corner] | None = None,
+    grip: GripEstimate | None = None,
 ) -> go.Figure:
-    """G-G diagram with traction circle overlay and utilization score.
+    """G-G diagram with traction envelope overlay and utilization score.
 
-    Computes grip utilization as the percentage of data points that are
-    within 80-100% of the estimated maximum grip radius.
+    When ``grip`` is provided, uses the composite envelope (scaled ellipse)
+    for the boundary and computes directional utilization. Falls back to
+    a simple 95th-percentile circle when grip is None.
     """
     lat_g = lap_df["lateral_g"].to_numpy()
     lon_g = lap_df["longitudinal_g"].to_numpy()
     speed_mph = lap_df["speed_mps"].to_numpy() * MPS_TO_MPH
-
-    # Compute total G at each point
     total_g = np.sqrt(lat_g**2 + lon_g**2)
 
-    # Estimate max grip radius (95th percentile to ignore spikes)
-    max_g = float(np.percentile(total_g, 95))
-    if max_g < 0.1:
-        max_g = 1.0  # Fallback
+    if grip is not None:
+        max_g = grip.composite_max_g
+        envelope_x = np.array(grip.envelope_lat_g)
+        envelope_y = np.array(grip.envelope_lon_g)
+        # Close the loop for plotting
+        env_x_closed = np.append(envelope_x, envelope_x[0])
+        env_y_closed = np.append(envelope_y, envelope_y[0])
+        # 80% threshold envelope
+        env_x_80 = env_x_closed * 0.8
+        env_y_80 = env_y_closed * 0.8
 
-    # Utilization: % of points using > 80% of max grip
-    high_util_mask = total_g > (0.8 * max_g)
+        # Per-point directional utilization: compare each point's radius
+        # to the envelope radius at the same angle
+        point_angles = np.arctan2(lon_g, lat_g)
+        envelope_angles = np.arctan2(envelope_y, envelope_x)
+        envelope_radii = np.sqrt(envelope_x**2 + envelope_y**2)
+        # For each data point, find nearest envelope angle and its radius
+        point_envelope_r = np.interp(
+            point_angles,
+            np.sort(envelope_angles),
+            envelope_radii[np.argsort(envelope_angles)],
+            period=2 * np.pi,
+        )
+        high_util_mask = total_g > (0.8 * point_envelope_r)
+    else:
+        max_g = float(np.percentile(total_g, 95))
+        if max_g < 0.1:
+            max_g = 1.0
+        theta = np.linspace(0, 2 * np.pi, 100)
+        env_x_closed = max_g * np.cos(theta)
+        env_y_closed = max_g * np.sin(theta)
+        env_x_80 = 0.8 * env_x_closed
+        env_y_80 = 0.8 * env_y_closed
+        high_util_mask = total_g > (0.8 * max_g)
+
     utilization_pct = float(np.mean(high_util_mask) * 100)
-
-    # Reference circle
-    theta = np.linspace(0, 2 * np.pi, 100)
-    circle_x = max_g * np.cos(theta)
-    circle_y = max_g * np.sin(theta)
 
     fig = go.Figure()
 
-    # Traction circle boundary
+    # Convex hull overlay (semi-transparent polygon) — only with grip
+    if grip is not None:
+        hull_lat = grip.convex_hull.hull_vertices_lat_g
+        hull_lon = grip.convex_hull.hull_vertices_lon_g
+        if len(hull_lat) >= 3:
+            fig.add_trace(
+                go.Scatter(
+                    x=hull_lat + [hull_lat[0]],
+                    y=hull_lon + [hull_lon[0]],
+                    mode="lines",
+                    fill="toself",
+                    fillcolor="rgba(100,149,237,0.08)",
+                    line={"color": "rgba(100,149,237,0.25)", "width": 1},
+                    name="Convex hull",
+                    hoverinfo="skip",
+                )
+            )
+
+    # Primary boundary: composite envelope (or circle)
     fig.add_trace(
         go.Scatter(
-            x=circle_x,
-            y=circle_y,
+            x=env_x_closed,
+            y=env_y_closed,
             mode="lines",
             line={
                 "color": "rgba(255,255,255,0.3)",
@@ -1728,11 +1770,11 @@ def traction_utilization_chart(
         )
     )
 
-    # 80% circle (high-utilization threshold)
+    # 80% threshold
     fig.add_trace(
         go.Scatter(
-            x=0.8 * max_g * np.cos(theta),
-            y=0.8 * max_g * np.sin(theta),
+            x=env_x_80,
+            y=env_y_80,
             mode="lines",
             line={
                 "color": "rgba(255,255,255,0.15)",
@@ -1757,12 +1799,17 @@ def traction_utilization_chart(
                 "colorbar": {"title": "mph", "thickness": 15},
             },
             name="G-forces",
-            hovertemplate=("Lat G: %{x:.2f}<br>Lon G: %{y:.2f}<extra></extra>"),
+            hovertemplate="Lat G: %{x:.2f}<br>Lon G: %{y:.2f}<extra></extra>",
         )
     )
 
+    title = f"Traction Circle — Lap {lap_number} (Utilization: {utilization_pct:.0f}%"
+    if grip is not None:
+        title += f", Grip: {max_g:.2f}G"
+    title += ")"
+
     fig.update_layout(
-        title=(f"Traction Circle — Lap {lap_number} (Utilization: {utilization_pct:.0f}%)"),
+        title=title,
         xaxis_title="Lateral G",
         yaxis_title="Longitudinal G",
         height=500,

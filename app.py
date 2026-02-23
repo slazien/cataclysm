@@ -41,6 +41,7 @@ from cataclysm.gains import (
     estimate_gains,
     reconstruct_ideal_lap,
 )
+from cataclysm.grip import GripEstimate, estimate_grip_limit
 from cataclysm.parser import ParsedSession, parse_racechrono_csv
 from cataclysm.track_db import locate_official_corners, lookup_track
 
@@ -270,8 +271,20 @@ with tab_overview:
     else:
         st.info("Need at least 2 clean laps to compute consistency metrics.")
 
+    @st.cache_data(show_spinner="Estimating grip limit...")
+    def cached_grip(
+        _key: str,
+        _resampled: object,
+        _laps: list[int],
+    ) -> GripEstimate:
+        return estimate_grip_limit(processed.resampled_laps, _laps)
+
+    grip_estimate: GripEstimate = cached_grip(
+        f"{file_key}_grip", processed.resampled_laps, coaching_laps
+    )
+
     st.plotly_chart(
-        traction_utilization_chart(best_lap_df, processed.best_lap, corners),
+        traction_utilization_chart(best_lap_df, processed.best_lap, corners, grip=grip_estimate),
         use_container_width=True,
     )
 

@@ -508,3 +508,28 @@ class TestTractionUtilizationChart:
     def test_dark_theme(self, sample_resampled_lap: pd.DataFrame) -> None:
         fig = traction_utilization_chart(sample_resampled_lap, 1)
         assert fig.layout.plot_bgcolor == "#0e1117"
+
+    def test_with_grip_estimate(self, sample_resampled_lap: pd.DataFrame) -> None:
+        from cataclysm.grip import estimate_grip_limit
+
+        grip = estimate_grip_limit({1: sample_resampled_lap}, [1])
+        fig = traction_utilization_chart(sample_resampled_lap, 1, grip=grip)
+        assert isinstance(fig, go.Figure)
+        # With grip: hull + envelope + 80% threshold + data = 4 traces
+        assert len(fig.data) >= 4
+        assert "grip" in fig.layout.title.text.lower()
+
+    def test_with_grip_estimate_title_format(self, sample_resampled_lap: pd.DataFrame) -> None:
+        from cataclysm.grip import estimate_grip_limit
+
+        grip = estimate_grip_limit({1: sample_resampled_lap}, [1])
+        fig = traction_utilization_chart(sample_resampled_lap, 1, grip=grip)
+        title = fig.layout.title.text
+        assert "Grip:" in title
+        assert "Utilization:" in title
+
+    def test_without_grip_backward_compatible(self, sample_resampled_lap: pd.DataFrame) -> None:
+        fig = traction_utilization_chart(sample_resampled_lap, 1, grip=None)
+        assert isinstance(fig, go.Figure)
+        # Without grip, title should NOT mention "Grip:"
+        assert "Grip:" not in fig.layout.title.text
