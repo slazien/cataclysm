@@ -26,16 +26,22 @@ from cataclysm.engine import LapSummary
 def sample_summaries() -> list[LapSummary]:
     return [
         LapSummary(
-            lap_number=1, lap_time_s=92.5,
-            lap_distance_m=3800.0, max_speed_mps=45.0,
+            lap_number=1,
+            lap_time_s=92.5,
+            lap_distance_m=3800.0,
+            max_speed_mps=45.0,
         ),
         LapSummary(
-            lap_number=2, lap_time_s=94.2,
-            lap_distance_m=3810.0, max_speed_mps=44.0,
+            lap_number=2,
+            lap_time_s=94.2,
+            lap_distance_m=3810.0,
+            max_speed_mps=44.0,
         ),
         LapSummary(
-            lap_number=3, lap_time_s=93.1,
-            lap_distance_m=3805.0, max_speed_mps=44.5,
+            lap_number=3,
+            lap_time_s=93.1,
+            lap_distance_m=3805.0,
+            max_speed_mps=44.5,
         ),
     ]
 
@@ -44,12 +50,26 @@ def sample_summaries() -> list[LapSummary]:
 def sample_corners() -> list[Corner]:
     return [
         Corner(
-            1, 200.0, 350.0, 280.0, 22.0,
-            150.0, -0.8, 370.0, "mid",
+            1,
+            200.0,
+            350.0,
+            280.0,
+            22.0,
+            150.0,
+            -0.8,
+            370.0,
+            "mid",
         ),
         Corner(
-            2, 800.0, 950.0, 870.0, 18.0,
-            750.0, -1.0, 970.0, "late",
+            2,
+            800.0,
+            950.0,
+            870.0,
+            18.0,
+            750.0,
+            -1.0,
+            970.0,
+            "late",
         ),
     ]
 
@@ -86,23 +106,17 @@ def _make_mock_anthropic(
 
 
 class TestFormatLapSummaries:
-    def test_includes_all_laps(
-        self, sample_summaries: list[LapSummary]
-    ) -> None:
+    def test_includes_all_laps(self, sample_summaries: list[LapSummary]) -> None:
         text = _format_lap_summaries(sample_summaries)
         assert "L1" in text
         assert "L2" in text
         assert "L3" in text
 
-    def test_includes_time(
-        self, sample_summaries: list[LapSummary]
-    ) -> None:
+    def test_includes_time(self, sample_summaries: list[LapSummary]) -> None:
         text = _format_lap_summaries(sample_summaries)
         assert "1:32" in text  # 92.5s = 1:32.50
 
-    def test_includes_speed_in_mph(
-        self, sample_summaries: list[LapSummary]
-    ) -> None:
+    def test_includes_speed_in_mph(self, sample_summaries: list[LapSummary]) -> None:
         text = _format_lap_summaries(sample_summaries)
         # 45 m/s = ~100.7 mph
         assert "100" in text
@@ -149,13 +163,17 @@ class TestParseCoachingResponse:
         data = {
             "summary": "Good session.",
             "priority_corners": [
-                {"corner": 2, "time_cost_s": 0.3,
-                 "issue": "late", "tip": "brake earlier"},
+                {"corner": 2, "time_cost_s": 0.3, "issue": "late", "tip": "brake earlier"},
             ],
             "corner_grades": [
-                {"corner": 1, "braking": "B",
-                 "trail_braking": "C", "min_speed": "A",
-                 "throttle": "B", "notes": "ok"},
+                {
+                    "corner": 1,
+                    "braking": "B",
+                    "trail_braking": "C",
+                    "min_speed": "A",
+                    "throttle": "B",
+                    "notes": "ok",
+                },
             ],
             "patterns": ["Late apexes"],
         }
@@ -167,10 +185,14 @@ class TestParseCoachingResponse:
         assert report.patterns == ["Late apexes"]
 
     def test_parses_json_in_code_block(self) -> None:
-        inner = json.dumps({
-            "summary": "Test", "priority_corners": [],
-            "corner_grades": [], "patterns": [],
-        })
+        inner = json.dumps(
+            {
+                "summary": "Test",
+                "priority_corners": [],
+                "corner_grades": [],
+                "patterns": [],
+            }
+        )
         response = f"```json\n{inner}\n```"
         report = _parse_coaching_response(response)
         assert report.summary == "Test"
@@ -181,9 +203,12 @@ class TestParseCoachingResponse:
         assert report.priority_corners == []
 
     def test_handles_partial_json(self) -> None:
-        response = json.dumps({
-            "summary": "Partial", "patterns": ["one"],
-        })
+        response = json.dumps(
+            {
+                "summary": "Partial",
+                "patterns": ["one"],
+            }
+        )
         report = _parse_coaching_response(response)
         assert report.summary == "Partial"
         assert report.corner_grades == []
@@ -196,7 +221,9 @@ class TestBuildCoachingPrompt:
         sample_all_lap_corners: dict[int, list[Corner]],
     ) -> None:
         prompt = _build_coaching_prompt(
-            sample_summaries, sample_all_lap_corners, "Barber",
+            sample_summaries,
+            sample_all_lap_corners,
+            "Barber",
         )
         assert "Barber" in prompt
 
@@ -206,7 +233,9 @@ class TestBuildCoachingPrompt:
         sample_all_lap_corners: dict[int, list[Corner]],
     ) -> None:
         prompt = _build_coaching_prompt(
-            sample_summaries, sample_all_lap_corners, "Test",
+            sample_summaries,
+            sample_all_lap_corners,
+            "Test",
         )
         assert "priority_corners" in prompt
         assert "corner_grades" in prompt
@@ -217,7 +246,9 @@ class TestBuildCoachingPrompt:
         sample_all_lap_corners: dict[int, list[Corner]],
     ) -> None:
         prompt = _build_coaching_prompt(
-            sample_summaries, sample_all_lap_corners, "Test",
+            sample_summaries,
+            sample_all_lap_corners,
+            "Test",
         )
         assert "All Laps" in prompt
         assert "L1" in prompt
@@ -230,7 +261,9 @@ class TestBuildCoachingPrompt:
         sample_all_lap_corners: dict[int, list[Corner]],
     ) -> None:
         prompt = _build_coaching_prompt(
-            sample_summaries, sample_all_lap_corners, "Test",
+            sample_summaries,
+            sample_all_lap_corners,
+            "Test",
         )
         assert "You are an expert motorsport driving coach" not in prompt
 
@@ -243,7 +276,9 @@ class TestGenerateCoachingReport:
     ) -> None:
         with patch.dict("os.environ", {}, clear=True):
             report = generate_coaching_report(
-                sample_summaries, sample_all_lap_corners, "Test",
+                sample_summaries,
+                sample_all_lap_corners,
+                "Test",
             )
         assert "ANTHROPIC_API_KEY" in report.summary
 
@@ -252,29 +287,28 @@ class TestGenerateCoachingReport:
         sample_summaries: list[LapSummary],
         sample_all_lap_corners: dict[int, list[Corner]],
     ) -> None:
-        mock_anthropic = _make_mock_anthropic(json.dumps({
-            "summary": "AI says hi",
-            "priority_corners": [],
-            "corner_grades": [],
-            "patterns": [],
-        }))
+        mock_anthropic = _make_mock_anthropic(
+            json.dumps(
+                {
+                    "summary": "AI says hi",
+                    "priority_corners": [],
+                    "corner_grades": [],
+                    "patterns": [],
+                }
+            )
+        )
 
         with (
-            patch.dict(
-                "os.environ", {"ANTHROPIC_API_KEY": "sk-test"}
-            ),
-            patch.dict(
-                sys.modules, {"anthropic": mock_anthropic}
-            ),
+            patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test"}),
+            patch.dict(sys.modules, {"anthropic": mock_anthropic}),
         ):
             report = generate_coaching_report(
-                sample_summaries, sample_all_lap_corners, "Test",
+                sample_summaries,
+                sample_all_lap_corners,
+                "Test",
             )
         assert report.summary == "AI says hi"
-        call_kwargs = (
-            mock_anthropic.Anthropic.return_value
-            .messages.create.call_args
-        )
+        call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args
         assert "system" in call_kwargs.kwargs
         assert "traction circle" in call_kwargs.kwargs["system"].lower()
 
@@ -288,27 +322,22 @@ class TestAskFollowup:
         assert "ANTHROPIC_API_KEY" in answer
 
     def test_maintains_context(self) -> None:
-        mock_anthropic = _make_mock_anthropic(
-            "Brake later into T5."
-        )
+        mock_anthropic = _make_mock_anthropic("Brake later into T5.")
 
         ctx = CoachingContext()
         report = CoachingReport(
-            "summary", [], [], [],
+            "summary",
+            [],
+            [],
+            [],
             raw_response="report text",
         )
 
         with (
-            patch.dict(
-                "os.environ", {"ANTHROPIC_API_KEY": "sk-test"}
-            ),
-            patch.dict(
-                sys.modules, {"anthropic": mock_anthropic}
-            ),
+            patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test"}),
+            patch.dict(sys.modules, {"anthropic": mock_anthropic}),
         ):
-            answer = ask_followup(
-                ctx, "How do I brake?", report
-            )
+            answer = ask_followup(ctx, "How do I brake?", report)
 
         assert answer == "Brake later into T5."
         # assistant context + user + assistant
@@ -316,9 +345,6 @@ class TestAskFollowup:
         assert ctx.messages[0]["role"] == "assistant"
         assert ctx.messages[1]["role"] == "user"
         assert ctx.messages[2]["role"] == "assistant"
-        call_kwargs = (
-            mock_anthropic.Anthropic.return_value
-            .messages.create.call_args
-        )
+        call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args
         assert "system" in call_kwargs.kwargs
         assert "traction circle" in call_kwargs.kwargs["system"].lower()

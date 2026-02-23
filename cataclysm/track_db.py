@@ -120,8 +120,7 @@ def locate_official_corners(
 
     # Compute apex distances from fractions, sorted by position on track
     apex_positions: list[tuple[int, float]] = [
-        (c.number, c.fraction * max_dist)
-        for c in sorted(layout.corners, key=lambda c: c.fraction)
+        (c.number, c.fraction * max_dist) for c in sorted(layout.corners, key=lambda c: c.fraction)
     ]
 
     # Build skeleton corners with entry/exit at midpoints

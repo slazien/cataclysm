@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 from dataclasses import dataclass, field
@@ -67,10 +68,7 @@ def _format_all_laps_corners(
     best_lap: int,
 ) -> str:
     """Format corner KPIs for every lap in the session."""
-    lines = [
-        "Lap | Corner | Min Speed (mph) | Brake Pt (m) | Peak Brake (G) "
-        "| Throttle (m) | Apex"
-    ]
+    lines = ["Lap | Corner | Min Speed (mph) | Brake Pt (m) | Peak Brake (G) | Throttle (m) | Apex"]
     lines.append("--- | --- | --- | --- | --- | --- | ---")
 
     for lap_num in sorted(all_lap_corners):
@@ -79,11 +77,7 @@ def _format_all_laps_corners(
             speed = f"{c.min_speed_mps * MPS_TO_MPH:.1f}"
             brake = f"{c.brake_point_m:.0f}" if c.brake_point_m is not None else "—"
             peak_g = f"{c.peak_brake_g:.2f}" if c.peak_brake_g is not None else "—"
-            throttle = (
-                f"{c.throttle_commit_m:.0f}"
-                if c.throttle_commit_m is not None
-                else "—"
-            )
+            throttle = f"{c.throttle_commit_m:.0f}" if c.throttle_commit_m is not None else "—"
             lines.append(
                 f"L{lap_num}{tag} | T{c.number} | {speed} | {brake} "
                 f"| {peak_g} | {throttle} | {c.apex_type}"
@@ -122,7 +116,7 @@ Analyze the FULL session. Look at every lap's data for each corner to identify:
 
 Respond in JSON with this exact structure:
 {{
-  "summary": "2-3 sentence overview of the full session — mention consistency, progression, and key strengths",
+  "summary": "2-3 sentence overview — mention consistency, progression, key strengths",
   "priority_corners": [
     {{
       "corner": <number>,
@@ -173,10 +167,8 @@ def _parse_coaching_response(text: str) -> CoachingReport:
         start = text.find("{")
         end = text.rfind("}")
         if start != -1 and end > start:
-            try:
+            with contextlib.suppress(json.JSONDecodeError):
                 data = json.loads(text[start : end + 1])
-            except json.JSONDecodeError:
-                pass
 
     if data is None:
         return CoachingReport(
@@ -251,7 +243,8 @@ def generate_coaching_report(
             patterns=[],
         )
 
-    response_text = message.content[0].text
+    block = message.content[0]
+    response_text = block.text if hasattr(block, "text") else str(block)
     report = _parse_coaching_response(response_text)
     return report
 
@@ -275,10 +268,12 @@ def ask_followup(
 
     if not context.messages:
         # First follow-up: include the coaching report as context
-        context.messages.append({
-            "role": "assistant",
-            "content": f"Here is my coaching report:\n\n{coaching_report.raw_response}",
-        })
+        context.messages.append(
+            {
+                "role": "assistant",
+                "content": f"Here is my coaching report:\n\n{coaching_report.raw_response}",
+            }
+        )
 
     context.messages.append({"role": "user", "content": question})
 
@@ -287,11 +282,12 @@ def ask_followup(
             model="claude-sonnet-4-6",
             max_tokens=1024,
             system=_FOLLOWUP_SYSTEM,
-            messages=context.messages,
+            messages=context.messages,  # type: ignore[arg-type]
         )
     except Exception as e:
         return f"AI coaching error: {e}"
 
-    response_text = str(message.content[0].text)
+    followup_block = message.content[0]
+    response_text = followup_block.text if hasattr(followup_block, "text") else str(followup_block)
     context.messages.append({"role": "assistant", "content": response_text})
     return response_text

@@ -6,10 +6,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from cataclysm.corners import Corner
 from cataclysm.track_db import (
-    TrackLayout,
     OfficialCorner,
+    TrackLayout,
     locate_official_corners,
     lookup_track,
 )
@@ -36,9 +35,11 @@ class TestLookupTrack:
 class TestLocateOfficialCorners:
     def _make_lap_df(self, max_dist: float = 1000.0, n: int = 100) -> pd.DataFrame:
         """Build a simple lap DataFrame."""
-        return pd.DataFrame({
-            "lap_distance_m": np.linspace(0, max_dist, n),
-        })
+        return pd.DataFrame(
+            {
+                "lap_distance_m": np.linspace(0, max_dist, n),
+            }
+        )
 
     def test_returns_all_corners(self) -> None:
         """Every official corner should appear in the output."""
@@ -97,9 +98,7 @@ class TestLocateOfficialCorners:
         result = locate_official_corners(lap_df, layout)
         assert len(result) == 2
         # The exit of corner 1 should equal the entry of corner 2
-        assert result[0].exit_distance_m == pytest.approx(
-            result[1].entry_distance_m, abs=1.0
-        )
+        assert result[0].exit_distance_m == pytest.approx(result[1].entry_distance_m, abs=1.0)
 
     def test_skeleton_has_placeholder_kpis(self) -> None:
         """Returned corners should have placeholder KPI values."""

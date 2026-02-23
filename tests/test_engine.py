@@ -22,32 +22,38 @@ from cataclysm.engine import (
 
 class TestSplitLaps:
     def test_splits_by_lap_number(self) -> None:
-        df = pd.DataFrame({
-            "lap_number": [np.nan] * 5 + [1.0] * 20 + [2.0] * 20,
-            "elapsed_time": np.arange(45, dtype=float),
-            "distance_m": np.arange(45, dtype=float) * 10,
-            "speed_mps": np.ones(45) * 30,
-            "lat": np.ones(45) * 33.5,
-            "lon": np.ones(45) * -86.6,
-        })
+        df = pd.DataFrame(
+            {
+                "lap_number": [np.nan] * 5 + [1.0] * 20 + [2.0] * 20,
+                "elapsed_time": np.arange(45, dtype=float),
+                "distance_m": np.arange(45, dtype=float) * 10,
+                "speed_mps": np.ones(45) * 30,
+                "lat": np.ones(45) * 33.5,
+                "lon": np.ones(45) * -86.6,
+            }
+        )
         laps = _split_laps(df)
         assert set(laps.keys()) == {1, 2}
         assert len(laps[1]) == 20
         assert len(laps[2]) == 20
 
     def test_excludes_nan_lap_number(self) -> None:
-        df = pd.DataFrame({
-            "lap_number": [np.nan] * 10,
-            "elapsed_time": np.arange(10, dtype=float),
-        })
+        df = pd.DataFrame(
+            {
+                "lap_number": [np.nan] * 10,
+                "elapsed_time": np.arange(10, dtype=float),
+            }
+        )
         laps = _split_laps(df)
         assert len(laps) == 0
 
     def test_excludes_short_laps(self) -> None:
-        df = pd.DataFrame({
-            "lap_number": [1.0] * 5,  # only 5 rows, below threshold of 10
-            "elapsed_time": np.arange(5, dtype=float),
-        })
+        df = pd.DataFrame(
+            {
+                "lap_number": [1.0] * 5,  # only 5 rows, below threshold of 10
+                "elapsed_time": np.arange(5, dtype=float),
+            }
+        )
         laps = _split_laps(df)
         assert len(laps) == 0
 
@@ -76,21 +82,23 @@ class TestComputeLapTime:
 class TestResampleLap:
     def test_resamples_at_correct_step(self) -> None:
         n = 100
-        df = pd.DataFrame({
-            "lap_distance_m": np.arange(n, dtype=float) * 5.0,
-            "lap_time_s": np.arange(n, dtype=float) * 0.1,
-            "speed_mps": np.ones(n) * 30.0,
-            "heading_deg": np.linspace(0, 180, n),
-            "lat": np.ones(n) * 33.5,
-            "lon": np.ones(n) * -86.6,
-            "lateral_g": np.zeros(n),
-            "longitudinal_g": np.zeros(n),
-            "yaw_rate_dps": np.zeros(n),
-            "altitude_m": np.ones(n) * 200,
-            "x_acc_g": np.zeros(n),
-            "y_acc_g": np.zeros(n),
-            "z_acc_g": np.ones(n),
-        })
+        df = pd.DataFrame(
+            {
+                "lap_distance_m": np.arange(n, dtype=float) * 5.0,
+                "lap_time_s": np.arange(n, dtype=float) * 0.1,
+                "speed_mps": np.ones(n) * 30.0,
+                "heading_deg": np.linspace(0, 180, n),
+                "lat": np.ones(n) * 33.5,
+                "lon": np.ones(n) * -86.6,
+                "lateral_g": np.zeros(n),
+                "longitudinal_g": np.zeros(n),
+                "yaw_rate_dps": np.zeros(n),
+                "altitude_m": np.ones(n) * 200,
+                "x_acc_g": np.zeros(n),
+                "y_acc_g": np.zeros(n),
+                "z_acc_g": np.ones(n),
+            }
+        )
         result = _resample_lap(df, step_m=0.7)
         assert not result.empty
         diffs = np.diff(result["lap_distance_m"].to_numpy())
@@ -100,14 +108,16 @@ class TestResampleLap:
         """Heading should interpolate correctly across 360/0 boundary."""
         n = 100
         heading = np.linspace(350, 370, n) % 360  # wraps from 350 through 0 to 10
-        df = pd.DataFrame({
-            "lap_distance_m": np.arange(n, dtype=float) * 5.0,
-            "lap_time_s": np.arange(n, dtype=float) * 0.1,
-            "speed_mps": np.ones(n) * 30.0,
-            "heading_deg": heading,
-            "lat": np.ones(n) * 33.5,
-            "lon": np.ones(n) * -86.6,
-        })
+        df = pd.DataFrame(
+            {
+                "lap_distance_m": np.arange(n, dtype=float) * 5.0,
+                "lap_time_s": np.arange(n, dtype=float) * 0.1,
+                "speed_mps": np.ones(n) * 30.0,
+                "heading_deg": heading,
+                "lat": np.ones(n) * 33.5,
+                "lon": np.ones(n) * -86.6,
+            }
+        )
         result = _resample_lap(df)
         # The underlying interpolation should be smooth.
         # After % 360 there will be one wrap point; check angular diffs.
@@ -117,11 +127,13 @@ class TestResampleLap:
         assert np.max(np.abs(angular_diffs[5:-5])) < 5.0
 
     def test_empty_for_short_lap(self) -> None:
-        df = pd.DataFrame({
-            "lap_distance_m": [0.0, 1.0, 2.0],
-            "lap_time_s": [0.0, 0.1, 0.2],
-            "speed_mps": [10.0, 10.0, 10.0],
-        })
+        df = pd.DataFrame(
+            {
+                "lap_distance_m": [0.0, 1.0, 2.0],
+                "lap_time_s": [0.0, 0.1, 0.2],
+                "speed_mps": [10.0, 10.0, 10.0],
+            }
+        )
         result = _resample_lap(df)
         assert result.empty
 
@@ -172,14 +184,16 @@ class TestProcessSession:
             np.testing.assert_allclose(diffs, RESAMPLE_STEP_M, atol=1e-10)
 
     def test_raises_on_empty_data(self) -> None:
-        df = pd.DataFrame({
-            "lap_number": [np.nan] * 5,
-            "elapsed_time": np.arange(5, dtype=float),
-            "distance_m": np.arange(5, dtype=float),
-            "speed_mps": np.ones(5),
-            "lat": np.ones(5),
-            "lon": np.ones(5),
-        })
+        df = pd.DataFrame(
+            {
+                "lap_number": [np.nan] * 5,
+                "elapsed_time": np.arange(5, dtype=float),
+                "distance_m": np.arange(5, dtype=float),
+                "speed_mps": np.ones(5),
+                "lat": np.ones(5),
+                "lon": np.ones(5),
+            }
+        )
         with pytest.raises(ValueError, match="No laps found"):
             process_session(df)
 

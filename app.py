@@ -23,13 +23,12 @@ from cataclysm.coaching import CoachingContext, ask_followup, generate_coaching_
 from cataclysm.consistency import compute_session_consistency
 from cataclysm.corners import Corner, detect_corners, extract_corner_kpis_for_lap
 from cataclysm.delta import compute_delta
-from cataclysm.engine import find_anomalous_laps
+from cataclysm.engine import ProcessedSession, find_anomalous_laps, process_session
+from cataclysm.parser import ParsedSession, parse_racechrono_csv
 from cataclysm.track_db import locate_official_corners, lookup_track
 
 # Type alias for readability
 AllLapCorners = dict[int, list[Corner]]
-from cataclysm.engine import ProcessedSession, process_session
-from cataclysm.parser import ParsedSession, parse_racechrono_csv
 
 MPS_TO_MPH = 2.23694
 
@@ -413,7 +412,10 @@ with tab_coaching:
                     return f"background-color: {bg}; color: white"
                 return ""
 
-            styled = df_grades.style.map(_color_grade, subset=grade_cols)
+            styled = df_grades.style.map(
+                _color_grade,
+                subset=grade_cols,  # type: ignore[arg-type]
+            )
             st.dataframe(styled, use_container_width=True)
 
         if report.patterns:

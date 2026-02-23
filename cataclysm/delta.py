@@ -78,8 +78,9 @@ def compute_delta(
                 continue
 
             # Corner delta = delta at exit minus delta at entry
-            corner_delta = float(delta[min(exit_idx, len(delta) - 1)]
-                                 - delta[min(entry_idx, len(delta) - 1)])
+            corner_delta = float(
+                delta[min(exit_idx, len(delta) - 1)] - delta[min(entry_idx, len(delta) - 1)]
+            )
             corner_deltas.append(
                 CornerDelta(
                     corner_number=corner.number,

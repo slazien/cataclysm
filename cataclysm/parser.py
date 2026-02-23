@@ -105,10 +105,7 @@ def parse_racechrono_csv(source: str | io.IOBase) -> ParsedSession:
         pos = source.tell() if hasattr(source, "tell") else 0
         for _ in range(METADATA_LINES):
             raw_line = source.readline()
-            decoded = (
-                raw_line.decode("utf-8")
-                if isinstance(raw_line, bytes) else str(raw_line)
-            )
+            decoded = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else str(raw_line)
             head_lines.append(decoded)
         if hasattr(source, "seek"):
             source.seek(pos)
@@ -117,7 +114,7 @@ def parse_racechrono_csv(source: str | io.IOBase) -> ParsedSession:
 
     # Read data rows -- skip metadata + blank line + 3 header rows
     df = pd.read_csv(
-        source,
+        source,  # type: ignore[arg-type]
         skiprows=SKIP_ROWS,
         header=None,
         low_memory=False,

@@ -35,16 +35,18 @@ def sample_laps() -> dict[int, pd.DataFrame]:
     for lap_num in (1, 2, 3):
         n = 500
         speed_offset = (lap_num - 1) * 2
-        laps[lap_num] = pd.DataFrame({
-            "lap_distance_m": np.arange(n) * 0.7,
-            "speed_mps": np.full(n, 30.0 - speed_offset) + np.sin(np.arange(n) * 0.1) * 5,
-            "lat": 33.53 + np.sin(np.arange(n) * 0.01) * 0.001,
-            "lon": -86.62 + np.cos(np.arange(n) * 0.01) * 0.002,
-            "heading_deg": np.linspace(0, 360, n) % 360,
-            "lateral_g": np.sin(np.arange(n) * 0.05) * 0.5,
-            "longitudinal_g": np.cos(np.arange(n) * 0.05) * 0.3,
-            "lap_time_s": np.arange(n) * 0.023,
-        })
+        laps[lap_num] = pd.DataFrame(
+            {
+                "lap_distance_m": np.arange(n) * 0.7,
+                "speed_mps": np.full(n, 30.0 - speed_offset) + np.sin(np.arange(n) * 0.1) * 5,
+                "lat": 33.53 + np.sin(np.arange(n) * 0.01) * 0.001,
+                "lon": -86.62 + np.cos(np.arange(n) * 0.01) * 0.002,
+                "heading_deg": np.linspace(0, 360, n) % 360,
+                "lateral_g": np.sin(np.arange(n) * 0.05) * 0.5,
+                "longitudinal_g": np.cos(np.arange(n) * 0.05) * 0.3,
+                "lap_time_s": np.arange(n) * 0.023,
+            }
+        )
     return laps
 
 

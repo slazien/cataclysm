@@ -13,11 +13,13 @@ def _make_lap(n_points: int, speed: float, step_m: float = 0.7) -> pd.DataFrame:
     """Create a synthetic resampled lap."""
     distance = np.arange(n_points) * step_m
     time = distance / speed  # constant speed
-    return pd.DataFrame({
-        "lap_distance_m": distance,
-        "lap_time_s": time,
-        "speed_mps": np.full(n_points, speed),
-    })
+    return pd.DataFrame(
+        {
+            "lap_distance_m": distance,
+            "lap_time_s": time,
+            "speed_mps": np.full(n_points, speed),
+        }
+    )
 
 
 class TestComputeDelta:

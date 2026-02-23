@@ -187,13 +187,15 @@ class TestDetectCorners:
 
     def test_no_corners_on_straight(self) -> None:
         n = 500
-        df = pd.DataFrame({
-            "lap_distance_m": np.arange(n) * 0.7,
-            "speed_mps": np.ones(n) * 40.0,
-            "heading_deg": np.full(n, 90.0),  # constant heading = straight
-            "longitudinal_g": np.zeros(n),
-            "lateral_g": np.zeros(n),
-        })
+        df = pd.DataFrame(
+            {
+                "lap_distance_m": np.arange(n) * 0.7,
+                "speed_mps": np.ones(n) * 40.0,
+                "heading_deg": np.full(n, 90.0),  # constant heading = straight
+                "longitudinal_g": np.zeros(n),
+                "lateral_g": np.zeros(n),
+            }
+        )
         corners = detect_corners(df)
         assert len(corners) == 0
 

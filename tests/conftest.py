@@ -19,8 +19,7 @@ _CSV_COLUMNS = (
 )
 
 _CSV_UNITS = (
-    "unix time,,,s,m,m,m,deg,%,Hz,,deg,deg,sats,m/s,"
-    "G,Hz,G,deg,G,m/s,Hz,G,G,G,Hz,deg/s,deg/s,deg/s"
+    "unix time,,,s,m,m,m,deg,%,Hz,,deg,deg,sats,m/s,G,Hz,G,deg,G,m/s,Hz,G,G,G,Hz,deg/s,deg/s,deg/s"
 )
 
 _CSV_SOURCES = (
@@ -35,8 +34,7 @@ _CSV_SOURCES = (
 def _build_header() -> str:
     """Build the RaceChrono CSV v3 metadata + header rows."""
     lines = [
-        "This file is created using RaceChrono v9.1.3"
-        " ( http://racechrono.com/ ).",
+        "This file is created using RaceChrono v9.1.3 ( http://racechrono.com/ ).",
         "Format,3",
         'Session title,"Test Track"',
         "Session type,Lap timing",
@@ -94,10 +92,20 @@ def racechrono_csv_text() -> str:
         lon = -86.62 + i * 0.00001
         speed = i * 0.5
         heading = 45.0
-        lines.append(_build_data_row(
-            t, elapsed, dist, lat, lon, speed, heading,
-            acc=0.5, sats=10, lap_num="",
-        ))
+        lines.append(
+            _build_data_row(
+                t,
+                elapsed,
+                dist,
+                lat,
+                lon,
+                speed,
+                heading,
+                acc=0.5,
+                sats=10,
+                lap_num="",
+            )
+        )
 
     # Lap 1: 200 points, ~500m
     base_elapsed = 20 * 0.04
@@ -111,15 +119,25 @@ def racechrono_csv_text() -> str:
         speed = 30.0 + 10.0 * np.sin(2 * np.pi * i / 50)
         heading = (i * 360 / 200) % 360
         lat_g = 0.5 * np.sin(2 * np.pi * i / 50)
-        lon_g = -0.3 * np.cos(2 * np.pi * i / 50) + rng.normal(
-            0, 0.02
-        )
+        lon_g = -0.3 * np.cos(2 * np.pi * i / 50) + rng.normal(0, 0.02)
         yaw = 10.0 * np.sin(2 * np.pi * i / 50)
-        lines.append(_build_data_row(
-            t, elapsed, dist, lat, lon, speed, heading,
-            acc=0.3, sats=12, lap_num="1",
-            lat_g=lat_g, lon_g=lon_g, yaw=yaw,
-        ))
+        lines.append(
+            _build_data_row(
+                t,
+                elapsed,
+                dist,
+                lat,
+                lon,
+                speed,
+                heading,
+                acc=0.3,
+                sats=12,
+                lap_num="1",
+                lat_g=lat_g,
+                lon_g=lon_g,
+                yaw=yaw,
+            )
+        )
 
     # Lap 2: 200 points, ~500m (slightly slower)
     base_elapsed2 = base_elapsed + 200 * 0.04
@@ -133,23 +151,31 @@ def racechrono_csv_text() -> str:
         speed = 29.0 + 10.0 * np.sin(2 * np.pi * i / 50)
         heading = (i * 360 / 200) % 360
         lat_g = 0.5 * np.sin(2 * np.pi * i / 50)
-        lon_g = -0.3 * np.cos(2 * np.pi * i / 50) + rng.normal(
-            0, 0.02
-        )
+        lon_g = -0.3 * np.cos(2 * np.pi * i / 50) + rng.normal(0, 0.02)
         yaw = 10.0 * np.sin(2 * np.pi * i / 50)
-        lines.append(_build_data_row(
-            t, elapsed, dist, lat, lon, speed, heading,
-            acc=0.3, sats=12, lap_num="2",
-            lat_g=lat_g, lon_g=lon_g, yaw=yaw,
-        ))
+        lines.append(
+            _build_data_row(
+                t,
+                elapsed,
+                dist,
+                lat,
+                lon,
+                speed,
+                heading,
+                acc=0.3,
+                sats=12,
+                lap_num="2",
+                lat_g=lat_g,
+                lon_g=lon_g,
+                yaw=yaw,
+            )
+        )
 
     return header + "\n".join(lines) + "\n"
 
 
 @pytest.fixture
-def racechrono_csv_file(
-    racechrono_csv_text: str, tmp_path: object
-) -> str:
+def racechrono_csv_file(racechrono_csv_text: str, tmp_path: object) -> str:
     """Write the synthetic CSV to a temp file and return the path."""
     import pathlib
 
@@ -192,17 +218,12 @@ def sample_resampled_lap() -> pd.DataFrame:
         )
         for j in corner_range:
             offset = j - corner_center
-            heading[j] = (
-                heading[max(0, j - 1)]
-                + 3.0 * np.exp(-offset**2 / 200)
-            )
+            heading[j] = heading[max(0, j - 1)] + 3.0 * np.exp(-(offset**2) / 200)
         for j in corner_range:
             offset = j - corner_center
-            speed[j] = 40.0 - 15.0 * np.exp(-offset**2 / 200)
+            speed[j] = 40.0 - 15.0 * np.exp(-(offset**2) / 200)
 
-    heading = np.cumsum(
-        np.concatenate([[0], np.diff(heading)])
-    ) % 360
+    heading = np.cumsum(np.concatenate([[0], np.diff(heading)])) % 360
 
     # Compute time from speed
     dt = step / np.maximum(speed, 1.0)
@@ -214,23 +235,22 @@ def sample_resampled_lap() -> pd.DataFrame:
     yaw = np.gradient(heading) * speed
 
     lat = 33.53 + np.sin(np.radians(heading)) * distance / 111000
-    lon = (
-        -86.62
-        + np.cos(np.radians(heading)) * distance / 111000
-    )
+    lon = -86.62 + np.cos(np.radians(heading)) * distance / 111000
 
-    return pd.DataFrame({
-        "lap_distance_m": distance,
-        "lap_time_s": lap_time,
-        "speed_mps": speed,
-        "heading_deg": heading % 360,
-        "lat": lat,
-        "lon": lon,
-        "lateral_g": lat_g,
-        "longitudinal_g": lon_g,
-        "yaw_rate_dps": yaw,
-        "altitude_m": np.full(n_points, 200.0),
-        "x_acc_g": np.zeros(n_points),
-        "y_acc_g": np.zeros(n_points),
-        "z_acc_g": np.ones(n_points),
-    })
+    return pd.DataFrame(
+        {
+            "lap_distance_m": distance,
+            "lap_time_s": lap_time,
+            "speed_mps": speed,
+            "heading_deg": heading % 360,
+            "lat": lat,
+            "lon": lon,
+            "lateral_g": lat_g,
+            "longitudinal_g": lon_g,
+            "yaw_rate_dps": yaw,
+            "altitude_m": np.full(n_points, 200.0),
+            "x_acc_g": np.zeros(n_points),
+            "y_acc_g": np.zeros(n_points),
+            "z_acc_g": np.ones(n_points),
+        }
+    )

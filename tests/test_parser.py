@@ -19,7 +19,7 @@ from cataclysm.parser import (
 class TestParseMetadata:
     def test_extracts_track_name(self) -> None:
         lines = [
-            'This file is created using RaceChrono v9.1.3 ( http://racechrono.com/ ).\n',
+            "This file is created using RaceChrono v9.1.3 ( http://racechrono.com/ ).\n",
             "Format,3\n",
             'Session title,"Barber"\n',
             "Session type,Lap timing\n",
@@ -33,18 +33,28 @@ class TestParseMetadata:
 
     def test_extracts_version(self) -> None:
         lines = [
-            'This file is created using RaceChrono v9.1.3 ( http://racechrono.com/ ).\n',
-            "Format,3\n", 'Session title,"X"\n', "Session type,Lap timing\n",
-            'Track name,"X"\n', "Driver name,\n", "Created,01/01/2026,12:00\n", "Note,\n",
+            "This file is created using RaceChrono v9.1.3 ( http://racechrono.com/ ).\n",
+            "Format,3\n",
+            'Session title,"X"\n',
+            "Session type,Lap timing\n",
+            'Track name,"X"\n',
+            "Driver name,\n",
+            "Created,01/01/2026,12:00\n",
+            "Note,\n",
         ]
         meta = _parse_metadata(lines)
         assert meta.racechrono_version == "v9.1.3"
 
     def test_extracts_date(self) -> None:
         lines = [
-            'This file is created using RaceChrono v9.1.3.\n',
-            "Format,3\n", 'Session title,"X"\n', "Session type,Lap timing\n",
-            'Track name,"X"\n', "Driver name,\n", "Created,21/02/2026,19:32\n", "Note,\n",
+            "This file is created using RaceChrono v9.1.3.\n",
+            "Format,3\n",
+            'Session title,"X"\n',
+            "Session type,Lap timing\n",
+            'Track name,"X"\n',
+            "Driver name,\n",
+            "Created,21/02/2026,19:32\n",
+            "Note,\n",
         ]
         meta = _parse_metadata(lines)
         assert "21/02/2026" in meta.session_date
@@ -53,8 +63,13 @@ class TestParseMetadata:
     def test_handles_missing_version(self) -> None:
         lines = [
             "Some other header line\n",
-            "Format,3\n", 'Session title,"X"\n', "Session type,Lap timing\n",
-            'Track name,"Y"\n', "Driver name,\n", "Created,01/01/2026\n", "Note,\n",
+            "Format,3\n",
+            'Session title,"X"\n',
+            "Session type,Lap timing\n",
+            'Track name,"Y"\n',
+            "Driver name,\n",
+            "Created,01/01/2026\n",
+            "Note,\n",
         ]
         meta = _parse_metadata(lines)
         assert meta.racechrono_version == ""
@@ -80,10 +95,23 @@ class TestParseRacechronoCsv:
     def test_correct_columns(self, racechrono_csv_file: str) -> None:
         result = parse_racechrono_csv(racechrono_csv_file)
         expected = {
-            "timestamp", "lap_number", "elapsed_time", "distance_m",
-            "accuracy_m", "altitude_m", "heading_deg", "lat", "lon",
-            "satellites", "speed_mps", "lateral_g", "longitudinal_g",
-            "x_acc_g", "y_acc_g", "z_acc_g", "yaw_rate_dps",
+            "timestamp",
+            "lap_number",
+            "elapsed_time",
+            "distance_m",
+            "accuracy_m",
+            "altitude_m",
+            "heading_deg",
+            "lat",
+            "lon",
+            "satellites",
+            "speed_mps",
+            "lateral_g",
+            "longitudinal_g",
+            "x_acc_g",
+            "y_acc_g",
+            "z_acc_g",
+            "yaw_rate_dps",
         }
         assert expected == set(result.data.columns)
 
@@ -116,10 +144,18 @@ class TestParseRacechronoCsv:
 
         p = pathlib.Path(str(tmp_path)) / "bad.csv"
         lines = [
-            "RaceChrono v9.1.3\n", "Format,3\n", 'Session title,"X"\n',
-            "Session type,Lap timing\n", 'Track name,"X"\n', "Driver name,\n",
-            "Created,01/01/2026\n", "Note,\n", "\n",
-            "a,b,c\n", "1,2,3\n", "x,y,z\n",
+            "RaceChrono v9.1.3\n",
+            "Format,3\n",
+            'Session title,"X"\n',
+            "Session type,Lap timing\n",
+            'Track name,"X"\n',
+            "Driver name,\n",
+            "Created,01/01/2026\n",
+            "Note,\n",
+            "\n",
+            "a,b,c\n",
+            "1,2,3\n",
+            "x,y,z\n",
             "1.0,2.0,3.0\n",
         ]
         p.write_text("".join(lines))

@@ -43,7 +43,7 @@ def _split_laps(df: pd.DataFrame) -> dict[int, pd.DataFrame]:
         lap_df = group.copy().reset_index(drop=True)
         if len(lap_df) < 10:
             continue
-        laps[int(lap_num)] = lap_df
+        laps[int(lap_num)] = lap_df  # type: ignore[arg-type]
 
     return laps
 
@@ -125,11 +125,7 @@ def _filter_short_laps(
     median_dist = float(np.median(distances))
     threshold = median_dist * MIN_LAP_FRACTION
 
-    return {
-        num: df
-        for num, df in laps.items()
-        if df["lap_distance_m"].iloc[-1] >= threshold
-    }
+    return {num: df for num, df in laps.items() if df["lap_distance_m"].iloc[-1] >= threshold}
 
 
 def find_anomalous_laps(

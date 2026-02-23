@@ -36,9 +36,7 @@ THROTTLE_G_THRESHOLD = 0.1  # longitudinal G threshold for throttle application
 THROTTLE_SUSTAIN_M = 10.0  # throttle must be sustained for this distance
 
 
-def _compute_heading_rate(
-    heading_deg: np.ndarray, step_m: float
-) -> np.ndarray:
+def _compute_heading_rate(heading_deg: np.ndarray, step_m: float) -> np.ndarray:
     """Compute heading rate of change in deg/m, handling 360/0 wrap."""
     diff = np.diff(heading_deg)
     # Normalize angular difference to [-180, 180]
@@ -75,9 +73,7 @@ def _find_contiguous_regions(mask: np.ndarray) -> list[tuple[int, int]]:
     return list(zip(starts.tolist(), ends.tolist(), strict=True))
 
 
-def _merge_regions(
-    regions: list[tuple[int, int]], gap_points: int
-) -> list[tuple[int, int]]:
+def _merge_regions(regions: list[tuple[int, int]], gap_points: int) -> list[tuple[int, int]]:
     """Merge regions that are within gap_points of each other."""
     if len(regions) <= 1:
         return regions
@@ -231,14 +227,8 @@ def detect_corners(
         # Throttle commit
         throttle_idx = _find_throttle_commit(lon_g, apex_idx, exit_idx, step_m)
 
-        brake_m = (
-            round(float(distance[brake_idx]), 1)
-            if brake_idx is not None else None
-        )
-        throttle_m = (
-            round(float(distance[throttle_idx]), 1)
-            if throttle_idx is not None else None
-        )
+        brake_m = round(float(distance[brake_idx]), 1) if brake_idx is not None else None
+        throttle_m = round(float(distance[throttle_idx]), 1) if throttle_idx is not None else None
         corners.append(
             Corner(
                 number=i,
@@ -247,9 +237,7 @@ def detect_corners(
                 apex_distance_m=round(float(distance[apex_idx]), 1),
                 min_speed_mps=round(float(corner_speed[apex_local]), 2),
                 brake_point_m=brake_m,
-                peak_brake_g=(
-                    round(peak_g, 3) if peak_g is not None else None
-                ),
+                peak_brake_g=(round(peak_g, 3) if peak_g is not None else None),
                 throttle_commit_m=throttle_m,
                 apex_type=_classify_apex(entry_idx, apex_idx, exit_idx),
             )
@@ -293,18 +281,10 @@ def extract_corner_kpis_for_lap(
         apex_idx = entry_idx + apex_local
 
         brake_idx, peak_g = _find_brake_point(lon_g, entry_idx, step_m)
-        throttle_idx = _find_throttle_commit(
-            lon_g, apex_idx, exit_idx, step_m
-        )
+        throttle_idx = _find_throttle_commit(lon_g, apex_idx, exit_idx, step_m)
 
-        brake_m = (
-            round(float(distance[brake_idx]), 1)
-            if brake_idx is not None else None
-        )
-        throttle_m = (
-            round(float(distance[throttle_idx]), 1)
-            if throttle_idx is not None else None
-        )
+        brake_m = round(float(distance[brake_idx]), 1) if brake_idx is not None else None
+        throttle_m = round(float(distance[throttle_idx]), 1) if throttle_idx is not None else None
         corners.append(
             Corner(
                 number=ref.number,
@@ -313,9 +293,7 @@ def extract_corner_kpis_for_lap(
                 apex_distance_m=round(float(distance[apex_idx]), 1),
                 min_speed_mps=round(float(corner_speed[apex_local]), 2),
                 brake_point_m=brake_m,
-                peak_brake_g=(
-                    round(peak_g, 3) if peak_g is not None else None
-                ),
+                peak_brake_g=(round(peak_g, 3) if peak_g is not None else None),
                 throttle_commit_m=throttle_m,
                 apex_type=_classify_apex(entry_idx, apex_idx, exit_idx),
             )
