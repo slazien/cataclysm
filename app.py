@@ -6,6 +6,7 @@ import glob
 import os
 
 import numpy as np
+import pandas as pd
 import streamlit as st
 
 from cataclysm.charts import (
@@ -13,7 +14,7 @@ from cataclysm.charts import (
     delta_t_chart,
     g_force_chart,
     lap_times_chart,
-    speed_trace_chart,
+    linked_speed_map_html,
     track_map_chart,
 )
 from cataclysm.coaching import CoachingContext, ask_followup, generate_coaching_report
@@ -192,10 +193,10 @@ with tab_speed:
         format_func=lambda n: f"Lap {n}",
     )
     if selected_laps:
-        fig = speed_trace_chart(
+        html = linked_speed_map_html(
             processed.resampled_laps, selected_laps, corners
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.components.v1.html(html, height=600)
     else:
         st.info("Select at least one lap to display.")
 
@@ -397,27 +398,40 @@ with tab_coaching:
 
         if report.corner_grades:
             st.subheader("Corner Grades")
-            grade_data = {
-                "Corner": [
-                    f"T{g.corner}" for g in report.corner_grades
-                ],
-                "Braking": [
-                    g.braking for g in report.corner_grades
-                ],
-                "Trail Brake": [
-                    g.trail_braking for g in report.corner_grades
-                ],
-                "Min Speed": [
-                    g.min_speed for g in report.corner_grades
-                ],
-                "Throttle": [
-                    g.throttle for g in report.corner_grades
-                ],
-                "Notes": [
-                    g.notes for g in report.corner_grades
-                ],
+            grade_cols = ["Braking", "Trail Brake", "Min Speed", "Throttle"]
+            grade_score = {"A": 5, "B": 4, "C": 3, "D": 2, "F": 1}
+            grade_color = {
+                "A": "#2d6a2e",
+                "B": "#1a6b5a",
+                "C": "#8a7a00",
+                "D": "#a85e00",
+                "F": "#a83232",
             }
-            st.dataframe(grade_data, use_container_width=True)
+            df_grades = pd.DataFrame(
+                {
+                    "Corner": [f"T{g.corner}" for g in report.corner_grades],
+                    "Braking": [g.braking for g in report.corner_grades],
+                    "Trail Brake": [
+                        g.trail_braking for g in report.corner_grades
+                    ],
+                    "Min Speed": [g.min_speed for g in report.corner_grades],
+                    "Throttle": [g.throttle for g in report.corner_grades],
+                    "Notes": [g.notes for g in report.corner_grades],
+                }
+            )
+            df_grades["_avg"] = df_grades[grade_cols].map(
+                lambda v: grade_score.get(v, 0)
+            ).mean(axis=1)
+            df_grades = df_grades.sort_values("_avg").drop(columns="_avg").reset_index(drop=True)
+
+            def _color_grade(val: object) -> str:
+                bg = grade_color.get(str(val), "")
+                if bg:
+                    return f"background-color: {bg}; color: white"
+                return ""
+
+            styled = df_grades.style.map(_color_grade, subset=grade_cols)
+            st.dataframe(styled, use_container_width=True)
 
         if report.patterns:
             st.subheader("Patterns")

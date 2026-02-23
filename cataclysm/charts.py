@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -312,3 +314,250 @@ def g_force_chart(lap_df: pd.DataFrame, lap_number: int) -> go.Figure:
         showlegend=False,
     )
     return fig
+
+
+def linked_speed_map_html(
+    laps: dict[int, pd.DataFrame],
+    selected_laps: list[int],
+    corners: list[Corner] | None = None,
+    map_lap: int | None = None,
+) -> str:
+    """Return an HTML string with linked speed trace + track map.
+
+    Hover on the speed trace moves a directional cursor on the track map.
+    All interaction is client-side JavaScript — no Streamlit reruns.
+    """
+    if not selected_laps:
+        return "<p style='color:#ccc'>No laps selected.</p>"
+
+    map_lap_num = map_lap if map_lap is not None else selected_laps[0]
+    if map_lap_num not in laps:
+        map_lap_num = selected_laps[0]
+
+    map_df = laps[map_lap_num]
+
+    # --- Serialize data for JS ---------------------------------------------------
+    lap_data_js: dict[str, dict[str, list[float]]] = {}
+    for lap_num in selected_laps:
+        if lap_num not in laps:
+            continue
+        df = laps[lap_num]
+        lap_data_js[str(lap_num)] = {
+            "distance": df["lap_distance_m"].tolist(),
+            "speed": (df["speed_mps"] * MPS_TO_MPH).tolist(),
+        }
+
+    map_data = {
+        "lat": map_df["lat"].tolist(),
+        "lon": map_df["lon"].tolist(),
+        "heading": map_df["heading_deg"].tolist(),
+        "speed": (map_df["speed_mps"] * MPS_TO_MPH).tolist(),
+        "distance": map_df["lap_distance_m"].tolist(),
+    }
+
+    corner_data: list[dict[str, object]] = []
+    if corners:
+        dist = map_df["lap_distance_m"].to_numpy()
+        lat = map_df["lat"].to_numpy()
+        lon = map_df["lon"].to_numpy()
+        for c in corners:
+            apex_idx = int(np.searchsorted(dist, c.apex_distance_m))
+            apex_idx = min(apex_idx, len(lat) - 1)
+            corner_data.append({
+                "number": c.number,
+                "entry": c.entry_distance_m,
+                "exit": c.exit_distance_m,
+                "apex_lat": float(lat[apex_idx]),
+                "apex_lon": float(lon[apex_idx]),
+            })
+
+    lap_colors: dict[str, str] = {}
+    for i, lap_num in enumerate(selected_laps):
+        lap_colors[str(lap_num)] = _lap_color(i)
+
+    # --- Build HTML ---------------------------------------------------------------
+    return f"""\
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+  body {{ background: #0e1117; font-family: sans-serif; }}
+  .container {{ display: flex; gap: 8px; width: 100%; height: 580px; }}
+  .speed-panel {{ flex: 6; min-width: 0; }}
+  .map-panel {{ flex: 4; min-width: 0; }}
+  #speedDiv, #mapDiv {{ width: 100%; height: 100%; }}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="speed-panel"><div id="speedDiv"></div></div>
+  <div class="map-panel"><div id="mapDiv"></div></div>
+</div>
+<script>
+(function() {{
+  var lapData = {json.dumps(lap_data_js)};
+  var mapData = {json.dumps(map_data)};
+  var corners = {json.dumps(corner_data)};
+  var lapColors = {json.dumps(lap_colors)};
+
+  // ---- Speed trace ----
+  var speedTraces = [];
+  var lapNums = {json.dumps([str(n) for n in selected_laps])};
+  for (var i = 0; i < lapNums.length; i++) {{
+    var ln = lapNums[i];
+    if (!lapData[ln]) continue;
+    speedTraces.push({{
+      x: lapData[ln].distance,
+      y: lapData[ln].speed,
+      type: 'scattergl',
+      mode: 'lines',
+      name: 'Lap ' + ln,
+      line: {{ color: lapColors[ln], width: 1.5 }},
+    }});
+  }}
+
+  var speedShapes = [];
+  var speedAnnotations = [];
+  for (var ci = 0; ci < corners.length; ci++) {{
+    var c = corners[ci];
+    speedShapes.push({{
+      type: 'rect',
+      xref: 'x', yref: 'paper',
+      x0: c.entry, x1: c.exit,
+      y0: 0, y1: 1,
+      fillcolor: 'rgba(128,128,128,0.1)',
+      line: {{ width: 0 }},
+      layer: 'below',
+    }});
+    speedAnnotations.push({{
+      x: c.entry, y: 1,
+      xref: 'x', yref: 'paper',
+      text: 'T' + c.number,
+      showarrow: false,
+      font: {{ size: 10, color: '#888' }},
+      xanchor: 'left', yanchor: 'bottom',
+    }});
+  }}
+
+  var speedLayout = {{
+    title: {{ text: 'Speed vs Distance', font: {{ color: '#ddd', size: 14 }} }},
+    xaxis: {{ title: 'Distance (m)', color: '#aaa', gridcolor: '#333' }},
+    yaxis: {{ title: 'Speed (mph)', color: '#aaa', gridcolor: '#333' }},
+    plot_bgcolor: '#0e1117',
+    paper_bgcolor: '#0e1117',
+    font: {{ color: '#ddd' }},
+    hovermode: 'x unified',
+    legend: {{ orientation: 'h', y: 1.12, font: {{ color: '#ccc' }} }},
+    shapes: speedShapes,
+    annotations: speedAnnotations,
+    margin: {{ l: 55, r: 15, t: 45, b: 40 }},
+  }};
+
+  Plotly.newPlot('speedDiv', speedTraces, speedLayout, {{ responsive: true }});
+
+  // ---- Track map ----
+  var mapTraces = [];
+
+  // Trace 0: track colored by speed
+  mapTraces.push({{
+    x: mapData.lon,
+    y: mapData.lat,
+    type: 'scattergl',
+    mode: 'markers',
+    marker: {{
+      color: mapData.speed,
+      colorscale: 'RdYlGn',
+      size: 3,
+      colorbar: {{ title: 'mph', thickness: 12,
+        tickfont: {{ color: '#aaa' }}, titlefont: {{ color: '#aaa' }} }},
+    }},
+    hoverinfo: 'skip',
+    showlegend: false,
+  }});
+
+  // Trace 1: cursor arrow (initially hidden)
+  mapTraces.push({{
+    x: [mapData.lon[0]],
+    y: [mapData.lat[0]],
+    type: 'scatter',
+    mode: 'markers',
+    marker: {{
+      symbol: 'triangle-up',
+      angle: [mapData.heading[0]],
+      angleref: 'up',
+      size: 16,
+      color: '#ffffff',
+      line: {{ color: '#000', width: 2 }},
+      opacity: 0,
+    }},
+    hoverinfo: 'skip',
+    showlegend: false,
+  }});
+
+  var mapAnnotations = [];
+  for (var ci = 0; ci < corners.length; ci++) {{
+    var c = corners[ci];
+    mapAnnotations.push({{
+      x: c.apex_lon,
+      y: c.apex_lat,
+      text: 'T' + c.number,
+      showarrow: false,
+      font: {{ size: 10, color: '#000' }},
+      bgcolor: 'rgba(255,255,255,0.8)',
+    }});
+  }}
+
+  var mapLayout = {{
+    title: {{ text: 'Track Map — Lap {map_lap_num}', font: {{ color: '#ddd', size: 14 }} }},
+    xaxis: {{ title: 'Longitude', color: '#aaa', gridcolor: '#333', showgrid: false }},
+    yaxis: {{ title: 'Latitude', color: '#aaa', gridcolor: '#333', showgrid: false,
+              scaleanchor: 'x', scaleratio: 1 }},
+    plot_bgcolor: '#0e1117',
+    paper_bgcolor: '#0e1117',
+    font: {{ color: '#ddd' }},
+    showlegend: false,
+    annotations: mapAnnotations,
+    margin: {{ l: 55, r: 15, t: 45, b: 40 }},
+  }};
+
+  Plotly.newPlot('mapDiv', mapTraces, mapLayout, {{ responsive: true }});
+
+  // ---- Hover linking ----
+  var distArr = mapData.distance;
+
+  function bisect(arr, val) {{
+    var lo = 0, hi = arr.length - 1;
+    while (lo < hi) {{
+      var mid = (lo + hi) >> 1;
+      if (arr[mid] < val) lo = mid + 1;
+      else hi = mid;
+    }}
+    return lo;
+  }}
+
+  var speedDiv = document.getElementById('speedDiv');
+
+  speedDiv.on('plotly_hover', function(evt) {{
+    if (!evt.points || !evt.points.length) return;
+    var xVal = evt.points[0].x;
+    var idx = bisect(distArr, xVal);
+    if (idx >= distArr.length) idx = distArr.length - 1;
+
+    Plotly.restyle('mapDiv', {{
+      'x': [[mapData.lon[idx]]],
+      'y': [[mapData.lat[idx]]],
+      'marker.angle': [[mapData.heading[idx]]],
+      'marker.opacity': [1],
+    }}, [1]);
+  }});
+
+  speedDiv.on('plotly_unhover', function() {{
+    Plotly.restyle('mapDiv', {{ 'marker.opacity': [0] }}, [1]);
+  }});
+}})();
+</script>
+</body>
+</html>"""
