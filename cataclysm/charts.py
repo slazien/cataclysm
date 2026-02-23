@@ -7,7 +7,13 @@ import json
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
+from cataclysm.consistency import (
+    CornerConsistencyEntry,
+    LapConsistency,
+    TrackPositionConsistency,
+)
 from cataclysm.corners import Corner
 from cataclysm.delta import DeltaResult
 from cataclysm.engine import LapSummary
@@ -19,8 +25,16 @@ M_TO_FT = 3.28084
 def _lap_color(idx: int) -> str:
     """Return a color from a fixed palette for lap overlay."""
     palette = [
-        "#636EFA", "#EF553B", "#00CC96", "#AB63FA", "#FFA15A",
-        "#19D3F3", "#FF6692", "#B6E880", "#FF97FF", "#FECB52",
+        "#636EFA",
+        "#EF553B",
+        "#00CC96",
+        "#AB63FA",
+        "#FFA15A",
+        "#19D3F3",
+        "#FF6692",
+        "#B6E880",
+        "#FF97FF",
+        "#FECB52",
     ]
     return palette[idx % len(palette)]
 
@@ -122,7 +136,8 @@ def delta_t_chart(delta: DeltaResult, ref_lap: int, comp_lap: int) -> go.Figure:
 
     fig.add_trace(
         go.Scatter(
-            x=dist, y=positive,
+            x=dist,
+            y=positive,
             fill="tozeroy",
             fillcolor="rgba(239, 85, 59, 0.3)",
             line={"color": "rgba(239, 85, 59, 0.5)", "width": 0.5},
@@ -131,7 +146,8 @@ def delta_t_chart(delta: DeltaResult, ref_lap: int, comp_lap: int) -> go.Figure:
     )
     fig.add_trace(
         go.Scatter(
-            x=dist, y=negative,
+            x=dist,
+            y=negative,
             fill="tozeroy",
             fillcolor="rgba(0, 204, 150, 0.3)",
             line={"color": "rgba(0, 204, 150, 0.5)", "width": 0.5},
@@ -142,7 +158,8 @@ def delta_t_chart(delta: DeltaResult, ref_lap: int, comp_lap: int) -> go.Figure:
     # Main delta line
     fig.add_trace(
         go.Scatter(
-            x=dist, y=dt,
+            x=dist,
+            y=dt,
             mode="lines",
             line={"color": "#333", "width": 1.5},
             name="Delta-T",
@@ -181,9 +198,7 @@ def track_map_chart(
             },
             name=f"Lap {lap_number}",
             hovertemplate=(
-                "Speed: %{marker.color:.1f} mph<br>"
-                "Lat: %{y:.6f}<br>"
-                "Lon: %{x:.6f}<extra></extra>"
+                "Speed: %{marker.color:.1f} mph<br>Lat: %{y:.6f}<br>Lon: %{x:.6f}<extra></extra>"
             ),
         )
     )
@@ -228,10 +243,14 @@ def corner_kpi_table(
     if comp_corners:
         headers = [
             "Corner",
-            "Best Min Spd", "Comp Min Spd",
-            "Best Brake Pt", "Comp Brake Pt",
-            "Best Peak G", "Comp Peak G",
-            "Delta (s)", "Apex",
+            "Best Min Spd",
+            "Comp Min Spd",
+            "Best Brake Pt",
+            "Comp Brake Pt",
+            "Best Peak G",
+            "Comp Peak G",
+            "Delta (s)",
+            "Apex",
         ]
 
     comp_map = {c.number: c for c in comp_corners} if comp_corners else {}
@@ -276,10 +295,18 @@ def corner_kpi_table(
 
     fig = go.Figure(
         go.Table(
-            header={"values": headers, "fill_color": "#2a2a2a", "font_color": "white",
-                     "align": "center"},
-            cells={"values": cells, "fill_color": "#1e1e1e", "font_color": "white",
-                    "align": "center"},
+            header={
+                "values": headers,
+                "fill_color": "#2a2a2a",
+                "font_color": "white",
+                "align": "center",
+            },
+            cells={
+                "values": cells,
+                "fill_color": "#1e1e1e",
+                "font_color": "white",
+                "align": "center",
+            },
         )
     )
     fig.update_layout(title="Corner KPIs", height=max(300, 60 * len(best_corners) + 100))
@@ -383,13 +410,15 @@ def linked_speed_map_html(
         for c in corners:
             apex_idx = int(np.searchsorted(dist, c.apex_distance_m))
             apex_idx = min(apex_idx, len(lat) - 1)
-            corner_data.append({
-                "number": c.number,
-                "entry": c.entry_distance_m,
-                "exit": c.exit_distance_m,
-                "apex_lat": float(lat[apex_idx]),
-                "apex_lon": float(lon[apex_idx]),
-            })
+            corner_data.append(
+                {
+                    "number": c.number,
+                    "entry": c.entry_distance_m,
+                    "exit": c.exit_distance_m,
+                    "apex_lat": float(lat[apex_idx]),
+                    "apex_lon": float(lon[apex_idx]),
+                }
+            )
 
     lap_colors: dict[str, str] = {}
     for i, lap_num in enumerate(selected_laps):
@@ -437,9 +466,9 @@ def linked_speed_map_html(
   var mapData = {json.dumps(map_data)};
   var corners = {json.dumps(corner_data)};
   var lapColors = {json.dumps(lap_colors)};
-  var hasDelta = {'true' if has_delta else 'false'};
-  var deltaData = {json.dumps(delta_data) if has_delta else '{}'};
-  var mapDelta = {json.dumps(map_delta) if map_delta else '[]'};
+  var hasDelta = {"true" if has_delta else "false"};
+  var deltaData = {json.dumps(delta_data) if has_delta else "{}"};
+  var mapDelta = {json.dumps(map_delta) if map_delta else "[]"};
 
   // ---- Speed trace ----
   var speedTraces = [];
@@ -686,3 +715,220 @@ def linked_speed_map_html(
 </script>
 </body>
 </html>"""
+
+
+def lap_consistency_chart(lap: LapConsistency) -> go.Figure:
+    """Two-subplot chart: lap times with mean/std band, and consecutive delta bars."""
+    fig = make_subplots(
+        rows=2,
+        cols=1,
+        shared_xaxes=True,
+        row_heights=[0.6, 0.4],
+        vertical_spacing=0.08,
+    )
+
+    lap_labels = [f"L{n}" for n in lap.lap_numbers]
+    times = lap.lap_times_s
+    mean_time = np.mean(times)
+    std_time = np.std(times)
+
+    # Top subplot: lap times as connected scatter
+    fig.add_trace(
+        go.Scatter(
+            x=lap_labels,
+            y=times,
+            mode="lines+markers",
+            name="Lap Time",
+            line={"color": "#636EFA", "width": 2},
+            marker={"size": 8, "color": "#636EFA"},
+        ),
+        row=1,
+        col=1,
+    )
+
+    # Horizontal mean line
+    fig.add_trace(
+        go.Scatter(
+            x=lap_labels,
+            y=[mean_time] * len(lap_labels),
+            mode="lines",
+            name=f"Mean ({mean_time:.2f}s)",
+            line={"color": "gray", "width": 1, "dash": "dash"},
+        ),
+        row=1,
+        col=1,
+    )
+
+    # +/- 1 std dev band
+    upper = [mean_time + std_time] * len(lap_labels)
+    lower = [mean_time - std_time] * len(lap_labels)
+    fig.add_trace(
+        go.Scatter(
+            x=lap_labels,
+            y=upper,
+            mode="lines",
+            line={"width": 0},
+            showlegend=False,
+            hoverinfo="skip",
+        ),
+        row=1,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=lap_labels,
+            y=lower,
+            mode="lines",
+            line={"width": 0},
+            fill="tonexty",
+            fillcolor="rgba(99, 110, 250, 0.15)",
+            name="\u00b11 Std Dev",
+            hoverinfo="skip",
+        ),
+        row=1,
+        col=1,
+    )
+
+    # Bottom subplot: consecutive delta bars
+    delta_labels = [
+        f"L{lap.lap_numbers[i]}\u2192L{lap.lap_numbers[i + 1]}"
+        for i in range(len(lap.consecutive_deltas_s))
+    ]
+    deltas = lap.consecutive_deltas_s
+    mean_delta = float(np.mean(np.abs(deltas))) if deltas else 0.0
+    bar_colors = ["#00CC96" if abs(d) < mean_delta else "#EF553B" for d in deltas]
+
+    fig.add_trace(
+        go.Bar(
+            x=delta_labels,
+            y=deltas,
+            marker_color=bar_colors,
+            name="Delta",
+            showlegend=False,
+        ),
+        row=2,
+        col=1,
+    )
+
+    fig.update_layout(
+        title="Lap Consistency",
+        height=500,
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font={"color": "#ddd"},
+        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02},
+    )
+    fig.update_xaxes(color="#aaa", gridcolor="#333")
+    fig.update_yaxes(color="#aaa", gridcolor="#333")
+    fig.update_yaxes(title_text="Time (s)", row=1, col=1)
+    fig.update_yaxes(title_text="Delta (s)", row=2, col=1)
+
+    return fig
+
+
+def corner_consistency_chart(
+    entries: list[CornerConsistencyEntry],
+) -> go.Figure:
+    """Horizontal bar chart ranking corners by consistency score."""
+    sorted_entries = sorted(entries, key=lambda e: e.consistency_score)
+
+    labels = [f"T{e.corner_number}" for e in sorted_entries]
+    scores = [e.consistency_score for e in sorted_entries]
+    bar_colors = [
+        f"rgb("
+        f"{int(239 - (239 - 0) * s / 100)}, "
+        f"{int(85 + (204 - 85) * s / 100)}, "
+        f"{int(59 + (150 - 59) * s / 100)})"
+        for s in scores
+    ]
+
+    fig = go.Figure(
+        go.Bar(
+            y=labels,
+            x=scores,
+            orientation="h",
+            marker_color=bar_colors,
+            text=[f"{s:.0f}" for s in scores],
+            textposition="inside",
+            textfont={"color": "white"},
+        )
+    )
+
+    fig.update_layout(
+        title="Corner Consistency Ranking",
+        xaxis_title="Consistency Score",
+        xaxis={"range": [0, 100], "color": "#aaa", "gridcolor": "#333"},
+        yaxis={"color": "#aaa", "gridcolor": "#333"},
+        height=max(300, 50 * len(entries) + 100),
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font={"color": "#ddd"},
+        showlegend=False,
+    )
+
+    return fig
+
+
+def track_consistency_map(
+    track: TrackPositionConsistency,
+    corners: list[Corner] | None = None,
+) -> go.Figure:
+    """Track map colored by speed std dev (consistency profile)."""
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Scattergl(
+            x=track.lon,
+            y=track.lat,
+            mode="markers",
+            marker={
+                "color": track.speed_std_mph,
+                "colorscale": [
+                    [0, "#00CC96"],
+                    [0.5, "#FFA15A"],
+                    [1, "#EF553B"],
+                ],
+                "size": 3,
+                "colorbar": {"title": "Speed Std (mph)", "thickness": 15},
+            },
+            hovertemplate=(
+                "Speed Std: %{marker.color:.2f} mph<br>"
+                "Mean Speed: %{customdata:.1f} mph<br>"
+                "Lat: %{y:.6f}<br>"
+                "Lon: %{x:.6f}<extra></extra>"
+            ),
+            customdata=track.speed_mean_mph,
+        )
+    )
+
+    # Label corners on the map
+    if corners:
+        dist = track.distance_m
+        lat = track.lat
+        lon = track.lon
+        for corner in corners:
+            apex_idx = int(np.searchsorted(dist, corner.apex_distance_m))
+            apex_idx = min(apex_idx, len(lat) - 1)
+            fig.add_annotation(
+                x=lon[apex_idx],
+                y=lat[apex_idx],
+                text=f"T{corner.number}",
+                showarrow=False,
+                font={"size": 10, "color": "black"},
+                bgcolor="white",
+                opacity=0.8,
+            )
+
+    fig.update_layout(
+        title=f"Track Consistency Map ({track.n_laps} laps)",
+        xaxis_title="Longitude",
+        yaxis_title="Latitude",
+        height=600,
+        yaxis={"scaleanchor": "x", "scaleratio": 1},
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font={"color": "#ddd"},
+        showlegend=False,
+    )
+
+    return fig

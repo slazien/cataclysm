@@ -65,6 +65,8 @@ All structured data uses **dataclasses**: `ParsedSession`, `SessionMetadata`, `L
 
 ## Workflow
 
+- Always ask all clarifying questions before making assumptions
+- Use agent teams wherever possible for parallel work
 - Always commit and push after making changes — the app is deployed on Streamlit Cloud and serves from the remote branch.
 
 ## Environment
