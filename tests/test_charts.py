@@ -10,15 +10,21 @@ import pytest
 from cataclysm.charts import (
     brake_consistency_chart,
     brake_throttle_chart,
+    consistency_trend_chart,
     corner_detail_chart,
+    corner_heatmap_chart,
     corner_kpi_table,
     corner_mini_map,
+    corner_trend_chart,
     delta_t_chart,
     g_force_chart,
     gain_per_corner_chart,
     ideal_lap_delta_chart,
     ideal_lap_overlay_chart,
+    lap_time_trend_chart,
     lap_times_chart,
+    milestone_summary,
+    session_comparison_box_chart,
     speed_trace_chart,
     track_map_chart,
     track_median_speed_map,
@@ -36,6 +42,7 @@ from cataclysm.gains import (
     SegmentGain,
     TheoreticalBestResult,
 )
+from cataclysm.trends import SessionSnapshot, TrendAnalysis, compute_trend_analysis
 
 
 @pytest.fixture
@@ -583,3 +590,126 @@ class TestTractionUtilizationChart:
         assert isinstance(fig, go.Figure)
         # Without grip, title should NOT mention "Grip:"
         assert "Grip:" not in fig.layout.title.text
+
+
+# ---------------------------------------------------------------------------
+# Trend chart tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def sample_trend(
+    three_session_snapshots: list[SessionSnapshot],
+) -> TrendAnalysis:
+    """TrendAnalysis built from the three-session improvement fixture."""
+    return compute_trend_analysis(three_session_snapshots)
+
+
+class TestLapTimeTrendChart:
+    def test_returns_figure(self, sample_trend: TrendAnalysis) -> None:
+        fig = lap_time_trend_chart(sample_trend)
+        assert isinstance(fig, go.Figure)
+
+    def test_has_multiple_traces(self, sample_trend: TrendAnalysis) -> None:
+        fig = lap_time_trend_chart(sample_trend)
+        # At least: best, top3, avg, theoretical
+        assert len(fig.data) >= 4
+
+    def test_dark_theme(self, sample_trend: TrendAnalysis) -> None:
+        fig = lap_time_trend_chart(sample_trend)
+        assert fig.layout.plot_bgcolor == "#0e1117"
+
+    def test_title_mentions_lap_time(self, sample_trend: TrendAnalysis) -> None:
+        fig = lap_time_trend_chart(sample_trend)
+        assert "lap" in fig.layout.title.text.lower() or "time" in fig.layout.title.text.lower()
+
+
+class TestConsistencyTrendChart:
+    def test_returns_figure(self, sample_trend: TrendAnalysis) -> None:
+        fig = consistency_trend_chart(sample_trend)
+        assert isinstance(fig, go.Figure)
+
+    def test_has_background_shapes(self, sample_trend: TrendAnalysis) -> None:
+        fig = consistency_trend_chart(sample_trend)
+        # Should have at least 3 rectangular shapes for score bands
+        shapes = fig.layout.shapes
+        assert shapes is not None
+        assert len(shapes) >= 3
+
+    def test_dark_theme(self, sample_trend: TrendAnalysis) -> None:
+        fig = consistency_trend_chart(sample_trend)
+        assert fig.layout.plot_bgcolor == "#0e1117"
+
+
+class TestCornerHeatmapChart:
+    def test_returns_figure_min_speed(self, sample_trend: TrendAnalysis) -> None:
+        fig = corner_heatmap_chart(sample_trend, metric="min_speed")
+        assert isinstance(fig, go.Figure)
+
+    def test_returns_figure_brake_std(self, sample_trend: TrendAnalysis) -> None:
+        fig = corner_heatmap_chart(sample_trend, metric="brake_std")
+        assert isinstance(fig, go.Figure)
+
+    def test_returns_figure_consistency(self, sample_trend: TrendAnalysis) -> None:
+        fig = corner_heatmap_chart(sample_trend, metric="consistency")
+        assert isinstance(fig, go.Figure)
+
+    def test_has_heatmap_trace(self, sample_trend: TrendAnalysis) -> None:
+        fig = corner_heatmap_chart(sample_trend)
+        assert any(isinstance(t, go.Heatmap) for t in fig.data)
+
+    def test_dark_theme(self, sample_trend: TrendAnalysis) -> None:
+        fig = corner_heatmap_chart(sample_trend)
+        assert fig.layout.plot_bgcolor == "#0e1117"
+
+
+class TestSessionComparisonBoxChart:
+    def test_returns_figure(self, sample_trend: TrendAnalysis) -> None:
+        fig = session_comparison_box_chart(sample_trend)
+        assert isinstance(fig, go.Figure)
+
+    def test_has_traces_per_session(self, sample_trend: TrendAnalysis) -> None:
+        fig = session_comparison_box_chart(sample_trend)
+        # At least one trace per session (box) + possibly diamond markers
+        assert len(fig.data) >= sample_trend.n_sessions
+
+    def test_dark_theme(self, sample_trend: TrendAnalysis) -> None:
+        fig = session_comparison_box_chart(sample_trend)
+        assert fig.layout.plot_bgcolor == "#0e1117"
+
+
+class TestCornerTrendChart:
+    def test_returns_figure(self, sample_trend: TrendAnalysis) -> None:
+        fig = corner_trend_chart(sample_trend)
+        assert isinstance(fig, go.Figure)
+
+    def test_dark_theme(self, sample_trend: TrendAnalysis) -> None:
+        fig = corner_trend_chart(sample_trend)
+        assert fig.layout.plot_bgcolor == "#0e1117"
+
+    def test_has_subplots(self, sample_trend: TrendAnalysis) -> None:
+        fig = corner_trend_chart(sample_trend)
+        # Should have traces for common corners
+        n_corners = len(sample_trend.corner_min_speed_trends)
+        if n_corners > 0:
+            assert len(fig.data) >= n_corners
+
+
+class TestMilestoneSummary:
+    def test_returns_list(self, sample_trend: TrendAnalysis) -> None:
+        result = milestone_summary(sample_trend)
+        assert isinstance(result, list)
+
+    def test_dict_keys(self, sample_trend: TrendAnalysis) -> None:
+        result = milestone_summary(sample_trend)
+        for m in result:
+            assert "category" in m
+            assert "description" in m
+            assert "date" in m
+            assert "icon" in m
+
+    def test_icon_mapping(self, sample_trend: TrendAnalysis) -> None:
+        result = milestone_summary(sample_trend)
+        valid_icons = {"trophy", "chart", "stopwatch"}
+        for m in result:
+            assert m["icon"] in valid_icons

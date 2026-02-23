@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import glob
 import os
 
@@ -11,15 +12,21 @@ import streamlit as st
 from cataclysm.charts import (
     brake_consistency_chart,
     brake_throttle_chart,
+    consistency_trend_chart,
     corner_detail_chart,
+    corner_heatmap_chart,
     corner_kpi_table,
     corner_mini_map,
+    corner_trend_chart,
     gain_per_corner_chart,
     ideal_lap_delta_chart,
     ideal_lap_overlay_chart,
     lap_consistency_chart,
+    lap_time_trend_chart,
     lap_times_chart,
     linked_speed_map_html,
+    milestone_summary,
+    session_comparison_box_chart,
     track_consistency_map,
     track_median_speed_map,
     traction_utilization_chart,
@@ -45,6 +52,11 @@ from cataclysm.gains import (
 from cataclysm.grip import GripEstimate, estimate_grip_limit
 from cataclysm.parser import ParsedSession, parse_racechrono_csv
 from cataclysm.track_db import locate_official_corners, lookup_track
+from cataclysm.trends import (
+    SessionSnapshot,
+    build_session_snapshot,
+    compute_trend_analysis,
+)
 
 # Type alias for readability
 AllLapCorners = dict[int, list[Corner]]
@@ -78,37 +90,133 @@ def _load_session(
     return parsed, processed
 
 
-# Sidebar: session picker
-st.sidebar.header("Session")
-
-existing = _find_existing_sessions()
-upload_option = "Upload new CSV..."
-
-source_options = existing + [upload_option]
-chosen = st.sidebar.selectbox("Select session", source_options)
-
-uploaded_file = None
-if chosen == upload_option:
-    uploaded_file = st.sidebar.file_uploader("Upload RaceChrono CSV v3", type=["csv"])
-
-session_source = uploaded_file if uploaded_file else chosen
-if session_source is None or session_source == upload_option:
-    st.info("Select a session file or upload a RaceChrono CSV v3 export to get started.")
-    st.stop()
-
-
 # Cache processing per file
 @st.cache_data(show_spinner="Processing session...")
 def cached_process(file_key: str, _source: object) -> tuple[ParsedSession, ProcessedSession]:
     return _load_session(_source)
 
 
-file_key = uploaded_file.name if uploaded_file else str(session_source)
-try:
-    parsed, processed = cached_process(file_key, session_source)
-except Exception as exc:
-    st.error(f"Failed to process session: {exc}")
+# Sidebar: session management
+st.sidebar.header("Sessions")
+
+MAX_SESSIONS = 5
+
+# Initialize session registry
+if "session_registry" not in st.session_state:
+    st.session_state["session_registry"] = {}
+
+registry: dict[str, SessionSnapshot] = st.session_state["session_registry"]
+
+# Multi-file upload
+uploaded_files = st.sidebar.file_uploader(
+    "Upload RaceChrono CSV v3",
+    type=["csv"],
+    accept_multiple_files=True,
+    key="csv_upload",
+)
+
+# Combine uploaded + existing files
+existing = _find_existing_sessions()
+all_sources: list[tuple[str, object]] = []
+for f in uploaded_files or []:
+    all_sources.append((f.name, f))
+for path in existing:
+    all_sources.append((path, path))
+
+# Process new sessions (up to MAX_SESSIONS)
+for src_file_key, source in all_sources:
+    if src_file_key in registry or len(registry) >= MAX_SESSIONS:
+        continue
+    try:
+        parsed_i, processed_i = cached_process(src_file_key, source)
+    except Exception:
+        continue
+    # Build snapshot (lightweight -- only needs pipeline outputs)
+    summaries_i = processed_i.lap_summaries
+    anomalous_i = find_anomalous_laps(summaries_i)
+    all_laps_i = sorted(processed_i.resampled_laps.keys())
+    in_out_i = {all_laps_i[0], all_laps_i[-1]} if len(all_laps_i) >= 2 else set()
+    coaching_laps_i = [n for n in all_laps_i if n not in anomalous_i and n not in in_out_i]
+
+    if len(coaching_laps_i) < 2:
+        continue
+
+    # Detect corners on best lap
+    best_lap_df_i = processed_i.resampled_laps[processed_i.best_lap]
+    layout_i = lookup_track(parsed_i.metadata.track_name)
+    if layout_i is not None:
+        skeletons_i = locate_official_corners(best_lap_df_i, layout_i)
+        corners_i = extract_corner_kpis_for_lap(best_lap_df_i, skeletons_i)
+    else:
+        corners_i = detect_corners(best_lap_df_i)
+
+    # Extract corners for all laps
+    all_lap_corners_i: AllLapCorners = {}
+    for lap_num in coaching_laps_i:
+        lap_df_i = processed_i.resampled_laps[lap_num]
+        if lap_num == processed_i.best_lap:
+            all_lap_corners_i[lap_num] = corners_i
+        else:
+            all_lap_corners_i[lap_num] = extract_corner_kpis_for_lap(lap_df_i, corners_i)
+
+    consistency_i = compute_session_consistency(
+        summaries_i,
+        all_lap_corners_i,
+        processed_i.resampled_laps,
+        processed_i.best_lap,
+        anomalous_i,
+    )
+
+    # Gains (optional)
+    gains_i: GainEstimate | None = None
+    with contextlib.suppress(ValueError):
+        gains_i = estimate_gains(
+            processed_i.resampled_laps,
+            corners_i,
+            summaries_i,
+            coaching_laps_i,
+            processed_i.best_lap,
+        )
+
+    snap = build_session_snapshot(
+        metadata=parsed_i.metadata,
+        summaries=summaries_i,
+        lap_consistency=consistency_i.lap_consistency,
+        corner_consistency=consistency_i.corner_consistency,
+        gains=gains_i,
+        all_lap_corners=all_lap_corners_i,
+        anomalous_laps=anomalous_i | in_out_i,
+        file_key=src_file_key,
+    )
+    registry[src_file_key] = snap
+
+# Session count and remove buttons
+if registry:
+    st.sidebar.markdown(f"**{len(registry)} session(s) loaded**")
+    for fk in list(registry.keys()):
+        snap_entry = registry[fk]
+        col_name, col_rm = st.sidebar.columns([0.8, 0.2])
+        col_name.caption(f"{snap_entry.metadata.track_name} — {snap_entry.metadata.session_date}")
+        if col_rm.button("X", key=f"rm_{fk}"):
+            del registry[fk]
+            st.rerun()
+
+# Active session selector
+if not registry:
+    st.info("Upload a RaceChrono CSV v3 file or select an existing session to get started.")
     st.stop()
+
+active_key = st.sidebar.selectbox(
+    "Active session",
+    list(registry.keys()),
+    format_func=lambda k: (
+        f"{registry[k].metadata.track_name} — {registry[k].metadata.session_date}"
+    ),
+)
+
+# Re-load active session (cached -- no re-computation)
+file_key = active_key
+parsed, processed = cached_process(file_key, file_key)
 
 # ---------------------------------------------------------------------------
 # Session overview
@@ -205,9 +313,19 @@ all_lap_corners = cached_all_lap_corners(
 # ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
-tab_overview, tab_speed, tab_corners, tab_coaching = st.tabs(
-    ["Overview", "Speed Trace", "Corners", "AI Coach"]
-)
+# Determine if we have enough same-track sessions for trends
+active_track = parsed.metadata.track_name
+same_track_keys = [k for k, s in registry.items() if s.metadata.track_name == active_track]
+
+if len(same_track_keys) >= 2:
+    tab_overview, tab_speed, tab_corners, tab_coaching, tab_trends = st.tabs(
+        ["Overview", "Speed Trace", "Corners", "AI Coach", "Trends"]
+    )
+else:
+    tab_overview, tab_speed, tab_corners, tab_coaching = st.tabs(
+        ["Overview", "Speed Trace", "Corners", "AI Coach"]
+    )
+    tab_trends = None  # type: ignore[assignment]
 
 # --- Overview Tab ---
 with tab_overview:
@@ -693,3 +811,67 @@ with tab_coaching:
                     st.chat_message("user").write(msg["content"])
                 else:
                     st.chat_message("assistant").write(msg["content"])
+
+# --- Trends Tab ---
+if tab_trends is not None:
+    with tab_trends:
+        same_track_snapshots = [registry[k] for k in same_track_keys]
+        trend = compute_trend_analysis(same_track_snapshots)
+
+        # Header metrics
+        tc1, tc2, tc3, tc4 = st.columns(4)
+        tc1.metric("Sessions", trend.n_sessions)
+
+        all_time_best = min(trend.best_lap_trend)
+        tc2.metric("All-Time Best", fmt_time(all_time_best))
+
+        latest_best = trend.best_lap_trend[-1]
+        if len(trend.best_lap_trend) >= 2:
+            prev_best = min(trend.best_lap_trend[:-1])
+            delta_best = latest_best - prev_best
+            tc3.metric("Latest Best", fmt_time(latest_best), f"{delta_best:+.2f}s")
+        else:
+            tc3.metric("Latest Best", fmt_time(latest_best))
+
+        latest_consistency = trend.consistency_trend[-1]
+        if len(trend.consistency_trend) >= 2:
+            prev_cons = trend.consistency_trend[-2]
+            delta_cons = latest_consistency - prev_cons
+            tc4.metric("Consistency", f"{latest_consistency:.0f}/100", f"{delta_cons:+.0f}")
+        else:
+            tc4.metric("Consistency", f"{latest_consistency:.0f}/100")
+
+        # Milestones
+        ms = milestone_summary(trend)
+        for m_item in ms[-3:]:  # last 3 milestones
+            st.success(f"**{m_item['description']}** — {m_item['date']}")
+
+        # Lap time trend (primary chart)
+        st.plotly_chart(lap_time_trend_chart(trend), use_container_width=True)
+
+        # Two-column: consistency + box chart
+        trend_col1, trend_col2 = st.columns(2)
+        with trend_col1:
+            st.plotly_chart(consistency_trend_chart(trend), use_container_width=True)
+        with trend_col2:
+            st.plotly_chart(session_comparison_box_chart(trend), use_container_width=True)
+
+        # Corner progression
+        if trend.corner_min_speed_trends:
+            st.markdown("---")
+            st.subheader("Corner Progression")
+            heatmap_metric = st.selectbox(
+                "Metric",
+                ["min_speed", "brake_std", "consistency"],
+                format_func=lambda m: {
+                    "min_speed": "Min Speed (mph)",
+                    "brake_std": "Brake Point Variation (m)",
+                    "consistency": "Consistency Score",
+                }.get(m, m),
+                key="heatmap_metric",
+            )
+            st.plotly_chart(
+                corner_heatmap_chart(trend, metric=heatmap_metric),
+                use_container_width=True,
+            )
+            st.plotly_chart(corner_trend_chart(trend), use_container_width=True)

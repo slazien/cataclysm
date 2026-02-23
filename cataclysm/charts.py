@@ -22,6 +22,7 @@ from cataclysm.gains import (
     ConsistencyGainResult,
 )
 from cataclysm.grip import GripEstimate
+from cataclysm.trends import TrendAnalysis
 
 MPS_TO_MPH = 2.23694
 M_TO_FT = 3.28084
@@ -1639,8 +1640,7 @@ def ideal_lap_delta_chart(
     total_delta = float(delta[-1]) if len(delta) > 0 else 0.0
     fig.add_hline(y=0, line_dash="dash", line_color="gray", line_width=0.5)
     fig.update_layout(
-        title=f"Delta-T: Best Lap (L{best_lap}) vs Ideal Lap "
-        f"(+{total_delta:.2f}s gap)",
+        title=f"Delta-T: Best Lap (L{best_lap}) vs Ideal Lap (+{total_delta:.2f}s gap)",
         xaxis_title="Distance (m)",
         yaxis_title="Delta (s)",
         height=400,
@@ -1690,12 +1690,10 @@ def brake_consistency_chart(
     # Sort: highest std at top. Plotly y-axis renders bottom-to-top,
     # so ascending std order puts highest at top.
     brake_order = [
-        f"T{cn}"
-        for cn in sorted(corner_numbers, key=lambda c: brake_std_by_corner.get(c, 0.0))
+        f"T{cn}" for cn in sorted(corner_numbers, key=lambda c: brake_std_by_corner.get(c, 0.0))
     ]
     speed_order = [
-        f"T{cn}"
-        for cn in sorted(corner_numbers, key=lambda c: speed_std_by_corner.get(c, 0.0))
+        f"T{cn}" for cn in sorted(corner_numbers, key=lambda c: speed_std_by_corner.get(c, 0.0))
     ]
 
     for cn in corner_numbers:
@@ -1956,3 +1954,450 @@ def traction_utilization_chart(
         legend={"orientation": "h", "yanchor": "bottom", "y": 1.02},
     )
     return fig
+
+
+# ---------------------------------------------------------------------------
+# Cross-session trend charts
+# ---------------------------------------------------------------------------
+
+
+def _fmt_trend_time(t: float) -> str:
+    """Format seconds as m:ss.xx for trend chart labels."""
+    m = int(t // 60)
+    s = t % 60
+    return f"{m}:{s:05.2f}"
+
+
+def _session_date_labels(trend: TrendAnalysis) -> list[str]:
+    """Return short date labels (e.g. 'Feb 22') for each session."""
+    return [s.session_date_parsed.strftime("%b %d") for s in trend.sessions]
+
+
+def lap_time_trend_chart(trend: TrendAnalysis) -> go.Figure:
+    """Session-over-session lap time trend with best/top3/avg lines and milestones."""
+    dates = _session_date_labels(trend)
+
+    fig = go.Figure()
+
+    # Best lap time
+    fig.add_trace(
+        go.Scatter(
+            x=dates,
+            y=trend.best_lap_trend,
+            mode="lines+markers",
+            name="Best Lap",
+            line={"color": "#00CC96", "width": 2},
+            marker={"size": 8},
+            text=[_fmt_trend_time(t) for t in trend.best_lap_trend],
+            hovertemplate="%{text}<extra>Best Lap</extra>",
+        )
+    )
+
+    # Top-3 average
+    fig.add_trace(
+        go.Scatter(
+            x=dates,
+            y=trend.top3_avg_trend,
+            mode="lines+markers",
+            name="Top-3 Avg",
+            line={"color": "#636EFA", "width": 2},
+            marker={"size": 6},
+            text=[_fmt_trend_time(t) for t in trend.top3_avg_trend],
+            hovertemplate="%{text}<extra>Top-3 Avg</extra>",
+        )
+    )
+
+    # Session average
+    avg_times = [s.avg_lap_time_s for s in trend.sessions]
+    fig.add_trace(
+        go.Scatter(
+            x=dates,
+            y=avg_times,
+            mode="lines+markers",
+            name="Session Avg",
+            line={"color": "#AB63FA", "width": 1.5, "dash": "dot"},
+            marker={"size": 5},
+            text=[_fmt_trend_time(t) for t in avg_times],
+            hovertemplate="%{text}<extra>Session Avg</extra>",
+        )
+    )
+
+    # Theoretical best as dashed line
+    fig.add_trace(
+        go.Scatter(
+            x=dates,
+            y=trend.theoretical_trend,
+            mode="lines",
+            name="Theoretical Best",
+            line={"color": "#FFD700", "width": 1.5, "dash": "dash"},
+            text=[_fmt_trend_time(t) for t in trend.theoretical_trend],
+            hovertemplate="%{text}<extra>Theoretical</extra>",
+        )
+    )
+
+    # Milestone annotations (star markers at milestone sessions)
+    milestone_sessions = {m.session_id for m in trend.milestones}
+    for i, snap in enumerate(trend.sessions):
+        if snap.session_id in milestone_sessions:
+            fig.add_trace(
+                go.Scatter(
+                    x=[dates[i]],
+                    y=[trend.best_lap_trend[i]],
+                    mode="markers",
+                    marker={
+                        "symbol": "star",
+                        "size": 14,
+                        "color": "#FFD700",
+                        "line": {"color": "#fff", "width": 1},
+                    },
+                    name="Milestone",
+                    showlegend=i == 0
+                    or not any(
+                        trend.sessions[j].session_id in milestone_sessions for j in range(i)
+                    ),
+                    hovertext=[
+                        m.description for m in trend.milestones if m.session_id == snap.session_id
+                    ][0],
+                    hoverinfo="text",
+                )
+            )
+
+    # Rolling 3-session average when 4+ sessions
+    if len(trend.best_lap_trend) >= 4:
+        rolling: list[float | None] = []
+        for i in range(len(trend.best_lap_trend)):
+            if i < 2:
+                rolling.append(None)
+            else:
+                window = trend.best_lap_trend[i - 2 : i + 1]
+                rolling.append(float(np.mean(window)))
+        fig.add_trace(
+            go.Scatter(
+                x=dates,
+                y=rolling,
+                mode="lines",
+                name="3-Session Rolling Avg",
+                line={"color": "#19D3F3", "width": 1.5, "dash": "dashdot"},
+                connectgaps=True,
+            )
+        )
+
+    fig.update_layout(
+        title=f"Lap Time Trend — {trend.track_name}",
+        xaxis_title="Session Date",
+        yaxis_title="Lap Time (s)",
+        height=500,
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font={"color": "#ddd"},
+        xaxis={"color": "#aaa", "gridcolor": "#333"},
+        yaxis={"color": "#aaa", "gridcolor": "#333"},
+        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02},
+        hovermode="x unified",
+    )
+    return fig
+
+
+def consistency_trend_chart(trend: TrendAnalysis) -> go.Figure:
+    """Consistency score trend with colored background bands."""
+    dates = _session_date_labels(trend)
+
+    fig = go.Figure()
+
+    # Background score bands
+    fig.add_shape(
+        type="rect",
+        xref="paper",
+        yref="y",
+        x0=0,
+        x1=1,
+        y0=80,
+        y1=100,
+        fillcolor="rgba(0, 204, 150, 0.1)",
+        line_width=0,
+        layer="below",
+    )
+    fig.add_shape(
+        type="rect",
+        xref="paper",
+        yref="y",
+        x0=0,
+        x1=1,
+        y0=50,
+        y1=80,
+        fillcolor="rgba(255, 165, 0, 0.1)",
+        line_width=0,
+        layer="below",
+    )
+    fig.add_shape(
+        type="rect",
+        xref="paper",
+        yref="y",
+        x0=0,
+        x1=1,
+        y0=0,
+        y1=50,
+        fillcolor="rgba(239, 85, 59, 0.1)",
+        line_width=0,
+        layer="below",
+    )
+
+    # Band labels on right side
+    fig.add_annotation(
+        x=1.02,
+        y=90,
+        xref="paper",
+        yref="y",
+        text="Great",
+        showarrow=False,
+        font={"size": 10, "color": "rgba(0, 204, 150, 0.6)"},
+        xanchor="left",
+    )
+    fig.add_annotation(
+        x=1.02,
+        y=65,
+        xref="paper",
+        yref="y",
+        text="OK",
+        showarrow=False,
+        font={"size": 10, "color": "rgba(255, 165, 0, 0.6)"},
+        xanchor="left",
+    )
+    fig.add_annotation(
+        x=1.02,
+        y=25,
+        xref="paper",
+        yref="y",
+        text="Needs Work",
+        showarrow=False,
+        font={"size": 10, "color": "rgba(239, 85, 59, 0.6)"},
+        xanchor="left",
+    )
+
+    # Consistency score line
+    fig.add_trace(
+        go.Scatter(
+            x=dates,
+            y=trend.consistency_trend,
+            mode="lines+markers",
+            name="Consistency Score",
+            line={"color": "#636EFA", "width": 2.5},
+            marker={"size": 8, "color": "#636EFA"},
+            text=[f"{s:.0f}/100" for s in trend.consistency_trend],
+            hovertemplate="%{text}<extra></extra>",
+        )
+    )
+
+    fig.update_layout(
+        title=f"Consistency Trend — {trend.track_name}",
+        xaxis_title="Session Date",
+        yaxis_title="Consistency Score",
+        yaxis={"range": [0, 105], "color": "#aaa", "gridcolor": "#333"},
+        xaxis={"color": "#aaa", "gridcolor": "#333"},
+        height=400,
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font={"color": "#ddd"},
+        showlegend=False,
+        margin={"r": 80},
+    )
+    return fig
+
+
+def corner_heatmap_chart(
+    trend: TrendAnalysis,
+    metric: str = "min_speed",
+) -> go.Figure:
+    """Corner x Session heatmap for a chosen metric."""
+    dates = _session_date_labels(trend)
+
+    if metric == "brake_std":
+        data_dict = trend.corner_brake_std_trends
+        colorscale = "YlOrRd"
+        title_suffix = "Brake Point Std Dev (m)"
+    elif metric == "consistency":
+        data_dict = trend.corner_consistency_trends
+        colorscale = "RdYlGn"
+        title_suffix = "Consistency Score"
+    else:
+        data_dict = trend.corner_min_speed_trends
+        colorscale = "RdYlGn"
+        title_suffix = "Min Speed (mph)"
+
+    if not data_dict:
+        fig = go.Figure()
+        fig.update_layout(
+            title="No common corners found across sessions",
+            plot_bgcolor="#0e1117",
+            paper_bgcolor="#0e1117",
+            font={"color": "#ddd"},
+        )
+        return fig
+
+    corner_numbers = sorted(data_dict.keys())
+    y_labels = [f"T{cn}" for cn in corner_numbers]
+
+    # Build z-matrix: rows = corners, columns = sessions
+    z: list[list[float | None]] = []
+    for cn in corner_numbers:
+        z.append(data_dict[cn])
+
+    fig = go.Figure(
+        go.Heatmap(
+            z=z,
+            x=dates,
+            y=y_labels,
+            colorscale=colorscale,
+            hoverongaps=False,
+            colorbar={"title": title_suffix, "thickness": 15},
+        )
+    )
+
+    fig.update_layout(
+        title=f"Corner Heatmap — {title_suffix}",
+        xaxis_title="Session Date",
+        yaxis_title="Corner",
+        height=max(300, 40 * len(corner_numbers) + 150),
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font={"color": "#ddd"},
+        xaxis={"color": "#aaa"},
+        yaxis={"color": "#aaa", "dtick": 1},
+    )
+    return fig
+
+
+def session_comparison_box_chart(trend: TrendAnalysis) -> go.Figure:
+    """Box plot of lap time distributions per session with best-lap diamonds."""
+    dates = _session_date_labels(trend)
+
+    fig = go.Figure()
+
+    for i, snap in enumerate(trend.sessions):
+        fig.add_trace(
+            go.Box(
+                y=snap.lap_times_s,
+                name=dates[i],
+                marker_color="#636EFA",
+                boxmean=True,
+                line={"color": "#636EFA"},
+                fillcolor="rgba(99, 110, 250, 0.3)",
+            )
+        )
+        # Diamond marker for best lap
+        fig.add_trace(
+            go.Scatter(
+                x=[dates[i]],
+                y=[snap.best_lap_time_s],
+                mode="markers",
+                marker={
+                    "symbol": "diamond",
+                    "size": 12,
+                    "color": "#00CC96",
+                    "line": {"color": "#fff", "width": 1},
+                },
+                name="Best Lap" if i == 0 else "",
+                showlegend=i == 0,
+                hovertemplate=f"Best: {_fmt_trend_time(snap.best_lap_time_s)}<extra></extra>",
+            )
+        )
+
+    fig.update_layout(
+        title=f"Lap Time Distribution per Session — {trend.track_name}",
+        xaxis_title="Session Date",
+        yaxis_title="Lap Time (s)",
+        height=500,
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font={"color": "#ddd"},
+        xaxis={"color": "#aaa", "gridcolor": "#333"},
+        yaxis={"color": "#aaa", "gridcolor": "#333"},
+        showlegend=True,
+        legend={"orientation": "h", "yanchor": "bottom", "y": 1.02},
+    )
+    return fig
+
+
+def corner_trend_chart(trend: TrendAnalysis) -> go.Figure:
+    """Small multiples: min speed trend per common corner."""
+    corner_numbers = sorted(trend.corner_min_speed_trends.keys())
+    dates = _session_date_labels(trend)
+
+    if not corner_numbers:
+        fig = go.Figure()
+        fig.update_layout(
+            title="No common corners found across sessions",
+            plot_bgcolor="#0e1117",
+            paper_bgcolor="#0e1117",
+            font={"color": "#ddd"},
+        )
+        return fig
+
+    n_cols = min(3, len(corner_numbers))
+    n_rows = (len(corner_numbers) + n_cols - 1) // n_cols
+
+    fig = make_subplots(
+        rows=n_rows,
+        cols=n_cols,
+        subplot_titles=[f"T{cn}" for cn in corner_numbers],
+        vertical_spacing=0.12,
+        horizontal_spacing=0.08,
+    )
+
+    for idx, cn in enumerate(corner_numbers):
+        row = idx // n_cols + 1
+        col = idx % n_cols + 1
+        speeds = trend.corner_min_speed_trends[cn]
+
+        fig.add_trace(
+            go.Scatter(
+                x=dates,
+                y=speeds,
+                mode="lines+markers",
+                line={"color": "#00CC96", "width": 2},
+                marker={"size": 6},
+                name=f"T{cn}",
+                showlegend=False,
+                connectgaps=True,
+                hovertemplate="%{y:.1f} mph<extra>T" + str(cn) + "</extra>",
+            ),
+            row=row,
+            col=col,
+        )
+
+    fig.update_layout(
+        title=f"Corner Min Speed Trends — {trend.track_name}",
+        height=max(300, 250 * n_rows),
+        plot_bgcolor="#0e1117",
+        paper_bgcolor="#0e1117",
+        font={"color": "#ddd"},
+    )
+    fig.update_xaxes(color="#aaa", gridcolor="#333")
+    fig.update_yaxes(color="#aaa", gridcolor="#333", title_text="mph")
+
+    return fig
+
+
+def milestone_summary(trend: TrendAnalysis) -> list[dict[str, str]]:
+    """Return milestone dicts for display with st.success() in the app.
+
+    Each dict has keys: category, description, date, icon.
+    """
+    icon_map = {
+        "pb": "trophy",
+        "consistency": "chart",
+        "sub_threshold": "stopwatch",
+    }
+
+    results: list[dict[str, str]] = []
+    for m in trend.milestones:
+        results.append(
+            {
+                "category": m.category,
+                "description": m.description,
+                "date": m.session_date,
+                "icon": icon_map.get(m.category, "star"),
+            }
+        )
+
+    return results

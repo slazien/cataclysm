@@ -2,9 +2,19 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import numpy as np
 import pandas as pd
 import pytest
+
+from cataclysm.consistency import CornerConsistencyEntry, LapConsistency
+from cataclysm.engine import ProcessedSession
+from cataclysm.parser import ParsedSession, SessionMetadata
+from cataclysm.trends import CornerTrendEntry, SessionSnapshot, _parse_session_date
+
+# Type alias for the session_snapshot_factory fixture
+SnapshotFactory = Callable[..., SessionSnapshot]
 
 # CSV header/unit/source rows are necessarily long (raw RaceChrono format)
 _CSV_COLUMNS = (
@@ -185,7 +195,7 @@ def racechrono_csv_file(racechrono_csv_text: str, tmp_path: object) -> str:
 
 
 @pytest.fixture
-def parsed_session(racechrono_csv_file: str) -> object:
+def parsed_session(racechrono_csv_file: str) -> ParsedSession:
     """Parse the synthetic CSV."""
     from cataclysm.parser import parse_racechrono_csv
 
@@ -193,11 +203,11 @@ def parsed_session(racechrono_csv_file: str) -> object:
 
 
 @pytest.fixture
-def processed_session(parsed_session: object) -> object:
+def processed_session(parsed_session: ParsedSession) -> ProcessedSession:
     """Process the parsed session."""
     from cataclysm.engine import process_session
 
-    return process_session(parsed_session.data)  # type: ignore[union-attr]
+    return process_session(parsed_session.data)
 
 
 @pytest.fixture
@@ -218,7 +228,8 @@ def sample_resampled_lap() -> pd.DataFrame:
         )
         for j in corner_range:
             offset = j - corner_center
-            heading[j] = heading[max(0, j - 1)] + 3.0 * np.exp(-(offset**2) / 200)
+            prev_idx = max(0, int(j) - 1)
+            heading[j] = heading[prev_idx] + 3.0 * np.exp(-(offset**2) / 200)
         for j in corner_range:
             offset = j - corner_center
             speed[j] = 40.0 - 15.0 * np.exp(-(offset**2) / 200)
@@ -254,3 +265,164 @@ def sample_resampled_lap() -> pd.DataFrame:
             "z_acc_g": np.ones(n_points),
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# Trend module fixtures
+# ---------------------------------------------------------------------------
+
+
+def _make_lap_consistency(
+    consistency_score: float = 75.0,
+    std_dev_s: float = 1.2,
+    n_laps: int = 4,
+    base_time: float = 93.0,
+) -> LapConsistency:
+    """Helper: build a LapConsistency with sensible defaults."""
+    lap_numbers = list(range(1, n_laps + 1))
+    lap_times = [base_time + i * 0.5 for i in range(n_laps)]
+    consecutive_deltas = [abs(lap_times[i + 1] - lap_times[i]) for i in range(n_laps - 1)]
+    return LapConsistency(
+        std_dev_s=std_dev_s,
+        spread_s=max(lap_times) - min(lap_times) if lap_times else 0.0,
+        mean_abs_consecutive_delta_s=(
+            float(np.mean(consecutive_deltas)) if consecutive_deltas else 0.0
+        ),
+        max_consecutive_delta_s=max(consecutive_deltas) if consecutive_deltas else 0.0,
+        consistency_score=consistency_score,
+        lap_numbers=lap_numbers,
+        lap_times_s=lap_times,
+        consecutive_deltas_s=consecutive_deltas,
+    )
+
+
+def _make_corner_consistency_entries(
+    corner_numbers: list[int] | None = None,
+) -> list[CornerConsistencyEntry]:
+    """Helper: build CornerConsistencyEntry objects for testing."""
+    if corner_numbers is None:
+        corner_numbers = [1, 2]
+    entries: list[CornerConsistencyEntry] = []
+    for cn in corner_numbers:
+        entries.append(
+            CornerConsistencyEntry(
+                corner_number=cn,
+                min_speed_std_mph=1.5 + cn * 0.1,
+                min_speed_range_mph=3.0 + cn * 0.2,
+                brake_point_std_m=2.0,
+                throttle_commit_std_m=1.5,
+                consistency_score=80.0 - cn,
+                lap_numbers=[1, 2, 3, 4],
+                min_speeds_mph=[55.0, 56.0, 54.5, 55.5],
+            )
+        )
+    return entries
+
+
+def _make_corner_trend_entries(
+    corner_numbers: list[int] | None = None,
+) -> list[CornerTrendEntry]:
+    """Helper: build CornerTrendEntry objects for testing."""
+    if corner_numbers is None:
+        corner_numbers = [1, 2]
+    entries: list[CornerTrendEntry] = []
+    for cn in corner_numbers:
+        entries.append(
+            CornerTrendEntry(
+                corner_number=cn,
+                min_speed_mean_mph=55.0 + cn,
+                min_speed_std_mph=1.5,
+                brake_point_mean_m=100.0 + cn * 10,
+                brake_point_std_m=2.0,
+                peak_brake_g_mean=0.8,
+                throttle_commit_mean_m=200.0 + cn * 10,
+                throttle_commit_std_m=1.5,
+                consistency_score=80.0 - cn,
+            )
+        )
+    return entries
+
+
+@pytest.fixture
+def session_snapshot_factory() -> SnapshotFactory:
+    """Factory fixture returning a callable that creates SessionSnapshot objects.
+
+    Supports customisable ``session_date``, ``best_lap_time_s``, and
+    ``consistency_score``.  Defaults produce a reasonable mid-pack session.
+    """
+
+    def _create(
+        session_date: str = "22/02/2026 10:00",
+        best_lap_time_s: float = 92.0,
+        consistency_score: float = 75.0,
+        track_name: str = "Test Circuit",
+        file_key: str = "test_session.csv",
+        corner_numbers: list[int] | None = None,
+    ) -> SessionSnapshot:
+        metadata = SessionMetadata(
+            track_name=track_name,
+            session_date=session_date,
+            racechrono_version="9.1.3",
+        )
+        lap_consistency = _make_lap_consistency(
+            consistency_score=consistency_score,
+            base_time=best_lap_time_s + 1.0,
+        )
+        corner_consistency = _make_corner_consistency_entries(corner_numbers)
+        corner_metrics = _make_corner_trend_entries(corner_numbers)
+
+        lap_times = [best_lap_time_s + i * 0.5 for i in range(4)]
+        top3_avg = float(np.mean(lap_times[:3]))
+
+        from cataclysm.trends import _compute_session_id
+
+        session_id = _compute_session_id(file_key, track_name, session_date)
+        session_date_parsed = _parse_session_date(session_date)
+
+        return SessionSnapshot(
+            session_id=session_id,
+            metadata=metadata,
+            session_date_parsed=session_date_parsed,
+            n_laps=5,
+            n_clean_laps=4,
+            best_lap_time_s=best_lap_time_s,
+            top3_avg_time_s=round(top3_avg, 3),
+            avg_lap_time_s=round(float(np.mean(lap_times)), 3),
+            consistency_score=consistency_score,
+            std_dev_s=lap_consistency.std_dev_s,
+            theoretical_best_s=best_lap_time_s - 0.5,
+            composite_best_s=best_lap_time_s - 0.3,
+            lap_times_s=lap_times,
+            corner_metrics=corner_metrics,
+            lap_consistency=lap_consistency,
+            corner_consistency=corner_consistency,
+        )
+
+    return _create
+
+
+@pytest.fixture
+def three_session_snapshots(
+    session_snapshot_factory: SnapshotFactory,
+) -> list[SessionSnapshot]:
+    """Three snapshots showing driver improvement across sessions."""
+    return [
+        session_snapshot_factory(
+            session_date="01/01/2026 10:00",
+            best_lap_time_s=95.0,
+            consistency_score=60.0,
+            file_key="session_1.csv",
+        ),
+        session_snapshot_factory(
+            session_date="15/01/2026 10:00",
+            best_lap_time_s=93.0,
+            consistency_score=70.0,
+            file_key="session_2.csv",
+        ),
+        session_snapshot_factory(
+            session_date="01/02/2026 10:00",
+            best_lap_time_s=91.0,
+            consistency_score=82.0,
+            file_key="session_3.csv",
+        ),
+    ]
