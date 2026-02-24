@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSessionStore, useUiStore } from "@/store";
 import {
   useSessions,
@@ -15,6 +16,10 @@ import Spinner from "@/components/ui/Spinner";
 import { formatLapTime } from "@/lib/formatters";
 import { MPS_TO_MPH } from "@/lib/constants";
 
+const MIN_WIDTH = 220;
+const MAX_WIDTH = 500;
+const DEFAULT_WIDTH = 280;
+
 export default function Sidebar() {
   const { sidebarOpen, toggleSidebar, skillLevel, setSkillLevel } =
     useUiStore();
@@ -26,6 +31,9 @@ export default function Sidebar() {
   const deleteAllMutation = useDeleteAllSessions();
   const { data: laps } = useSessionLaps(activeSessionId);
 
+  const [width, setWidth] = useState(DEFAULT_WIDTH);
+  const isResizing = useRef(false);
+
   const sessions = sessionsData?.items ?? [];
 
   const activeSession = sessions.find(
@@ -36,6 +44,35 @@ export default function Sidebar() {
   if (!activeSessionId && sessions.length > 0) {
     setActiveSession(sessions[0].session_id);
   }
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing.current) return;
+      const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, e.clientX));
+      setWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      if (!isResizing.current) return;
+      isResizing.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
 
   return (
     <>
@@ -60,8 +97,9 @@ export default function Sidebar() {
 
       {/* Sidebar */}
       <aside
+        style={{ width: `${width}px`, minWidth: `${width}px` }}
         className={`
-          fixed left-0 top-0 z-40 flex h-full w-[280px] flex-col
+          fixed left-0 top-0 z-40 flex h-full flex-col
           border-r border-[var(--border-color)] bg-[var(--bg-secondary)]
           transition-transform duration-200
           lg:static lg:translate-x-0
@@ -253,6 +291,12 @@ export default function Sidebar() {
             ]}
           />
         </div>
+
+        {/* Resize handle */}
+        <div
+          onMouseDown={handleMouseDown}
+          className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-[var(--accent-blue)]/30 active:bg-[var(--accent-blue)]/50 transition-colors"
+        />
       </aside>
     </>
   );
