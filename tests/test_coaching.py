@@ -14,6 +14,7 @@ from cataclysm.coaching import (
     _build_coaching_prompt,
     _format_all_laps_corners,
     _format_gains_for_prompt,
+    _format_landmark_context,
     _format_lap_summaries,
     _parse_coaching_response,
     ask_followup,
@@ -29,6 +30,7 @@ from cataclysm.gains import (
     SegmentGain,
     TheoreticalBestResult,
 )
+from cataclysm.landmarks import Landmark, LandmarkType
 
 
 @pytest.fixture
@@ -678,3 +680,131 @@ class TestCoachingReportDrillsField:
             drills=["drill 1", "drill 2"],
         )
         assert len(report.drills) == 2
+
+
+# ---------------------------------------------------------------------------
+# Landmark integration tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def sample_landmarks_coaching() -> list[Landmark]:
+    return [
+        Landmark("T1 200m board", 90.0, LandmarkType.brake_board),
+        Landmark("T1 100m board", 140.0, LandmarkType.brake_board),
+        Landmark("T2 Armco", 380.0, LandmarkType.barrier),
+    ]
+
+
+class TestFormatLandmarkContext:
+    def test_empty_landmarks(
+        self,
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        text = _format_landmark_context(sample_all_lap_corners, [])
+        assert text == ""
+
+    def test_empty_corners(self, sample_landmarks_coaching: list[Landmark]) -> None:
+        text = _format_landmark_context({}, sample_landmarks_coaching)
+        assert text == ""
+
+    def test_includes_header(
+        self,
+        sample_all_lap_corners: dict[int, list[Corner]],
+        sample_landmarks_coaching: list[Landmark],
+    ) -> None:
+        text = _format_landmark_context(
+            sample_all_lap_corners,
+            sample_landmarks_coaching,
+        )
+        assert "Visual Landmarks" in text
+
+    def test_includes_corner_references(
+        self,
+        sample_all_lap_corners: dict[int, list[Corner]],
+        sample_landmarks_coaching: list[Landmark],
+    ) -> None:
+        text = _format_landmark_context(
+            sample_all_lap_corners,
+            sample_landmarks_coaching,
+        )
+        # At least one corner should have a reference resolved
+        assert "T1:" in text or "T2:" in text
+
+
+class TestBuildCoachingPromptWithLandmarks:
+    def test_landmarks_in_prompt(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+        sample_landmarks_coaching: list[Landmark],
+    ) -> None:
+        prompt = _build_coaching_prompt(
+            sample_summaries,
+            sample_all_lap_corners,
+            "Barber",
+            landmarks=sample_landmarks_coaching,
+        )
+        assert "Visual Landmarks" in prompt
+        assert "visual landmarks instead of raw meter distances" in prompt.lower()
+
+    def test_no_landmarks_backward_compatible(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        prompt = _build_coaching_prompt(
+            sample_summaries,
+            sample_all_lap_corners,
+            "Test",
+        )
+        assert "Visual Landmarks" not in prompt
+        assert "visual landmarks instead of raw meter distances" not in prompt.lower()
+
+    def test_none_landmarks_backward_compatible(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        prompt = _build_coaching_prompt(
+            sample_summaries,
+            sample_all_lap_corners,
+            "Test",
+            landmarks=None,
+        )
+        assert "Visual Landmarks" not in prompt
+
+
+class TestGenerateCoachingReportWithLandmarks:
+    def test_passes_landmarks_to_prompt(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+        sample_landmarks_coaching: list[Landmark],
+    ) -> None:
+        mock_anthropic = _make_mock_anthropic(
+            json.dumps(
+                {
+                    "summary": "Good with landmarks",
+                    "priority_corners": [],
+                    "corner_grades": [],
+                    "patterns": [],
+                }
+            )
+        )
+
+        with (
+            patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test"}),
+            patch.dict(sys.modules, {"anthropic": mock_anthropic}),
+        ):
+            report = generate_coaching_report(
+                sample_summaries,
+                sample_all_lap_corners,
+                "Barber",
+                landmarks=sample_landmarks_coaching,
+            )
+
+        assert report.summary == "Good with landmarks"
+        call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args
+        prompt_text = call_kwargs.kwargs["messages"][0]["content"]
+        assert "Visual Landmarks" in prompt_text

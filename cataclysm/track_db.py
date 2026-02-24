@@ -10,11 +10,12 @@ used instead (see corners.py).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import pandas as pd
 
 from cataclysm.corners import Corner
+from cataclysm.landmarks import Landmark, LandmarkType
 
 
 @dataclass(frozen=True)
@@ -32,6 +33,7 @@ class TrackLayout:
 
     name: str
     corners: list[OfficialCorner]
+    landmarks: list[Landmark] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -46,8 +48,63 @@ class TrackLayout:
 #   - Speed minimums from RaceChrono session data at Barber
 #   - racetrackdriving.com track guide
 
+# ---------------------------------------------------------------------------
+# Barber Motorsports Park visual landmarks
+# ---------------------------------------------------------------------------
+# Verified against Google Maps satellite imagery (2026-02) using GPS-to-track-
+# distance projection from real telemetry data (5233 GPS points, 3662.4m lap).
+# Supplemented with onboard video and public track guides:
+#   - racetrackdriving.com Barber guide
+#   - NA-Motorsports / Chris Ingle corner-by-corner notes
+#   - Wikipedia / BhamWiki facility documentation
+#
+# Distances derived by projecting satellite-identified GPS coordinates onto the
+# actual telemetry track line.  Most landmarks have <15m projection error.
+
+_BARBER_LANDMARKS: list[Landmark] = [
+    # --- Start/Finish area ---
+    Landmark("S/F gantry", 0.0, LandmarkType.structure, description="Timing gantry"),
+    Landmark("pit buildings", 29.0, LandmarkType.structure, description="Garages on left"),
+    Landmark("T1 100m board", 85.0, LandmarkType.brake_board),
+    # --- T1-T4 Carousel & Hilltop ---
+    Landmark("pit exit merge", 299.0, LandmarkType.road, description="Short merge from left"),
+    Landmark("T2 outside barrier", 396.0, LandmarkType.barrier),
+    Landmark("T4 hilltop crest", 676.0, LandmarkType.natural, description="Blind crest"),
+    # --- T5 Charlotte's Web braking zone ---
+    Landmark("T5 3 board", 904.0, LandmarkType.brake_board),
+    Landmark("T5 2 board", 957.0, LandmarkType.brake_board),
+    Landmark("T5 1 board", 1000.0, LandmarkType.brake_board),
+    Landmark("T5 gravel trap", 1108.0, LandmarkType.barrier),
+    # --- T6-T7 Transition ---
+    Landmark("T6 downhill crest", 1201.0, LandmarkType.natural),
+    # --- T7-T9 Museum / Corkscrew ---
+    Landmark("pedestrian bridge", 1480.0, LandmarkType.structure, description="Span near T7"),
+    Landmark(
+        "museum building",
+        1704.0,
+        LandmarkType.structure,
+        description="Barber Museum on right",
+    ),
+    Landmark("T9 compression", 1794.0, LandmarkType.natural, description="Bottom of corkscrew"),
+    # --- T10-T11 Esses ---
+    Landmark("T10 banked entry", 2121.0, LandmarkType.natural),
+    Landmark("T11 exit curb", 2258.0, LandmarkType.curbing),
+    # --- T12-T14 Rollercoaster ---
+    Landmark("Coca-Cola sign", 2634.0, LandmarkType.sign, description="Visible on left"),
+    Landmark("T12 outside barrier", 2672.0, LandmarkType.barrier),
+    Landmark("T13 crest", 2757.0, LandmarkType.natural, description="Car goes light"),
+    Landmark("T14 apex curb", 2967.0, LandmarkType.curbing),
+    # --- T15-T16 Final complex ---
+    Landmark("T15 apex curb", 3186.0, LandmarkType.curbing, description="Blind apex"),
+    Landmark("T16 late apex curb", 3296.0, LandmarkType.curbing),
+    # --- Return to start ---
+    Landmark("pit entry", 3550.0, LandmarkType.road),
+]
+
+
 BARBER_MOTORSPORTS_PARK = TrackLayout(
     name="Barber Motorsports Park",
+    landmarks=_BARBER_LANDMARKS,
     corners=[
         OfficialCorner(1, "Fast Downhill Left", 0.05),
         OfficialCorner(2, "Uphill Right", 0.10),

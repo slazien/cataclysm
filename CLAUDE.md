@@ -55,7 +55,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Cataclysm is an AI-powered motorsport telemetry analysis and coaching platform for track day drivers. It ingests RaceChrono CSV v3 exports, processes them in the distance domain, detects corners, and generates AI coaching reports via the Claude API.
 
-Current state: Streamlit MVP on branch `claude/review-track-plan-FQmfe` (main branch only has CSV data files).
+Current state: Streamlit MVP on branch `claude/review-track-plan-FQmfe` (main branch only has CSV data files). Next.js + FastAPI rewrite in progress on `nextjs-rewrite` branch.
 
 ## Virtual Environment
 
@@ -128,6 +128,36 @@ RaceChrono CSV v3 → parser.py → engine.py → corners.py / delta.py → coac
 - **charts.py** — Plotly chart builders: speed traces, delta-T, g-force scatter, track map, lap times bar chart, corner KPI table.
 
 **Entry point:** `app.py` — Streamlit app that orchestrates the full pipeline. Auto-loads CSV files from the working directory or accepts uploads.
+
+## Architecture (Next.js Rewrite)
+
+The app is being rewritten from Streamlit to Next.js + FastAPI:
+
+**Frontend** (Next.js 14+, TypeScript, Tailwind, D3.js):
+- Port 3000
+- Pages: /, /sessions, /analysis/[id]
+- 5 tabs: Overview, Speed Trace, Corners, AI Coach, Trends
+- 22 D3 chart components
+- State: Zustand (UI) + TanStack Query (API)
+
+**Backend** (FastAPI):
+- Port 8000
+- Routes: /api/sessions/*, /api/coaching/*, /api/trends/*, /api/tracks/*
+- Services: pipeline.py (wraps cataclysm/), session_store.py, serializers.py
+- In-memory session store (PostgreSQL ready for future)
+
+**Development:**
+```bash
+# Backend
+source .venv/bin/activate
+uvicorn backend.api.main:app --reload --port 8000
+
+# Frontend
+cd frontend && npm run dev
+
+# Docker (all services)
+docker compose up
+```
 
 ## Key Data Types
 

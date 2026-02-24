@@ -19,6 +19,11 @@ class CornerSchema(BaseModel):
     peak_brake_g: float | None = None
     throttle_commit_m: float | None = None
     apex_type: str
+    brake_point_lat: float | None = None
+    brake_point_lon: float | None = None
+    apex_lat: float | None = None
+    apex_lon: float | None = None
+    landmark_ref: str | None = None
 
 
 class CornerResponse(BaseModel):

@@ -22,6 +22,7 @@ from cataclysm.gains import (
     ConsistencyGainResult,
 )
 from cataclysm.grip import GripEstimate
+from cataclysm.landmarks import Landmark, find_landmarks_in_range
 from cataclysm.trends import TrendAnalysis
 
 MPS_TO_MPH = 2.23694
@@ -187,6 +188,7 @@ def track_map_chart(
     lap_df: pd.DataFrame,
     lap_number: int,
     corners: list[Corner] | None = None,
+    landmarks: list[Landmark] | None = None,
 ) -> go.Figure:
     """Track map colored by speed."""
     fig = go.Figure()
@@ -225,6 +227,28 @@ def track_map_chart(
                 font={"size": 10, "color": "black"},
                 bgcolor="white",
                 opacity=0.8,
+            )
+
+    # Landmark markers (gold diamonds)
+    if landmarks:
+        dist = lap_df["lap_distance_m"].to_numpy()
+        lat_a = lap_df["lat"].to_numpy()
+        lon_a = lap_df["lon"].to_numpy()
+        for lm in landmarks:
+            if lm.lat is not None and lm.lon is not None:
+                lm_lat, lm_lon = lm.lat, lm.lon
+            else:
+                lm_idx = int(np.searchsorted(dist, lm.distance_m))
+                lm_idx = min(lm_idx, len(lat_a) - 1)
+                lm_lat, lm_lon = float(lat_a[lm_idx]), float(lon_a[lm_idx])
+            fig.add_annotation(
+                x=lm_lon,
+                y=lm_lat,
+                text=lm.name,
+                showarrow=False,
+                font={"size": 8, "color": "#FFD700"},
+                bgcolor="rgba(50,50,50,0.6)",
+                borderpad=1,
             )
 
     fig.update_layout(
@@ -1319,6 +1343,7 @@ def corner_detail_chart(
     selected_laps: list[int],
     corner: Corner,
     padding_m: float = 50.0,
+    landmarks: list[Landmark] | None = None,
 ) -> go.Figure:
     """Detailed corner analysis: speed and longitudinal G for a single corner.
 
@@ -1438,6 +1463,33 @@ def corner_detail_chart(
         row=2,
         col=1,
     )
+
+    # Landmark annotations (gold dotted vertical lines)
+    if landmarks:
+        nearby = find_landmarks_in_range(x_min, x_max, landmarks)
+        for lm in nearby:
+            for row in [1, 2]:
+                fig.add_vline(
+                    x=lm.distance_m,
+                    line_dash="dot",
+                    line_color="rgba(255, 215, 0, 0.5)",
+                    line_width=1,
+                    row=row,
+                    col=1,
+                )
+            fig.add_annotation(
+                x=lm.distance_m,
+                y=1.0,
+                xref="x",
+                yref="y domain",
+                text=lm.name,
+                showarrow=False,
+                font={"size": 8, "color": "#FFD700"},
+                textangle=-45,
+                yanchor="bottom",
+                row=1,
+                col=1,
+            )
 
     fig.update_layout(
         title=(

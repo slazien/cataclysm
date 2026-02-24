@@ -6,7 +6,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from cataclysm.landmarks import Landmark, LandmarkType
 from cataclysm.track_db import (
+    BARBER_MOTORSPORTS_PARK,
     OfficialCorner,
     TrackLayout,
     locate_official_corners,
@@ -125,3 +127,57 @@ class TestLocateOfficialCorners:
         r_long = locate_official_corners(long, layout)
         assert r_short[0].apex_distance_m == pytest.approx(500.0, abs=1.0)
         assert r_long[0].apex_distance_m == pytest.approx(2000.0, abs=1.0)
+
+
+class TestTrackLayoutLandmarks:
+    """Tests for the landmarks field on TrackLayout."""
+
+    def test_default_empty_landmarks(self) -> None:
+        """TrackLayout with no landmarks should have empty list."""
+        layout = TrackLayout(
+            name="Empty",
+            corners=[OfficialCorner(1, "T1", 0.50)],
+        )
+        assert layout.landmarks == []
+
+    def test_landmarks_populated(self) -> None:
+        lm = [Landmark("test board", 100.0, LandmarkType.brake_board)]
+        layout = TrackLayout(
+            name="Test",
+            corners=[OfficialCorner(1, "T1", 0.50)],
+            landmarks=lm,
+        )
+        assert len(layout.landmarks) == 1
+        assert layout.landmarks[0].name == "test board"
+
+    def test_barber_has_landmarks(self) -> None:
+        """Barber Motorsports Park should have curated landmarks."""
+        assert len(BARBER_MOTORSPORTS_PARK.landmarks) > 0
+
+    def test_barber_landmarks_have_brake_boards(self) -> None:
+        """Barber should include brake board landmarks."""
+        brake_boards = [
+            lm
+            for lm in BARBER_MOTORSPORTS_PARK.landmarks
+            if lm.landmark_type == LandmarkType.brake_board
+        ]
+        assert len(brake_boards) >= 4  # T1, T5, T8, T12, T15, T16
+
+    def test_barber_landmarks_sorted_by_distance(self) -> None:
+        """Landmarks should be roughly sorted by distance around the track."""
+        distances = [lm.distance_m for lm in BARBER_MOTORSPORTS_PARK.landmarks]
+        assert distances == sorted(distances)
+
+    def test_barber_landmarks_positive_distances(self) -> None:
+        for lm in BARBER_MOTORSPORTS_PARK.landmarks:
+            assert lm.distance_m >= 0.0
+
+    def test_barber_landmarks_have_names(self) -> None:
+        for lm in BARBER_MOTORSPORTS_PARK.landmarks:
+            assert len(lm.name) > 0
+
+    def test_lookup_track_returns_landmarks(self) -> None:
+        """lookup_track for Barber should include landmarks."""
+        layout = lookup_track("Barber Motorsports Park")
+        assert layout is not None
+        assert len(layout.landmarks) > 0

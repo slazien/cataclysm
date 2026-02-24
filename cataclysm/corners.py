@@ -21,6 +21,10 @@ class Corner:
     peak_brake_g: float | None
     throttle_commit_m: float | None
     apex_type: str  # "early", "mid", "late"
+    brake_point_lat: float | None = None
+    brake_point_lon: float | None = None
+    apex_lat: float | None = None
+    apex_lon: float | None = None
 
 
 # Detection parameters
@@ -246,6 +250,9 @@ def detect_corners(
     speed = lap_df["speed_mps"].to_numpy()
     distance = lap_df["lap_distance_m"].to_numpy()
     lon_g = lap_df["longitudinal_g"].to_numpy()
+    has_gps = "lat" in lap_df.columns and "lon" in lap_df.columns
+    lat_arr = lap_df["lat"].to_numpy() if has_gps else None
+    lon_arr = lap_df["lon"].to_numpy() if has_gps else None
 
     # Compute heading rate and smooth
     heading_rate = _compute_heading_rate(heading, step_m)
@@ -292,6 +299,17 @@ def detect_corners(
 
         brake_m = round(float(distance[brake_idx]), 1) if brake_idx is not None else None
         throttle_m = round(float(distance[throttle_idx]), 1) if throttle_idx is not None else None
+
+        # Resolve GPS coordinates at brake point and apex
+        bp_lat = (
+            float(lat_arr[brake_idx]) if brake_idx is not None and lat_arr is not None else None
+        )
+        bp_lon = (
+            float(lon_arr[brake_idx]) if brake_idx is not None and lon_arr is not None else None
+        )
+        a_lat = float(lat_arr[apex_idx]) if lat_arr is not None else None
+        a_lon = float(lon_arr[apex_idx]) if lon_arr is not None else None
+
         corners.append(
             Corner(
                 number=i,
@@ -303,6 +321,10 @@ def detect_corners(
                 peak_brake_g=(round(peak_g, 3) if peak_g is not None else None),
                 throttle_commit_m=throttle_m,
                 apex_type=_classify_apex(apex_idx, geo_apex_idx, entry_idx, exit_idx),
+                brake_point_lat=bp_lat,
+                brake_point_lon=bp_lon,
+                apex_lat=a_lat,
+                apex_lon=a_lon,
             )
         )
 
@@ -322,6 +344,9 @@ def extract_corner_kpis_for_lap(
     distance = lap_df["lap_distance_m"].to_numpy()
     lon_g = lap_df["longitudinal_g"].to_numpy()
     heading = lap_df["heading_deg"].to_numpy()
+    has_gps = "lat" in lap_df.columns and "lon" in lap_df.columns
+    lat_arr = lap_df["lat"].to_numpy() if has_gps else None
+    lon_arr = lap_df["lon"].to_numpy() if has_gps else None
     max_dist = distance[-1]
 
     # Compute smoothed heading rate for geometric apex detection
@@ -358,6 +383,16 @@ def extract_corner_kpis_for_lap(
 
         brake_m = round(float(distance[brake_idx]), 1) if brake_idx is not None else None
         throttle_m = round(float(distance[throttle_idx]), 1) if throttle_idx is not None else None
+
+        bp_lat = (
+            float(lat_arr[brake_idx]) if brake_idx is not None and lat_arr is not None else None
+        )
+        bp_lon = (
+            float(lon_arr[brake_idx]) if brake_idx is not None and lon_arr is not None else None
+        )
+        a_lat = float(lat_arr[apex_idx]) if lat_arr is not None else None
+        a_lon = float(lon_arr[apex_idx]) if lon_arr is not None else None
+
         corners.append(
             Corner(
                 number=ref.number,
@@ -369,6 +404,10 @@ def extract_corner_kpis_for_lap(
                 peak_brake_g=(round(peak_g, 3) if peak_g is not None else None),
                 throttle_commit_m=throttle_m,
                 apex_type=_classify_apex(apex_idx, geo_apex_idx, entry_idx, exit_idx),
+                brake_point_lat=bp_lat,
+                brake_point_lon=bp_lon,
+                apex_lat=a_lat,
+                apex_lon=a_lon,
             )
         )
 

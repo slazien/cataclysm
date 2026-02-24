@@ -740,6 +740,10 @@ with tab_coaching:
         st.info("Need at least 2 clean laps to estimate gains.")
 
     # --- Generate Coaching Report ---
+    # Resolve track landmarks for coaching context
+    _coaching_layout = lookup_track(meta.track_name)
+    _track_landmarks = _coaching_layout.landmarks if _coaching_layout else []
+
     if st.button("Generate Coaching Report", disabled=not has_key):
         with st.spinner("AI coach is analyzing your session..."):
             report = generate_coaching_report(
@@ -748,6 +752,7 @@ with tab_coaching:
                 meta.track_name,
                 gains=gains,
                 skill_level=skill_level,
+                landmarks=_track_landmarks or None,
             )
             st.session_state["coaching_report"] = report
             st.session_state["coaching_context"] = CoachingContext()

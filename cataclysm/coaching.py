@@ -12,6 +12,7 @@ from cataclysm.driving_physics import COACHING_SYSTEM_PROMPT
 from cataclysm.engine import LapSummary
 from cataclysm.gains import GainEstimate
 from cataclysm.kb_selector import select_kb_snippets
+from cataclysm.landmarks import Landmark, format_corner_landmarks
 
 MPS_TO_MPH = 2.23694
 
@@ -215,6 +216,38 @@ def _format_gains_for_prompt(gains: GainEstimate) -> str:
     return "\n".join(lines)
 
 
+def _format_landmark_context(
+    all_lap_corners: dict[int, list[Corner]],
+    landmarks: list[Landmark],
+) -> str:
+    """Build a visual landmarks section for the coaching prompt.
+
+    Uses the best lap's corner data (first lap in the dict) to resolve
+    landmark references for brake, apex, and throttle points.
+    """
+    if not landmarks:
+        return ""
+
+    # Use corners from any lap (they share the same positions)
+    corners = next(iter(all_lap_corners.values()), [])
+    if not corners:
+        return ""
+
+    lines = [
+        "\n## Visual Landmarks",
+        "Use these cockpit-visible references instead of raw meter distances.",
+        "Drivers cannot see meter distances on track.\n",
+    ]
+
+    for corner in corners:
+        refs = format_corner_landmarks(corner, landmarks)
+        if refs:
+            lines.append(f"T{corner.number}:")
+            lines.append(refs)
+
+    return "\n".join(lines)
+
+
 def _build_coaching_prompt(
     summaries: list[LapSummary],
     all_lap_corners: dict[int, list[Corner]],
@@ -222,6 +255,7 @@ def _build_coaching_prompt(
     *,
     gains: GainEstimate | None = None,
     skill_level: SkillLevel = "intermediate",
+    landmarks: list[Landmark] | None = None,
 ) -> str:
     """Build the full coaching prompt for Claude."""
     lap_text = _format_lap_summaries(summaries)
@@ -241,6 +275,16 @@ def _build_coaching_prompt(
 
     skill_section = _SKILL_PROMPTS.get(skill_level, _SKILL_PROMPTS["intermediate"])
 
+    landmark_section = ""
+    landmark_instruction = ""
+    if landmarks:
+        landmark_section = _format_landmark_context(all_lap_corners, landmarks)
+        landmark_instruction = (
+            "\nIMPORTANT: Use visual landmarks instead of raw meter distances in your tips. "
+            "Drivers cannot see meter distances on track — reference brake boards, structures, "
+            "and curbing that they can actually see from the cockpit.\n"
+        )
+
     return f"""Track: {track_name}
 Best Lap: L{best.lap_number} ({best_min}:{best_sec:05.2f})
 Total laps: {len(summaries)}
@@ -250,7 +294,8 @@ Total laps: {len(summaries)}
 
 ## Corner KPIs — All Laps (best lap marked with *)
 {corner_text}
-{gains_section}{skill_section}
+{gains_section}{landmark_section}{skill_section}
+{landmark_instruction}\
 Analyze the FULL session. Look at every lap's data for each corner to identify:
 - Consistency: which corners are repeatable vs high-variance across laps
 - Trends: whether the driver improved or degraded through the session (fatigue, tire wear, learning)
@@ -362,6 +407,7 @@ def generate_coaching_report(
     *,
     gains: GainEstimate | None = None,
     skill_level: SkillLevel = "intermediate",
+    landmarks: list[Landmark] | None = None,
 ) -> CoachingReport:
     """Generate an AI coaching report using the Claude API.
 
@@ -389,6 +435,7 @@ def generate_coaching_report(
         track_name,
         gains=gains,
         skill_level=skill_level,
+        landmarks=landmarks,
     )
 
     system = COACHING_SYSTEM_PROMPT

@@ -330,6 +330,101 @@ class TestClassifyCornerType:
         assert classify_corner_type(c) == "fast"
 
 
+class TestGPSFields:
+    """Corner GPS coordinate fields (brake_point_lat/lon, apex_lat/lon)."""
+
+    def test_gps_fields_default_none(self) -> None:
+        """GPS fields should default to None when not provided."""
+        c = Corner(
+            number=1,
+            entry_distance_m=0,
+            exit_distance_m=100,
+            apex_distance_m=50,
+            min_speed_mps=20.0,
+            brake_point_m=None,
+            peak_brake_g=None,
+            throttle_commit_m=None,
+            apex_type="mid",
+        )
+        assert c.brake_point_lat is None
+        assert c.brake_point_lon is None
+        assert c.apex_lat is None
+        assert c.apex_lon is None
+
+    def test_gps_fields_populated(self) -> None:
+        c = Corner(
+            number=1,
+            entry_distance_m=0,
+            exit_distance_m=100,
+            apex_distance_m=50,
+            min_speed_mps=20.0,
+            brake_point_m=30.0,
+            peak_brake_g=-0.5,
+            throttle_commit_m=70.0,
+            apex_type="mid",
+            brake_point_lat=33.53,
+            brake_point_lon=-86.62,
+            apex_lat=33.531,
+            apex_lon=-86.621,
+        )
+        assert c.brake_point_lat == 33.53
+        assert c.brake_point_lon == -86.62
+        assert c.apex_lat == 33.531
+        assert c.apex_lon == -86.621
+
+    def test_detect_corners_populates_gps(self, sample_resampled_lap: pd.DataFrame) -> None:
+        """detect_corners should populate GPS fields when lat/lon exist."""
+        assert "lat" in sample_resampled_lap.columns
+        assert "lon" in sample_resampled_lap.columns
+        corners = detect_corners(sample_resampled_lap)
+        if not corners:
+            pytest.skip("No corners detected in synthetic data")
+        for c in corners:
+            # Apex GPS should always be populated when lat/lon exist
+            assert c.apex_lat is not None
+            assert c.apex_lon is not None
+
+    def test_detect_corners_no_gps(self) -> None:
+        """detect_corners without lat/lon columns should leave GPS fields None."""
+        n = 1000
+        step = 0.7
+        distance = np.arange(n) * step
+        heading = np.zeros(n)
+        speed = np.ones(n) * 40.0
+        for center in [250, 750]:
+            for j in range(max(0, center - 40), min(n, center + 40)):
+                offset = j - center
+                heading[j] = heading[max(0, j - 1)] + 3.0 * np.exp(-(offset**2) / 200)
+                speed[j] = 40.0 - 15.0 * np.exp(-(offset**2) / 200)
+        heading = np.cumsum(np.concatenate([[0], np.diff(heading)])) % 360
+        lon_g = np.gradient(speed) / 9.81 * 10
+        df = pd.DataFrame(
+            {
+                "lap_distance_m": distance,
+                "speed_mps": speed,
+                "heading_deg": heading % 360,
+                "longitudinal_g": lon_g,
+                "lateral_g": np.zeros(n),
+            }
+        )
+        corners = detect_corners(df)
+        for c in corners:
+            assert c.brake_point_lat is None
+            assert c.brake_point_lon is None
+            assert c.apex_lat is None
+            assert c.apex_lon is None
+
+    def test_extract_kpis_populates_gps(self, sample_resampled_lap: pd.DataFrame) -> None:
+        """extract_corner_kpis_for_lap should populate GPS when lat/lon exist."""
+        ref_corners = detect_corners(sample_resampled_lap)
+        if not ref_corners:
+            pytest.skip("No corners detected")
+        result = extract_corner_kpis_for_lap(sample_resampled_lap, ref_corners)
+        for c in result:
+            assert c.apex_lat is not None
+            assert c.apex_lon is not None
+
+
 class TestCornerTypeTips:
     def test_all_types_have_tips(self) -> None:
         """Every corner type should have a technique tip."""
