@@ -66,9 +66,18 @@ export default function SessionBoxPlot({
     });
 
     const allValues = lapTimesPerSession.flat().filter((v) => v > 0);
-    const minVal = d3.min(allValues) ?? 0;
-    const maxVal = d3.max(allValues) ?? 120;
-    const padding = (maxVal - minVal) * 0.1;
+
+    // Use IQR-based bounds to exclude extreme outliers (in/out laps) from axis range
+    const sorted = [...allValues].sort((a, b) => a - b);
+    const q1 = d3.quantile(sorted, 0.05) ?? sorted[0];
+    const q3 = d3.quantile(sorted, 0.95) ?? sorted[sorted.length - 1];
+    const iqr = q3 - q1;
+    const lowerFence = q1 - 1.5 * iqr;
+    const upperFence = q3 + 1.5 * iqr;
+    const trimmed = allValues.filter((v) => v >= lowerFence && v <= upperFence);
+    const minVal = d3.min(trimmed.length > 0 ? trimmed : allValues) ?? 0;
+    const maxVal = d3.max(trimmed.length > 0 ? trimmed : allValues) ?? 120;
+    const padding = (maxVal - minVal) * 0.1 || 2;
 
     const x = d3
       .scaleBand<string>()

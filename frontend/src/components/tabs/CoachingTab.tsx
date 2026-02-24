@@ -210,111 +210,113 @@ export default function CoachingTab() {
               <CornerGrades grades={report.corner_grades} />
             </div>
           )}
+        </>
+      )}
 
-          {/* Divider */}
+      {/* Gain Analysis — always visible when data is available */}
+      {gainsData && (
+        <>
           <div className="border-t border-[var(--border-color)]" />
+          <div className="space-y-4">
+            <h2 className="text-base font-bold text-[var(--text-primary)]">
+              Gain Analysis
+            </h2>
 
-          {/* Gain Analysis */}
-          {gainsData && (
-            <div className="space-y-4">
-              <h2 className="text-base font-bold text-[var(--text-primary)]">
-                Gain Analysis
-              </h2>
-
-              {/* Gain Metrics */}
-              <div className="grid grid-cols-3 gap-3">
-                <MetricCard
-                  label="Consistency Gain"
-                  value={
-                    consistencyTotal !== null
-                      ? `${consistencyTotal.toFixed(2)}s`
-                      : "--"
-                  }
-                  subtitle="Avg vs best per corner"
-                />
-                <MetricCard
-                  label="Composite Gain"
-                  value={
-                    compositeGain !== null
-                      ? `${compositeGain.toFixed(2)}s`
-                      : "--"
-                  }
-                  subtitle="Best lap vs best sectors"
-                />
-                <MetricCard
-                  label="Theoretical Gain"
-                  value={
-                    theoreticalGain !== null
-                      ? `${theoreticalGain.toFixed(2)}s`
-                      : "--"
-                  }
-                  subtitle="Micro-sector limit"
-                />
-              </div>
-
-              {/* Gain Per Corner Chart */}
-              {consistencyGains.length > 0 && (
-                <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-4">
-                  <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
-                    Time Gain Per Corner
-                  </h3>
-                  <ErrorBoundary>
-                    <GainPerCorner
-                      consistencyGains={consistencyGains}
-                      compositeGains={compositeGains}
-                    />
-                  </ErrorBoundary>
-                </div>
-              )}
-
-              {/* Ideal Lap Overlay */}
-              {bestLapData && idealLap && bestLapNumber && (
-                <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-4">
-                  <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
-                    Ideal Lap (Composite Best Segments)
-                  </h3>
-                  <ErrorBoundary>
-                    <IdealLapOverlay
-                      bestLap={{
-                        distance: bestLapData.distance_m,
-                        speed: bestLapData.speed_mph,
-                      }}
-                      idealLap={{
-                        distance: idealLap.distance_m,
-                        speed: idealLap.speed_mph,
-                      }}
-                      corners={cornerZones}
-                      bestLapNumber={bestLapNumber}
-                      idealTime={computeIdealTime(idealLap)}
-                      bestTime={bestLapTime}
-                    />
-                  </ErrorBoundary>
-                </div>
-              )}
-
-              {/* Ideal Lap Delta */}
-              {idealDelta && bestLapNumber && (
-                <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-4">
-                  <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
-                    Delta: Ideal vs Best Lap
-                  </h3>
-                  <ErrorBoundary>
-                    <IdealLapDelta
-                      distance={idealDelta.distance}
-                      delta={idealDelta.delta}
-                      bestLapNumber={bestLapNumber}
-                      corners={cornerZones}
-                    />
-                  </ErrorBoundary>
-                </div>
-              )}
+            {/* Gain Metrics */}
+            <div className="grid grid-cols-3 gap-3">
+              <MetricCard
+                label="Consistency Gain"
+                value={
+                  consistencyTotal !== null
+                    ? `${consistencyTotal.toFixed(2)}s`
+                    : "--"
+                }
+                subtitle="Avg vs best per corner"
+              />
+              <MetricCard
+                label="Composite Gain"
+                value={
+                  compositeGain !== null
+                    ? `${compositeGain.toFixed(2)}s`
+                    : "--"
+                }
+                subtitle="Best lap vs best sectors"
+              />
+              <MetricCard
+                label="Theoretical Gain"
+                value={
+                  theoreticalGain !== null
+                    ? `${theoreticalGain.toFixed(2)}s`
+                    : "--"
+                }
+                subtitle="Micro-sector limit"
+              />
             </div>
-          )}
 
-          {/* Divider */}
+            {/* Gain Per Corner Chart */}
+            {consistencyGains.length > 0 && (
+              <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-4">
+                <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
+                  Time Gain Per Corner
+                </h3>
+                <ErrorBoundary>
+                  <GainPerCorner
+                    consistencyGains={consistencyGains}
+                    compositeGains={compositeGains}
+                  />
+                </ErrorBoundary>
+              </div>
+            )}
+
+            {/* Ideal Lap Overlay */}
+            {bestLapData && idealLap && bestLapNumber && (
+              <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-4">
+                <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
+                  Ideal Lap (Composite Best Segments)
+                </h3>
+                <ErrorBoundary>
+                  <IdealLapOverlay
+                    bestLap={{
+                      distance: bestLapData.distance_m,
+                      speed: bestLapData.speed_mph,
+                    }}
+                    idealLap={{
+                      distance: idealLap.distance_m,
+                      speed: idealLap.speed_mph,
+                    }}
+                    corners={cornerZones}
+                    bestLapNumber={bestLapNumber}
+                    idealTime={computeIdealTime(idealLap)}
+                    bestTime={bestLapTime}
+                  />
+                </ErrorBoundary>
+              </div>
+            )}
+
+            {/* Ideal Lap Delta */}
+            {idealDelta && bestLapNumber && (
+              <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-4">
+                <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
+                  Delta: Ideal vs Best Lap
+                </h3>
+                <ErrorBoundary>
+                  <IdealLapDelta
+                    distance={idealDelta.distance}
+                    delta={idealDelta.delta}
+                    bestLapNumber={bestLapNumber}
+                    corners={cornerZones}
+                  />
+                </ErrorBoundary>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Follow-up Chat — always available */}
+      {hasReport && report && (
+        <>
           <div className="border-t border-[var(--border-color)]" />
-
-          {/* Follow-up Chat */}
           <div className="space-y-3">
             <h2 className="text-base font-bold text-[var(--text-primary)]">
               Ask the Coach
