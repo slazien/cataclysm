@@ -1,26 +1,37 @@
+"use client";
+
 import { useQuery } from "@tanstack/react-query";
-import { fetchApi } from "@/lib/api";
+import { getCorners, getConsistency, getGains, getGrip } from "@/lib/api";
+import type { Corner, SessionConsistency } from "@/lib/types";
 
 export function useCorners(sessionId: string | null) {
-  return useQuery({
+  return useQuery<Corner[]>({
     queryKey: ["corners", sessionId],
-    queryFn: () => fetchApi(`/api/sessions/${sessionId}/corners`),
+    queryFn: () => getCorners(sessionId!),
     enabled: !!sessionId,
   });
 }
 
 export function useConsistency(sessionId: string | null) {
-  return useQuery({
+  return useQuery<SessionConsistency>({
     queryKey: ["consistency", sessionId],
-    queryFn: () => fetchApi(`/api/sessions/${sessionId}/consistency`),
+    queryFn: () => getConsistency(sessionId!),
     enabled: !!sessionId,
   });
 }
 
 export function useGains(sessionId: string | null) {
-  return useQuery({
+  return useQuery<Record<string, unknown>>({
     queryKey: ["gains", sessionId],
-    queryFn: () => fetchApi(`/api/sessions/${sessionId}/gains`),
+    queryFn: () => getGains(sessionId!),
+    enabled: !!sessionId,
+  });
+}
+
+export function useGrip(sessionId: string | null) {
+  return useQuery<Record<string, unknown>>({
+    queryKey: ["grip", sessionId],
+    queryFn: () => getGrip(sessionId!),
     enabled: !!sessionId,
   });
 }
