@@ -1,8 +1,8 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { getCorners, getConsistency, getGains, getGrip } from "@/lib/api";
-import type { Corner, SessionConsistency } from "@/lib/types";
+import { useQuery, useQueries } from "@tanstack/react-query";
+import { getCorners, getConsistency, getGains, getGrip, getDelta, getLapData } from "@/lib/api";
+import type { Corner, SessionConsistency, DeltaData, LapData } from "@/lib/types";
 
 export function useCorners(sessionId: string | null) {
   return useQuery<Corner[]>({
@@ -34,4 +34,36 @@ export function useGrip(sessionId: string | null) {
     queryFn: () => getGrip(sessionId!),
     enabled: !!sessionId,
   });
+}
+
+export function useDelta(
+  sessionId: string | null,
+  ref: number | null,
+  comp: number | null,
+) {
+  return useQuery<DeltaData>({
+    queryKey: ["delta", sessionId, ref, comp],
+    queryFn: () => getDelta(sessionId!, ref!, comp!),
+    enabled: !!sessionId && ref !== null && comp !== null,
+  });
+}
+
+export function useMultiLapData(
+  sessionId: string | null,
+  lapNumbers: number[],
+) {
+  const results = useQueries({
+    queries: lapNumbers.map((lap) => ({
+      queryKey: ["lap-data", sessionId, lap],
+      queryFn: () => getLapData(sessionId!, lap),
+      enabled: !!sessionId,
+    })),
+  });
+
+  const isLoading = results.some((r) => r.isLoading);
+  const data = results
+    .map((r) => r.data)
+    .filter((d): d is LapData => d !== undefined);
+
+  return { data, isLoading };
 }

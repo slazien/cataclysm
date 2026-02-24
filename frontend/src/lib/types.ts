@@ -80,6 +80,19 @@ export interface SessionConsistency {
   track_position: TrackPositionConsistency;
 }
 
+export interface CornerDelta {
+  corner_number: number;
+  delta_s: number;
+  ref_min_speed_mph: number;
+  comp_min_speed_mph: number;
+}
+
+export interface DeltaData {
+  distance_m: number[];
+  delta_time_s: number[];
+  corner_deltas: CornerDelta[];
+}
+
 export interface TrackFolder {
   name: string;
   path: string;

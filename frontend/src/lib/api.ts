@@ -3,6 +3,7 @@ import type {
   LapSummary,
   LapData,
   Corner,
+  DeltaData,
   SessionConsistency,
   TrackFolder,
 } from "./types";
@@ -60,6 +61,12 @@ export async function getLapData(id: string, lap: number) {
 
 export async function getCorners(id: string) {
   return fetchApi<Corner[]>(`/api/sessions/${id}/corners`);
+}
+
+export async function getDelta(id: string, ref: number, comp: number) {
+  return fetchApi<DeltaData>(
+    `/api/sessions/${id}/delta?ref=${ref}&comp=${comp}`,
+  );
 }
 
 export async function getConsistency(id: string) {
