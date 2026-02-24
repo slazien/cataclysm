@@ -25,11 +25,14 @@
 - **Rule**: Grep ALL consumers of the modified API function and verify they access data at the correct nesting level. A change in api.ts ripples through every component that uses that hook.
 - **Command**: `grep -rn "useGains\|useCorners\|useConsistency" frontend/src/components/`
 
-## Commit and Push After Every Logical Change
-- **When**: After completing any phase, feature, or fix — not at the end of a long session
-- **Rule**: The app is deployed on Streamlit Cloud from the remote branch. Every completed change must be committed and pushed immediately. Do NOT batch up multiple phases into one big commit at the end.
-- **Why**: User called this out. CLAUDE.md explicitly says "Always commit and push after making changes." Batching delays deployment and risks losing work. When using subagents that make their own commits, verify they pushed too, and commit any remaining unstaged work yourself immediately.
-- **Cadence**: After each phase/feature completes → commit + push. After a small follow-up change (like adding trendlines) → commit + push right away.
+## Commit and Push After Every Logical Change — CRITICAL, REPEATED FAILURE
+- **When**: IMMEDIATELY after ANY file edit — before doing QA, before doing verification, before moving to the next task. This is the #1 most violated rule.
+- **Rule**: The moment you finish editing file(s) and the change is complete, run `git add <files> && git commit && git push`. Do NOT continue to other work first. Do NOT "verify first then commit". Commit first, verify second.
+- **Enforcement checklist** (run after every edit):
+  1. `git diff --stat` — are there uncommitted changes? If yes, STOP and commit+push NOW.
+  2. `git status` — is branch ahead of remote? If yes, STOP and push NOW.
+- **Why**: User has called this out MULTIPLE TIMES across sessions. CLAUDE.md explicitly says "Always commit and push after making changes." This is a blocking requirement, not a suggestion. The app is deployed from the remote branch — unpushed changes don't exist to the user.
+- **Anti-pattern**: "I'll commit after QA" or "I'll batch these changes" or "Let me verify first" — NO. Commit and push immediately after each logical change, then QA.
 
 ## Create .env File for Docker Compose Secrets
 - **When**: Setting up Docker Compose with API keys or secrets
