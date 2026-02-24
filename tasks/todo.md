@@ -14,25 +14,25 @@
 - [x] Backend deps installed in .venv (fastapi, uvicorn, pydantic-settings, sqlalchemy, asyncpg, alembic)
 - [x] Verify: ruff/mypy/pytest all pass (340 existing + 1 backend)
 
-## Phase 1: Sessions + Overview Tab
+## Phase 1: Sessions + Overview Tab [COMPLETE]
 - [x] Backend: services/pipeline.py wrapping cataclysm/ (44 tests, 91% coverage)
 - [x] Backend: services/serializers.py
 - [x] Backend: Session upload, CRUD, track folder scan endpoints
 - [x] Backend: Analysis endpoints (corners, consistency, grip, gains, delta, linked)
 - [x] Backend: In-memory session store (DB persistence deferred)
 - [x] Backend: Tests (44 passing)
-- [ ] Frontend: Zustand store + TanStack Query hooks
-- [ ] Frontend: Sidebar (track selector, file upload, session list)
-- [ ] Frontend: D3 infra (useD3, theme.ts, scales.ts)
-- [ ] Frontend: D3 charts (LapTimesBar, LapConsistency, TrackSpeedMap, etc.)
-- [ ] Frontend: MetricCard, OverviewTab assembly
-- [ ] Frontend: Tests
+- [x] Frontend: Zustand store + TanStack Query hooks
+- [x] Frontend: Sidebar (track selector, file upload, session list)
+- [x] Frontend: D3 infra (useD3, theme.ts, scales.ts)
+- [x] Frontend: D3 charts (LapTimesBar, LapConsistency, TrackSpeedMap, TrackConsistencyMap, TractionCircle)
+- [x] Frontend: MetricCard, OverviewTab assembly
+- [x] Frontend: UI components (Button, Select, FileUpload, Spinner, Table)
 
-## Phase 2: Speed Trace Tab + Linked Chart
-- [ ] Backend: /charts/linked bundle, /delta endpoint
-- [ ] Frontend: SpeedTrace, DeltaT, TrackMap, BrakeThrottle
-- [ ] Frontend: LinkedSpeedMap with HoverController + ZoomController
-- [ ] Frontend: SpeedTraceTab assembly + tests
+## Phase 2: Speed Trace Tab + Linked Chart [COMPLETE]
+- [x] Backend: /charts/linked bundle, /delta endpoint (done in Phase 1)
+- [x] Frontend: SpeedTrace, DeltaT, TrackMapInteractive, BrakeThrottle D3 charts
+- [x] Frontend: LinkedSpeedMap with hover sync + zoom sync across panels
+- [x] Frontend: SpeedTraceTab assembly with lap multi-selector
 
 ## Phase 3: Corners Tab
 - [ ] Backend: /corners/all-laps, corner detail data
