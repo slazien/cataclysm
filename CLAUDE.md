@@ -57,10 +57,28 @@ Cataclysm is an AI-powered motorsport telemetry analysis and coaching platform f
 
 Current state: Streamlit MVP on branch `claude/review-track-plan-FQmfe` (main branch only has CSV data files).
 
+## Virtual Environment
+
+**Always work inside the project venv.** Never install packages globally.
+
+```bash
+# Create venv (first time only)
+python3 -m venv .venv
+
+# Activate venv (every session)
+source .venv/bin/activate
+
+# Install all deps
+pip install -e ".[dev]"
+pip install fastapi uvicorn pydantic-settings sqlalchemy asyncpg alembic httpx pytest-asyncio
+```
+
+The `.venv/` directory is gitignored. All `pip install`, `pytest`, `ruff`, `mypy`, and `streamlit` commands assume the venv is active.
+
 ## Commands
 
 ```bash
-# Install dependencies
+# Install dependencies (venv must be active)
 pip install -e ".[dev]"
 
 # Run the Streamlit app
@@ -72,10 +90,16 @@ pytest tests/test_engine.py              # single module
 pytest tests/test_engine.py::test_name   # single test
 pytest --cov=cataclysm --cov-report=term-missing  # with coverage
 
+# Backend tests
+pytest backend/tests/ -v
+
+# Run backend dev server
+uvicorn backend.api.main:app --reload --port 8000
+
 # Linting, formatting, and type checking — run ALL THREE before committing
-ruff check cataclysm/ tests/ app.py      # lint errors
-ruff format cataclysm/ tests/ app.py     # auto-format
-mypy cataclysm/ app.py                   # type checking (must pass with 0 errors)
+ruff check cataclysm/ tests/ app.py backend/  # lint errors
+ruff format cataclysm/ tests/ app.py backend/ # auto-format
+mypy cataclysm/ app.py backend/               # type checking (must pass with 0 errors)
 
 # Debugging
 pytest -x --tb=short                     # stop on first failure, short traceback
@@ -122,10 +146,10 @@ All structured data uses **dataclasses**: `ParsedSession`, `SessionMetadata`, `L
 
 All of these must pass before committing:
 
-1. **Ruff check** — zero lint errors: `ruff check cataclysm/ tests/ app.py`
-2. **Ruff format** — auto-format first, then verify: `ruff format cataclysm/ tests/ app.py`
-3. **Mypy** — zero type errors: `mypy cataclysm/ app.py`
-4. **Tests** — all pass: `pytest tests/ -v`
+1. **Ruff check** — zero lint errors: `ruff check cataclysm/ tests/ app.py backend/`
+2. **Ruff format** — auto-format first, then verify: `ruff format cataclysm/ tests/ app.py backend/`
+3. **Mypy** — zero type errors: `mypy cataclysm/ app.py backend/`
+4. **Tests** — all pass: `pytest tests/ backend/tests/ -v`
 5. **Coverage** — write tests targeting as close to 100% coverage as realistically possible. Every new module needs a companion test file. Test edge cases, error paths, and boundary conditions, not just the happy path.
 
 ## Testing Philosophy
