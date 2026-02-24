@@ -10,17 +10,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
 from backend.api.config import Settings
-from backend.api.db.database import async_engine
 from backend.api.routers import analysis, coaching, sessions, tracks, trends
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Manage application startup and shutdown lifecycle."""
-    # Startup: connection pool is created lazily by SQLAlchemy
+    # Startup: nothing needed for in-memory mode
     yield
-    # Shutdown: dispose the async engine connection pool
-    await async_engine.dispose()
+    # Shutdown: clear in-memory store
+    from backend.api.services.session_store import clear_all
+
+    clear_all()
 
 
 settings = Settings()

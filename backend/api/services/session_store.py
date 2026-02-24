@@ -1,43 +1,71 @@
-"""Session lifecycle management: storage, retrieval, deletion.
+"""In-memory session data store.
 
-Manages the mapping between session IDs and their stored data
-(resampled DataFrames, metadata, snapshots).
-
-All functions are stubs awaiting Phase 1 implementation.
+Provides a dict-based store for session data. Each session holds all
+pipeline outputs (parsed, processed, corners, consistency, gains, grip)
+keyed by session_id. This will be replaced by database persistence in a
+later phase.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 
-async def store_session_data(
-    session_id: str,
-    data: dict[str, object],
-) -> None:
-    """Persist processed session data to disk or object store.
-
-    Stores resampled DataFrames as Parquet files and metadata as JSON
-    under ``{session_data_dir}/{session_id}/``.
-    """
-    raise NotImplementedError
+from cataclysm.consistency import SessionConsistency
+from cataclysm.corners import Corner
+from cataclysm.engine import ProcessedSession
+from cataclysm.gains import GainEstimate
+from cataclysm.grip import GripEstimate
+from cataclysm.parser import ParsedSession
+from cataclysm.trends import SessionSnapshot
 
 
-async def load_session_data(session_id: str) -> dict[str, object]:
-    """Load stored session data from disk or object store.
+@dataclass
+class SessionData:
+    """All data associated with a single processed session."""
 
-    Returns a dict containing resampled_laps, lap_summaries,
-    corners, and metadata.
-    """
-    raise NotImplementedError
+    session_id: str
+    snapshot: SessionSnapshot
+    parsed: ParsedSession
+    processed: ProcessedSession
+    corners: list[Corner]
+    all_lap_corners: dict[int, list[Corner]]
+    consistency: SessionConsistency | None = None
+    gains: GainEstimate | None = None
+    grip: GripEstimate | None = None
+    coaching_laps: list[int] = field(default_factory=list)
+    anomalous_laps: set[int] = field(default_factory=set)
 
 
-async def delete_session_data(session_id: str) -> None:
-    """Remove stored session data from disk or object store.
-
-    Deletes all files under ``{session_data_dir}/{session_id}/``.
-    """
-    raise NotImplementedError
+# Module-level in-memory store
+_store: dict[str, SessionData] = {}
 
 
-async def list_stored_sessions() -> list[str]:
-    """List all session IDs with stored data on disk."""
-    raise NotImplementedError
+def store_session(session_id: str, data: SessionData) -> None:
+    """Persist a session in the in-memory store."""
+    _store[session_id] = data
+
+
+def get_session(session_id: str) -> SessionData | None:
+    """Retrieve a session by ID, or None if not found."""
+    return _store.get(session_id)
+
+
+def delete_session(session_id: str) -> bool:
+    """Delete a session by ID. Returns True if it existed."""
+    return _store.pop(session_id, None) is not None
+
+
+def list_sessions() -> list[SessionData]:
+    """Return all stored sessions, sorted by date descending."""
+    return sorted(
+        _store.values(),
+        key=lambda s: s.snapshot.session_date_parsed,
+        reverse=True,
+    )
+
+
+def clear_all() -> int:
+    """Delete all sessions. Returns the count of deleted sessions."""
+    count = len(_store)
+    _store.clear()
+    return count

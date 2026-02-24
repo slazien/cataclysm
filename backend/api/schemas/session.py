@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict
 
 
@@ -14,7 +12,7 @@ class SessionSummary(BaseModel):
 
     session_id: str
     track_name: str
-    session_date: datetime
+    session_date: str
     n_laps: int | None = None
     n_clean_laps: int | None = None
     best_lap_time_s: float | None = None
@@ -54,6 +52,7 @@ class LapData(BaseModel):
     heading_deg: list[float]
     lateral_g: list[float]
     longitudinal_g: list[float]
+    lap_time_s: list[float]
 
 
 class UploadResponse(BaseModel):

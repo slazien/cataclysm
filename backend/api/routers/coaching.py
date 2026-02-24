@@ -2,12 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from backend.api.dependencies import get_db
 from backend.api.schemas.coaching import (
     CoachingReportResponse,
     FollowUpMessage,
@@ -21,14 +17,13 @@ router = APIRouter()
 async def generate_report(
     session_id: str,
     body: ReportRequest,
-    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> CoachingReportResponse:
     """Trigger AI coaching report generation for a session.
 
     Returns 202 if generation is kicked off asynchronously, or the full
     report if it completes quickly.
     """
-    # TODO: Phase 1 — run coaching.generate_coaching_report in background task
+    # TODO: Phase 2 -- run coaching.generate_coaching_report in background task
     return CoachingReportResponse(
         session_id=session_id,
         status="generating",
@@ -38,13 +33,12 @@ async def generate_report(
 @router.get("/{session_id}/report", response_model=CoachingReportResponse)
 async def get_report(
     session_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> CoachingReportResponse:
     """Get the coaching report for a session.
 
     Returns 202 with status='generating' if the report is still being created.
     """
-    # TODO: Phase 1 — fetch report from DB, return 202 if not yet ready
+    # TODO: Phase 2 -- fetch report from store, return 202 if not yet ready
     return CoachingReportResponse(
         session_id=session_id,
         status="generating",
@@ -68,7 +62,7 @@ async def coaching_chat(
             data = await websocket.receive_json()
             question = data.get("content", "")
 
-            # TODO: Phase 1 — call coaching.ask_followup with conversation context
+            # TODO: Phase 2 -- call coaching.ask_followup with conversation context
             response = FollowUpMessage(
                 role="assistant",
                 content=f"Follow-up chat not yet implemented. You asked: {question}",

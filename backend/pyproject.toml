@@ -73,7 +73,10 @@ asyncio_mode = "auto"
 
 [tool.coverage.run]
 source = ["backend"]
-omit = ["backend/tests/*"]
+omit = [
+    "backend/tests/*",
+    "backend/api/db/*",  # DB persistence deferred to Phase 2
+]
 
 [tool.coverage.report]
 show_missing = true

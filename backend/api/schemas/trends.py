@@ -2,35 +2,16 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel
 
 
-class SessionTrendEntry(BaseModel):
-    """A single session's metrics within a trend series."""
-
-    session_id: str
-    session_date: str
-    best_lap_time_s: float
-    top3_avg_time_s: float
-    avg_lap_time_s: float
-    consistency_score: float
-    n_laps: int
-    n_clean_laps: int
-
-
 class TrendAnalysisResponse(BaseModel):
-    """Cross-session trend data for a single track."""
+    """Cross-session trend data for a single track (serialized dataclass)."""
 
     track_name: str
-    n_sessions: int
-    sessions: list[SessionTrendEntry]
-    best_lap_trend: list[float]
-    top3_avg_trend: list[float]
-    consistency_trend: list[float]
-    theoretical_trend: list[float]
-    corner_min_speed_trends: dict[int, list[float | None]]
-    corner_brake_std_trends: dict[int, list[float | None]]
-    corner_consistency_trends: dict[int, list[float | None]]
+    data: dict[str, Any]
 
 
 class MilestoneSchema(BaseModel):

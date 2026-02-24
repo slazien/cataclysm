@@ -2,87 +2,134 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+import asyncio
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, HTTPException, Query
 
-from backend.api.dependencies import get_db
 from backend.api.schemas.analysis import (
     AllLapsCornerResponse,
     ConsistencyResponse,
     CornerResponse,
+    CornerSchema,
     DeltaResponse,
     GainsResponse,
     GripResponse,
     IdealLapResponse,
     LinkedChartResponse,
 )
+from backend.api.services import session_store
+from backend.api.services.pipeline import get_ideal_lap_data
+from backend.api.services.serializers import dataclass_to_dict
 
 router = APIRouter()
 
+MPS_TO_MPH = 2.23694
+
+
+def _corner_to_schema(c: Any) -> CornerSchema:
+    """Convert a cataclysm Corner dataclass to a CornerSchema."""
+    return CornerSchema(
+        number=c.number,
+        entry_distance_m=c.entry_distance_m,
+        exit_distance_m=c.exit_distance_m,
+        apex_distance_m=c.apex_distance_m,
+        min_speed_mph=round(c.min_speed_mps * MPS_TO_MPH, 2),
+        brake_point_m=c.brake_point_m,
+        peak_brake_g=c.peak_brake_g,
+        throttle_commit_m=c.throttle_commit_m,
+        apex_type=c.apex_type,
+    )
+
+
+def _get_session_or_404(session_id: str) -> Any:
+    """Retrieve session data or raise 404."""
+    sd = session_store.get_session(session_id)
+    if sd is None:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+    return sd
+
 
 @router.get("/{session_id}/corners", response_model=CornerResponse)
-async def get_corners(
-    session_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> CornerResponse:
-    """Detect corners on the best lap and return KPIs."""
-    # TODO: Phase 1 — load session, run corners.detect_corners on best lap
-    raise NotImplementedError
+async def get_corners(session_id: str) -> CornerResponse:
+    """Return corners detected on the best lap."""
+    sd = _get_session_or_404(session_id)
+    return CornerResponse(
+        session_id=session_id,
+        lap_number=sd.processed.best_lap,
+        corners=[_corner_to_schema(c) for c in sd.corners],
+    )
 
 
 @router.get(
     "/{session_id}/corners/all-laps",
     response_model=AllLapsCornerResponse,
 )
-async def get_all_laps_corners(
-    session_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> AllLapsCornerResponse:
+async def get_all_laps_corners(session_id: str) -> AllLapsCornerResponse:
     """Corner KPIs for every lap in the session."""
-    # TODO: Phase 1 — extract corners for all laps using best-lap reference
-    raise NotImplementedError
+    sd = _get_session_or_404(session_id)
+    laps: dict[str, list[CornerSchema]] = {
+        str(lap_num): [_corner_to_schema(c) for c in corners]
+        for lap_num, corners in sd.all_lap_corners.items()
+    }
+    return AllLapsCornerResponse(session_id=session_id, laps=laps)
 
 
 @router.get("/{session_id}/consistency", response_model=ConsistencyResponse)
-async def get_consistency(
-    session_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> ConsistencyResponse:
+async def get_consistency(session_id: str) -> ConsistencyResponse:
     """Compute session consistency metrics."""
-    # TODO: Phase 1 — run consistency.compute_session_consistency
-    raise NotImplementedError
+    sd = _get_session_or_404(session_id)
+    if sd.consistency is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Consistency data not available for session {session_id}",
+        )
+    data = dataclass_to_dict(sd.consistency)
+    return ConsistencyResponse(session_id=session_id, data=data)
 
 
 @router.get("/{session_id}/grip", response_model=GripResponse)
-async def get_grip(
-    session_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> GripResponse:
+async def get_grip(session_id: str) -> GripResponse:
     """Estimate grip limits from multi-lap telemetry."""
-    # TODO: Phase 1 — run grip.estimate_grip_limit
-    raise NotImplementedError
+    sd = _get_session_or_404(session_id)
+    if sd.grip is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Grip data not available for session {session_id}",
+        )
+    data = dataclass_to_dict(sd.grip)
+    return GripResponse(session_id=session_id, data=data)
 
 
 @router.get("/{session_id}/gains", response_model=GainsResponse)
-async def get_gains(
-    session_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> GainsResponse:
+async def get_gains(session_id: str) -> GainsResponse:
     """Compute three-tier gain estimates (consistency, composite, theoretical)."""
-    # TODO: Phase 1 — run gains.estimate_gains
-    raise NotImplementedError
+    sd = _get_session_or_404(session_id)
+    if sd.gains is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Gains data not available for session {session_id}",
+        )
+    data = dataclass_to_dict(sd.gains)
+    return GainsResponse(session_id=session_id, data=data)
 
 
 @router.get("/{session_id}/ideal-lap", response_model=IdealLapResponse)
-async def get_ideal_lap(
-    session_id: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> IdealLapResponse:
+async def get_ideal_lap(session_id: str) -> IdealLapResponse:
     """Reconstruct ideal lap from best segments across all clean laps."""
-    # TODO: Phase 1 — run gains.reconstruct_ideal_lap
-    raise NotImplementedError
+    sd = _get_session_or_404(session_id)
+    if len(sd.coaching_laps) < 2:
+        raise HTTPException(
+            status_code=422,
+            detail="At least 2 clean laps required for ideal lap reconstruction",
+        )
+    result = await get_ideal_lap_data(sd)
+    return IdealLapResponse(
+        session_id=session_id,
+        distance_m=result["distance_m"],  # type: ignore[arg-type]
+        speed_mph=result["speed_mph"],  # type: ignore[arg-type]
+        segment_sources=result["segment_sources"],  # type: ignore[arg-type]
+    )
 
 
 @router.get("/{session_id}/delta", response_model=DeltaResponse)
@@ -90,11 +137,30 @@ async def get_delta(
     session_id: str,
     ref: Annotated[int, Query(description="Reference lap number")],
     comp: Annotated[int, Query(description="Comparison lap number")],
-    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> DeltaResponse:
     """Compute delta-T between two laps at each distance point."""
-    # TODO: Phase 1 — run delta.compute_delta
-    raise NotImplementedError
+    sd = _get_session_or_404(session_id)
+
+    resampled = sd.processed.resampled_laps
+    if ref not in resampled:
+        raise HTTPException(status_code=404, detail=f"Reference lap {ref} not found")
+    if comp not in resampled:
+        raise HTTPException(status_code=404, detail=f"Comparison lap {comp} not found")
+
+    from cataclysm.delta import compute_delta
+
+    delta_result = await asyncio.to_thread(
+        compute_delta, resampled[ref], resampled[comp], sd.corners
+    )
+
+    return DeltaResponse(
+        session_id=session_id,
+        ref_lap=ref,
+        comp_lap=comp,
+        distance_m=delta_result.distance_m.tolist(),
+        delta_s=delta_result.delta_time_s.tolist(),
+        total_delta_s=delta_result.total_delta_s,
+    )
 
 
 @router.get(
@@ -107,8 +173,39 @@ async def get_linked_chart_data(
         list[int],
         Query(description="Lap numbers to include in linked charts"),
     ],
-    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> LinkedChartResponse:
     """Bundle telemetry data for synchronized linked charts."""
-    # TODO: Phase 1 — serialize resampled laps into columnar format
-    raise NotImplementedError
+    sd = _get_session_or_404(session_id)
+    resampled = sd.processed.resampled_laps
+
+    # Validate requested laps exist
+    for lap_num in laps:
+        if lap_num not in resampled:
+            raise HTTPException(status_code=404, detail=f"Lap {lap_num} not found")
+
+    # Use the best lap's distance grid as reference
+    ref_df = resampled[sd.processed.best_lap]
+    distance_m: list[float] = ref_df["lap_distance_m"].tolist()
+
+    speed_traces: dict[str, list[float]] = {}
+    lateral_g_traces: dict[str, list[float]] = {}
+    longitudinal_g_traces: dict[str, list[float]] = {}
+    heading_traces: dict[str, list[float]] = {}
+
+    for lap_num in laps:
+        df = resampled[lap_num]
+        key = str(lap_num)
+        speed_traces[key] = (df["speed_mps"] * MPS_TO_MPH).tolist()
+        lateral_g_traces[key] = df["lateral_g"].tolist()
+        longitudinal_g_traces[key] = df["longitudinal_g"].tolist()
+        heading_traces[key] = df["heading_deg"].tolist()
+
+    return LinkedChartResponse(
+        session_id=session_id,
+        laps=laps,
+        distance_m=distance_m,
+        speed_traces=speed_traces,
+        lateral_g_traces=lateral_g_traces,
+        longitudinal_g_traces=longitudinal_g_traces,
+        heading_traces=heading_traces,
+    )
