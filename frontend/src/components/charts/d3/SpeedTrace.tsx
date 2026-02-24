@@ -199,23 +199,89 @@ export default function SpeedTrace({
         .text(`L${lap.lapNumber}`);
     });
 
-    // Crosshair line
-    const crosshair = g
+    // Crosshair group (line + tooltip)
+    const crosshairG = g
+      .append("g")
+      .attr("pointer-events", "none")
+      .attr("opacity", 0);
+
+    const crosshairLine = crosshairG
       .append("line")
       .attr("y1", 0)
       .attr("y2", innerH)
       .attr("stroke", chartTheme.text)
       .attr("stroke-width", 1)
-      .attr("stroke-dasharray", "4,2")
-      .attr("opacity", 0)
-      .attr("pointer-events", "none");
+      .attr("stroke-dasharray", "4,2");
+
+    // Tooltip group
+    const tooltipG = crosshairG.append("g");
+
+    // Build bisectors for each lap (for value lookup at hover distance)
+    const lapBisectors = laps.map((lap) => {
+      const sorted = lap.distance.map((d, i) => ({ d, s: lap.speed[i] }));
+      return { data: sorted, bisect: d3.bisector((pt: { d: number }) => pt.d).left };
+    });
+
+    function showCrosshair(dist: number) {
+      const px = x(dist);
+      if (px < 0 || px > innerW) {
+        crosshairG.attr("opacity", 0);
+        return;
+      }
+
+      crosshairLine.attr("x1", px).attr("x2", px);
+      crosshairG.attr("opacity", 1);
+
+      // Clear old tooltip content
+      tooltipG.selectAll("*").remove();
+
+      // Distance label at top
+      const tooltipX = px < innerW - 120 ? px + 8 : px - 8;
+      const anchor = px < innerW - 120 ? "start" : "end";
+
+      tooltipG
+        .append("text")
+        .attr("x", tooltipX)
+        .attr("y", 2)
+        .attr("text-anchor", anchor)
+        .attr("fill", chartTheme.textSecondary)
+        .attr("font-size", 10)
+        .attr("font-family", chartTheme.font)
+        .text(`${dist.toFixed(0)}m`);
+
+      // Speed values for each lap
+      laps.forEach((lap, li) => {
+        const { data, bisect } = lapBisectors[li];
+        const idx = Math.min(bisect(data, dist), data.length - 1);
+        const speed = data[idx]?.s ?? 0;
+
+        tooltipG
+          .append("text")
+          .attr("x", tooltipX)
+          .attr("y", 16 + li * 14)
+          .attr("text-anchor", anchor)
+          .attr("fill", colorScale(lap.lapNumber))
+          .attr("font-size", 11)
+          .attr("font-family", chartTheme.font)
+          .attr("font-weight", "600")
+          .text(`L${lap.lapNumber}: ${speed.toFixed(1)} mph`);
+
+        // Show dot on the line at hover point
+        const py = y(speed);
+        crosshairG
+          .append("circle")
+          .attr("cx", px)
+          .attr("cy", py)
+          .attr("r", 4)
+          .attr("fill", colorScale(lap.lapNumber))
+          .attr("stroke", chartTheme.bg)
+          .attr("stroke-width", 1.5);
+      });
+    }
 
     // Show highlight distance from external source
     if (highlightDistance !== null && highlightDistance !== undefined) {
-      const hx = x(highlightDistance);
-      if (hx >= 0 && hx <= innerW) {
-        crosshair.attr("x1", hx).attr("x2", hx).attr("opacity", 0.7);
-      }
+      showCrosshair(highlightDistance);
     }
 
     // Hover overlay
@@ -232,12 +298,12 @@ export default function SpeedTrace({
           rafId = null;
           const [mx] = d3.pointer(event);
           const dist = x.invert(mx);
-          crosshair.attr("x1", mx).attr("x2", mx).attr("opacity", 0.7);
+          showCrosshair(dist);
           onHoverDistance?.(dist);
         });
       })
       .on("mouseleave", () => {
-        crosshair.attr("opacity", 0);
+        crosshairG.attr("opacity", 0);
         onHoverDistance?.(null);
       });
 

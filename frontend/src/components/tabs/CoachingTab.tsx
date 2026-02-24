@@ -67,13 +67,10 @@ export default function CoachingTab() {
   const consistencyGains = extractSegmentGains(gainsData, "consistency");
   const compositeGains = extractSegmentGains(gainsData, "composite");
 
-  // Gain metrics
-  const consistencyTotal =
-    (gainsData?.data as Record<string, unknown> | undefined)
-      ? getNestedNumber(gainsData, "data", "consistency", "total_gain_s")
-      : null;
-  const compositeGain = getNestedNumber(gainsData, "data", "composite", "gain_s");
-  const theoreticalGain = getNestedNumber(gainsData, "data", "theoretical", "gain_s");
+  // Gain metrics — gainsData is already unwrapped by api.ts (no .data wrapper)
+  const consistencyTotal = getNestedNumber(gainsData, "consistency", "total_gain_s");
+  const compositeGain = getNestedNumber(gainsData, "composite", "gain_s");
+  const theoreticalGain = getNestedNumber(gainsData, "theoretical", "gain_s");
 
   // Corner zones for charts
   const cornerZones = (corners ?? []).map((c) => ({
@@ -343,9 +340,8 @@ function extractSegmentGains(
   tier: "consistency" | "composite",
 ): SegmentGainEntry[] {
   if (!gainsData) return [];
-  const data = gainsData.data as Record<string, unknown> | undefined;
-  if (!data) return [];
-  const tierData = data[tier] as Record<string, unknown> | undefined;
+  // gainsData is already unwrapped by api.ts — access tier directly
+  const tierData = gainsData[tier] as Record<string, unknown> | undefined;
   if (!tierData) return [];
   const segmentGains = tierData.segment_gains as
     | { segment: { name: string; is_corner: boolean }; gain_s: number }[]

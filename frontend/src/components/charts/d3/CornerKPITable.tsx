@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import type { Corner, CornerDelta } from "@/lib/types";
-import { MPS_TO_MPH } from "@/lib/constants";
 
 interface CornerKPITableProps {
   corners: Corner[];
@@ -34,7 +33,7 @@ const SLOW_MPH = 40;
 const MEDIUM_MPH = 80;
 
 function classifyCornerType(corner: Corner): string {
-  const mph = corner.min_speed_mps * MPS_TO_MPH;
+  const mph = corner.min_speed_mph;
   if (mph < SLOW_MPH) return "slow";
   if (mph < MEDIUM_MPH) return "medium";
   return "fast";
@@ -135,8 +134,8 @@ export default function CornerKPITable({
           vb = b.apex_type;
           break;
         case "minSpeed":
-          va = a.min_speed_mps;
-          vb = b.min_speed_mps;
+          va = a.min_speed_mph;
+          vb = b.min_speed_mph;
           break;
         case "brakePoint":
           va = a.brake_point_m ?? Infinity;
@@ -215,8 +214,8 @@ export default function CornerKPITable({
             const typeColor = CORNER_TYPE_COLORS[cType] ?? "var(--text-primary)";
             const cc = compMap[c.number];
             const delta = deltaMap[c.number];
-            const speedMph = c.min_speed_mps * MPS_TO_MPH;
-            const compSpeedMph = cc ? cc.min_speed_mps * MPS_TO_MPH : null;
+            const speedMph = c.min_speed_mph;
+            const compSpeedMph = cc ? cc.min_speed_mph : null;
 
             return (
               <tr

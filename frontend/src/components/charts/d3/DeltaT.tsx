@@ -216,22 +216,80 @@ export default function DeltaT({
       .attr("stroke-width", 1.2)
       .attr("d", line);
 
-    // Crosshair
-    const crosshair = g
+    // Crosshair group (line + tooltip)
+    const crosshairG = g
+      .append("g")
+      .attr("pointer-events", "none")
+      .attr("opacity", 0);
+
+    const crosshairLine = crosshairG
       .append("line")
       .attr("y1", 0)
       .attr("y2", innerH)
       .attr("stroke", chartTheme.text)
       .attr("stroke-width", 1)
-      .attr("stroke-dasharray", "4,2")
-      .attr("opacity", 0)
-      .attr("pointer-events", "none");
+      .attr("stroke-dasharray", "4,2");
+
+    // Build bisector for delta lookup
+    const deltaBisect = d3.bisector((d: number) => d).left;
+
+    function showCrosshair(dist: number) {
+      const px = x(dist);
+      if (px < 0 || px > innerW) {
+        crosshairG.attr("opacity", 0);
+        return;
+      }
+
+      crosshairLine.attr("x1", px).attr("x2", px);
+      crosshairG.attr("opacity", 1);
+
+      // Clear old tooltip elements (keep line)
+      crosshairG.selectAll("text, circle, rect.tooltip-bg").remove();
+
+      // Find delta value at this distance
+      const idx = Math.min(deltaBisect(distance, dist), distance.length - 1);
+      const deltaVal = delta[idx] ?? 0;
+      const py = y(deltaVal);
+
+      // Dot on the line
+      crosshairG
+        .append("circle")
+        .attr("cx", px)
+        .attr("cy", py)
+        .attr("r", 4)
+        .attr("fill", deltaVal >= 0 ? chartTheme.accentRed : chartTheme.accentGreen)
+        .attr("stroke", chartTheme.bg)
+        .attr("stroke-width", 1.5);
+
+      // Tooltip label
+      const tooltipX = px < innerW - 100 ? px + 8 : px - 8;
+      const anchor = px < innerW - 100 ? "start" : "end";
+      const sign = deltaVal >= 0 ? "+" : "";
+
+      crosshairG
+        .append("text")
+        .attr("x", tooltipX)
+        .attr("y", 2)
+        .attr("text-anchor", anchor)
+        .attr("fill", chartTheme.textSecondary)
+        .attr("font-size", 10)
+        .attr("font-family", chartTheme.font)
+        .text(`${dist.toFixed(0)}m`);
+
+      crosshairG
+        .append("text")
+        .attr("x", tooltipX)
+        .attr("y", 16)
+        .attr("text-anchor", anchor)
+        .attr("fill", deltaVal >= 0 ? chartTheme.accentRed : chartTheme.accentGreen)
+        .attr("font-size", 12)
+        .attr("font-family", chartTheme.font)
+        .attr("font-weight", "bold")
+        .text(`${sign}${deltaVal.toFixed(3)}s`);
+    }
 
     if (highlightDistance !== null && highlightDistance !== undefined) {
-      const hx = x(highlightDistance);
-      if (hx >= 0 && hx <= innerW) {
-        crosshair.attr("x1", hx).attr("x2", hx).attr("opacity", 0.7);
-      }
+      showCrosshair(highlightDistance);
     }
 
     // Hover
@@ -247,12 +305,12 @@ export default function DeltaT({
           rafId = null;
           const [mx] = d3.pointer(event);
           const dist = x.invert(mx);
-          crosshair.attr("x1", mx).attr("x2", mx).attr("opacity", 0.7);
+          showCrosshair(dist);
           onHoverDistance?.(dist);
         });
       })
       .on("mouseleave", () => {
-        crosshair.attr("opacity", 0);
+        crosshairG.attr("opacity", 0);
         onHoverDistance?.(null);
       });
 

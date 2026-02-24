@@ -35,7 +35,7 @@ export interface Corner {
   entry_distance_m: number;
   exit_distance_m: number;
   apex_distance_m: number;
-  min_speed_mps: number;
+  min_speed_mph: number;
   brake_point_m: number | null;
   peak_brake_g: number | null;
   throttle_commit_m: number | null;
@@ -89,8 +89,9 @@ export interface CornerDelta {
 
 export interface DeltaData {
   distance_m: number[];
-  delta_time_s: number[];
-  corner_deltas: CornerDelta[];
+  delta_s: number[];
+  total_delta_s?: number;
+  corner_deltas?: CornerDelta[];
 }
 
 export interface CornerKPI {

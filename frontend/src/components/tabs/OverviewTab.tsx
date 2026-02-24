@@ -129,11 +129,11 @@ export default function OverviewTab() {
               <div className="grid grid-cols-3 gap-3">
                 <MetricCard
                   label="Consistency Score"
-                  value={`${(lapConsistency.consistency_score * 100).toFixed(0)}%`}
+                  value={`${lapConsistency.consistency_score.toFixed(0)}%`}
                   subtitle={
-                    lapConsistency.consistency_score >= 0.8
+                    lapConsistency.consistency_score >= 80
                       ? "Excellent"
-                      : lapConsistency.consistency_score >= 0.6
+                      : lapConsistency.consistency_score >= 60
                         ? "Good"
                         : "Needs work"
                   }

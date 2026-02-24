@@ -102,7 +102,7 @@ export default function LinkedSpeedMap({
     // If delta data distance array matches primary lap, use delta directly
     // Otherwise, interpolate delta onto primary lap distance points
     if (deltaData.distance_m.length === primaryLapData.distance_m.length) {
-      return deltaData.delta_time_s;
+      return deltaData.delta_s;
     }
 
     // Simple linear interpolation of delta onto primary lap distances
@@ -117,13 +117,13 @@ export default function LinkedSpeedMap({
         j++;
       }
       if (j >= deltaData.distance_m.length - 1) {
-        result.push(deltaData.delta_time_s[deltaData.delta_time_s.length - 1]);
+        result.push(deltaData.delta_s[deltaData.delta_s.length - 1]);
       } else {
         const d0 = deltaData.distance_m[j];
         const d1 = deltaData.distance_m[j + 1];
         const t = d1 > d0 ? (targetDist - d0) / (d1 - d0) : 0;
-        const v0 = deltaData.delta_time_s[j];
-        const v1 = deltaData.delta_time_s[j + 1];
+        const v0 = deltaData.delta_s[j];
+        const v1 = deltaData.delta_s[j + 1];
         result.push(v0 + t * (v1 - v0));
       }
     }
@@ -181,7 +181,7 @@ export default function LinkedSpeedMap({
           ) : showDelta ? (
             <DeltaT
               distance={deltaData.distance_m}
-              delta={deltaData.delta_time_s}
+              delta={deltaData.delta_s}
               refLap={refLap!}
               compLap={compLap!}
               corners={cornerZones}

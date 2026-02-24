@@ -12,7 +12,6 @@ import Expandable from "@/components/ui/Expandable";
 import Select from "@/components/ui/Select";
 import Spinner from "@/components/ui/Spinner";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
-import { MPS_TO_MPH } from "@/lib/constants";
 import type { LapSummary, Corner } from "@/lib/types";
 
 const CORNER_TYPE_TIPS: Record<string, string> = {
@@ -32,7 +31,7 @@ const SLOW_MPH = 40;
 const MEDIUM_MPH = 80;
 
 function classifyCornerType(corner: Corner): string {
-  const mph = corner.min_speed_mps * MPS_TO_MPH;
+  const mph = corner.min_speed_mph;
   if (mph < SLOW_MPH) return "slow";
   if (mph < MEDIUM_MPH) return "medium";
   return "fast";
@@ -163,7 +162,7 @@ function CornersContent({
         </h2>
         {corners.map((c) => {
           const cType = classifyCornerType(c);
-          const speedMph = c.min_speed_mps * MPS_TO_MPH;
+          const speedMph = c.min_speed_mph;
           const typeLabel = cType.charAt(0).toUpperCase() + cType.slice(1);
           const header = `T${c.number} -- ${speedMph.toFixed(0)} mph (${typeLabel}, ${c.apex_type} apex)`;
           const typeColor = CORNER_TYPE_COLORS[cType];
