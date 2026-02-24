@@ -34,22 +34,33 @@
 - [x] Frontend: LinkedSpeedMap with hover sync + zoom sync across panels
 - [x] Frontend: SpeedTraceTab assembly with lap multi-selector
 
-## Phase 3: Corners Tab
-- [ ] Backend: /corners/all-laps, corner detail data
-- [ ] Frontend: CornerKPITable, CornerDetailChart, CornerMiniMap, BrakeConsistency
-- [ ] Frontend: CornersTab assembly + tests
+## Phase 3: Corners Tab [COMPLETE]
+- [x] Backend: /corners/all-laps, corner detail data (done in Phase 1)
+- [x] Frontend: CornerKPITable (sortable, comparison deltas)
+- [x] Frontend: CornerDetailChart (speed + G-force dual subplot)
+- [x] Frontend: CornerMiniMap (canvas+SVG with entry/apex/exit markers)
+- [x] Frontend: BrakeConsistency (variation chart with std dev bands)
+- [x] Frontend: CornersTab (comparison selector, expandable per-corner details)
+- [x] Frontend: Expandable + Popover UI components
 
-## Phase 4: AI Coach Tab
-- [ ] Backend: Report generation (POST→job, GET polls), SSE progress
-- [ ] Backend: WebSocket chat, CoachingContext DB
-- [ ] Frontend: GainPerCorner, IdealLapOverlay, IdealLapDelta
-- [ ] Frontend: CoachingReport, CornerGrades, PriorityCorners, ChatInterface
-- [ ] Frontend: CoachingTab assembly + tests
+## Phase 4: AI Coach Tab [COMPLETE]
+- [x] Backend: POST/GET coaching report (mock-ready, asyncio.to_thread)
+- [x] Backend: WebSocket chat with CoachingContext
+- [x] Backend: In-memory coaching store
+- [x] Backend: Tests (8 coaching tests, 52 total backend)
+- [x] Frontend: GainPerCorner, IdealLapOverlay, IdealLapDelta D3 charts
+- [x] Frontend: CoachingReportView, CornerGrades, PriorityCorners
+- [x] Frontend: ChatInterface (WebSocket-based)
+- [x] Frontend: CoachingTab (generate + display + gain analysis + chat)
 
-## Phase 5: Trends Tab
-- [ ] Backend: /trends/{track} endpoint
-- [ ] Frontend: LapTimeTrend, ConsistencyTrend, CornerHeatmap, SessionBoxPlot
-- [ ] Frontend: TrendsTab assembly + tests
+## Phase 5: Trends Tab [COMPLETE]
+- [x] Backend: /trends/{track} endpoint (already implemented Phase 1, added lap_times_s)
+- [x] Frontend: LapTimeTrend (3-line: best/top3/theoretical)
+- [x] Frontend: ConsistencyTrend (with background score bands)
+- [x] Frontend: SessionBoxPlot (Q1-Q3 boxes, whiskers, best lap diamonds)
+- [x] Frontend: CornerHeatmap (multi-metric selector)
+- [x] Frontend: CornerTrendGrid (small multiples sparklines)
+- [x] Frontend: TrendsTab (metrics, milestones, all charts)
 
 ## Phase 6: Polish + Deploy
 - [ ] Gzip middleware, ETag caching
