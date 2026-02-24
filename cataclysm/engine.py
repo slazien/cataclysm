@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
@@ -20,6 +20,7 @@ class LapSummary:
     lap_time_s: float
     lap_distance_m: float
     max_speed_mps: float
+    tags: set[str] = field(default_factory=set)
 
 
 @dataclass

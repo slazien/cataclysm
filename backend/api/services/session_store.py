@@ -15,6 +15,7 @@ from cataclysm.corners import Corner
 from cataclysm.engine import ProcessedSession
 from cataclysm.gains import GainEstimate
 from cataclysm.grip import GripEstimate
+from cataclysm.lap_tags import LapTagStore
 from cataclysm.parser import ParsedSession
 from cataclysm.trends import SessionSnapshot
 
@@ -32,6 +33,7 @@ class SessionData:
     consistency: SessionConsistency | None = None
     gains: GainEstimate | None = None
     grip: GripEstimate | None = None
+    lap_tags: LapTagStore = field(default_factory=LapTagStore)
     coaching_laps: list[int] = field(default_factory=list)
     anomalous_laps: set[int] = field(default_factory=set)
 

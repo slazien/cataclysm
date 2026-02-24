@@ -125,6 +125,7 @@ async def get_lap_summaries(session_id: str) -> list[LapSummary]:
             lap_distance_m=s.lap_distance_m,
             max_speed_mps=s.max_speed_mps,
             is_clean=s.lap_number not in sd.anomalous_laps,
+            tags=sorted(sd.lap_tags.get_tags(s.lap_number)),
         )
         for s in sd.processed.lap_summaries
     ]
@@ -154,3 +155,35 @@ async def get_lap_data(session_id: str, lap_number: int) -> LapData:
         longitudinal_g=df["longitudinal_g"].tolist(),
         lap_time_s=df["lap_time_s"].tolist(),
     )
+
+
+@router.get("/{session_id}/laps/{lap_number}/tags")
+async def get_lap_tags(session_id: str, lap_number: int) -> dict[str, object]:
+    """Get tags for a specific lap."""
+    sd = session_store.get_session(session_id)
+    if sd is None:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+    if lap_number not in sd.processed.resampled_laps:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Lap {lap_number} not found in session {session_id}",
+        )
+
+    return {"lap_number": lap_number, "tags": sorted(sd.lap_tags.get_tags(lap_number))}
+
+
+@router.put("/{session_id}/laps/{lap_number}/tags")
+async def set_lap_tags(session_id: str, lap_number: int, tags: list[str]) -> dict[str, object]:
+    """Set tags for a specific lap."""
+    sd = session_store.get_session(session_id)
+    if sd is None:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+    if lap_number not in sd.processed.resampled_laps:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Lap {lap_number} not found in session {session_id}",
+        )
+
+    # Clear existing tags and set new ones
+    sd.lap_tags.tags[lap_number] = set(tags)
+    return {"lap_number": lap_number, "tags": sorted(tags)}

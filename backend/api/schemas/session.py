@@ -36,6 +36,7 @@ class LapSummary(BaseModel):
     lap_distance_m: float
     max_speed_mps: float
     is_clean: bool = True
+    tags: list[str] = []
 
 
 class LapData(BaseModel):

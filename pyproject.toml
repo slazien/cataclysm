@@ -15,6 +15,8 @@ dependencies = [
     "pandas>=2.1",
     "anthropic>=0.40",
     "ruptures>=1.1",
+    "fpdf2>=2.7",
+    "kaleido>=0.2",
 ]
 
 [project.optional-dependencies]
@@ -56,6 +58,10 @@ module = [
     "anthropic.*",
     "ruptures",
     "ruptures.*",
+    "fpdf",
+    "fpdf.*",
+    "kaleido",
+    "kaleido.*",
 ]
 ignore_missing_imports = true
 

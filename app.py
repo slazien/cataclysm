@@ -52,8 +52,14 @@ from cataclysm.gains import (
     reconstruct_ideal_lap,
 )
 from cataclysm.grip import GripEstimate, estimate_grip_limit
+from cataclysm.lap_tags import (
+    EXCLUDE_FROM_COACHING,
+    PREDEFINED_TAGS,
+    LapTagStore,
+)
 from cataclysm.optimal_comparison import OptimalComparisonResult, compare_with_optimal
 from cataclysm.parser import ParsedSession, parse_racechrono_csv
+from cataclysm.pdf_report import ReportContent, generate_pdf
 from cataclysm.track_db import locate_official_corners, lookup_track
 from cataclysm.trends import (
     SessionSnapshot,
@@ -320,6 +326,33 @@ skill_level = st.sidebar.selectbox(
 )
 
 # ---------------------------------------------------------------------------
+# Lap Tags
+# ---------------------------------------------------------------------------
+st.sidebar.markdown("---")
+st.sidebar.header("Lap Tags")
+
+tag_store_key = f"tags_{file_key}"
+if tag_store_key not in st.session_state:
+    st.session_state[tag_store_key] = LapTagStore()
+tag_store: LapTagStore = st.session_state[tag_store_key]
+
+_tag_all_laps = sorted(processed.resampled_laps.keys())
+with st.sidebar.expander("Tag Laps", expanded=False):
+    for _tag_lap_num in _tag_all_laps:
+        current_tags = sorted(tag_store.get_tags(_tag_lap_num))
+        new_tags = st.multiselect(
+            f"L{_tag_lap_num}",
+            options=PREDEFINED_TAGS,
+            default=current_tags,
+            key=f"tags_L{_tag_lap_num}_{file_key}",
+        )
+        # Sync tags
+        for _t in set(new_tags) - tag_store.get_tags(_tag_lap_num):
+            tag_store.add_tag(_tag_lap_num, _t)
+        for _t in tag_store.get_tags(_tag_lap_num) - set(new_tags):
+            tag_store.remove_tag(_tag_lap_num, _t)
+
+# ---------------------------------------------------------------------------
 # Detect corners on best lap
 # ---------------------------------------------------------------------------
 best_lap_df = processed.resampled_laps[processed.best_lap]
@@ -343,7 +376,10 @@ anomalous = find_anomalous_laps(summaries)
 all_laps = sorted(processed.resampled_laps.keys())
 # Exclude first/last laps (in-lap and out-lap) plus statistical anomalies
 in_out_laps = {all_laps[0], all_laps[-1]} if len(all_laps) >= 2 else set()
-coaching_laps = [n for n in all_laps if n not in anomalous and n not in in_out_laps]
+tag_excluded = tag_store.excluded_laps()
+coaching_laps = [
+    n for n in all_laps if n not in anomalous and n not in in_out_laps and n not in tag_excluded
+]
 
 
 @st.cache_data(show_spinner="Extracting corner data...")
@@ -603,7 +639,7 @@ with tab_coaching:
 
     st.caption(f"Analyzes all {len(all_laps)} laps across {len(corners)} detected corners.")
 
-    excluded_all = sorted(anomalous | in_out_laps)
+    excluded_all = sorted(anomalous | in_out_laps | tag_excluded)
     if excluded_all:
         parts: list[str] = []
         if in_out_laps:
@@ -613,10 +649,19 @@ with tab_coaching:
         if anom_only:
             ao = ", ".join(f"L{n}" for n in anom_only)
             parts.append(f"anomalous: {ao}")
+        tag_only = sorted(tag_excluded - anomalous - in_out_laps)
+        if tag_only:
+            tl = ", ".join(f"L{n}" for n in tag_only)
+            tags_detail = ", ".join(sorted(EXCLUDE_FROM_COACHING))
+            parts.append(f"tagged ({tags_detail}): {tl}")
         st.info(f"Excluding from analysis — {'; '.join(parts)}")
 
     coaching_summaries = [
-        s for s in summaries if s.lap_number not in anomalous and s.lap_number not in in_out_laps
+        s
+        for s in summaries
+        if s.lap_number not in anomalous
+        and s.lap_number not in in_out_laps
+        and s.lap_number not in tag_excluded
     ]
 
     # --- Estimated Time Gains (deterministic, no API key needed) ---
@@ -931,6 +976,53 @@ with tab_coaching:
             st.caption("Specific exercises for your next session:")
             for i, drill in enumerate(report.drills, 1):
                 st.markdown(f"**{i}.** {drill}")
+
+        # PDF Export
+        st.markdown("---")
+
+        @st.cache_data(show_spinner="Generating PDF...")
+        def cached_pdf(
+            _key: str,
+            _track_name: str,
+            _session_date: str,
+            _best_lap: int,
+            _best_time: float,
+            _n_laps: int,
+            _summaries: object,
+            _report: object,
+        ) -> bytes:
+            pdf_content = ReportContent(
+                track_name=_track_name,
+                session_date=_session_date,
+                best_lap_number=_best_lap,
+                best_lap_time_s=_best_time,
+                n_laps=_n_laps,
+                summaries=summaries,
+                report=report,
+                lap_times_fig=lap_times_chart(summaries),
+            )
+            return generate_pdf(pdf_content)
+
+        pdf_bytes = cached_pdf(
+            f"{file_key}_pdf_{id(report)}",
+            meta.track_name,
+            meta.session_date,
+            processed.best_lap,
+            best_summary.lap_time_s,
+            len(summaries),
+            summaries,
+            report,
+        )
+
+        st.download_button(
+            "Download PDF Report",
+            data=pdf_bytes,
+            file_name=(
+                f"cataclysm_{meta.track_name.replace(' ', '_')}"
+                f"_{meta.session_date.replace('/', '-')}.pdf"
+            ),
+            mime="application/pdf",
+        )
 
         # Chat follow-up
         st.markdown("---")
