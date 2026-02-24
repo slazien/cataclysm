@@ -14,7 +14,7 @@ export interface LapSummary {
   lap_number: number;
   lap_time_s: number;
   is_clean: boolean;
-  distance_m: number;
+  lap_distance_m: number;
   max_speed_mps: number;
 }
 
@@ -106,9 +106,9 @@ export interface CornerKPI {
 }
 
 export interface TrackFolder {
-  name: string;
+  folder: string;
   path: string;
-  csv_count: number;
+  n_files: number;
 }
 
 // --- Coaching Types ---

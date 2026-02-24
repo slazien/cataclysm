@@ -190,6 +190,21 @@ All of these must pass before committing:
 - Mock external APIs (Claude API) to keep tests fast and deterministic
 - Run `pytest --cov=cataclysm --cov-report=term-missing` to find untested lines and fill gaps
 
+## Frontend QA Testing
+
+**Always QA test frontend changes before marking them done.** Backend unit tests alone are not enough — the frontend must be functional and visually correct.
+
+- After implementing frontend changes, use a browser automation agent (Playwright MCP) to verify every affected tab and interaction
+- Check all tabs render without errors (no blank screens, no console errors, no "No data available" when data exists)
+- Verify data flows end-to-end: upload CSVs → session appears in sidebar → all tabs show correct data
+- Fix all critical and major bugs before committing — don't leave broken UI for the user to discover
+- Common failure modes to check:
+  - API response envelope mismatches (backend wraps data in `{session_id, data: {...}}` — frontend must unwrap)
+  - Type/field name mismatches between backend responses and frontend TypeScript types
+  - Charts rendering with empty or undefined data
+  - File upload edge cases (large files, multiple files)
+- The frontend should be beautiful and provide great UX — not just "technically working"
+
 ## Workflow
 
 - Always ask all clarifying questions before making assumptions

@@ -63,14 +63,20 @@ export async function getLapData(id: string, lap: number) {
   return fetchApi<LapData>(`/api/sessions/${id}/laps/${lap}/data`);
 }
 
+// Backend returns { session_id, lap_number, corners: [...] }
 export async function getCorners(id: string) {
-  return fetchApi<Corner[]>(`/api/sessions/${id}/corners`);
+  const resp = await fetchApi<{ corners: Corner[] }>(
+    `/api/sessions/${id}/corners`,
+  );
+  return resp.corners;
 }
 
+// Backend returns { session_id, laps: { "1": [...], "3": [...] } }
 export async function getAllLapCorners(id: string) {
-  return fetchApi<Record<string, Corner[]>>(
+  const resp = await fetchApi<{ laps: Record<string, Corner[]> }>(
     `/api/sessions/${id}/corners/all-laps`,
   );
+  return resp.laps;
 }
 
 export async function getDelta(id: string, ref: number, comp: number) {
@@ -79,16 +85,28 @@ export async function getDelta(id: string, ref: number, comp: number) {
   );
 }
 
+// Backend returns { session_id, data: { lap_consistency, corner_consistency, track_position } }
 export async function getConsistency(id: string) {
-  return fetchApi<SessionConsistency>(`/api/sessions/${id}/consistency`);
+  const resp = await fetchApi<{ data: SessionConsistency }>(
+    `/api/sessions/${id}/consistency`,
+  );
+  return resp.data;
 }
 
+// Backend returns { session_id, data: {...} }
 export async function getGains(id: string) {
-  return fetchApi<Record<string, unknown>>(`/api/sessions/${id}/gains`);
+  const resp = await fetchApi<{ data: Record<string, unknown> }>(
+    `/api/sessions/${id}/gains`,
+  );
+  return resp.data;
 }
 
+// Backend returns { session_id, data: {...} }
 export async function getGrip(id: string) {
-  return fetchApi<Record<string, unknown>>(`/api/sessions/${id}/grip`);
+  const resp = await fetchApi<{ data: Record<string, unknown> }>(
+    `/api/sessions/${id}/grip`,
+  );
+  return resp.data;
 }
 
 export async function deleteSession(id: string) {

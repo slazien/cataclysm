@@ -7,6 +7,7 @@ import SpeedTraceTab from "@/components/tabs/SpeedTraceTab";
 import CornersTab from "@/components/tabs/CornersTab";
 import CoachingTab from "@/components/tabs/CoachingTab";
 import TrendsTab from "@/components/tabs/TrendsTab";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { useUiStore } from "@/store";
 
 function TabContent() {
@@ -45,7 +46,9 @@ export default function Home() {
         <TabBar />
 
         <div className="flex-1 overflow-y-auto p-4 lg:p-6">
-          <TabContent />
+          <ErrorBoundary>
+            <TabContent />
+          </ErrorBoundary>
         </div>
       </main>
     </div>

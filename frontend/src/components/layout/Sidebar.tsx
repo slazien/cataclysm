@@ -136,7 +136,7 @@ export default function Sidebar() {
                   </option>
                   {tracks.map((t) => (
                     <option key={t.path} value={t.path}>
-                      {t.name} ({t.csv_count} files)
+                      {t.folder} ({t.n_files} files)
                     </option>
                   ))}
                 </select>
