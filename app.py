@@ -68,6 +68,25 @@ st.title("Cataclysm")
 st.caption("Post-session telemetry analysis & AI coaching")
 
 
+SESSION_DATA_DIR = "data/session"
+
+
+def _discover_track_folders() -> dict[str, str]:
+    """Scan SESSION_DATA_DIR for track subdirectories.
+
+    Returns a dict of {display_name: folder_path}.
+    """
+    if not os.path.isdir(SESSION_DATA_DIR):
+        return {}
+    folders: dict[str, str] = {}
+    for entry in sorted(os.listdir(SESSION_DATA_DIR)):
+        full = os.path.join(SESSION_DATA_DIR, entry)
+        if os.path.isdir(full):
+            display = entry.replace("_", " ").title()
+            folders[display] = full
+    return folders
+
+
 # ---------------------------------------------------------------------------
 # Session loading
 # ---------------------------------------------------------------------------
@@ -89,13 +108,18 @@ def cached_process(file_key: str, _source: object) -> tuple[ParsedSession, Proce
 # Sidebar: session management
 st.sidebar.header("Sessions")
 
-MAX_SESSIONS = 5
-
 # Initialize session registry
 if "session_registry" not in st.session_state:
     st.session_state["session_registry"] = {}
 
 registry: dict[str, SessionSnapshot] = st.session_state["session_registry"]
+
+# Track folder selector
+track_folders = _discover_track_folders()
+selected_track: str | None = None
+if track_folders:
+    track_options = ["— Select a track —", *track_folders.keys()]
+    selected_track = st.sidebar.selectbox("Load saved track", track_options, key="track_folder")
 
 # Multi-file upload
 uploaded_files = st.sidebar.file_uploader(
@@ -105,14 +129,22 @@ uploaded_files = st.sidebar.file_uploader(
     key="csv_upload",
 )
 
-# Only process explicitly uploaded files (no auto-loading on startup)
+# Collect sources: track folder CSVs + uploaded files
 all_sources: list[tuple[str, object]] = []
+
+if selected_track and selected_track != "— Select a track —":
+    folder_path = track_folders[selected_track]
+    for fname in sorted(os.listdir(folder_path)):
+        if fname.lower().endswith(".csv"):
+            full_path = os.path.join(folder_path, fname)
+            all_sources.append((fname, full_path))
+
 for f in uploaded_files or []:
     all_sources.append((f.name, f))
 
-# Process new sessions (up to MAX_SESSIONS)
+# Process new sessions
 for src_file_key, source in all_sources:
-    if src_file_key in registry or len(registry) >= MAX_SESSIONS:
+    if src_file_key in registry:
         continue
     try:
         parsed_i, processed_i = cached_process(src_file_key, source)
@@ -193,7 +225,7 @@ if registry:
 
 # Active session selector
 if not registry:
-    st.info("Upload a RaceChrono CSV v3 file or select an existing session to get started.")
+    st.info("Select a saved track or upload RaceChrono CSV v3 files to get started.")
     st.stop()
 
 active_key = st.sidebar.selectbox(
