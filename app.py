@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import os
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import numpy as np
 import streamlit as st
@@ -90,29 +91,97 @@ def _discover_track_folders() -> dict[str, str]:
 # ---------------------------------------------------------------------------
 # Session loading
 # ---------------------------------------------------------------------------
-def _load_session(
+
+
+def _build_snapshot_from_file(
+    file_key: str,
     source: str | object,
-) -> tuple[ParsedSession, ProcessedSession]:
-    """Parse and process a session from file path or uploaded file."""
-    parsed = parse_racechrono_csv(source)  # type: ignore[arg-type]
-    processed = process_session(parsed.data)
-    return parsed, processed
+) -> tuple[str, SessionSnapshot, ParsedSession, ProcessedSession] | None:
+    """Run the full pipeline for a single session file (process-safe).
+
+    Returns ``(file_key, snapshot, parsed, processed)`` or *None* on failure.
+    """
+    try:
+        parsed = parse_racechrono_csv(source)  # type: ignore[arg-type]
+        processed = process_session(parsed.data)
+    except Exception:
+        return None
+
+    summaries = processed.lap_summaries
+    anomalous = find_anomalous_laps(summaries)
+    all_laps = sorted(processed.resampled_laps.keys())
+    in_out = {all_laps[0], all_laps[-1]} if len(all_laps) >= 2 else set()
+    coaching_laps = [n for n in all_laps if n not in anomalous and n not in in_out]
+
+    if len(coaching_laps) < 2:
+        return None
+
+    best_lap_df = processed.resampled_laps[processed.best_lap]
+    layout = lookup_track(parsed.metadata.track_name)
+    if layout is not None:
+        skeletons = locate_official_corners(best_lap_df, layout)
+        corners = extract_corner_kpis_for_lap(best_lap_df, skeletons)
+    else:
+        corners = detect_corners(best_lap_df)
+
+    all_lap_corners: AllLapCorners = {}
+    for lap_num in coaching_laps:
+        lap_df = processed.resampled_laps[lap_num]
+        if lap_num == processed.best_lap:
+            all_lap_corners[lap_num] = corners
+        else:
+            all_lap_corners[lap_num] = extract_corner_kpis_for_lap(lap_df, corners)
+
+    consistency = compute_session_consistency(
+        summaries,
+        all_lap_corners,
+        processed.resampled_laps,
+        processed.best_lap,
+        anomalous,
+    )
+
+    gains: GainEstimate | None = None
+    with contextlib.suppress(ValueError):
+        gains = estimate_gains(
+            processed.resampled_laps,
+            corners,
+            summaries,
+            coaching_laps,
+            processed.best_lap,
+        )
+
+    snap = build_session_snapshot(
+        metadata=parsed.metadata,
+        summaries=summaries,
+        lap_consistency=consistency.lap_consistency,
+        corner_consistency=consistency.corner_consistency,
+        gains=gains,
+        all_lap_corners=all_lap_corners,
+        anomalous_laps=anomalous | in_out,
+        file_key=file_key,
+    )
+    return file_key, snap, parsed, processed
 
 
-# Cache processing per file
+# Cache the heavy per-file work (parse + full pipeline)
 @st.cache_data(show_spinner="Processing session...")
 def cached_process(file_key: str, _source: object) -> tuple[ParsedSession, ProcessedSession]:
-    return _load_session(_source)
+    parsed = parse_racechrono_csv(_source)  # type: ignore[arg-type]
+    processed = process_session(parsed.data)
+    return parsed, processed
 
 
 # Sidebar: session management
 st.sidebar.header("Sessions")
 
-# Initialize session registry
+# Initialize session registry and source map
 if "session_registry" not in st.session_state:
     st.session_state["session_registry"] = {}
+if "source_map" not in st.session_state:
+    st.session_state["source_map"] = {}
 
 registry: dict[str, SessionSnapshot] = st.session_state["session_registry"]
+source_map: dict[str, str] = st.session_state["source_map"]  # file_key → full path
 
 # Track folder selector
 track_folders = _discover_track_folders()
@@ -142,72 +211,35 @@ if selected_track and selected_track != "— Select a track —":
 for f in uploaded_files or []:
     all_sources.append((f.name, f))
 
-# Process new sessions
-for src_file_key, source in all_sources:
-    if src_file_key in registry:
-        continue
-    try:
-        parsed_i, processed_i = cached_process(src_file_key, source)
-    except Exception:
-        continue
-    # Build snapshot (lightweight -- only needs pipeline outputs)
-    summaries_i = processed_i.lap_summaries
-    anomalous_i = find_anomalous_laps(summaries_i)
-    all_laps_i = sorted(processed_i.resampled_laps.keys())
-    in_out_i = {all_laps_i[0], all_laps_i[-1]} if len(all_laps_i) >= 2 else set()
-    coaching_laps_i = [n for n in all_laps_i if n not in anomalous_i and n not in in_out_i]
+# Process new sessions (parallel for file paths, sequential for uploads)
+new_sources = [(k, s) for k, s in all_sources if k not in registry]
 
-    if len(coaching_laps_i) < 2:
-        continue
+# Split into file-path sources (parallelisable) and upload objects (sequential)
+path_sources: dict[str, str] = {k: s for k, s in new_sources if isinstance(s, str)}
+upload_sources = [(k, s) for k, s in new_sources if not isinstance(s, str)]
 
-    # Detect corners on best lap
-    best_lap_df_i = processed_i.resampled_laps[processed_i.best_lap]
-    layout_i = lookup_track(parsed_i.metadata.track_name)
-    if layout_i is not None:
-        skeletons_i = locate_official_corners(best_lap_df_i, layout_i)
-        corners_i = extract_corner_kpis_for_lap(best_lap_df_i, skeletons_i)
-    else:
-        corners_i = detect_corners(best_lap_df_i)
+if path_sources:
+    n_workers = min(len(path_sources), os.cpu_count() or 4)
+    with (
+        st.spinner(f"Processing {len(path_sources)} sessions..."),
+        ProcessPoolExecutor(max_workers=n_workers) as pool,
+    ):
+        futures = {
+            pool.submit(_build_snapshot_from_file, fk, src): fk for fk, src in path_sources.items()
+        }
+        for future in as_completed(futures):
+            result = future.result()
+            if result is not None:
+                fk, snap, _parsed, _processed = result
+                registry[fk] = snap
+                source_map[fk] = path_sources[fk]
 
-    # Extract corners for all laps
-    all_lap_corners_i: AllLapCorners = {}
-    for lap_num in coaching_laps_i:
-        lap_df_i = processed_i.resampled_laps[lap_num]
-        if lap_num == processed_i.best_lap:
-            all_lap_corners_i[lap_num] = corners_i
-        else:
-            all_lap_corners_i[lap_num] = extract_corner_kpis_for_lap(lap_df_i, corners_i)
-
-    consistency_i = compute_session_consistency(
-        summaries_i,
-        all_lap_corners_i,
-        processed_i.resampled_laps,
-        processed_i.best_lap,
-        anomalous_i,
-    )
-
-    # Gains (optional)
-    gains_i: GainEstimate | None = None
-    with contextlib.suppress(ValueError):
-        gains_i = estimate_gains(
-            processed_i.resampled_laps,
-            corners_i,
-            summaries_i,
-            coaching_laps_i,
-            processed_i.best_lap,
-        )
-
-    snap = build_session_snapshot(
-        metadata=parsed_i.metadata,
-        summaries=summaries_i,
-        lap_consistency=consistency_i.lap_consistency,
-        corner_consistency=consistency_i.corner_consistency,
-        gains=gains_i,
-        all_lap_corners=all_lap_corners_i,
-        anomalous_laps=anomalous_i | in_out_i,
-        file_key=src_file_key,
-    )
-    registry[src_file_key] = snap
+# Uploaded file objects can't be pickled — process sequentially
+for src_file_key, source in upload_sources:
+    result = _build_snapshot_from_file(src_file_key, source)
+    if result is not None:
+        fk, snap, _parsed, _processed = result
+        registry[fk] = snap
 
 # Session count and remove buttons
 if registry:
@@ -218,9 +250,11 @@ if registry:
         col_name.caption(f"{snap_entry.metadata.track_name} — {snap_entry.metadata.session_date}")
         if col_rm.button("X", key=f"rm_{fk}"):
             del registry[fk]
+            source_map.pop(fk, None)
             st.rerun()
     if len(registry) >= 2 and st.sidebar.button("Remove all"):
         registry.clear()
+        source_map.clear()
         st.rerun()
 
 # Active session selector
@@ -238,7 +272,8 @@ active_key = st.sidebar.selectbox(
 
 # Re-load active session (cached -- no re-computation)
 file_key = active_key
-parsed, processed = cached_process(file_key, file_key)
+session_source: str | object = source_map.get(file_key, file_key)
+parsed, processed = cached_process(file_key, session_source)
 
 # ---------------------------------------------------------------------------
 # Session overview
