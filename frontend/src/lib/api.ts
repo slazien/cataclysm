@@ -63,6 +63,12 @@ export async function getCorners(id: string) {
   return fetchApi<Corner[]>(`/api/sessions/${id}/corners`);
 }
 
+export async function getAllLapCorners(id: string) {
+  return fetchApi<Record<string, Corner[]>>(
+    `/api/sessions/${id}/corners/all-laps`,
+  );
+}
+
 export async function getDelta(id: string, ref: number, comp: number) {
   return fetchApi<DeltaData>(
     `/api/sessions/${id}/delta?ref=${ref}&comp=${comp}`,

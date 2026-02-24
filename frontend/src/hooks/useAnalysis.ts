@@ -1,13 +1,21 @@
 "use client";
 
 import { useQuery, useQueries } from "@tanstack/react-query";
-import { getCorners, getConsistency, getGains, getGrip, getDelta, getLapData } from "@/lib/api";
+import { getCorners, getAllLapCorners, getConsistency, getGains, getGrip, getDelta, getLapData } from "@/lib/api";
 import type { Corner, SessionConsistency, DeltaData, LapData } from "@/lib/types";
 
 export function useCorners(sessionId: string | null) {
   return useQuery<Corner[]>({
     queryKey: ["corners", sessionId],
     queryFn: () => getCorners(sessionId!),
+    enabled: !!sessionId,
+  });
+}
+
+export function useAllLapCorners(sessionId: string | null) {
+  return useQuery<Record<string, Corner[]>>({
+    queryKey: ["all-lap-corners", sessionId],
+    queryFn: () => getAllLapCorners(sessionId!),
     enabled: !!sessionId,
   });
 }

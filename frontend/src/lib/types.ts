@@ -93,6 +93,18 @@ export interface DeltaData {
   corner_deltas: CornerDelta[];
 }
 
+export interface CornerKPI {
+  number: number;
+  apex_type: string;
+  min_speed_mph: number;
+  brake_point_m: number | null;
+  peak_brake_g: number | null;
+  throttle_commit_m: number | null;
+  entry_distance_m: number;
+  exit_distance_m: number;
+  apex_distance_m: number;
+}
+
 export interface TrackFolder {
   name: string;
   path: string;

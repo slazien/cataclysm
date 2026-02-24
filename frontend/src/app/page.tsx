@@ -4,6 +4,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import TabBar from "@/components/layout/TabBar";
 import OverviewTab from "@/components/tabs/OverviewTab";
 import SpeedTraceTab from "@/components/tabs/SpeedTraceTab";
+import CornersTab from "@/components/tabs/CornersTab";
 import { useUiStore } from "@/store";
 
 function TabContent() {
@@ -15,11 +16,7 @@ function TabContent() {
     case "speed-trace":
       return <SpeedTraceTab />;
     case "corners":
-      return (
-        <div className="flex items-center justify-center py-20 text-[var(--text-muted)]">
-          Corners tab coming soon
-        </div>
-      );
+      return <CornersTab />;
     case "coaching":
       return (
         <div className="flex items-center justify-center py-20 text-[var(--text-muted)]">
