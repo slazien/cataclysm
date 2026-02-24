@@ -1,5 +1,13 @@
 # CLAUDE.md
 
+## Project Context
+
+Motorsport telemetry analysis and AI coaching platform (Python + Streamlit + Next.js/FastAPI). Primary language is Python. Use Python idioms and tooling by default.
+
+## Communication Style
+
+Before implementing changes, ask clarifying questions rather than writing long inline markdown plans. Be concise and action-oriented.
+
 ## Workflow Orchestration
 
 ### 1. Plan Mode Default
@@ -209,7 +217,19 @@ All of these must pass before committing:
 
 - Always ask all clarifying questions before making assumptions
 - Use agent teams wherever possible for parallel work
-- Always commit and push after making changes — the app is deployed on Streamlit Cloud and serves from the remote branch.
+- Always commit and push after making changes — the app is deployed on Streamlit Cloud and serves from the remote branch. Do not wait to be asked.
+
+## Git & GitHub
+
+- When asked to push to GitHub, confirm the correct remote URL first. The personal repo is on github.com, NOT github.intuit.com.
+
+## File Operations
+
+- When creating zip/compressed archives, exclude files over 50MB (especially model checkpoints, .pt, .bin files) and use Python's zipfile module as fallback since zip may not be installed.
+
+## Code Review
+
+- When exploring or reviewing code, verify you are analyzing the correct directory. Check for nested/scaffold copies and confirm the production code path before reporting findings.
 
 ## Environment
 
