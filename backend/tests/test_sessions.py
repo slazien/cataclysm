@@ -52,7 +52,7 @@ async def test_upload_invalid_file(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_list_sessions_empty(client: AsyncClient) -> None:
     """GET /api/sessions/ on empty store returns empty list."""
-    response = await client.get("/api/sessions/")
+    response = await client.get("/api/sessions")
     assert response.status_code == 200
     data = response.json()
     assert data["items"] == []
@@ -68,7 +68,7 @@ async def test_list_sessions_after_upload(client: AsyncClient, synthetic_csv_byt
     )
     session_id = upload_resp.json()["session_ids"][0]
 
-    response = await client.get("/api/sessions/")
+    response = await client.get("/api/sessions")
     assert response.status_code == 200
     data = response.json()
     assert data["total"] >= 1
@@ -208,5 +208,5 @@ async def test_delete_all_sessions(client: AsyncClient, synthetic_csv_bytes: byt
     del_resp = await client.delete("/api/sessions/all/clear")
     assert del_resp.status_code == 200
 
-    list_resp = await client.get("/api/sessions/")
+    list_resp = await client.get("/api/sessions")
     assert list_resp.json()["total"] == 0

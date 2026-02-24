@@ -24,7 +24,7 @@ async def test_list_track_folders_empty(client: AsyncClient, tmp_path: Path) -> 
     empty_dir.mkdir()
     app.dependency_overrides[get_settings] = lambda: _override_settings(str(empty_dir))
     try:
-        response = await client.get("/api/tracks/")
+        response = await client.get("/api/tracks")
         assert response.status_code == 200
         assert response.json() == []
     finally:
@@ -40,7 +40,7 @@ async def test_list_track_folders_with_data(client: AsyncClient, tmp_path: Path)
 
     app.dependency_overrides[get_settings] = lambda: _override_settings(str(tmp_path))
     try:
-        response = await client.get("/api/tracks/")
+        response = await client.get("/api/tracks")
         assert response.status_code == 200
         folders = response.json()
         assert len(folders) == 1

@@ -54,7 +54,7 @@ async def upload_sessions(
     return UploadResponse(session_ids=session_ids, message=msg)
 
 
-@router.get("/", response_model=SessionList)
+@router.get("", response_model=SessionList)
 async def list_sessions() -> SessionList:
     """List all stored sessions ordered by date descending."""
     all_sessions = session_store.list_sessions()

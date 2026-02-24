@@ -28,7 +28,7 @@ async def _upload_session(
 @pytest.mark.asyncio
 async def test_list_track_folders(client: AsyncClient) -> None:
     """GET /api/tracks/ returns a list (may be empty if no data dir)."""
-    response = await client.get("/api/tracks/")
+    response = await client.get("/api/tracks")
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 

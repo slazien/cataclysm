@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/")
+@router.get("")
 async def list_track_folders(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> list[dict[str, object]]:

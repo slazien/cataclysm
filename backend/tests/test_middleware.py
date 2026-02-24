@@ -17,7 +17,7 @@ async def test_health_has_cache_control(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_sessions_list_cache_control(client: AsyncClient) -> None:
     """GET /api/sessions/ should be cacheable (max-age=60) since it matches /api/sessions/."""
-    response = await client.get("/api/sessions/")
+    response = await client.get("/api/sessions")
     assert response.status_code == 200
     assert "cache-control" in response.headers
 
@@ -25,7 +25,7 @@ async def test_sessions_list_cache_control(client: AsyncClient) -> None:
 @pytest.mark.asyncio
 async def test_tracks_cache_control(client: AsyncClient) -> None:
     """GET /api/tracks/ should have a long cache (max-age=3600)."""
-    response = await client.get("/api/tracks/")
+    response = await client.get("/api/tracks")
     assert response.status_code == 200
     assert response.headers.get("cache-control") == "max-age=3600"
 

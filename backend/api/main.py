@@ -37,6 +37,7 @@ app = FastAPI(
     description="Motorsport telemetry analysis and AI coaching",
     version="0.1.0",
     lifespan=lifespan,
+    redirect_slashes=False,
 )
 
 

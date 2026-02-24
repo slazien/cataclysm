@@ -35,10 +35,10 @@ services:
     build:
       context: ./frontend
       dockerfile: ../Dockerfile.frontend
+      args:
+        BACKEND_URL: http://backend:8000
     ports:
       - "3000:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: http://backend:8000
     depends_on:
       - backend
 

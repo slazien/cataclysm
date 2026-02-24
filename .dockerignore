@@ -1,0 +1,17 @@
+.venv
+.git
+.github
+.claude
+.mypy_cache
+.pytest_cache
+.ruff_cache
+__pycache__
+node_modules
+frontend/node_modules
+frontend/.next
+data
+*.egg-info
+*.pyc
+.env
+.coverage
+htmlcov
