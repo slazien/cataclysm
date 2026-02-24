@@ -694,6 +694,21 @@ class TestCornerTrendChart:
         if n_corners > 0:
             assert len(fig.data) >= n_corners
 
+    def test_has_trendlines(self, sample_trend: TrendAnalysis) -> None:
+        fig = corner_trend_chart(sample_trend)
+        n_corners = len(sample_trend.corner_min_speed_trends)
+        if n_corners > 0:
+            # Each corner with ≥2 data points gets a data trace + a dashed trendline
+            dashed = [t for t in fig.data if getattr(t.line, "dash", None) == "dash"]
+            assert len(dashed) >= 1
+
+    def test_trendline_slope_annotation(self, sample_trend: TrendAnalysis) -> None:
+        fig = corner_trend_chart(sample_trend)
+        annotations = [a for a in fig.layout.annotations if "mph/sess" in (a.text or "")]
+        n_corners = len(sample_trend.corner_min_speed_trends)
+        if n_corners > 0:
+            assert len(annotations) >= 1
+
 
 class TestMilestoneSummary:
     def test_returns_list(self, sample_trend: TrendAnalysis) -> None:

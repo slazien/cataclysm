@@ -2482,6 +2482,40 @@ def corner_trend_chart(trend: TrendAnalysis) -> go.Figure:
             col=col,
         )
 
+        # Linear trendline with slope annotation
+        valid = [(i, s) for i, s in enumerate(speeds) if s is not None]
+        if len(valid) >= 2:
+            x_idx = np.array([v[0] for v in valid], dtype=float)
+            y_val = np.array([v[1] for v in valid], dtype=float)
+            coeffs = np.polyfit(x_idx, y_val, 1)
+            slope = float(coeffs[0])
+            trend_y = [float(np.polyval(coeffs, i)) for i in range(len(dates))]
+            sign = "+" if slope >= 0 else ""
+            fig.add_trace(
+                go.Scatter(
+                    x=dates,
+                    y=trend_y,
+                    mode="lines",
+                    line={"color": "rgba(255,255,255,0.35)", "width": 1.5, "dash": "dash"},
+                    showlegend=False,
+                    hoverinfo="skip",
+                ),
+                row=row,
+                col=col,
+            )
+            # Place slope label at the last trendline point
+            fig.add_annotation(
+                x=dates[-1],
+                y=trend_y[-1],
+                text=f"{sign}{slope:.1f} mph/sess",
+                showarrow=False,
+                font={"size": 10, "color": "#aaa"},
+                xanchor="right",
+                yshift=12,
+                row=row,
+                col=col,
+            )
+
     fig.update_layout(
         title=f"Corner Min Speed Trends — {trend.track_name}",
         height=max(300, 250 * n_rows),

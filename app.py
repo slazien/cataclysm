@@ -26,6 +26,7 @@ from cataclysm.charts import (
     lap_times_chart,
     linked_speed_map_html,
     milestone_summary,
+    optimal_gap_chart,
     session_comparison_box_chart,
     track_consistency_map,
     track_median_speed_map,
@@ -40,6 +41,7 @@ from cataclysm.corners import (
     detect_corners,
     extract_corner_kpis_for_lap,
 )
+from cataclysm.curvature import compute_curvature
 from cataclysm.delta import compute_delta
 from cataclysm.engine import ProcessedSession, find_anomalous_laps, process_session
 from cataclysm.gains import (
@@ -50,12 +52,18 @@ from cataclysm.gains import (
     reconstruct_ideal_lap,
 )
 from cataclysm.grip import GripEstimate, estimate_grip_limit
+from cataclysm.optimal_comparison import OptimalComparisonResult, compare_with_optimal
 from cataclysm.parser import ParsedSession, parse_racechrono_csv
 from cataclysm.track_db import locate_official_corners, lookup_track
 from cataclysm.trends import (
     SessionSnapshot,
     build_session_snapshot,
     compute_trend_analysis,
+)
+from cataclysm.velocity_profile import (
+    OptimalProfile,
+    VehicleParams,
+    compute_optimal_profile,
 )
 
 # Type alias for readability
@@ -739,6 +747,79 @@ with tab_coaching:
     else:
         st.info("Need at least 2 clean laps to estimate gains.")
 
+    # --- Physics-Optimal Velocity Profile ---
+    optimal_comparison: OptimalComparisonResult | None = None
+    _optimal_profile: OptimalProfile | None = None
+
+    @st.cache_data(show_spinner="Computing optimal velocity profile...")
+    def cached_optimal(
+        _key: str,
+        _lap_df: object,
+        _corners: object,
+        _grip: object,
+    ) -> tuple[OptimalComparisonResult, OptimalProfile] | None:
+        try:
+            curvature_result = compute_curvature(best_lap_df)
+            # Build vehicle params from grip estimate
+            max_speed = float(np.max(best_lap_df["speed_mps"].to_numpy()))
+            params = VehicleParams(
+                mu=grip_estimate.speed_model.base_grip_g,
+                max_accel_g=min(
+                    grip_estimate.composite_max_g * 0.5,
+                    0.6,
+                ),
+                max_decel_g=min(
+                    grip_estimate.composite_max_g,
+                    1.2,
+                ),
+                max_lateral_g=grip_estimate.composite_max_g,
+                top_speed_mps=max_speed * 1.05,
+            )
+            profile = compute_optimal_profile(curvature_result, params)
+            comparison = compare_with_optimal(
+                best_lap_df,
+                corners,
+                profile,  # type: ignore[arg-type]
+            )
+            return comparison, profile
+        except Exception:
+            return None
+
+    if len(coaching_laps) >= 2:
+        _optimal_result = cached_optimal(
+            f"{file_key}_optimal",
+            best_lap_df,
+            corners,
+            grip_estimate,
+        )
+        if _optimal_result is not None:
+            optimal_comparison, _optimal_profile = _optimal_result
+
+        if optimal_comparison is not None:
+            st.markdown("---")
+            st.subheader("Physics-Optimal Analysis")
+            o1, o2, o3 = st.columns(3)
+            o1.metric(
+                "Optimal Lap",
+                f"{optimal_comparison.optimal_lap_time_s:.2f}s",
+                help="Physics-limited fastest possible lap time",
+            )
+            o2.metric(
+                "Your Best",
+                f"{optimal_comparison.actual_lap_time_s:.2f}s",
+            )
+            o3.metric(
+                "Gap",
+                f"{optimal_comparison.total_gap_s:.2f}s",
+                help="Time left on the table vs physics limit",
+            )
+
+        if _optimal_profile is not None:
+            st.plotly_chart(
+                optimal_gap_chart(best_lap_df, _optimal_profile, corners),
+                use_container_width=True,
+            )
+
     # --- Generate Coaching Report ---
     # Resolve track landmarks for coaching context
     _coaching_layout = lookup_track(meta.track_name)
@@ -753,6 +834,7 @@ with tab_coaching:
                 gains=gains,
                 skill_level=skill_level,
                 landmarks=_track_landmarks or None,
+                optimal_comparison=optimal_comparison,
             )
             st.session_state["coaching_report"] = report
             st.session_state["coaching_context"] = CoachingContext()
