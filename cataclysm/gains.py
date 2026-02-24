@@ -65,6 +65,15 @@ class TheoreticalBestResult:
 
 
 @dataclass
+class PhysicsGapResult:
+    """Layer 4: gap between theoretical best and physics-optimal."""
+
+    optimal_lap_time_s: float
+    composite_time_s: float
+    gap_s: float  # composite - optimal (positive = room to improve technique)
+
+
+@dataclass
 class GainEstimate:
     """Orchestrated gain result across all three tiers."""
 
@@ -73,6 +82,7 @@ class GainEstimate:
     theoretical: TheoreticalBestResult
     clean_lap_numbers: list[int]
     best_lap_number: int
+    physics_gap: PhysicsGapResult | None = None
 
 
 def build_segments(
@@ -341,6 +351,7 @@ def estimate_gains(
     summaries: list[LapSummary],
     clean_laps: list[int],
     best_lap: int,
+    optimal_lap_time_s: float | None = None,
 ) -> GainEstimate:
     """Orchestrate all three gain tiers.
 
@@ -356,6 +367,9 @@ def estimate_gains(
         Lap numbers considered clean (non-anomalous).
     best_lap:
         The fastest lap number.
+    optimal_lap_time_s:
+        If provided, compute a Layer 4 physics gap result comparing the
+        composite time against the physics-optimal lap time.
 
     Returns
     -------
@@ -385,12 +399,21 @@ def estimate_gains(
     composite = compute_composite_gain(seg_times, segments, best_lap_time_s)
     theoretical = compute_theoretical_best(resampled_laps, clean_laps, best_lap_time_s)
 
+    physics_gap: PhysicsGapResult | None = None
+    if optimal_lap_time_s is not None:
+        physics_gap = PhysicsGapResult(
+            optimal_lap_time_s=round(optimal_lap_time_s, 4),
+            composite_time_s=round(composite.composite_time_s, 4),
+            gap_s=round(max(0.0, composite.composite_time_s - optimal_lap_time_s), 4),
+        )
+
     return GainEstimate(
         consistency=consistency,
         composite=composite,
         theoretical=theoretical,
         clean_lap_numbers=sorted(clean_laps),
         best_lap_number=best_lap,
+        physics_gap=physics_gap,
     )
 
 

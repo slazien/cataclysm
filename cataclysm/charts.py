@@ -24,6 +24,7 @@ from cataclysm.gains import (
 from cataclysm.grip import GripEstimate
 from cataclysm.landmarks import Landmark, find_landmarks_in_range
 from cataclysm.trends import TrendAnalysis
+from cataclysm.velocity_profile import OptimalProfile
 
 MPS_TO_MPH = 2.23694
 M_TO_FT = 3.28084
@@ -84,6 +85,7 @@ def speed_trace_chart(
     laps: dict[int, pd.DataFrame],
     selected_laps: list[int] | None = None,
     corners: list[Corner] | None = None,
+    optimal_profile: OptimalProfile | None = None,
 ) -> go.Figure:
     """Speed vs distance overlay for multiple laps."""
     fig = go.Figure()
@@ -101,6 +103,18 @@ def speed_trace_chart(
                 mode="lines",
                 name=f"Lap {lap_num}",
                 line={"color": _lap_color(i), "width": 1.5},
+            )
+        )
+
+    # Optimal speed overlay
+    if optimal_profile is not None:
+        fig.add_trace(
+            go.Scattergl(
+                x=optimal_profile.distance_m,
+                y=optimal_profile.optimal_speed_mps * MPS_TO_MPH,
+                mode="lines",
+                name="Optimal",
+                line={"color": "gold", "width": 2, "dash": "dash"},
             )
         )
 
@@ -126,6 +140,57 @@ def speed_trace_chart(
         height=500,
         hovermode="x unified",
         legend={"orientation": "h", "yanchor": "bottom", "y": 1.02},
+    )
+    return fig
+
+
+def optimal_gap_chart(
+    lap_df: pd.DataFrame,
+    optimal_profile: OptimalProfile,
+    corners: list[Corner] | None = None,
+) -> go.Figure:
+    """Speed delta visualization: actual vs optimal."""
+    actual_speed = np.interp(
+        optimal_profile.distance_m,
+        lap_df["lap_distance_m"].to_numpy(),
+        lap_df["speed_mps"].to_numpy(),
+    )
+    delta_mph = (optimal_profile.optimal_speed_mps - actual_speed) * MPS_TO_MPH
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scattergl(
+            x=optimal_profile.distance_m,
+            y=delta_mph,
+            mode="lines",
+            name="Speed Gap",
+            line={"color": "#EF553B", "width": 1.5},
+            fill="tozeroy",
+            fillcolor="rgba(239, 85, 59, 0.15)",
+        )
+    )
+    fig.add_hline(y=0, line_dash="dash", line_color="gray", line_width=0.5)
+
+    if corners:
+        for corner in corners:
+            fig.add_vrect(
+                x0=corner.entry_distance_m,
+                x1=corner.exit_distance_m,
+                fillcolor="rgba(128, 128, 128, 0.1)",
+                layer="below",
+                line_width=0,
+                annotation_text=f"T{corner.number}",
+                annotation_position="top left",
+                annotation_font_size=10,
+                annotation_font_color="gray",
+            )
+
+    fig.update_layout(
+        title="Speed Gap vs Optimal (positive = faster possible)",
+        xaxis_title="Distance (m)",
+        yaxis_title="Gap (mph)",
+        height=350,
+        hovermode="x unified",
     )
     return fig
 

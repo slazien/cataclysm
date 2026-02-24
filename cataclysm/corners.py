@@ -25,6 +25,12 @@ class Corner:
     brake_point_lon: float | None = None
     apex_lat: float | None = None
     apex_lon: float | None = None
+    peak_curvature: float | None = None
+    mean_curvature: float | None = None
+    direction: str | None = None  # "left" | "right" | None
+    segment_type: str | None = None  # "corner" | "transition" | None
+    parent_complex: int | None = None  # hierarchical grouping ID
+    detection_method: str | None = None  # "heading_rate" | "spline" | "pelt" | "css" | "asc"
 
 
 # Detection parameters
@@ -225,27 +231,12 @@ def _classify_apex(
     return "mid"
 
 
-def detect_corners(
+def _detect_heading_rate(
     lap_df: pd.DataFrame,
-    step_m: float = 0.7,
-    threshold: float = HEADING_RATE_THRESHOLD,
+    step_m: float,
+    threshold: float,
 ) -> list[Corner]:
-    """Detect corners in a resampled lap and extract KPIs.
-
-    Parameters
-    ----------
-    lap_df:
-        Resampled lap DataFrame with lap_distance_m, heading_deg, speed_mps,
-        longitudinal_g columns.
-    step_m:
-        Distance step used in resampling.
-    threshold:
-        Heading rate threshold for corner detection (deg/m).
-
-    Returns
-    -------
-    List of detected Corner objects, numbered sequentially.
-    """
+    """Detect corners using heading-rate thresholding (original algorithm)."""
     heading = lap_df["heading_deg"].to_numpy()
     speed = lap_df["speed_mps"].to_numpy()
     distance = lap_df["lap_distance_m"].to_numpy()
@@ -331,6 +322,149 @@ def detect_corners(
     return corners
 
 
+def _detect_advanced(
+    lap_df: pd.DataFrame,
+    step_m: float,
+    method: str,
+) -> list[Corner]:
+    """Detect corners using spline curvature + segmentation.
+
+    Methods: "spline" (uses ASC default), "pelt", "css", "asc"
+    """
+    from cataclysm.curvature import compute_curvature
+    from cataclysm.segmentation import segment_track
+
+    curvature_result = compute_curvature(lap_df, step_m=step_m)
+
+    seg_method = method if method in ("pelt", "css", "asc") else "asc"
+    seg_result = segment_track(curvature_result, method=seg_method)
+
+    # Convert segments to Corner objects
+    corners: list[Corner] = []
+    corner_num = 0
+    distance = lap_df["lap_distance_m"].to_numpy()
+    speed = lap_df["speed_mps"].to_numpy()
+    lon_g = lap_df["longitudinal_g"].to_numpy()
+    has_gps = "lat" in lap_df.columns and "lon" in lap_df.columns
+    lat_arr = lap_df["lat"].to_numpy() if has_gps else None
+    lon_arr = lap_df["lon"].to_numpy() if has_gps else None
+
+    for seg in seg_result.segments:
+        if seg.segment_type != "corner":
+            continue
+        corner_num += 1
+
+        entry_idx = int(np.searchsorted(distance, seg.entry_distance_m))
+        exit_idx = int(np.searchsorted(distance, seg.exit_distance_m))
+        entry_idx = max(0, min(entry_idx, len(speed) - 1))
+        exit_idx = max(0, min(exit_idx, len(speed) - 1))
+
+        if exit_idx <= entry_idx:
+            continue
+
+        corner_speed = speed[entry_idx:exit_idx]
+        if len(corner_speed) == 0:
+            continue
+
+        apex_local = int(np.argmin(corner_speed))
+        apex_idx = entry_idx + apex_local
+
+        # Use curvature peak as geometric apex
+        curv_slice = curvature_result.abs_curvature[entry_idx:exit_idx]
+        geo_apex_idx = entry_idx + int(np.argmax(curv_slice))
+
+        brake_idx, peak_g = _find_brake_point(
+            lon_g,
+            entry_idx,
+            apex_idx,
+            step_m,
+        )
+        throttle_idx = _find_throttle_commit(
+            lon_g,
+            apex_idx,
+            exit_idx,
+            step_m,
+        )
+
+        brake_m = round(float(distance[brake_idx]), 1) if brake_idx is not None else None
+        throttle_m = round(float(distance[throttle_idx]), 1) if throttle_idx is not None else None
+
+        bp_lat = (
+            float(lat_arr[brake_idx]) if brake_idx is not None and lat_arr is not None else None
+        )
+        bp_lon = (
+            float(lon_arr[brake_idx]) if brake_idx is not None and lon_arr is not None else None
+        )
+        a_lat = float(lat_arr[apex_idx]) if lat_arr is not None else None
+        a_lon = float(lon_arr[apex_idx]) if lon_arr is not None else None
+
+        corners.append(
+            Corner(
+                number=corner_num,
+                entry_distance_m=round(float(distance[entry_idx]), 1),
+                exit_distance_m=round(float(distance[exit_idx]), 1),
+                apex_distance_m=round(float(distance[apex_idx]), 1),
+                min_speed_mps=round(float(corner_speed[apex_local]), 2),
+                brake_point_m=brake_m,
+                peak_brake_g=(round(peak_g, 3) if peak_g is not None else None),
+                throttle_commit_m=throttle_m,
+                apex_type=_classify_apex(
+                    apex_idx,
+                    geo_apex_idx,
+                    entry_idx,
+                    exit_idx,
+                ),
+                brake_point_lat=bp_lat,
+                brake_point_lon=bp_lon,
+                apex_lat=a_lat,
+                apex_lon=a_lon,
+                peak_curvature=round(seg.peak_curvature, 6),
+                mean_curvature=round(seg.mean_curvature, 6),
+                direction=seg.direction,
+                segment_type=seg.segment_type,
+                parent_complex=seg.parent_complex,
+                detection_method=method,
+            )
+        )
+
+    return corners
+
+
+def detect_corners(
+    lap_df: pd.DataFrame,
+    step_m: float = 0.7,
+    threshold: float = HEADING_RATE_THRESHOLD,
+    *,
+    method: str = "heading_rate",
+) -> list[Corner]:
+    """Detect corners in a resampled lap and extract KPIs.
+
+    Parameters
+    ----------
+    lap_df:
+        Resampled lap DataFrame with lap_distance_m, heading_deg, speed_mps,
+        longitudinal_g columns.
+    step_m:
+        Distance step used in resampling.
+    threshold:
+        Heading rate threshold for corner detection (deg/m).
+    method:
+        Detection algorithm.  ``"heading_rate"`` uses the original heading-rate
+        thresholding.  ``"spline"``, ``"pelt"``, ``"css"``, or ``"asc"`` use
+        spline-curvature segmentation.
+
+    Returns
+    -------
+    List of detected Corner objects, numbered sequentially.
+    """
+    if method == "heading_rate":
+        return _detect_heading_rate(lap_df, step_m, threshold)
+    if method in ("spline", "pelt", "css", "asc"):
+        return _detect_advanced(lap_df, step_m, method)
+    msg = f"Unknown detection method: {method!r}"
+    raise ValueError(msg)
+
+
 def extract_corner_kpis_for_lap(
     lap_df: pd.DataFrame,
     reference_corners: list[Corner],
@@ -353,6 +487,17 @@ def extract_corner_kpis_for_lap(
     heading_rate = _compute_heading_rate(heading, step_m)
     window_pts = max(2, int(SMOOTHING_WINDOW_M / step_m))
     smoothed_rate = _smooth(np.abs(heading_rate), window_pts)
+
+    # Compute spline curvature once if reference corners used advanced method
+    spline_curvature: np.ndarray | None = None
+    if any(ref.peak_curvature is not None for ref in reference_corners):
+        try:
+            from cataclysm.curvature import compute_curvature
+
+            curv_result = compute_curvature(lap_df, step_m=step_m)
+            spline_curvature = curv_result.abs_curvature
+        except (ValueError, ImportError):
+            pass
 
     corners: list[Corner] = []
     for ref in reference_corners:
@@ -377,6 +522,12 @@ def extract_corner_kpis_for_lap(
         # Geometric apex = peak curvature within corner
         corner_rate = smoothed_rate[entry_idx:exit_idx]
         geo_apex_idx = entry_idx + int(np.argmax(corner_rate))
+
+        # Override with spline curvature if available
+        if spline_curvature is not None:
+            curv_slice = spline_curvature[entry_idx:exit_idx]
+            if len(curv_slice) > 0:
+                geo_apex_idx = entry_idx + int(np.argmax(curv_slice))
 
         brake_idx, peak_g = _find_brake_point(lon_g, entry_idx, apex_idx, step_m)
         throttle_idx = _find_throttle_commit(lon_g, apex_idx, exit_idx, step_m)

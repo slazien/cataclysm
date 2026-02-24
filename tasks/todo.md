@@ -62,10 +62,10 @@
 - [x] Frontend: CornerTrendGrid (small multiples sparklines)
 - [x] Frontend: TrendsTab (metrics, milestones, all charts)
 
-## Phase 6: Polish + Deploy
-- [ ] Gzip middleware, ETag caching
-- [ ] Canvas optimization, error boundaries, loading skeletons
-- [ ] Docker multi-stage builds
-- [ ] CI/CD (GitHub Actions)
-- [ ] Playwright E2E tests
-- [ ] Update CLAUDE.md
+## Phase 6: Polish + Deploy [COMPLETE]
+- [x] Gzip middleware, ETag caching
+- [x] Canvas optimization, error boundaries, loading skeletons
+- [x] Docker multi-stage builds
+- [x] CI/CD (GitHub Actions)
+- [ ] Playwright E2E tests (deferred)
+- [x] Update CLAUDE.md

@@ -13,6 +13,7 @@ from cataclysm.engine import LapSummary
 from cataclysm.gains import GainEstimate
 from cataclysm.kb_selector import select_kb_snippets
 from cataclysm.landmarks import Landmark, format_corner_landmarks
+from cataclysm.optimal_comparison import OptimalComparisonResult
 
 MPS_TO_MPH = 2.23694
 
@@ -216,6 +217,33 @@ def _format_gains_for_prompt(gains: GainEstimate) -> str:
     return "\n".join(lines)
 
 
+def _format_optimal_comparison(result: OptimalComparisonResult) -> str:
+    """Format optimal comparison data for the coaching prompt."""
+    lines = [
+        "## Physics-Optimal Analysis",
+        "",
+        f"- **Theoretical optimal lap time: {result.optimal_lap_time_s:.2f}s**",
+        f"- **Driver's actual lap time: {result.actual_lap_time_s:.2f}s**",
+        f"- **Total gap: {result.total_gap_s:.2f}s**",
+        "",
+        "### Per-Corner Speed Gaps (sorted by time cost)",
+    ]
+
+    for opp in result.corner_opportunities[:10]:  # top 10
+        brake_info = ""
+        if opp.brake_gap_m is not None:
+            brake_info = f", brakes {opp.brake_gap_m:.0f}m early"
+        lines.append(
+            f"- T{opp.corner_number}: {opp.speed_gap_mph:+.1f} mph gap"
+            f" ({opp.time_cost_s:.3f}s cost{brake_info})"
+        )
+
+    if not result.corner_opportunities:
+        lines.append("- (no corner data available)")
+
+    return "\n".join(lines)
+
+
 def _format_landmark_context(
     all_lap_corners: dict[int, list[Corner]],
     landmarks: list[Landmark],
@@ -256,6 +284,7 @@ def _build_coaching_prompt(
     gains: GainEstimate | None = None,
     skill_level: SkillLevel = "intermediate",
     landmarks: list[Landmark] | None = None,
+    optimal_comparison: OptimalComparisonResult | None = None,
 ) -> str:
     """Build the full coaching prompt for Claude."""
     lap_text = _format_lap_summaries(summaries)
@@ -285,6 +314,17 @@ def _build_coaching_prompt(
             "and curbing that they can actually see from the cockpit.\n"
         )
 
+    optimal_section = ""
+    optimal_instruction = ""
+    if optimal_comparison is not None:
+        optimal_section = f"\n{_format_optimal_comparison(optimal_comparison)}\n"
+        optimal_instruction = (
+            "\nThe physics-optimal analysis shows the theoretical fastest "
+            "lap based on the car's grip limits. Reference specific corner "
+            "speed gaps when coaching. Larger gaps indicate the driver is "
+            "leaving more time on the table.\n"
+        )
+
     return f"""Track: {track_name}
 Best Lap: L{best.lap_number} ({best_min}:{best_sec:05.2f})
 Total laps: {len(summaries)}
@@ -294,14 +334,14 @@ Total laps: {len(summaries)}
 
 ## Corner KPIs — All Laps (best lap marked with *)
 {corner_text}
-{gains_section}{landmark_section}{skill_section}
+{gains_section}{optimal_section}{landmark_section}{skill_section}
 {landmark_instruction}\
 Analyze the FULL session. Look at every lap's data for each corner to identify:
 - Consistency: which corners are repeatable vs high-variance across laps
 - Trends: whether the driver improved or degraded through the session (fatigue, tire wear, learning)
 - Best-vs-rest gaps: where the best lap gained time vs the driver's typical performance
 - Technique patterns: brake point consistency, apex type shifts, min-speed spread
-{gains_instruction}
+{gains_instruction}{optimal_instruction}
 Respond in JSON with this exact structure:
 {{
   "summary": "2-3 sentence overview — mention consistency, progression, key strengths",
@@ -408,6 +448,7 @@ def generate_coaching_report(
     gains: GainEstimate | None = None,
     skill_level: SkillLevel = "intermediate",
     landmarks: list[Landmark] | None = None,
+    optimal_comparison: OptimalComparisonResult | None = None,
 ) -> CoachingReport:
     """Generate an AI coaching report using the Claude API.
 
@@ -436,6 +477,7 @@ def generate_coaching_report(
         gains=gains,
         skill_level=skill_level,
         landmarks=landmarks,
+        optimal_comparison=optimal_comparison,
     )
 
     system = COACHING_SYSTEM_PROMPT

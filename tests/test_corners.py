@@ -431,3 +431,69 @@ class TestCornerTypeTips:
         for ctype in ["slow", "medium", "fast"]:
             assert ctype in CORNER_TYPE_TIPS
             assert len(CORNER_TYPE_TIPS[ctype]) > 0
+
+
+class TestDetectCornersAdvanced:
+    """Tests for advanced detection methods (spline, pelt, css, asc)."""
+
+    @pytest.mark.parametrize("method", ["spline", "pelt", "css", "asc"])
+    def test_advanced_method_detects_corners(
+        self, sample_resampled_lap: pd.DataFrame, method: str
+    ) -> None:
+        corners = detect_corners(sample_resampled_lap, method=method)
+        assert len(corners) > 0
+        for c in corners:
+            assert isinstance(c, Corner)
+            assert c.entry_distance_m < c.exit_distance_m
+            assert c.min_speed_mps > 0
+            assert c.detection_method == method
+
+    @pytest.mark.parametrize("method", ["spline", "pelt", "css", "asc"])
+    def test_advanced_has_curvature_fields(
+        self, sample_resampled_lap: pd.DataFrame, method: str
+    ) -> None:
+        corners = detect_corners(sample_resampled_lap, method=method)
+        if not corners:
+            pytest.skip("No corners detected")
+        for c in corners:
+            assert c.peak_curvature is not None
+            assert c.mean_curvature is not None
+            assert c.direction in ("left", "right")
+            assert c.segment_type == "corner"
+
+    def test_unknown_method_raises(self, sample_resampled_lap: pd.DataFrame) -> None:
+        with pytest.raises(ValueError, match="Unknown detection method"):
+            detect_corners(sample_resampled_lap, method="invalid")
+
+
+class TestBackwardCompatibility:
+    """Ensure default method produces identical results."""
+
+    def test_default_method_is_heading_rate(self, sample_resampled_lap: pd.DataFrame) -> None:
+        default = detect_corners(sample_resampled_lap)
+        explicit = detect_corners(sample_resampled_lap, method="heading_rate")
+        assert len(default) == len(explicit)
+        for d, e in zip(default, explicit, strict=True):
+            assert d.number == e.number
+            assert d.entry_distance_m == e.entry_distance_m
+            assert d.exit_distance_m == e.exit_distance_m
+            assert d.min_speed_mps == e.min_speed_mps
+
+    def test_new_fields_default_none(self) -> None:
+        c = Corner(
+            number=1,
+            entry_distance_m=0,
+            exit_distance_m=100,
+            apex_distance_m=50,
+            min_speed_mps=20.0,
+            brake_point_m=None,
+            peak_brake_g=None,
+            throttle_commit_m=None,
+            apex_type="mid",
+        )
+        assert c.peak_curvature is None
+        assert c.mean_curvature is None
+        assert c.direction is None
+        assert c.segment_type is None
+        assert c.parent_complex is None
+        assert c.detection_method is None
