@@ -15,12 +15,12 @@
 - [x] Verify: ruff/mypy/pytest all pass (340 existing + 1 backend)
 
 ## Phase 1: Sessions + Overview Tab
-- [ ] Backend: services/pipeline.py wrapping cataclysm/
-- [ ] Backend: services/serializers.py
-- [ ] Backend: Session upload, CRUD, track folder scan endpoints
-- [ ] Backend: Analysis endpoints (corners, consistency, grip, gains)
-- [ ] Backend: DB persistence for SessionSnapshot
-- [ ] Backend: Tests
+- [x] Backend: services/pipeline.py wrapping cataclysm/ (44 tests, 91% coverage)
+- [x] Backend: services/serializers.py
+- [x] Backend: Session upload, CRUD, track folder scan endpoints
+- [x] Backend: Analysis endpoints (corners, consistency, grip, gains, delta, linked)
+- [x] Backend: In-memory session store (DB persistence deferred)
+- [x] Backend: Tests (44 passing)
 - [ ] Frontend: Zustand store + TanStack Query hooks
 - [ ] Frontend: Sidebar (track selector, file upload, session list)
 - [ ] Frontend: D3 infra (useD3, theme.ts, scales.ts)
