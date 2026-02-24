@@ -13,6 +13,7 @@ import GainPerCorner from "@/components/charts/d3/GainPerCorner";
 import IdealLapOverlay from "@/components/charts/d3/IdealLapOverlay";
 import IdealLapDelta from "@/components/charts/d3/IdealLapDelta";
 import MetricCard from "@/components/layout/MetricCard";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { MPS_TO_MPH } from "@/lib/constants";
 
 export default function CoachingTab() {
@@ -260,10 +261,12 @@ export default function CoachingTab() {
                   <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
                     Time Gain Per Corner
                   </h3>
-                  <GainPerCorner
-                    consistencyGains={consistencyGains}
-                    compositeGains={compositeGains}
-                  />
+                  <ErrorBoundary>
+                    <GainPerCorner
+                      consistencyGains={consistencyGains}
+                      compositeGains={compositeGains}
+                    />
+                  </ErrorBoundary>
                 </div>
               )}
 
@@ -273,20 +276,22 @@ export default function CoachingTab() {
                   <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
                     Ideal Lap (Composite Best Segments)
                   </h3>
-                  <IdealLapOverlay
-                    bestLap={{
-                      distance: bestLapData.distance_m,
-                      speed: bestLapData.speed_mph,
-                    }}
-                    idealLap={{
-                      distance: idealLap.distance_m,
-                      speed: idealLap.speed_mph,
-                    }}
-                    corners={cornerZones}
-                    bestLapNumber={bestLapNumber}
-                    idealTime={computeIdealTime(idealLap)}
-                    bestTime={bestLapTime}
-                  />
+                  <ErrorBoundary>
+                    <IdealLapOverlay
+                      bestLap={{
+                        distance: bestLapData.distance_m,
+                        speed: bestLapData.speed_mph,
+                      }}
+                      idealLap={{
+                        distance: idealLap.distance_m,
+                        speed: idealLap.speed_mph,
+                      }}
+                      corners={cornerZones}
+                      bestLapNumber={bestLapNumber}
+                      idealTime={computeIdealTime(idealLap)}
+                      bestTime={bestLapTime}
+                    />
+                  </ErrorBoundary>
                 </div>
               )}
 
@@ -296,12 +301,14 @@ export default function CoachingTab() {
                   <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
                     Delta: Ideal vs Best Lap
                   </h3>
-                  <IdealLapDelta
-                    distance={idealDelta.distance}
-                    delta={idealDelta.delta}
-                    bestLapNumber={bestLapNumber}
-                    corners={cornerZones}
-                  />
+                  <ErrorBoundary>
+                    <IdealLapDelta
+                      distance={idealDelta.distance}
+                      delta={idealDelta.delta}
+                      bestLapNumber={bestLapNumber}
+                      corners={cornerZones}
+                    />
+                  </ErrorBoundary>
                 </div>
               )}
             </div>

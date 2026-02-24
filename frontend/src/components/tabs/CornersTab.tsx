@@ -11,6 +11,7 @@ import BrakeConsistency from "@/components/charts/d3/BrakeConsistency";
 import Expandable from "@/components/ui/Expandable";
 import Select from "@/components/ui/Select";
 import Spinner from "@/components/ui/Spinner";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { MPS_TO_MPH } from "@/lib/constants";
 import type { LapSummary, Corner } from "@/lib/types";
 
@@ -141,13 +142,15 @@ function CornersContent({
         <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
           Corner KPIs
         </h3>
-        <CornerKPITable
-          corners={corners}
-          compCorners={compCorners}
-          cornerDeltas={deltaData?.corner_deltas}
-          bestLap={bestLapNumber ?? 0}
-          compLap={compLap ?? undefined}
-        />
+        <ErrorBoundary>
+          <CornerKPITable
+            corners={corners}
+            compCorners={compCorners}
+            cornerDeltas={deltaData?.corner_deltas}
+            bestLap={bestLapNumber ?? 0}
+            compLap={compLap ?? undefined}
+          />
+        </ErrorBoundary>
       </div>
 
       {/* Divider */}
@@ -183,25 +186,29 @@ function CornersContent({
                 {/* Mini map */}
                 {bestLapData && (
                   <div className="flex-shrink-0">
-                    <CornerMiniMap
-                      lat={bestLapData.lat}
-                      lon={bestLapData.lon}
-                      distance={bestLapData.distance_m}
-                      corner={c}
-                      allCorners={corners}
-                      size={220}
-                    />
+                    <ErrorBoundary>
+                      <CornerMiniMap
+                        lat={bestLapData.lat}
+                        lon={bestLapData.lon}
+                        distance={bestLapData.distance_m}
+                        corner={c}
+                        allCorners={corners}
+                        size={220}
+                      />
+                    </ErrorBoundary>
                   </div>
                 )}
 
                 {/* Detail chart */}
-                <div className="flex-1 min-w-0">
-                  <CornerDetailChart
-                    cornerNumber={c.number}
-                    laps={detailLapSlices}
-                    corner={c}
-                    height={380}
-                  />
+                <div className="min-w-0 flex-1">
+                  <ErrorBoundary>
+                    <CornerDetailChart
+                      cornerNumber={c.number}
+                      laps={detailLapSlices}
+                      corner={c}
+                      height={380}
+                    />
+                  </ErrorBoundary>
                 </div>
               </div>
 
@@ -220,11 +227,13 @@ function CornersContent({
               {/* Brake consistency */}
               {brakeData.length >= 2 && (
                 <div className="mt-4">
-                  <BrakeConsistency
-                    cornerNumber={c.number}
-                    laps={brakeData}
-                    entryDistanceM={c.entry_distance_m}
-                  />
+                  <ErrorBoundary>
+                    <BrakeConsistency
+                      cornerNumber={c.number}
+                      laps={brakeData}
+                      entryDistanceM={c.entry_distance_m}
+                    />
+                  </ErrorBoundary>
                 </div>
               )}
             </Expandable>

@@ -11,6 +11,7 @@ import SessionBoxPlot from "@/components/charts/d3/SessionBoxPlot";
 import CornerHeatmap from "@/components/charts/d3/CornerHeatmap";
 import CornerTrendGrid from "@/components/charts/d3/CornerTrendGrid";
 import Spinner from "@/components/ui/Spinner";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { formatLapTime } from "@/lib/formatters";
 import type { TrendAnalysisData } from "@/lib/types";
 
@@ -227,12 +228,14 @@ export default function TrendsTab() {
         <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
           Lap Time Trend
         </h3>
-        <LapTimeTrend
-          dates={dates}
-          bestLapTrend={trend.best_lap_trend}
-          top3AvgTrend={trend.top3_avg_trend}
-          theoreticalTrend={trend.theoretical_trend}
-        />
+        <ErrorBoundary>
+          <LapTimeTrend
+            dates={dates}
+            bestLapTrend={trend.best_lap_trend}
+            top3AvgTrend={trend.top3_avg_trend}
+            theoreticalTrend={trend.theoretical_trend}
+          />
+        </ErrorBoundary>
       </div>
 
       {/* Two-column: Consistency + Box Plot */}
@@ -241,20 +244,24 @@ export default function TrendsTab() {
           <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
             Consistency Trend
           </h3>
-          <ConsistencyTrend
-            dates={dates}
-            scores={trend.consistency_trend}
-          />
+          <ErrorBoundary>
+            <ConsistencyTrend
+              dates={dates}
+              scores={trend.consistency_trend}
+            />
+          </ErrorBoundary>
         </div>
         <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-4">
           <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
             Lap Time Distribution
           </h3>
-          <SessionBoxPlot
-            dates={dates}
-            lapTimesPerSession={lapTimesPerSession}
-            bestLapTrend={trend.best_lap_trend}
-          />
+          <ErrorBoundary>
+            <SessionBoxPlot
+              dates={dates}
+              lapTimesPerSession={lapTimesPerSession}
+              bestLapTrend={trend.best_lap_trend}
+            />
+          </ErrorBoundary>
         </div>
       </div>
 
@@ -286,13 +293,15 @@ export default function TrendsTab() {
               <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
                 Corner Heatmap &mdash; {METRIC_LABELS[heatmapMetric]}
               </h3>
-              <CornerHeatmap
-                dates={dates}
-                cornerNumbers={cornerData.cornerNumbers}
-                values={cornerData.values}
-                metric={heatmapMetric}
-                metricLabel={METRIC_LABELS[heatmapMetric]}
-              />
+              <ErrorBoundary>
+                <CornerHeatmap
+                  dates={dates}
+                  cornerNumbers={cornerData.cornerNumbers}
+                  values={cornerData.values}
+                  metric={heatmapMetric}
+                  metricLabel={METRIC_LABELS[heatmapMetric]}
+                />
+              </ErrorBoundary>
             </div>
 
             {/* Corner Trend Grid (small multiples) */}
@@ -300,10 +309,12 @@ export default function TrendsTab() {
               <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
                 Corner Min Speed Trends
               </h3>
-              <CornerTrendGrid
-                dates={dates}
-                cornerMinSpeedTrends={trend.corner_min_speed_trends}
-              />
+              <ErrorBoundary>
+                <CornerTrendGrid
+                  dates={dates}
+                  cornerMinSpeedTrends={trend.corner_min_speed_trends}
+                />
+              </ErrorBoundary>
             </div>
           </div>
         </>

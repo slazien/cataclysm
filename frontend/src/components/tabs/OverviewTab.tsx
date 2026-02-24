@@ -10,6 +10,7 @@ import TrackSpeedMap from "@/components/charts/d3/TrackSpeedMap";
 import TrackConsistencyMap from "@/components/charts/d3/TrackConsistencyMap";
 import TractionCircle from "@/components/charts/d3/TractionCircle";
 import Spinner from "@/components/ui/Spinner";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { formatLapTime } from "@/lib/formatters";
 import { MPS_TO_MPH } from "@/lib/constants";
 
@@ -103,7 +104,9 @@ export default function OverviewTab() {
         <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
           Lap Times
         </h3>
-        <LapTimesBar laps={allLaps} />
+        <ErrorBoundary>
+          <LapTimesBar laps={allLaps} />
+        </ErrorBoundary>
       </div>
 
       {/* Divider */}
@@ -153,7 +156,9 @@ export default function OverviewTab() {
               <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
                 Consecutive Lap Deltas
               </h3>
-              <LapConsistencyChart data={lapConsistency} />
+              <ErrorBoundary>
+                <LapConsistencyChart data={lapConsistency} />
+              </ErrorBoundary>
             </div>
 
             {/* Track Maps Side-by-Side */}
@@ -162,16 +167,20 @@ export default function OverviewTab() {
                 <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
                   Track Speed Map
                 </h3>
-                <TrackSpeedMap
-                  trackData={trackPosition}
-                  corners={corners ?? []}
-                />
+                <ErrorBoundary>
+                  <TrackSpeedMap
+                    trackData={trackPosition}
+                    corners={corners ?? []}
+                  />
+                </ErrorBoundary>
               </div>
               <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-4">
                 <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
                   Track Consistency Map
                 </h3>
-                <TrackConsistencyMap trackData={trackPosition} />
+                <ErrorBoundary>
+                  <TrackConsistencyMap trackData={trackPosition} />
+                </ErrorBoundary>
               </div>
             </div>
 
@@ -180,7 +189,9 @@ export default function OverviewTab() {
               <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
                 Traction Circle (Best Lap)
               </h3>
-              <TractionCircle lapData={bestLapData ?? null} />
+              <ErrorBoundary>
+                <TractionCircle lapData={bestLapData ?? null} />
+              </ErrorBoundary>
             </div>
           </>
         )}

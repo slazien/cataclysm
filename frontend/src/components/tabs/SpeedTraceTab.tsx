@@ -7,6 +7,7 @@ import { useCorners, useMultiLapData } from "@/hooks/useAnalysis";
 import LinkedSpeedMap from "@/components/charts/d3/LinkedSpeedMap";
 import BrakeThrottle from "@/components/charts/d3/BrakeThrottle";
 import Spinner from "@/components/ui/Spinner";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { formatLapTime } from "@/lib/formatters";
 import type { LapSummary, Corner } from "@/lib/types";
 
@@ -124,17 +125,21 @@ function SpeedTraceContent({
 
       {/* LinkedSpeedMap */}
       {selectedLaps.length > 0 && (
-        <LinkedSpeedMap
-          sessionId={sessionId}
-          selectedLaps={selectedLaps}
-          corners={corners.length > 0 ? corners : undefined}
-        />
+        <ErrorBoundary>
+          <LinkedSpeedMap
+            sessionId={sessionId}
+            selectedLaps={selectedLaps}
+            corners={corners.length > 0 ? corners : undefined}
+          />
+        </ErrorBoundary>
       )}
 
       {/* BrakeThrottle */}
       {gTraces.length > 0 && (
         <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-3">
-          <BrakeThrottle laps={gTraces} corners={cornerZones} height={300} />
+          <ErrorBoundary>
+            <BrakeThrottle laps={gTraces} corners={cornerZones} height={300} />
+          </ErrorBoundary>
         </div>
       )}
     </div>
