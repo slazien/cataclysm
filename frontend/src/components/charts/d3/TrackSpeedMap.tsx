@@ -28,6 +28,7 @@ export default function TrackSpeedMap({
     const container = containerRef.current;
     const width = container.clientWidth;
     const height = Math.max(300, Math.min(width, 500));
+    container.style.height = `${height}px`;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
