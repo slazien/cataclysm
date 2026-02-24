@@ -2,13 +2,28 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+import asyncio
+import contextlib
+import logging
+
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
 from backend.api.schemas.coaching import (
     CoachingReportResponse,
+    CornerGradeSchema,
     FollowUpMessage,
+    PriorityCornerSchema,
     ReportRequest,
 )
+from backend.api.services import session_store
+from backend.api.services.coaching_store import (
+    get_coaching_context,
+    get_coaching_report,
+    store_coaching_context,
+    store_coaching_report,
+)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -20,14 +35,70 @@ async def generate_report(
 ) -> CoachingReportResponse:
     """Trigger AI coaching report generation for a session.
 
-    Returns 202 if generation is kicked off asynchronously, or the full
-    report if it completes quickly.
+    Runs the coaching pipeline in a thread to avoid blocking the event loop.
+    Returns the full report when complete.
     """
-    # TODO: Phase 2 -- run coaching.generate_coaching_report in background task
-    return CoachingReportResponse(
-        session_id=session_id,
-        status="generating",
+    sd = session_store.get_session(session_id)
+    if sd is None:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+    from cataclysm.coaching import generate_coaching_report
+    from cataclysm.track_db import lookup_track
+
+    # Resolve track landmarks for coaching context
+    layout = lookup_track(sd.parsed.metadata.track_name)
+    landmarks = layout.landmarks if layout else []
+
+    # Filter summaries to coaching laps only
+    coaching_summaries = [s for s in sd.processed.lap_summaries if s.lap_number in sd.coaching_laps]
+
+    report = await asyncio.to_thread(
+        generate_coaching_report,
+        coaching_summaries,
+        sd.all_lap_corners,
+        sd.parsed.metadata.track_name,
+        gains=sd.gains,
+        skill_level=body.skill_level,
+        landmarks=landmarks or None,
     )
+
+    # Build response
+    priority_corners = [
+        PriorityCornerSchema(
+            corner=int(pc.get("corner", 0)),  # type: ignore[call-overload]
+            time_cost_s=float(pc.get("time_cost_s", 0)),  # type: ignore[arg-type]
+            issue=str(pc.get("issue", "")),
+            tip=str(pc.get("tip", "")),
+        )
+        for pc in report.priority_corners
+    ]
+
+    corner_grades = [
+        CornerGradeSchema(
+            corner=g.corner,
+            braking=g.braking,
+            trail_braking=g.trail_braking,
+            min_speed=g.min_speed,
+            throttle=g.throttle,
+            notes=g.notes,
+        )
+        for g in report.corner_grades
+    ]
+
+    response = CoachingReportResponse(
+        session_id=session_id,
+        status="ready",
+        summary=report.summary,
+        priority_corners=priority_corners,
+        corner_grades=corner_grades,
+        patterns=report.patterns,
+        drills=report.drills,
+    )
+
+    # Store report and coaching context for later retrieval and chat
+    store_coaching_report(session_id, response)
+
+    return response
 
 
 @router.get("/{session_id}/report", response_model=CoachingReportResponse)
@@ -36,13 +107,15 @@ async def get_report(
 ) -> CoachingReportResponse:
     """Get the coaching report for a session.
 
-    Returns 202 with status='generating' if the report is still being created.
+    Returns the stored report or 404 if no report has been generated.
     """
-    # TODO: Phase 2 -- fetch report from store, return 202 if not yet ready
-    return CoachingReportResponse(
-        session_id=session_id,
-        status="generating",
-    )
+    report = get_coaching_report(session_id)
+    if report is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No coaching report found for session {session_id}",
+        )
+    return report
 
 
 @router.websocket("/{session_id}/chat")
@@ -57,16 +130,81 @@ async def coaching_chat(
     - Server responds with JSON: {"role": "assistant", "content": "answer"}
     """
     await websocket.accept()
+
+    sd = session_store.get_session(session_id)
+    if sd is None:
+        await websocket.send_json(
+            FollowUpMessage(
+                role="assistant",
+                content="Session not found. Please upload a session first.",
+            ).model_dump()
+        )
+        await websocket.close()
+        return
+
+    report_response = get_coaching_report(session_id)
+    if report_response is None:
+        await websocket.send_json(
+            FollowUpMessage(
+                role="assistant",
+                content="No coaching report found. Generate a report first.",
+            ).model_dump()
+        )
+        await websocket.close()
+        return
+
+    from cataclysm.coaching import CoachingContext, CoachingReport, ask_followup
+
+    # Retrieve or create conversation context
+    ctx = get_coaching_context(session_id)
+    if ctx is None:
+        ctx = CoachingContext()
+        store_coaching_context(session_id, ctx)
+
+    # Build a CoachingReport object for ask_followup
+    coaching_report = CoachingReport(
+        summary=report_response.summary or "",
+        priority_corners=[
+            {"corner": pc.corner, "time_cost_s": pc.time_cost_s, "issue": pc.issue, "tip": pc.tip}
+            for pc in report_response.priority_corners
+        ],
+        corner_grades=[],
+        patterns=report_response.patterns,
+        drills=report_response.drills,
+        raw_response=report_response.summary or "",
+    )
+
     try:
         while True:
             data = await websocket.receive_json()
             question = data.get("content", "")
 
-            # TODO: Phase 2 -- call coaching.ask_followup with conversation context
-            response = FollowUpMessage(
-                role="assistant",
-                content=f"Follow-up chat not yet implemented. You asked: {question}",
+            if not question.strip():
+                await websocket.send_json(
+                    FollowUpMessage(
+                        role="assistant",
+                        content="Please ask a question about your driving.",
+                    ).model_dump()
+                )
+                continue
+
+            answer = await asyncio.to_thread(
+                ask_followup,
+                ctx,
+                question,
+                coaching_report,
+                all_lap_corners=sd.all_lap_corners,
+                skill_level="intermediate",
+                gains=sd.gains,
             )
+
+            store_coaching_context(session_id, ctx)
+
+            response = FollowUpMessage(role="assistant", content=answer)
             await websocket.send_json(response.model_dump())
     except WebSocketDisconnect:
         pass
+    except Exception:
+        logger.exception("Error in coaching chat for session %s", session_id)
+        with contextlib.suppress(Exception):
+            await websocket.close(code=1011, reason="Internal server error")

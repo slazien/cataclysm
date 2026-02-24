@@ -110,3 +110,43 @@ export interface TrackFolder {
   path: string;
   csv_count: number;
 }
+
+// --- Coaching Types ---
+
+export interface PriorityCorner {
+  corner: number;
+  time_cost_s: number;
+  issue: string;
+  tip: string;
+}
+
+export interface CornerGrade {
+  corner: number;
+  braking: string;
+  trail_braking: string;
+  min_speed: string;
+  throttle: string;
+  notes: string;
+}
+
+export interface CoachingReport {
+  session_id: string;
+  status: string; // "ready" | "generating" | "error"
+  summary: string | null;
+  priority_corners: PriorityCorner[];
+  corner_grades: CornerGrade[];
+  patterns: string[];
+  drills: string[];
+}
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface IdealLapData {
+  session_id: string;
+  distance_m: number[];
+  speed_mph: number[];
+  segment_sources: [string, number, number][];
+}

@@ -1,21 +1,42 @@
+"use client";
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchApi } from "@/lib/api";
+import { getCoachingReport, generateCoachingReport, getIdealLap } from "@/lib/api";
+import type { CoachingReport, IdealLapData } from "@/lib/types";
 
 export function useCoachingReport(sessionId: string | null) {
-  return useQuery({
+  return useQuery<CoachingReport>({
     queryKey: ["coaching-report", sessionId],
-    queryFn: () => fetchApi(`/api/coaching/${sessionId}/report`),
+    queryFn: () => getCoachingReport(sessionId!),
     enabled: !!sessionId,
+    retry: false, // Don't retry 404s (report not generated yet)
   });
 }
 
-export function useGenerateReport(sessionId: string) {
+export function useGenerateReport() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () =>
-      fetchApi(`/api/coaching/${sessionId}/report`, { method: "POST" }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["coaching-report", sessionId] });
+    mutationFn: ({
+      sessionId,
+      skillLevel,
+    }: {
+      sessionId: string;
+      skillLevel: string;
+    }) => generateCoachingReport(sessionId, skillLevel),
+    onSuccess: (data, variables) => {
+      queryClient.setQueryData(
+        ["coaching-report", variables.sessionId],
+        data,
+      );
     },
+  });
+}
+
+export function useIdealLap(sessionId: string | null) {
+  return useQuery<IdealLapData>({
+    queryKey: ["ideal-lap", sessionId],
+    queryFn: () => getIdealLap(sessionId!),
+    enabled: !!sessionId,
+    retry: false,
   });
 }

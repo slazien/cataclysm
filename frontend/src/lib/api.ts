@@ -6,6 +6,8 @@ import type {
   DeltaData,
   SessionConsistency,
   TrackFolder,
+  CoachingReport,
+  IdealLapData,
 } from "./types";
 
 const API_BASE = "";
@@ -108,4 +110,24 @@ export async function loadTrackFolder(folder: string) {
     `/api/tracks/${encodeURIComponent(folder)}/load`,
     { method: "POST" },
   );
+}
+
+// --- Coaching API ---
+
+export async function generateCoachingReport(
+  sessionId: string,
+  skillLevel: string = "intermediate",
+) {
+  return fetchApi<CoachingReport>(`/api/coaching/${sessionId}/report`, {
+    method: "POST",
+    body: JSON.stringify({ skill_level: skillLevel }),
+  });
+}
+
+export async function getCoachingReport(sessionId: string) {
+  return fetchApi<CoachingReport>(`/api/coaching/${sessionId}/report`);
+}
+
+export async function getIdealLap(sessionId: string) {
+  return fetchApi<IdealLapData>(`/api/sessions/${sessionId}/ideal-lap`);
 }
