@@ -54,6 +54,7 @@ async def get_trends(track_name: str) -> TrendAnalysisResponse:
                 "consistency_score": s.consistency_score,
                 "n_laps": s.n_laps,
                 "n_clean_laps": s.n_clean_laps,
+                "lap_times_s": s.lap_times_s,
             }
             for s in trend.sessions
         ]

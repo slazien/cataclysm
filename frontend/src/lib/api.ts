@@ -8,6 +8,8 @@ import type {
   TrackFolder,
   CoachingReport,
   IdealLapData,
+  TrendAnalysisResponse,
+  MilestoneResponse,
 } from "./types";
 
 const API_BASE = "";
@@ -130,4 +132,18 @@ export async function getCoachingReport(sessionId: string) {
 
 export async function getIdealLap(sessionId: string) {
   return fetchApi<IdealLapData>(`/api/sessions/${sessionId}/ideal-lap`);
+}
+
+// --- Trends API ---
+
+export async function getTrends(trackName: string) {
+  return fetchApi<TrendAnalysisResponse>(
+    `/api/trends/${encodeURIComponent(trackName)}`,
+  );
+}
+
+export async function getMilestones(trackName: string) {
+  return fetchApi<MilestoneResponse>(
+    `/api/trends/${encodeURIComponent(trackName)}/milestones`,
+  );
 }

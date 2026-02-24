@@ -6,6 +6,7 @@ import OverviewTab from "@/components/tabs/OverviewTab";
 import SpeedTraceTab from "@/components/tabs/SpeedTraceTab";
 import CornersTab from "@/components/tabs/CornersTab";
 import CoachingTab from "@/components/tabs/CoachingTab";
+import TrendsTab from "@/components/tabs/TrendsTab";
 import { useUiStore } from "@/store";
 
 function TabContent() {
@@ -21,11 +22,7 @@ function TabContent() {
     case "coaching":
       return <CoachingTab />;
     case "trends":
-      return (
-        <div className="flex items-center justify-center py-20 text-[var(--text-muted)]">
-          Trends tab coming soon
-        </div>
-      );
+      return <TrendsTab />;
     default:
       return null;
   }

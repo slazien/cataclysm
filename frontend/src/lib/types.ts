@@ -150,3 +150,49 @@ export interface IdealLapData {
   speed_mph: number[];
   segment_sources: [string, number, number][];
 }
+
+// --- Trends Types ---
+
+export interface TrendSessionSummary {
+  session_id: string;
+  session_date: string;
+  best_lap_time_s: number;
+  top3_avg_time_s: number;
+  avg_lap_time_s: number;
+  consistency_score: number;
+  n_laps: number;
+  n_clean_laps: number;
+  lap_times_s: number[];
+}
+
+export interface TrendAnalysisData {
+  track_name: string;
+  n_sessions: number;
+  best_lap_trend: number[];
+  top3_avg_trend: number[];
+  consistency_trend: number[];
+  theoretical_trend: number[];
+  sessions: TrendSessionSummary[];
+  corner_min_speed_trends: Record<string, (number | null)[]>;
+  corner_brake_std_trends: Record<string, (number | null)[]>;
+  corner_consistency_trends: Record<string, (number | null)[]>;
+  milestones: Milestone[];
+}
+
+export interface TrendAnalysisResponse {
+  track_name: string;
+  data: TrendAnalysisData;
+}
+
+export interface Milestone {
+  session_id: string;
+  session_date: string;
+  category: string;
+  description: string;
+  value: number;
+}
+
+export interface MilestoneResponse {
+  track_name: string;
+  milestones: Milestone[];
+}
