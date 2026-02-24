@@ -236,12 +236,8 @@ def _corner_pattern_snippets(
                 brake_dist = c.entry_distance_m - c.brake_point_m
                 # v^2 = v0^2 - 2*a*d
                 decel_mps2 = abs(c.peak_brake_g) * 9.81
-                entry_speed_mps = (
-                    c.min_speed_mps**2 + 2 * decel_mps2 * max(brake_dist, 0)
-                ) ** 0.5
-                speed_losses_mph.append(
-                    (entry_speed_mps - c.min_speed_mps) * MPS_TO_MPH
-                )
+                entry_speed_mps = (c.min_speed_mps**2 + 2 * decel_mps2 * max(brake_dist, 0)) ** 0.5
+                speed_losses_mph.append((entry_speed_mps - c.min_speed_mps) * MPS_TO_MPH)
 
         if speed_losses_mph:
             median_loss = statistics.median(speed_losses_mph)

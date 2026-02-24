@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import contextlib
-import glob
 import os
 
 import numpy as np
@@ -72,15 +71,6 @@ st.caption("Post-session telemetry analysis & AI coaching")
 # ---------------------------------------------------------------------------
 # Session loading
 # ---------------------------------------------------------------------------
-def _find_existing_sessions() -> list[str]:
-    """Find session CSVs in the repo."""
-    patterns = ["session_*.csv", "sample_data/*.csv"]
-    files: list[str] = []
-    for pat in patterns:
-        files.extend(glob.glob(pat))
-    return sorted(files)
-
-
 def _load_session(
     source: str | object,
 ) -> tuple[ParsedSession, ProcessedSession]:
@@ -115,13 +105,10 @@ uploaded_files = st.sidebar.file_uploader(
     key="csv_upload",
 )
 
-# Combine uploaded + existing files
-existing = _find_existing_sessions()
+# Only process explicitly uploaded files (no auto-loading on startup)
 all_sources: list[tuple[str, object]] = []
 for f in uploaded_files or []:
     all_sources.append((f.name, f))
-for path in existing:
-    all_sources.append((path, path))
 
 # Process new sessions (up to MAX_SESSIONS)
 for src_file_key, source in all_sources:
@@ -200,6 +187,9 @@ if registry:
         if col_rm.button("X", key=f"rm_{fk}"):
             del registry[fk]
             st.rerun()
+    if len(registry) >= 2 and st.sidebar.button("Remove all"):
+        registry.clear()
+        st.rerun()
 
 # Active session selector
 if not registry:
