@@ -135,7 +135,7 @@ export default function Sidebar() {
                     Select track...
                   </option>
                   {tracks.map((t) => (
-                    <option key={t.path} value={t.path}>
+                    <option key={t.path} value={t.folder}>
                       {t.folder} ({t.n_files} files)
                     </option>
                   ))}

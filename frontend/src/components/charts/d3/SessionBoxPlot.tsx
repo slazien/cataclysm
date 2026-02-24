@@ -67,13 +67,13 @@ export default function SessionBoxPlot({
 
     const allValues = lapTimesPerSession.flat().filter((v) => v > 0);
 
-    // Use IQR-based bounds to exclude extreme outliers (in/out laps) from axis range
+    // Use median ± 3×MAD to exclude extreme outliers (robust for small datasets)
     const sorted = [...allValues].sort((a, b) => a - b);
-    const q1 = d3.quantile(sorted, 0.05) ?? sorted[0];
-    const q3 = d3.quantile(sorted, 0.95) ?? sorted[sorted.length - 1];
-    const iqr = q3 - q1;
-    const lowerFence = q1 - 1.5 * iqr;
-    const upperFence = q3 + 1.5 * iqr;
+    const med = d3.median(sorted) ?? sorted[Math.floor(sorted.length / 2)];
+    const absDevs = sorted.map((v) => Math.abs(v - med));
+    const mad = d3.median(absDevs.sort((a, b) => a - b)) ?? 0;
+    const lowerFence = med - 3 * Math.max(mad, 1);
+    const upperFence = med + 3 * Math.max(mad, 1);
     const trimmed = allValues.filter((v) => v >= lowerFence && v <= upperFence);
     const minVal = d3.min(trimmed.length > 0 ? trimmed : allValues) ?? 0;
     const maxVal = d3.max(trimmed.length > 0 ? trimmed : allValues) ?? 120;
