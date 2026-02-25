@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { useSession, useSessionLaps } from '@/hooks/useSession';
 import { useConsistency } from '@/hooks/useAnalysis';
-import { useIdealLap } from '@/hooks/useCoaching';
+import { useIdealLap, useCoachingReport } from '@/hooks/useCoaching';
 import { useSessionStore } from '@/stores';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -20,6 +20,7 @@ export function SessionDashboard() {
   const { data: laps, isLoading: lapsLoading } = useSessionLaps(sessionId);
   const { data: consistency, isLoading: consistencyLoading } = useConsistency(sessionId);
   const { data: idealLap } = useIdealLap(sessionId);
+  const { data: coachingReport } = useCoachingReport(sessionId);
 
   // Derive best lap number
   const bestLapNumber = useMemo(() => {
@@ -37,19 +38,9 @@ export function SessionDashboard() {
     return maxMps * MPS_TO_MPH;
   }, [laps]);
 
-  // Compute session score from consistency
-  const sessionScore = useMemo(() => {
-    if (!consistency?.lap_consistency) return null;
-    const raw = consistency.lap_consistency.consistency_score;
-    // If score is 0-1 range, multiply by 100; if already 0-100, use as-is
-    return raw <= 1 ? raw * 100 : raw;
-  }, [consistency]);
-
   // Compute ideal lap time and delta
   const idealLapInfo = useMemo(() => {
     if (!idealLap || !session) return null;
-    // The ideal lap speed trace lets us compute time
-    // For now, use segment sources to estimate. If distance/speed arrays exist, compute time.
     const { distance_m, speed_mph } = idealLap;
     if (!distance_m || !speed_mph || distance_m.length < 2) return null;
 
@@ -66,6 +57,53 @@ export function SessionDashboard() {
     const delta = session.best_lap_time_s - totalTime;
     return { time: totalTime, delta };
   }, [idealLap, session]);
+
+  // Compute composite session score: consistency (40%) + best/optimal (30%) + corner grades (30%)
+  const sessionScore = useMemo(() => {
+    const components: { value: number; weight: number }[] = [];
+
+    // Consistency component (0-100)
+    if (consistency?.lap_consistency) {
+      const raw = consistency.lap_consistency.consistency_score;
+      const consistencyScore = raw <= 1 ? raw * 100 : raw;
+      components.push({ value: consistencyScore, weight: 0.4 });
+    }
+
+    // Best lap vs optimal component (0-100)
+    if (idealLapInfo && session) {
+      const ratio = idealLapInfo.time / session.best_lap_time_s;
+      // ratio close to 1.0 means best lap is near optimal — clamp to 0-100
+      const optimalScore = Math.min(100, Math.max(0, ratio * 100));
+      components.push({ value: optimalScore, weight: 0.3 });
+    }
+
+    // Corner grades component (0-100)
+    if (coachingReport?.corner_grades && coachingReport.corner_grades.length > 0) {
+      const gradeMap: Record<string, number> = { A: 100, B: 80, C: 60, D: 40, F: 20 };
+      const gradeFields = ['braking', 'trail_braking', 'min_speed', 'throttle'] as const;
+      let total = 0;
+      let count = 0;
+      for (const cg of coachingReport.corner_grades) {
+        for (const field of gradeFields) {
+          const letter = cg[field]?.charAt(0)?.toUpperCase();
+          if (letter && gradeMap[letter] !== undefined) {
+            total += gradeMap[letter];
+            count++;
+          }
+        }
+      }
+      if (count > 0) {
+        components.push({ value: total / count, weight: 0.3 });
+      }
+    }
+
+    if (components.length === 0) return null;
+
+    // Normalize weights to sum to 1 if some components are missing
+    const totalWeight = components.reduce((s, c) => s + c.weight, 0);
+    const weighted = components.reduce((s, c) => s + c.value * (c.weight / totalWeight), 0);
+    return weighted;
+  }, [consistency, idealLapInfo, session, coachingReport]);
 
   // No session selected
   if (!sessionId) {

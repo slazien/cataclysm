@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
 import { AiInsight } from '@/components/shared/AiInsight';
-import { useCoachingReport, useGenerateReport } from '@/hooks/useCoaching';
+import { useAutoReport } from '@/hooks/useAutoReport';
 import { useUiStore, useAnalysisStore } from '@/stores';
 import { cn } from '@/lib/utils';
 import type { PriorityCorner } from '@/lib/types';
@@ -62,30 +61,9 @@ function PriorityCard({
 }
 
 export function TopPriorities({ sessionId }: TopPrioritiesProps) {
-  const { data: report, isLoading, isError } = useCoachingReport(sessionId);
-  const generateReport = useGenerateReport();
-  const skillLevel = useUiStore((s) => s.skillLevel);
-  const hasTriggered = useRef(false);
+  const { report, isLoading } = useAutoReport(sessionId);
 
-  // Auto-trigger report generation if no report exists
-  useEffect(() => {
-    if (
-      !isLoading &&
-      (isError || !report) &&
-      !generateReport.isPending &&
-      !hasTriggered.current
-    ) {
-      hasTriggered.current = true;
-      generateReport.mutate({ sessionId, skillLevel });
-    }
-  }, [sessionId, isLoading, isError, report, generateReport, skillLevel]);
-
-  // Reset trigger flag when session changes
-  useEffect(() => {
-    hasTriggered.current = false;
-  }, [sessionId]);
-
-  if (isLoading || generateReport.isPending) {
+  if (isLoading) {
     return (
       <div className="flex flex-col gap-3">
         <h2 className="text-sm font-medium uppercase tracking-wider text-[var(--text-muted)]">
