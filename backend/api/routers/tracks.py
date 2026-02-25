@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from backend.api.config import Settings
 from backend.api.dependencies import get_settings
@@ -50,10 +50,12 @@ async def list_track_folders(
 async def load_track_folder(
     folder: str,
     settings: Annotated[Settings, Depends(get_settings)],
+    limit: int | None = Query(None, ge=1, description="Max number of CSV files to load"),
 ) -> dict[str, object]:
-    """Load all RaceChrono CSV files from a track folder.
+    """Load RaceChrono CSV files from a track folder.
 
     Parses and processes each CSV, stores sessions in the in-memory store.
+    Use ``limit`` to load only the first *N* files (useful for sample/demo).
     Returns a summary of loaded sessions.
     """
     data_dir = Path(settings.session_data_dir) / folder
@@ -63,6 +65,9 @@ async def load_track_folder(
     csv_files = sorted(data_dir.glob("*.csv"))
     if not csv_files:
         raise HTTPException(status_code=404, detail=f"No CSV files found in '{folder}'")
+
+    if limit is not None:
+        csv_files = csv_files[:limit]
 
     session_ids: list[str] = []
     errors: list[str] = []

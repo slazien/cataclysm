@@ -125,9 +125,10 @@ export async function listTracks() {
   return fetchApi<TrackFolder[]>("/api/tracks");
 }
 
-export async function loadTrackFolder(folder: string) {
+export async function loadTrackFolder(folder: string, limit?: number) {
+  const params = limit ? `?limit=${limit}` : "";
   return fetchApi<{ session_ids: string[] }>(
-    `/api/tracks/${encodeURIComponent(folder)}/load`,
+    `/api/tracks/${encodeURIComponent(folder)}/load${params}`,
     { method: "POST" },
   );
 }

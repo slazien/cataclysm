@@ -4,6 +4,7 @@ import { useRef, useState, useCallback } from 'react';
 import { Upload, FileSpreadsheet } from 'lucide-react';
 import { useSessionStore } from '@/stores';
 import { useUploadSessions } from '@/hooks/useSession';
+import { useTracks, useLoadTrackFolder } from '@/hooks/useTracks';
 import { Button } from '@/components/ui/button';
 
 export function WelcomeScreen() {
@@ -70,23 +71,32 @@ export function WelcomeScreen() {
     [handleFiles],
   );
 
-  const handleSampleData = useCallback(async () => {
-    setLoadingSample(true);
-    try {
-      const response = await fetch('/sample-session/barber_sample.csv');
-      if (!response.ok) {
-        setError('Sample data not available');
-        return;
-      }
-      const blob = await response.blob();
-      const file = new File([blob], 'barber_sample.csv', { type: 'text/csv' });
-      handleFiles([file]);
-    } catch {
-      setError('Failed to load sample data');
-    } finally {
-      setLoadingSample(false);
+  const { data: tracks } = useTracks();
+  const loadTrackMutation = useLoadTrackFolder();
+
+  const hasSampleData = (tracks?.length ?? 0) > 0;
+
+  const handleSampleData = useCallback(() => {
+    if (!tracks || tracks.length === 0) {
+      setError('No local track data found. Upload a CSV to get started.');
+      return;
     }
-  }, [handleFiles]);
+    setLoadingSample(true);
+    setError(null);
+    loadTrackMutation.mutate({ folder: tracks[0].folder, limit: 3 }, {
+      onSuccess: (data) => {
+        if (data.session_ids.length > 0) {
+          setActiveSession(data.session_ids[0]);
+        }
+      },
+      onError: () => {
+        setError('Failed to load sample data');
+      },
+      onSettled: () => {
+        setLoadingSample(false);
+      },
+    });
+  }, [tracks, loadTrackMutation, setActiveSession]);
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-8 p-8">
@@ -144,17 +154,19 @@ export function WelcomeScreen() {
         />
       </div>
 
-      {/* Sample data button */}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleSampleData}
-        disabled={loadingSample}
-        className="gap-2"
-      >
-        <FileSpreadsheet className="h-4 w-4" />
-        {loadingSample ? 'Loading sample...' : 'Try with sample data'}
-      </Button>
+      {/* Sample data button — only shown when local track data exists */}
+      {hasSampleData && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleSampleData}
+          disabled={loadingSample}
+          className="gap-2"
+        >
+          <FileSpreadsheet className="h-4 w-4" />
+          {loadingSample ? 'Loading sample...' : 'Try with sample data'}
+        </Button>
+      )}
 
       {/* Error display */}
       {(error || uploadMutation.isError) && (

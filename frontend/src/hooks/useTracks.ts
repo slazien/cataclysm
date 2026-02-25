@@ -13,7 +13,8 @@ export function useTracks() {
 export function useLoadTrackFolder() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (folder: string) => loadTrackFolder(folder),
+    mutationFn: ({ folder, limit }: { folder: string; limit?: number }) =>
+      loadTrackFolder(folder, limit),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sessions"] }),
   });
 }
