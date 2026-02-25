@@ -1,7 +1,7 @@
 'use client';
 
 import { useSessionStore, useUiStore } from '@/stores';
-import { EmptyState } from '@/components/shared/EmptyState';
+import { WelcomeScreen } from '@/components/shared/WelcomeScreen';
 import { SessionDashboard } from '@/components/dashboard/SessionDashboard';
 import { DeepDive } from '@/components/deep-dive/DeepDive';
 import { ProgressView } from '@/components/progress/ProgressView';
@@ -11,13 +11,7 @@ export function ViewRouter() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
 
   if (!activeSessionId) {
-    return (
-      <EmptyState
-        title="No session loaded"
-        message="Upload a RaceChrono CSV or select a session from the drawer to get started."
-        className="h-full"
-      />
-    );
+    return <WelcomeScreen />;
   }
 
   switch (activeView) {

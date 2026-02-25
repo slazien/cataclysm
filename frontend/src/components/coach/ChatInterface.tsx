@@ -200,6 +200,7 @@ export function ChatInterface() {
       >
         <div className="flex items-end gap-2">
           <textarea
+            data-chat-input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}

@@ -6,9 +6,12 @@ import { SessionDrawer } from '@/components/navigation/SessionDrawer';
 import { ViewRouter } from '@/components/navigation/ViewRouter';
 import { MobileBottomTabs } from '@/components/navigation/MobileBottomTabs';
 import { CoachPanel } from '@/components/coach/CoachPanel';
+import { ProcessingOverlay } from '@/components/shared/ProcessingOverlay';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 export default function Home() {
   const panelOpen = useCoachStore((s) => s.panelOpen);
+  useKeyboardShortcuts();
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
@@ -21,6 +24,7 @@ export default function Home() {
         {panelOpen && <CoachPanel />}
       </div>
       <MobileBottomTabs />
+      <ProcessingOverlay />
     </div>
   );
 }
