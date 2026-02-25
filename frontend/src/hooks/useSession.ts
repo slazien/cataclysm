@@ -10,6 +10,7 @@ import {
   deleteSession,
   deleteAllSessions,
 } from "@/lib/api";
+import { useSessionStore } from "@/stores";
 
 export function useSessions() {
   return useQuery({
@@ -44,9 +45,25 @@ export function useLapData(sessionId: string | null, lapNumber: number | null) {
 
 export function useUploadSessions() {
   const queryClient = useQueryClient();
+  const setUploadState = useSessionStore.getState().setUploadState;
   return useMutation({
-    mutationFn: (files: File[]) => uploadSessions(files),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sessions"] }),
+    mutationFn: (files: File[]) => {
+      setUploadState('uploading');
+      return uploadSessions(files);
+    },
+    onSuccess: () => {
+      setUploadState('processing');
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      // Brief delay to show processing, then done, then auto-dismiss
+      setTimeout(() => {
+        setUploadState('done');
+        setTimeout(() => setUploadState('idle'), 1500);
+      }, 800);
+    },
+    onError: () => {
+      setUploadState('error');
+      setTimeout(() => setUploadState('idle'), 3000);
+    },
   });
 }
 

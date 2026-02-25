@@ -57,8 +57,8 @@ export function useKeyboardShortcuts() {
           }
           break;
         case '/':
+          e.preventDefault();
           if (!panelOpen) {
-            e.preventDefault();
             togglePanel();
           }
           // Focus chat input after panel opens
@@ -66,10 +66,7 @@ export function useKeyboardShortcuts() {
             const chatInput = document.querySelector<HTMLInputElement>(
               '[data-chat-input]',
             );
-            if (chatInput) {
-              e.preventDefault();
-              chatInput.focus();
-            }
+            chatInput?.focus();
           }, 100);
           break;
         case 'ArrowLeft':

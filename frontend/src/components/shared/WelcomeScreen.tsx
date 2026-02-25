@@ -10,12 +10,15 @@ export function WelcomeScreen() {
   const uploadMutation = useUploadSessions();
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragCounterRef = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
   const [loadingSample, setLoadingSample] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleFiles = useCallback(
     (files: File[]) => {
       if (files.length === 0) return;
+      setError(null);
       uploadMutation.mutate(files, {
         onSuccess: (data) => {
           if (data.session_ids.length > 0) {
@@ -27,9 +30,16 @@ export function WelcomeScreen() {
     [uploadMutation, setActiveSession],
   );
 
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current++;
+    setIsDragging(true);
+  }, []);
+
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
+      dragCounterRef.current = 0;
       setIsDragging(false);
       const files = Array.from(e.dataTransfer.files).filter((f) =>
         f.name.endsWith('.csv'),
@@ -41,12 +51,14 @@ export function WelcomeScreen() {
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(true);
   }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(false);
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
   }, []);
 
   const handleFileInput = useCallback(
@@ -62,11 +74,15 @@ export function WelcomeScreen() {
     setLoadingSample(true);
     try {
       const response = await fetch('/sample-session/barber_sample.csv');
+      if (!response.ok) {
+        setError('Sample data not available');
+        return;
+      }
       const blob = await response.blob();
       const file = new File([blob], 'barber_sample.csv', { type: 'text/csv' });
       handleFiles([file]);
     } catch {
-      // Sample data not available — silently fail
+      setError('Failed to load sample data');
     } finally {
       setLoadingSample(false);
     }
@@ -86,8 +102,17 @@ export function WelcomeScreen() {
 
       {/* Drop zone */}
       <div
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
+        onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onClick={() => fileInputRef.current?.click()}
         className={`flex w-full max-w-md cursor-pointer flex-col items-center gap-4 rounded-xl border-2 border-dashed p-10 transition-colors ${
@@ -130,6 +155,13 @@ export function WelcomeScreen() {
         <FileSpreadsheet className="h-4 w-4" />
         {loadingSample ? 'Loading sample...' : 'Try with sample data'}
       </Button>
+
+      {/* Error display */}
+      {(error || uploadMutation.isError) && (
+        <p className="text-xs text-red-400">
+          {error ?? 'Upload failed. Please check your CSV format.'}
+        </p>
+      )}
 
       {/* How to export from RaceChrono */}
       <div className="w-full max-w-sm rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
