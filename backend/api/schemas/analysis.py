@@ -92,3 +92,30 @@ class LinkedChartResponse(BaseModel):
     lateral_g_traces: dict[str, list[float]]
     longitudinal_g_traces: dict[str, list[float]]
     heading_traces: dict[str, list[float]]
+
+
+class SectorSplitSchema(BaseModel):
+    """One sector's time for a single lap."""
+
+    sector_name: str
+    time_s: float
+    is_personal_best: bool = False
+
+
+class LapSectorSplitsSchema(BaseModel):
+    """All sector splits for a single lap."""
+
+    lap_number: int
+    total_time_s: float
+    splits: list[SectorSplitSchema]
+
+
+class SectorResponse(BaseModel):
+    """Per-lap sector splits with composite time."""
+
+    session_id: str
+    segments: list[dict[str, Any]]
+    lap_splits: list[LapSectorSplitsSchema]
+    best_sector_times: dict[str, float]
+    best_sector_laps: dict[str, int]
+    composite_time_s: float

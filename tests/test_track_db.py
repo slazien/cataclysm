@@ -11,6 +11,7 @@ from cataclysm.track_db import (
     BARBER_MOTORSPORTS_PARK,
     OfficialCorner,
     TrackLayout,
+    get_all_tracks,
     locate_official_corners,
     lookup_track,
 )
@@ -32,6 +33,39 @@ class TestLookupTrack:
     def test_whitespace_stripped(self) -> None:
         layout = lookup_track("  Barber Motorsports Park  ")
         assert layout is not None
+
+
+class TestGPSFields:
+    """Tests for GPS-enriched fields on OfficialCorner and TrackLayout."""
+
+    def test_official_corner_gps_defaults_none(self) -> None:
+        c = OfficialCorner(1, "T1", 0.5)
+        assert c.lat is None
+        assert c.lon is None
+
+    def test_official_corner_gps_populated(self) -> None:
+        c = OfficialCorner(1, "T1", 0.5, lat=33.53, lon=-86.62)
+        assert c.lat == 33.53
+        assert c.lon == -86.62
+
+    def test_track_layout_gps_defaults(self) -> None:
+        layout = TrackLayout(name="Test", corners=[])
+        assert layout.center_lat is None
+        assert layout.center_lon is None
+        assert layout.country == ""
+        assert layout.length_m is None
+
+    def test_barber_has_gps_metadata(self) -> None:
+        assert BARBER_MOTORSPORTS_PARK.center_lat == pytest.approx(33.5302)
+        assert BARBER_MOTORSPORTS_PARK.center_lon == pytest.approx(-86.6215)
+        assert BARBER_MOTORSPORTS_PARK.country == "US"
+        assert BARBER_MOTORSPORTS_PARK.length_m == pytest.approx(3662.4)
+
+    def test_get_all_tracks_returns_list(self) -> None:
+        tracks = get_all_tracks()
+        assert isinstance(tracks, list)
+        assert len(tracks) >= 1
+        assert any(t.name == "Barber Motorsports Park" for t in tracks)
 
 
 class TestLocateOfficialCorners:

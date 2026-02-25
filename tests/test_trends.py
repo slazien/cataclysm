@@ -36,6 +36,43 @@ class TestSessionSnapshot:
         assert snap.n_laps == 5
         assert snap.n_clean_laps == 4
 
+    def test_optimal_lap_time_property(self, session_snapshot_factory: SnapshotFactory) -> None:
+        snap = session_snapshot_factory()
+        # composite_best_s = best - 0.3, theoretical_best_s = best - 0.5
+        assert snap.optimal_lap_time_s == snap.theoretical_best_s
+        assert snap.optimal_lap_time_s == min(snap.theoretical_best_s, snap.composite_best_s)
+
+    def test_optimal_prefers_composite_when_lower(
+        self, session_snapshot_factory: SnapshotFactory
+    ) -> None:
+        snap = session_snapshot_factory()
+        # Override to make composite lower than theoretical
+        # Default: theoretical = best - 0.5, composite = best - 0.3
+        # So theoretical is always lower in default fixture.
+        # We need a custom snapshot to test the other branch.
+        from cataclysm.trends import SessionSnapshot
+
+        # Create a snapshot where composite < theoretical
+        custom = SessionSnapshot(
+            session_id=snap.session_id,
+            metadata=snap.metadata,
+            session_date_parsed=snap.session_date_parsed,
+            n_laps=snap.n_laps,
+            n_clean_laps=snap.n_clean_laps,
+            best_lap_time_s=snap.best_lap_time_s,
+            top3_avg_time_s=snap.top3_avg_time_s,
+            avg_lap_time_s=snap.avg_lap_time_s,
+            consistency_score=snap.consistency_score,
+            std_dev_s=snap.std_dev_s,
+            theoretical_best_s=90.0,
+            composite_best_s=89.0,
+            lap_times_s=snap.lap_times_s,
+            corner_metrics=snap.corner_metrics,
+            lap_consistency=snap.lap_consistency,
+            corner_consistency=snap.corner_consistency,
+        )
+        assert custom.optimal_lap_time_s == 89.0
+
     def test_fields_populated(self, session_snapshot_factory: SnapshotFactory) -> None:
         snap = session_snapshot_factory(best_lap_time_s=90.0, consistency_score=85.0)
         assert snap.best_lap_time_s == 90.0

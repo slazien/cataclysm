@@ -27,7 +27,8 @@ from cataclysm.gains import (
 )
 from cataclysm.grip import estimate_grip_limit
 from cataclysm.parser import ParsedSession, parse_racechrono_csv
-from cataclysm.track_db import locate_official_corners, lookup_track
+from cataclysm.track_db import locate_official_corners
+from cataclysm.track_match import detect_track_or_lookup
 from cataclysm.trends import SessionSnapshot, build_session_snapshot
 
 from backend.api.services.session_store import SessionData, store_session
@@ -55,7 +56,7 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
 
     # 4. Detect corners (track_db lookup first, fallback to detect_corners)
     best_lap_df = processed.resampled_laps[processed.best_lap]
-    layout = lookup_track(parsed.metadata.track_name)
+    layout = detect_track_or_lookup(parsed.data, parsed.metadata.track_name)
     if layout is not None:
         skeletons = locate_official_corners(best_lap_df, layout)
         corners: list[Corner] = extract_corner_kpis_for_lap(best_lap_df, skeletons)

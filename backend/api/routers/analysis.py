@@ -1,4 +1,4 @@
-"""Analysis endpoints: corners, consistency, grip, gains, delta, linked charts."""
+"""Analysis endpoints: corners, consistency, grip, gains, delta, linked charts, sectors."""
 
 from __future__ import annotations
 
@@ -16,7 +16,10 @@ from backend.api.schemas.analysis import (
     GainsResponse,
     GripResponse,
     IdealLapResponse,
+    LapSectorSplitsSchema,
     LinkedChartResponse,
+    SectorResponse,
+    SectorSplitSchema,
 )
 from backend.api.services import session_store
 from backend.api.services.pipeline import get_ideal_lap_data
@@ -208,4 +211,60 @@ async def get_linked_chart_data(
         lateral_g_traces=lateral_g_traces,
         longitudinal_g_traces=longitudinal_g_traces,
         heading_traces=heading_traces,
+    )
+
+
+@router.get("/{session_id}/sectors", response_model=SectorResponse)
+async def get_sectors(session_id: str) -> SectorResponse:
+    """Compute per-lap sector splits with personal bests and composite time."""
+    sd = _get_session_or_404(session_id)
+    if len(sd.coaching_laps) < 1:
+        raise HTTPException(
+            status_code=422,
+            detail="At least 1 clean lap required for sector analysis",
+        )
+
+    from cataclysm.sectors import compute_sector_analysis
+
+    analysis = await asyncio.to_thread(
+        compute_sector_analysis,
+        sd.processed.resampled_laps,
+        sd.corners,
+        sd.coaching_laps,
+        sd.processed.best_lap,
+    )
+
+    segments_dicts = [
+        {
+            "name": seg.name,
+            "entry_distance_m": seg.entry_distance_m,
+            "exit_distance_m": seg.exit_distance_m,
+            "is_corner": seg.is_corner,
+        }
+        for seg in analysis.segments
+    ]
+
+    lap_splits = [
+        LapSectorSplitsSchema(
+            lap_number=ls.lap_number,
+            total_time_s=ls.total_time_s,
+            splits=[
+                SectorSplitSchema(
+                    sector_name=s.sector_name,
+                    time_s=s.time_s,
+                    is_personal_best=s.is_personal_best,
+                )
+                for s in ls.splits
+            ],
+        )
+        for ls in analysis.lap_splits
+    ]
+
+    return SectorResponse(
+        session_id=session_id,
+        segments=segments_dicts,
+        lap_splits=lap_splits,
+        best_sector_times=analysis.best_sector_times,
+        best_sector_laps=analysis.best_sector_laps,
+        composite_time_s=analysis.composite_time_s,
     )

@@ -43,10 +43,10 @@ async def generate_report(
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
     from cataclysm.coaching import generate_coaching_report
-    from cataclysm.track_db import lookup_track
+    from cataclysm.track_match import detect_track_or_lookup
 
     # Resolve track landmarks for coaching context
-    layout = lookup_track(sd.parsed.metadata.track_name)
+    layout = detect_track_or_lookup(sd.parsed.data, sd.parsed.metadata.track_name)
     landmarks = layout.landmarks if layout else []
 
     # Filter summaries to coaching laps only

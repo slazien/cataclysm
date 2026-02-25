@@ -25,6 +25,8 @@ class OfficialCorner:
     number: int  # Official corner number (e.g., 1 for T1)
     name: str  # Corner name (e.g., "Charlotte's Web")
     fraction: float  # Apex position as fraction of total lap distance (0.0–1.0)
+    lat: float | None = None  # GPS latitude of apex
+    lon: float | None = None  # GPS longitude of apex
 
 
 @dataclass(frozen=True)
@@ -34,6 +36,10 @@ class TrackLayout:
     name: str
     corners: list[OfficialCorner]
     landmarks: list[Landmark] = field(default_factory=list)
+    center_lat: float | None = None
+    center_lon: float | None = None
+    country: str = ""
+    length_m: float | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -105,6 +111,10 @@ _BARBER_LANDMARKS: list[Landmark] = [
 BARBER_MOTORSPORTS_PARK = TrackLayout(
     name="Barber Motorsports Park",
     landmarks=_BARBER_LANDMARKS,
+    center_lat=33.5302,
+    center_lon=-86.6215,
+    country="US",
+    length_m=3662.4,
     corners=[
         OfficialCorner(1, "Fast Downhill Left", 0.05),
         OfficialCorner(2, "Uphill Right", 0.10),
@@ -142,6 +152,11 @@ def lookup_track(track_name: str) -> TrackLayout | None:
     Returns None if the track is not in the database.
     """
     return _TRACK_REGISTRY.get(_normalize_name(track_name))
+
+
+def get_all_tracks() -> list[TrackLayout]:
+    """Return all known track layouts."""
+    return list(_TRACK_REGISTRY.values())
 
 
 # ---------------------------------------------------------------------------

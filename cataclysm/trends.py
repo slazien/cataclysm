@@ -56,6 +56,11 @@ class SessionSnapshot:
     lap_consistency: LapConsistency
     corner_consistency: list[CornerConsistencyEntry]
 
+    @property
+    def optimal_lap_time_s(self) -> float:
+        """Best theoretical lap time (min of composite and theoretical)."""
+        return min(self.theoretical_best_s, self.composite_best_s)
+
 
 @dataclass
 class Milestone:

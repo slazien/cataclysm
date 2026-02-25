@@ -61,6 +61,7 @@ from cataclysm.optimal_comparison import OptimalComparisonResult, compare_with_o
 from cataclysm.parser import ParsedSession, parse_racechrono_csv
 from cataclysm.pdf_report import ReportContent, generate_pdf
 from cataclysm.track_db import locate_official_corners, lookup_track
+from cataclysm.track_match import detect_track_or_lookup
 from cataclysm.trends import (
     SessionSnapshot,
     build_session_snapshot,
@@ -131,7 +132,7 @@ def _build_snapshot_from_file(
         return None
 
     best_lap_df = processed.resampled_laps[processed.best_lap]
-    layout = lookup_track(parsed.metadata.track_name)
+    layout = detect_track_or_lookup(parsed.data, parsed.metadata.track_name)
     if layout is not None:
         skeletons = locate_official_corners(best_lap_df, layout)
         corners = extract_corner_kpis_for_lap(best_lap_df, skeletons)
@@ -360,7 +361,7 @@ best_lap_df = processed.resampled_laps[processed.best_lap]
 
 @st.cache_data(show_spinner="Detecting corners...")
 def cached_corners(_key: str, _lap_df: object, _track_name: str) -> list[Corner]:
-    layout = lookup_track(_track_name)  # type: ignore[arg-type]
+    layout = lookup_track(_track_name)  # type: ignore[arg-type]  # cached; GPS detection done earlier
     if layout is not None:
         skeletons = locate_official_corners(_lap_df, layout)  # type: ignore[arg-type]
         return extract_corner_kpis_for_lap(_lap_df, skeletons)  # type: ignore[arg-type]
@@ -446,6 +447,56 @@ with tab_overview:
         "Top Speed",
         f"{max(s.max_speed_mps for s in summaries) * MPS_TO_MPH:.1f} mph",
     )
+
+    # --- Optimal Lap Metrics ---
+    if len(coaching_laps) >= 2:
+
+        @st.cache_data(show_spinner="Computing optimal times...")
+        def cached_overview_gains(
+            _key: str,
+            _resampled: object,
+            _corners: object,
+            _summaries: object,
+            _coaching_laps: list[int],
+            _best_lap: int,
+        ) -> GainEstimate:
+            return estimate_gains(
+                processed.resampled_laps,
+                corners,  # type: ignore[arg-type]
+                summaries,
+                _coaching_laps,
+                _best_lap,
+            )
+
+        _overview_gains = cached_overview_gains(
+            f"{file_key}_gains",
+            processed.resampled_laps,
+            corners,
+            summaries,
+            coaching_laps,
+            processed.best_lap,
+        )
+
+        oc1, oc2, oc3 = st.columns(3)
+        oc1.metric(
+            "Composite Best",
+            fmt_time(_overview_gains.composite.composite_time_s),
+            help="Best segment times combined across all laps",
+        )
+        oc2.metric(
+            "Theoretical Best",
+            fmt_time(_overview_gains.theoretical.theoretical_time_s),
+            help="Best 10m micro-sector times combined",
+        )
+        improvement = best_summary.lap_time_s - min(
+            _overview_gains.composite.composite_time_s,
+            _overview_gains.theoretical.theoretical_time_s,
+        )
+        oc3.metric(
+            "Improvement Available",
+            f"{improvement:.2f}s",
+            help="Gap between your actual best lap and theoretical optimal",
+        )
 
     st.plotly_chart(lap_times_chart(summaries), use_container_width=True)
 
@@ -867,7 +918,7 @@ with tab_coaching:
 
     # --- Generate Coaching Report ---
     # Resolve track landmarks for coaching context
-    _coaching_layout = lookup_track(meta.track_name)
+    _coaching_layout = detect_track_or_lookup(parsed.data, meta.track_name)
     _track_landmarks = _coaching_layout.landmarks if _coaching_layout else []
 
     if st.button("Generate Coaching Report", disabled=not has_key):
