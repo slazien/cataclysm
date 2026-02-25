@@ -65,10 +65,13 @@ export function ChatInterface() {
     wsRef.current = ws;
 
     ws.onopen = () => {
-      setConnectionState('connected');
+      // Guard: only update state if this is still the active WebSocket
+      // (React strict mode double-invokes effects, so stale sockets may fire)
+      if (wsRef.current === ws) setConnectionState('connected');
     };
 
     ws.onmessage = (event) => {
+      if (wsRef.current !== ws) return;
       try {
         const data = JSON.parse(event.data) as { role: string; content: string };
         const msg: ChatMessage = {
@@ -83,14 +86,18 @@ export function ChatInterface() {
     };
 
     ws.onerror = () => {
-      setConnectionState('error');
-      setIsWaiting(false);
+      if (wsRef.current === ws) {
+        setConnectionState('error');
+        setIsWaiting(false);
+      }
     };
 
     ws.onclose = () => {
-      setConnectionState('disconnected');
-      wsRef.current = null;
-      setIsWaiting(false);
+      if (wsRef.current === ws) {
+        setConnectionState('disconnected');
+        wsRef.current = null;
+        setIsWaiting(false);
+      }
     };
 
     return () => {
