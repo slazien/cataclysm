@@ -66,6 +66,10 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
     """Set Cache-Control headers based on the request path and method."""
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        # Skip WebSocket connections — BaseHTTPMiddleware cannot handle them
+        if request.scope.get("type") == "websocket":
+            return await call_next(request)
+
         response = await call_next(request)
 
         # Only apply to successful GET responses without an existing header
