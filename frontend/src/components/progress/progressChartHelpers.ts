@@ -1,4 +1,5 @@
 import { colors, fonts } from '@/lib/design-tokens';
+import { parseSessionDate } from '@/lib/formatters';
 import type * as d3 from 'd3';
 import type { TrendSessionSummary } from '@/lib/types';
 
@@ -53,7 +54,7 @@ export function drawTrendAxes({
   for (let i = 0; i < sessions.length; i++) {
     const x = xScale(i);
     ctx.fillStyle = colors.axis;
-    const dateLabel = new Date(sessions[i].session_date).toLocaleDateString('en-US', {
+    const dateLabel = parseSessionDate(sessions[i].session_date).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
     });

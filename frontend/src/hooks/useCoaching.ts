@@ -9,7 +9,9 @@ export function useCoachingReport(sessionId: string | null) {
     queryKey: ["coaching-report", sessionId],
     queryFn: () => getCoachingReport(sessionId!),
     enabled: !!sessionId,
-    retry: false, // Don't retry 404s (report not generated yet)
+    retry: false,
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000, // 5 min — avoid repeated 404s when no report exists
   });
 }
 

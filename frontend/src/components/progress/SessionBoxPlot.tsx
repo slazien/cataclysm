@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import * as d3 from 'd3';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
 import { colors, fonts } from '@/lib/design-tokens';
-import { formatTimeShort } from '@/lib/formatters';
+import { formatTimeShort, parseSessionDate } from '@/lib/formatters';
 import type { TrendSessionSummary } from '@/lib/types';
 
 interface SessionBoxPlotProps {
@@ -118,7 +118,7 @@ export function SessionBoxPlot({ sessions, className }: SessionBoxPlotProps) {
       const x = xScale(i);
       ctx.fillStyle = colors.axis;
       ctx.font = `10px ${fonts.mono}`;
-      const dateLabel = new Date(sessions[i].session_date).toLocaleDateString('en-US', {
+      const dateLabel = parseSessionDate(sessions[i].session_date).toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
       });

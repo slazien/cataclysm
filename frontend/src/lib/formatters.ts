@@ -24,3 +24,13 @@ export function formatTimeShort(seconds: number): string {
   const sec = seconds % 60;
   return min > 0 ? `${min}:${sec.toFixed(1).padStart(4, '0')}` : `${sec.toFixed(2)}s`;
 }
+
+/**
+ * Parse a session date string from the backend.
+ * Backend format: "DD/MM/YYYY HH:MM" — JS Date constructor doesn't parse this.
+ */
+export function parseSessionDate(dateStr: string): Date {
+  const [datePart, timePart] = dateStr.split(' ');
+  const [day, month, year] = datePart.split('/');
+  return new Date(`${year}-${month}-${day}T${timePart ?? '00:00'}`);
+}

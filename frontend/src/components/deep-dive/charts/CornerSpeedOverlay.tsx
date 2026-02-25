@@ -428,14 +428,6 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
     );
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)]">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--cata-accent)] border-t-transparent" />
-      </div>
-    );
-  }
-
   return (
     <div className="relative h-full w-full rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)]">
       <h3 className="absolute left-3 top-2 z-10 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
@@ -453,6 +445,11 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
           style={{ width: '100%', height: '100%' }}
         />
       </div>
+      {isLoading && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--bg-surface)]/80">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--cata-accent)] border-t-transparent" />
+        </div>
+      )}
     </div>
   );
 }

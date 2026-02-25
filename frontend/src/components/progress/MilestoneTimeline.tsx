@@ -3,6 +3,7 @@
 import { useMemo, useRef, useEffect, useCallback, useState } from 'react';
 import type { Milestone, TrendSessionSummary } from '@/lib/types';
 import { colors, fonts } from '@/lib/design-tokens';
+import { parseSessionDate } from '@/lib/formatters';
 
 interface MilestoneTimelineProps {
   sessions: TrendSessionSummary[];
@@ -32,7 +33,7 @@ export function MilestoneTimeline({ sessions, milestones, className }: Milestone
 
   // Build session date positions
   const sessionDates = useMemo(
-    () => sessions.map((s) => new Date(s.session_date)),
+    () => sessions.map((s) => parseSessionDate(s.session_date)),
     [sessions],
   );
 
@@ -139,7 +140,7 @@ export function MilestoneTimeline({ sessions, milestones, className }: Milestone
     for (const [dateStr, ms] of milestonesByDate.entries()) {
       const matchSession = sessions.find((s) => s.session_date === dateStr);
       if (!matchSession) continue;
-      const x = xScale(new Date(dateStr));
+      const x = xScale(parseSessionDate(dateStr));
 
       for (let j = 0; j < ms.length; j++) {
         const m = ms[j];
@@ -186,7 +187,7 @@ export function MilestoneTimeline({ sessions, milestones, className }: Milestone
 
       // Check milestones first
       for (const [dateStr, ms] of milestonesByDate.entries()) {
-        const x = xScale(new Date(dateStr));
+        const x = xScale(parseSessionDate(dateStr));
         for (let j = 0; j < ms.length; j++) {
           const pinY = lineY - 18 - j * 22;
           const dx = mouseX - x;

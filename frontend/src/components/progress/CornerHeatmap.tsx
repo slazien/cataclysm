@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
 import { useUiStore, useAnalysisStore } from '@/stores';
 import { colors, fonts } from '@/lib/design-tokens';
+import { parseSessionDate } from '@/lib/formatters';
 import type { TrendSessionSummary } from '@/lib/types';
 
 type HeatmapMetric = 'min_speed' | 'brake_consistency' | 'grade';
@@ -158,7 +159,7 @@ export function CornerHeatmap({
     for (let col = 0; col < nSessions; col += step) {
       const x = MARGINS.left + col * cellWidth + cellWidth / 2;
       ctx.fillStyle = colors.axis;
-      const dateLabel = new Date(sessions[col].session_date).toLocaleDateString('en-US', {
+      const dateLabel = parseSessionDate(sessions[col].session_date).toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
       });
