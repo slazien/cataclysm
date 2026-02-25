@@ -7,9 +7,6 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-
-load_dotenv()  # Populate os.environ from .env so coaching.py can read API keys
-
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -34,6 +31,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     clear_all()
 
 
+load_dotenv()  # Populate os.environ from .env before reading settings
 settings = Settings()
 
 app = FastAPI(
