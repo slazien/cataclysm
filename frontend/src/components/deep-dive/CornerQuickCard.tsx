@@ -6,15 +6,11 @@ import { useAnalysisStore } from '@/stores';
 import { GradeChip } from '@/components/shared/GradeChip';
 import { colors } from '@/lib/design-tokens';
 import { worstGrade } from '@/lib/gradeUtils';
+import { parseCornerNumber } from '@/lib/cornerUtils';
 import type { Corner, CornerGrade, PriorityCorner } from '@/lib/types';
 
 interface CornerQuickCardProps {
   sessionId: string;
-}
-
-function parseCornerNumber(cornerId: string): number | null {
-  const match = cornerId.match(/T(\d+)/i);
-  return match ? parseInt(match[1], 10) : null;
 }
 
 function findBestCorner(
@@ -98,10 +94,10 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
     (pc) => pc.corner === cornerNumber,
   );
 
-  // Compute "vs best" deltas
+  // Compute "vs best" deltas (epsilon check instead of object identity)
   const bestCorner = findBestCorner(cornerNumber, allLapCorners);
   const minSpeedDelta =
-    bestCorner && bestCorner !== corner
+    bestCorner && Math.abs(corner.min_speed_mph - bestCorner.min_speed_mph) > 0.05
       ? corner.min_speed_mph - bestCorner.min_speed_mph
       : null;
 

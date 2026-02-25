@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-type DeepDiveMode = 'speed' | 'corner' | 'custom';
+export type DeepDiveMode = 'speed' | 'corner' | 'custom';
 
 interface AnalysisState {
   cursorDistance: number | null;

@@ -1,11 +1,10 @@
 'use client';
 
 import { useAnalysisStore } from '@/stores';
+import type { DeepDiveMode } from '@/stores/analysisStore';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SpeedAnalysis } from './SpeedAnalysis';
 import { CornerAnalysis } from './CornerAnalysis';
-
-type DeepDiveMode = 'speed' | 'corner' | 'custom';
 
 export function DeepDive() {
   const mode = useAnalysisStore((s) => s.deepDiveMode);

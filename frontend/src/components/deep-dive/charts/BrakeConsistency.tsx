@@ -6,15 +6,11 @@ import { useCanvasChart } from '@/hooks/useCanvasChart';
 import { useAllLapCorners } from '@/hooks/useAnalysis';
 import { useAnalysisStore } from '@/stores';
 import { colors, fonts } from '@/lib/design-tokens';
+import { parseCornerNumber } from '@/lib/cornerUtils';
 import { CHART_MARGINS as MARGINS } from './chartHelpers';
 
 interface BrakeConsistencyProps {
   sessionId: string;
-}
-
-function parseCornerNumber(cornerId: string): number | null {
-  const match = cornerId.match(/T(\d+)/i);
-  return match ? parseInt(match[1], 10) : null;
 }
 
 interface BrakePoint {
@@ -22,7 +18,27 @@ interface BrakePoint {
   brakePointM: number;
 }
 
-function drawAxes(
+/** Draw only grid lines (behind data). */
+function drawGrid(
+  ctx: CanvasRenderingContext2D,
+  yScale: d3.ScaleLinear<number, number>,
+  innerWidth: number,
+  margins: typeof MARGINS,
+) {
+  const yTicks = yScale.ticks(5);
+  ctx.strokeStyle = colors.grid;
+  ctx.lineWidth = 1;
+  for (const tick of yTicks) {
+    const y = yScale(tick);
+    ctx.beginPath();
+    ctx.moveTo(margins.left, y);
+    ctx.lineTo(margins.left + innerWidth, y);
+    ctx.stroke();
+  }
+}
+
+/** Draw axis tick labels and axis labels (on top of data). */
+function drawLabels(
   ctx: CanvasRenderingContext2D,
   xScale: d3.ScaleLinear<number, number>,
   yScale: d3.ScaleLinear<number, number>,
@@ -30,34 +46,24 @@ function drawAxes(
   innerHeight: number,
   margins: typeof MARGINS,
 ) {
-  ctx.strokeStyle = colors.axis;
-  ctx.lineWidth = 1;
-  ctx.fillStyle = colors.axis;
   ctx.font = `10px ${fonts.mono}`;
 
-  // Y-axis ticks
+  // Y-axis tick labels
   const yTicks = yScale.ticks(5);
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
   for (const tick of yTicks) {
-    const y = yScale(tick);
-    ctx.strokeStyle = colors.grid;
-    ctx.beginPath();
-    ctx.moveTo(margins.left, y);
-    ctx.lineTo(margins.left + innerWidth, y);
-    ctx.stroke();
     ctx.fillStyle = colors.axis;
-    ctx.fillText(`${tick.toFixed(0)}`, margins.left - 6, y);
+    ctx.fillText(`${tick.toFixed(0)}`, margins.left - 6, yScale(tick));
   }
 
-  // X-axis ticks
+  // X-axis tick labels
   const xTicks = xScale.ticks(Math.min(10, xScale.domain()[1] - xScale.domain()[0]));
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   for (const tick of xTicks) {
-    const x = xScale(tick);
     ctx.fillStyle = colors.axis;
-    ctx.fillText(`${Math.round(tick)}`, x, margins.top + innerHeight + 6);
+    ctx.fillText(`${Math.round(tick)}`, xScale(tick), margins.top + innerHeight + 6);
   }
 
   // Axis labels
@@ -146,6 +152,10 @@ export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
     const { width, height } = dimensions;
     ctx.clearRect(0, 0, width, height);
 
+    // --- 1. Grid lines (behind data) ---
+    drawGrid(ctx, yScale, dimensions.innerWidth, MARGINS);
+
+    // --- 2. Data ---
     // Standard deviation band
     if (stdDev > 0) {
       const bandTop = yScale(mean + stdDev);
@@ -202,8 +212,8 @@ export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
       ctx.fillText(`L${bp.lapNumber}`, x, y + 8);
     }
 
-    // Axes
-    drawAxes(ctx, xScale, yScale, dimensions.innerWidth, dimensions.innerHeight, MARGINS);
+    // --- 3. Axis labels (on top of data) ---
+    drawLabels(ctx, xScale, yScale, dimensions.innerWidth, dimensions.innerHeight, MARGINS);
 
     // Std dev annotation
     if (stdDev > 0) {

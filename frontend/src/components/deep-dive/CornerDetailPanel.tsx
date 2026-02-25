@@ -7,15 +7,11 @@ import { GradeChip } from '@/components/shared/GradeChip';
 import { AiInsight } from '@/components/shared/AiInsight';
 import { colors } from '@/lib/design-tokens';
 import { worstGrade } from '@/lib/gradeUtils';
+import { parseCornerNumber } from '@/lib/cornerUtils';
 import type { Corner, CornerGrade, PriorityCorner } from '@/lib/types';
 
 interface CornerDetailPanelProps {
   sessionId: string;
-}
-
-function parseCornerNumber(cornerId: string): number | null {
-  const match = cornerId.match(/T(\d+)/i);
-  return match ? parseInt(match[1], 10) : null;
 }
 
 function findBestCorner(
@@ -121,34 +117,36 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
     (pc) => pc.corner === cornerNumber,
   );
 
-  // Compute vs-best deltas
+  // Compute vs-best deltas (use epsilon check instead of object identity)
   const bestCorner = findBestCorner(cornerNumber, allLapCorners);
+  const EPS = 0.05;
+
   const minSpeedDelta =
-    bestCorner && bestCorner !== corner
+    bestCorner && Math.abs(corner.min_speed_mph - bestCorner.min_speed_mph) > EPS
       ? corner.min_speed_mph - bestCorner.min_speed_mph
       : null;
 
   const brakePointDelta =
     bestCorner &&
-    bestCorner !== corner &&
     corner.brake_point_m !== null &&
-    bestCorner.brake_point_m !== null
+    bestCorner.brake_point_m !== null &&
+    Math.abs(corner.brake_point_m - bestCorner.brake_point_m) > EPS
       ? corner.brake_point_m - bestCorner.brake_point_m
       : null;
 
   const peakBrakeDelta =
     bestCorner &&
-    bestCorner !== corner &&
     corner.peak_brake_g !== null &&
-    bestCorner.peak_brake_g !== null
+    bestCorner.peak_brake_g !== null &&
+    Math.abs(corner.peak_brake_g - bestCorner.peak_brake_g) > EPS
       ? corner.peak_brake_g - bestCorner.peak_brake_g
       : null;
 
   const throttleDelta =
     bestCorner &&
-    bestCorner !== corner &&
     corner.throttle_commit_m !== null &&
-    bestCorner.throttle_commit_m !== null
+    bestCorner.throttle_commit_m !== null &&
+    Math.abs(corner.throttle_commit_m - bestCorner.throttle_commit_m) > EPS
       ? corner.throttle_commit_m - bestCorner.throttle_commit_m
       : null;
 

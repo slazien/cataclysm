@@ -7,11 +7,7 @@ import { TrackMapInteractive } from './charts/TrackMapInteractive';
 import { CornerDetailPanel } from './CornerDetailPanel';
 import { CornerSpeedOverlay } from './charts/CornerSpeedOverlay';
 import { BrakeConsistency } from './charts/BrakeConsistency';
-
-function parseCornerNumber(cornerId: string): number | null {
-  const match = cornerId.match(/T(\d+)/i);
-  return match ? parseInt(match[1], 10) : null;
-}
+import { parseCornerNumber } from '@/lib/cornerUtils';
 
 export function CornerAnalysis() {
   const sessionId = useSessionStore((s) => s.activeSessionId);
