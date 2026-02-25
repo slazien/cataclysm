@@ -16,8 +16,8 @@ from backend.api.schemas.coaching import (
     ReportRequest,
 )
 from backend.api.services import session_store
-from backend.api.services.session_store import SessionData
 from backend.api.services.coaching_store import (
+    clear_coaching_data,
     get_coaching_context,
     get_coaching_report,
     is_generating,
@@ -26,6 +26,7 @@ from backend.api.services.coaching_store import (
     store_coaching_report,
     unmark_generating,
 )
+from backend.api.services.session_store import SessionData
 
 logger = logging.getLogger(__name__)
 
@@ -50,10 +51,13 @@ async def generate_report(
     if is_generating(session_id):
         return CoachingReportResponse(session_id=session_id, status="generating")
 
-    # If report already exists, return it
+    # If report already exists and succeeded, return it.
+    # If it errored, clear it so the user can retry.
     existing = get_coaching_report(session_id)
     if existing is not None:
-        return existing
+        if existing.status != "error":
+            return existing
+        clear_coaching_data(session_id)
 
     mark_generating(session_id)
 
@@ -127,7 +131,11 @@ async def _run_generation(
         logger.exception("Failed to generate coaching report for %s", session_id)
         store_coaching_report(
             session_id,
-            CoachingReportResponse(session_id=session_id, status="error"),
+            CoachingReportResponse(
+                session_id=session_id,
+                status="error",
+                summary="AI coaching is temporarily unavailable. Please retry in a few minutes.",
+            ),
         )
     finally:
         unmark_generating(session_id)

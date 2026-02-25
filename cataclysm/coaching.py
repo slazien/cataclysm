@@ -509,24 +509,12 @@ def generate_coaching_report(
     if kb_context:
         system += "\n\n" + kb_context
 
-    try:
-        message = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=16384,
-            system=system,
-            messages=[{"role": "user", "content": prompt}],
-        )
-    except Exception as e:
-        logger.warning("Coaching report API call failed after retries: %s", e)
-        return CoachingReport(
-            summary=(
-                "AI coaching is temporarily unavailable (the service is overloaded). "
-                "Please try again in a few minutes."
-            ),
-            priority_corners=[],
-            corner_grades=[],
-            patterns=[],
-        )
+    message = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=16384,
+        system=system,
+        messages=[{"role": "user", "content": prompt}],
+    )
 
     block = message.content[0]
     response_text = block.text if hasattr(block, "text") else str(block)

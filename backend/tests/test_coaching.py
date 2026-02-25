@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import patch
 
 import pytest
@@ -85,7 +86,7 @@ def _clear_coaching() -> None:
 
 @pytest.mark.asyncio
 async def test_generate_report(client: AsyncClient) -> None:
-    """POST /api/coaching/{id}/report generates and returns a coaching report."""
+    """POST /api/coaching/{id}/report triggers generation, GET returns the report."""
     session_id = await _upload_session(client)
 
     with patch(
@@ -96,8 +97,14 @@ async def test_generate_report(client: AsyncClient) -> None:
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "intermediate"},
         )
+        assert response.status_code == 200
+        assert response.json()["status"] == "generating"
 
-    assert response.status_code == 200
+        # Let the background task complete
+        await asyncio.sleep(0.2)
+
+    # GET should now return the completed report
+    response = await client.get(f"/api/coaching/{session_id}/report")
     data = response.json()
     assert data["session_id"] == session_id
     assert data["status"] == "ready"
@@ -156,6 +163,8 @@ async def test_get_report_after_generation(client: AsyncClient) -> None:
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "intermediate"},
         )
+        # Let the background task complete
+        await asyncio.sleep(0.2)
 
     # Now GET should return the stored report
     response = await client.get(f"/api/coaching/{session_id}/report")
@@ -205,11 +214,11 @@ async def test_generate_report_with_advanced_skill(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_generate_report_replaces_previous(client: AsyncClient) -> None:
-    """Generating a new report replaces the previous one."""
+async def test_generate_report_returns_existing(client: AsyncClient) -> None:
+    """POST returns existing report without regenerating when one exists."""
     session_id = await _upload_session(client)
 
-    # First report
+    # Generate first report
     report1 = _mock_coaching_report()
     report1.summary = "First report summary"
     with patch(
@@ -220,20 +229,51 @@ async def test_generate_report_replaces_previous(client: AsyncClient) -> None:
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "intermediate"},
         )
+        await asyncio.sleep(0.2)
 
-    # Second report with different summary
-    report2 = _mock_coaching_report()
-    report2.summary = "Second report summary"
+    # Second POST should return existing report without regenerating
+    response = await client.post(
+        f"/api/coaching/{session_id}/report",
+        json={"skill_level": "advanced"},
+    )
+    assert response.status_code == 200
+    assert response.json()["summary"] == "First report summary"
+
+
+@pytest.mark.asyncio
+async def test_generate_report_retries_after_error(client: AsyncClient) -> None:
+    """POST allows regeneration when previous report has status='error'."""
+    session_id = await _upload_session(client)
+
+    # First generation fails (API overloaded)
     with patch(
         "cataclysm.coaching.generate_coaching_report",
-        return_value=report2,
+        side_effect=Exception("API overloaded"),
     ):
         await client.post(
             f"/api/coaching/{session_id}/report",
-            json={"skill_level": "advanced"},
+            json={"skill_level": "intermediate"},
         )
+        await asyncio.sleep(0.2)
 
-    # GET should return the second report
+    # GET should show error status
     response = await client.get(f"/api/coaching/{session_id}/report")
-    assert response.status_code == 200
-    assert response.json()["summary"] == "Second report summary"
+    assert response.json()["status"] == "error"
+
+    # Retry should trigger a new generation (not return the error)
+    report = _mock_coaching_report()
+    with patch(
+        "cataclysm.coaching.generate_coaching_report",
+        return_value=report,
+    ):
+        response = await client.post(
+            f"/api/coaching/{session_id}/report",
+            json={"skill_level": "intermediate"},
+        )
+        assert response.json()["status"] == "generating"
+        await asyncio.sleep(0.2)
+
+    # GET should now return the successful report
+    response = await client.get(f"/api/coaching/{session_id}/report")
+    assert response.json()["status"] == "ready"
+    assert response.json()["summary"] is not None
