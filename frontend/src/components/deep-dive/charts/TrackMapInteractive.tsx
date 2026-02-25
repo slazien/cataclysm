@@ -6,7 +6,7 @@ import { useMultiLapData, useCorners, useDelta } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useAnalysisStore } from '@/stores';
 import { colors } from '@/lib/design-tokens';
-import { GradeChip } from '@/components/shared/GradeChip';
+// GradeChip cannot be used inside SVG <foreignObject> reliably, so grade badges are rendered inline
 import type { Corner, LapData, DeltaData, CornerGrade } from '@/lib/types';
 
 interface TrackMapInteractiveProps {
