@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AiInsight } from '@/components/shared/AiInsight';
 import { useCoachStore, useSessionStore } from '@/stores';
+import { useCoachingReport } from '@/hooks/useCoaching';
 import { API_BASE } from '@/lib/constants';
 import type { ChatMessage } from '@/lib/types';
 
@@ -20,6 +21,10 @@ export function ChatInterface() {
   const panelOpen = useCoachStore((s) => s.panelOpen);
   const pendingQuestion = useCoachStore((s) => s.pendingQuestion);
   const setPendingQuestion = useCoachStore((s) => s.setPendingQuestion);
+
+  // Only connect WebSocket after the coaching report is ready
+  const { data: reportData } = useCoachingReport(activeSessionId);
+  const reportReady = reportData?.status === 'ready';
 
   const [input, setInput] = useState('');
   const [isWaiting, setIsWaiting] = useState(false);
@@ -42,9 +47,9 @@ export function ChatInterface() {
     scrollEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory, isWaiting]);
 
-  // WebSocket connection lifecycle
+  // WebSocket connection lifecycle — only connect once the coaching report is ready
   useEffect(() => {
-    if (!panelOpen || !activeSessionId) {
+    if (!panelOpen || !activeSessionId || !reportReady) {
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
@@ -104,7 +109,7 @@ export function ChatInterface() {
       ws.close();
       wsRef.current = null;
     };
-  }, [panelOpen, activeSessionId]);
+  }, [panelOpen, activeSessionId, reportReady]);
 
   const sendMessage = useCallback(
     (text: string) => {
@@ -180,7 +185,9 @@ export function ChatInterface() {
         <div className="flex flex-col gap-3 px-4 py-3">
           {chatHistory.length === 0 && !isWaiting && (
             <p className="text-xs text-[var(--text-tertiary)] text-center py-8">
-              Ask a question about your driving to get started.
+              {reportReady
+                ? 'Ask a question about your driving to get started.'
+                : 'Chat will be available once the coaching report is ready.'}
             </p>
           )}
 
