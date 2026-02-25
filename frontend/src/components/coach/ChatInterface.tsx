@@ -53,8 +53,11 @@ export function ChatInterface() {
       return;
     }
 
-    // Derive WebSocket URL from the API base constant (not window.location)
-    const wsBase = API_BASE.replace(/^http/, 'ws');
+    // Derive WebSocket URL from the API base constant
+    // Handle empty API_BASE (proxied setup) and https → wss
+    const wsBase = API_BASE
+      ? API_BASE.replace(/^https/, 'wss').replace(/^http/, 'ws')
+      : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`;
     const url = `${wsBase}/api/coaching/${activeSessionId}/chat`;
 
     setConnectionState('connecting');

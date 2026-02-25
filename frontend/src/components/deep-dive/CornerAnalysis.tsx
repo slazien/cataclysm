@@ -7,7 +7,6 @@ import { TrackMapInteractive } from './charts/TrackMapInteractive';
 import { CornerDetailPanel } from './CornerDetailPanel';
 import { CornerSpeedOverlay } from './charts/CornerSpeedOverlay';
 import { BrakeConsistency } from './charts/BrakeConsistency';
-import { parseCornerNumber } from '@/lib/cornerUtils';
 
 export function CornerAnalysis() {
   const sessionId = useSessionStore((s) => s.activeSessionId);
@@ -23,39 +22,7 @@ export function CornerAnalysis() {
     }
   }, [selectedCorner, corners, selectCorner]);
 
-  // Arrow key handler: cycle corners
-  useEffect(() => {
-    if (!corners || corners.length === 0) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-
-      // Don't capture arrow keys when user is typing in an input
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-
-      e.preventDefault();
-
-      const currentNumber = selectedCorner ? parseCornerNumber(selectedCorner) : null;
-      const currentIdx = currentNumber !== null
-        ? corners.findIndex((c) => c.number === currentNumber)
-        : -1;
-
-      let nextIdx: number;
-      if (e.key === 'ArrowRight') {
-        nextIdx = currentIdx >= 0 ? (currentIdx + 1) % corners.length : 0;
-      } else {
-        nextIdx = currentIdx >= 0
-          ? (currentIdx - 1 + corners.length) % corners.length
-          : corners.length - 1;
-      }
-
-      selectCorner(`T${corners[nextIdx].number}`);
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [corners, selectedCorner, selectCorner]);
+  // Arrow key cycling is handled globally by useKeyboardShortcuts
 
   if (!sessionId) {
     return (
