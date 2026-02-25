@@ -124,10 +124,11 @@ export default function CornerHeatmap({
           .attr("rx", 2)
           .attr("cursor", "crosshair")
           .on("mousemove", (event) => {
+            const [px, py] = d3.pointer(event, container);
             tooltip
               .style("display", "block")
-              .style("left", `${event.offsetX + 12}px`)
-              .style("top", `${event.offsetY - 10}px`).html(`
+              .style("left", `${px + 12}px`)
+              .style("top", `${py - 10}px`).html(`
                 <div class="text-xs font-medium mb-1">${cn} - ${dates[si]}</div>
                 <div class="text-xs">${metricLabel}: <span class="font-bold">${val.toFixed(1)}</span></div>
               `);

@@ -192,10 +192,11 @@ export default function LapTimeTrend({
       .on("mousemove", (event, d) => {
         const idx = dateLabels.indexOf(d);
         if (idx < 0) return;
+        const [px, py] = d3.pointer(event, container);
         tooltip
           .style("display", "block")
-          .style("left", `${event.offsetX + 12}px`)
-          .style("top", `${event.offsetY - 10}px`).html(`
+          .style("left", `${px + 12}px`)
+          .style("top", `${py - 10}px`).html(`
             <div class="text-xs font-medium mb-1">${dates[idx]}</div>
             <div class="text-xs" style="color:${chartTheme.accentGreen}">Best: ${formatLapTime(bestLapTrend[idx])}</div>
             <div class="text-xs" style="color:#bc8cff">Top-3 Avg: ${formatLapTime(top3AvgTrend[idx])}</div>

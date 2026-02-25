@@ -195,10 +195,11 @@ export default function ConsistencyTrend({
         const score = scores[idx];
         const rating =
           score >= 80 ? "Great" : score >= 50 ? "OK" : "Needs Work";
+        const [px, py] = d3.pointer(event, container);
         tooltip
           .style("display", "block")
-          .style("left", `${event.offsetX + 12}px`)
-          .style("top", `${event.offsetY - 10}px`).html(`
+          .style("left", `${px + 12}px`)
+          .style("top", `${py - 10}px`).html(`
             <div class="text-xs font-medium mb-1">${dates[idx]}</div>
             <div class="text-xs">Score: <span class="font-bold">${score.toFixed(0)}/100</span></div>
             <div class="text-xs text-[var(--text-muted)]">${rating}</div>

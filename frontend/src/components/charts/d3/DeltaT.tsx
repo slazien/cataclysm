@@ -303,7 +303,7 @@ export default function DeltaT({
         if (rafId !== null) return;
         rafId = requestAnimationFrame(() => {
           rafId = null;
-          const [mx] = d3.pointer(event);
+          const [mx] = d3.pointer(event, g.node()!);
           const dist = x.invert(mx);
           showCrosshair(dist);
           onHoverDistance?.(dist);
