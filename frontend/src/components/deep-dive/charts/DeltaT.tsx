@@ -7,12 +7,11 @@ import { useAnimationFrame } from '@/hooks/useAnimationFrame';
 import { useDelta } from '@/hooks/useAnalysis';
 import { useAnalysisStore } from '@/stores';
 import { colors, fonts } from '@/lib/design-tokens';
+import { CHART_MARGINS as MARGINS } from './chartHelpers';
 
 interface DeltaTProps {
   sessionId: string;
 }
-
-const MARGINS = { top: 16, right: 16, bottom: 36, left: 56 };
 
 export function DeltaT({ sessionId }: DeltaTProps) {
   const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
@@ -166,7 +165,7 @@ export function DeltaT({ sessionId }: DeltaTProps) {
         delta.total_delta_s > 0 ? colors.motorsport.brake : colors.motorsport.throttle;
       ctx.fillText(totalStr, MARGINS.left + dimensions.innerWidth - 4, MARGINS.top + 4);
     }
-  }, [delta, xScale, yScale, dimensions, getDataCtx]);
+  }, [delta, xScale, yScale, dimensions]);
 
   // Mouse events
   useEffect(() => {
@@ -192,7 +191,7 @@ export function DeltaT({ sessionId }: DeltaTProps) {
       overlay.removeEventListener('mousemove', handleMouseMove);
       overlay.removeEventListener('mouseleave', handleMouseLeave);
     };
-  }, [overlayCanvasRef, dimensions.innerWidth]);
+  }, [dimensions.innerWidth]);
 
   // Cursor overlay
   useAnimationFrame(() => {
@@ -221,9 +220,10 @@ export function DeltaT({ sessionId }: DeltaTProps) {
     const label = `${dVal >= 0 ? '+' : ''}${dVal.toFixed(3)}s`;
 
     ctx.font = `11px ${fonts.mono}`;
-    const tooltipX = x + 10;
     const tooltipY = MARGINS.top + 8;
     const textWidth = ctx.measureText(label).width;
+    const rightEdge = MARGINS.left + dimensions.innerWidth;
+    const tooltipX = x + textWidth + 20 > rightEdge ? x - textWidth - 16 : x + 10;
     ctx.fillStyle = 'rgba(10, 12, 16, 0.85)';
     ctx.fillRect(tooltipX - 2, tooltipY - 2, textWidth + 8, 16);
     ctx.fillStyle = dVal > 0 ? colors.motorsport.brake : colors.motorsport.throttle;

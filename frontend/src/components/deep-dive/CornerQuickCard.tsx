@@ -5,6 +5,7 @@ import { useCoachingReport } from '@/hooks/useCoaching';
 import { useAnalysisStore } from '@/stores';
 import { GradeChip } from '@/components/shared/GradeChip';
 import { colors } from '@/lib/design-tokens';
+import { worstGrade } from '@/lib/gradeUtils';
 import type { Corner, CornerGrade, PriorityCorner } from '@/lib/types';
 
 interface CornerQuickCardProps {
@@ -104,21 +105,17 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
       ? corner.min_speed_mph - bestCorner.min_speed_mph
       : null;
 
-  // Determine overall grade letter
+  // Determine overall grade letter (worst of the four sub-grades)
   let overallGrade: string | null = null;
   if (cornerGrade) {
-    const gradeLetters = [cornerGrade.braking, cornerGrade.min_speed, cornerGrade.throttle].filter(
-      Boolean,
-    );
-    const gradeOrder = ['F', 'D', 'C', 'B', 'A'];
+    const gradeLetters = [
+      cornerGrade.braking,
+      cornerGrade.trail_braking,
+      cornerGrade.min_speed,
+      cornerGrade.throttle,
+    ].filter(Boolean);
     if (gradeLetters.length > 0) {
-      const avgIdx = Math.round(
-        gradeLetters.reduce((sum, g) => {
-          const idx = gradeOrder.indexOf(g.toUpperCase());
-          return sum + (idx >= 0 ? idx : 2);
-        }, 0) / gradeLetters.length,
-      );
-      overallGrade = gradeOrder[Math.min(avgIdx, gradeOrder.length - 1)];
+      overallGrade = worstGrade(gradeLetters);
     }
   }
 

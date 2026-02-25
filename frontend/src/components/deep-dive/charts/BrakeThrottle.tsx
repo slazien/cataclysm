@@ -7,27 +7,10 @@ import { useAnimationFrame } from '@/hooks/useAnimationFrame';
 import { useMultiLapData, useCorners } from '@/hooks/useAnalysis';
 import { useAnalysisStore } from '@/stores';
 import { colors, fonts } from '@/lib/design-tokens';
-import type { Corner } from '@/lib/types';
+import { CHART_MARGINS as MARGINS, drawCornerZones } from './chartHelpers';
 
 interface BrakeThrottleProps {
   sessionId: string;
-}
-
-const MARGINS = { top: 16, right: 16, bottom: 36, left: 56 };
-
-function drawCornerZones(
-  ctx: CanvasRenderingContext2D,
-  corners: Corner[],
-  xScale: d3.ScaleLinear<number, number>,
-  top: number,
-  height: number,
-) {
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
-  for (const c of corners) {
-    const x0 = xScale(c.entry_distance_m);
-    const x1 = xScale(c.exit_distance_m);
-    ctx.fillRect(x0, top, x1 - x0, height);
-  }
 }
 
 export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
@@ -184,7 +167,7 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
     ctx.textAlign = 'center';
     ctx.fillText('Long. G', 0, 0);
     ctx.restore();
-  }, [lapDataArr, corners, xScale, yScale, dimensions, getDataCtx]);
+  }, [lapDataArr, corners, xScale, yScale, dimensions]);
 
   // Mouse events
   useEffect(() => {
@@ -210,7 +193,7 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
       overlay.removeEventListener('mousemove', handleMouseMove);
       overlay.removeEventListener('mouseleave', handleMouseLeave);
     };
-  }, [overlayCanvasRef, dimensions.innerWidth]);
+  }, [dimensions.innerWidth]);
 
   // Cursor overlay
   useAnimationFrame(() => {
@@ -237,7 +220,6 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
       ctx.font = `11px ${fonts.mono}`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      const tooltipX = x + 10;
       const tooltipY = MARGINS.top + 8;
 
       for (let li = 0; li < lapDataArr.length; li++) {
@@ -249,13 +231,16 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
         const label = `L${lap.lap_number}: ${gVal >= 0 ? '+' : ''}${gVal.toFixed(2)}g`;
 
         const textWidth = ctx.measureText(label).width;
+        const rightEdge = MARGINS.left + dimensions.innerWidth;
+        const tooltipX = x + textWidth + 20 > rightEdge ? x - textWidth - 16 : x + 10;
+
         ctx.fillStyle = 'rgba(10, 12, 16, 0.85)';
         ctx.fillRect(tooltipX - 2, tooltipY + li * 18 - 2, textWidth + 8, 16);
         ctx.fillStyle = color;
         ctx.fillText(label, tooltipX + 2, tooltipY + li * 18);
       }
     }
-  }, cursorDistance !== null || lapDataArr.length > 0);
+  }, cursorDistance !== null);
 
   if (isLoading) {
     return (

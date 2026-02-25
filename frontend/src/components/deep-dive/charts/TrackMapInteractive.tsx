@@ -6,6 +6,7 @@ import { useMultiLapData, useCorners, useDelta } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useAnalysisStore } from '@/stores';
 import { colors } from '@/lib/design-tokens';
+import { worstGrade } from '@/lib/gradeUtils';
 // GradeChip cannot be used inside SVG <foreignObject> reliably, so grade badges are rendered inline
 import type { Corner, LapData, DeltaData, CornerGrade } from '@/lib/types';
 
@@ -176,17 +177,11 @@ function buildCornerLabels(
   const gradeMap = new Map<number, string>();
   if (cornerGrades) {
     for (const cg of cornerGrades) {
-      // Use the worst grade for overall corner coloring
-      const gradeLetters = [cg.braking, cg.min_speed, cg.throttle].filter(Boolean);
-      const gradeOrder = ['F', 'D', 'C', 'B', 'A'];
+      const gradeLetters = [cg.braking, cg.trail_braking, cg.min_speed, cg.throttle].filter(
+        Boolean,
+      );
       if (gradeLetters.length > 0) {
-        const worstIdx = Math.min(
-          ...gradeLetters.map((g) => {
-            const idx = gradeOrder.indexOf(g.toUpperCase());
-            return idx >= 0 ? idx : 2;
-          }),
-        );
-        gradeMap.set(cg.corner, gradeOrder[worstIdx]);
+        gradeMap.set(cg.corner, worstGrade(gradeLetters));
       }
     }
   }

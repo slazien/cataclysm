@@ -7,27 +7,10 @@ import { useAnimationFrame } from '@/hooks/useAnimationFrame';
 import { useMultiLapData, useCorners } from '@/hooks/useAnalysis';
 import { useAnalysisStore } from '@/stores';
 import { colors, fonts } from '@/lib/design-tokens';
-import type { Corner } from '@/lib/types';
+import { CHART_MARGINS as MARGINS, drawCornerZones } from './chartHelpers';
 
 interface SpeedTraceProps {
   sessionId: string;
-}
-
-const MARGINS = { top: 16, right: 16, bottom: 36, left: 56 };
-
-function drawCornerZones(
-  ctx: CanvasRenderingContext2D,
-  corners: Corner[],
-  xScale: d3.ScaleLinear<number, number>,
-  top: number,
-  height: number,
-) {
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
-  for (const c of corners) {
-    const x0 = xScale(c.entry_distance_m);
-    const x1 = xScale(c.exit_distance_m);
-    ctx.fillRect(x0, top, x1 - x0, height);
-  }
 }
 
 function drawAxes(
@@ -159,7 +142,7 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
 
     // Axes
     drawAxes(ctx, xScale, yScale, dimensions.innerWidth, dimensions.innerHeight, MARGINS);
-  }, [lapDataArr, corners, xScale, yScale, dimensions, getDataCtx]);
+  }, [lapDataArr, corners, xScale, yScale, dimensions]);
 
   // Mouse events
   useEffect(() => {
@@ -185,7 +168,7 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
       overlay.removeEventListener('mousemove', handleMouseMove);
       overlay.removeEventListener('mouseleave', handleMouseLeave);
     };
-  }, [overlayCanvasRef, dimensions.innerWidth]);
+  }, [dimensions.innerWidth]);
 
   // Cursor overlay
   useAnimationFrame(() => {
@@ -209,7 +192,6 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
 
     // Tooltip: show speed values at cursor
     if (lapDataArr.length > 0) {
-      const tooltipX = x + 10;
       const tooltipY = MARGINS.top + 8;
       ctx.font = `11px ${fonts.mono}`;
       ctx.textAlign = 'left';
@@ -223,15 +205,18 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
         const color = colors.lap[li % colors.lap.length];
         const label = `L${lap.lap_number}: ${speed.toFixed(1)} mph`;
 
-        ctx.fillStyle = 'rgba(10, 12, 16, 0.85)';
         const textWidth = ctx.measureText(label).width;
+        const rightEdge = MARGINS.left + dimensions.innerWidth;
+        const tooltipX = x + textWidth + 20 > rightEdge ? x - textWidth - 16 : x + 10;
+
+        ctx.fillStyle = 'rgba(10, 12, 16, 0.85)';
         ctx.fillRect(tooltipX - 2, tooltipY + li * 18 - 2, textWidth + 8, 16);
 
         ctx.fillStyle = color;
         ctx.fillText(label, tooltipX + 2, tooltipY + li * 18);
       }
     }
-  }, cursorDistance !== null || lapDataArr.length > 0);
+  }, cursorDistance !== null);
 
   if (isLoading) {
     return (
