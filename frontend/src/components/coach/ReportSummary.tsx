@@ -1,0 +1,150 @@
+'use client';
+
+import { useState } from 'react';
+import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { GradeChip } from '@/components/shared/GradeChip';
+import { AiInsight } from '@/components/shared/AiInsight';
+import { useSessionStore } from '@/stores';
+import { useAutoReport } from '@/hooks/useAutoReport';
+
+export function ReportSummary() {
+  const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const { report, isLoading, isGenerating, isError, retry } = useAutoReport(activeSessionId);
+  const [gradesExpanded, setGradesExpanded] = useState(false);
+
+  if (!activeSessionId) {
+    return (
+      <div className="px-4 py-3 border-b border-[var(--cata-border)]">
+        <p className="text-xs text-[var(--text-tertiary)]">
+          Select a session to see coaching insights.
+        </p>
+      </div>
+    );
+  }
+
+  if (isLoading || isGenerating) {
+    return (
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--cata-border)]">
+        <Loader2 className="h-4 w-4 animate-spin text-[var(--cata-accent)]" />
+        <span className="text-xs text-[var(--text-secondary)]">
+          {isGenerating ? 'Generating coaching report...' : 'Loading report...'}
+        </span>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="px-4 py-3 border-b border-[var(--cata-border)]">
+        <p className="text-xs text-[var(--grade-f)]">Failed to generate report.</p>
+        <button
+          onClick={retry}
+          className="mt-1 text-xs text-[var(--cata-accent)] hover:underline"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (!report) return null;
+
+  return (
+    <div className="border-b border-[var(--cata-border)]">
+      {/* Summary */}
+      {report.summary && (
+        <div className="px-4 py-3">
+          <AiInsight mode="compact">
+            <span className="text-xs leading-relaxed">{report.summary}</span>
+          </AiInsight>
+        </div>
+      )}
+
+      {/* Corner Grades */}
+      {report.corner_grades.length > 0 && (
+        <div className="px-4 pb-2">
+          <button
+            onClick={() => setGradesExpanded(!gradesExpanded)}
+            className="flex items-center gap-1 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+          >
+            {gradesExpanded ? (
+              <ChevronDown className="h-3 w-3" />
+            ) : (
+              <ChevronRight className="h-3 w-3" />
+            )}
+            Corner Grades ({report.corner_grades.length})
+          </button>
+
+          {gradesExpanded && (
+            <div className="mt-2 overflow-x-auto">
+              <table className="w-full text-[10px]">
+                <thead>
+                  <tr className="text-[var(--text-tertiary)]">
+                    <th className="pb-1 pr-2 text-left font-medium">Corner</th>
+                    <th className="pb-1 px-1 text-center font-medium">Brake</th>
+                    <th className="pb-1 px-1 text-center font-medium">Trail</th>
+                    <th className="pb-1 px-1 text-center font-medium">Speed</th>
+                    <th className="pb-1 pl-1 text-center font-medium">Throttle</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.corner_grades.map((grade) => (
+                    <tr key={grade.corner} className="border-t border-[var(--cata-border)]/50">
+                      <td className="py-1 pr-2 text-[var(--text-primary)] font-medium">
+                        T{grade.corner}
+                      </td>
+                      <td className="py-1 px-1 text-center">
+                        <GradeChip grade={grade.braking} className="text-[9px] px-1.5 py-0" />
+                      </td>
+                      <td className="py-1 px-1 text-center">
+                        <GradeChip grade={grade.trail_braking} className="text-[9px] px-1.5 py-0" />
+                      </td>
+                      <td className="py-1 px-1 text-center">
+                        <GradeChip grade={grade.min_speed} className="text-[9px] px-1.5 py-0" />
+                      </td>
+                      <td className="py-1 pl-1 text-center">
+                        <GradeChip grade={grade.throttle} className="text-[9px] px-1.5 py-0" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Patterns */}
+      {report.patterns.length > 0 && (
+        <div className="px-4 pb-2">
+          <h4 className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase tracking-wider mb-1">
+            Patterns
+          </h4>
+          <ul className="space-y-0.5">
+            {report.patterns.map((pattern, i) => (
+              <li key={i} className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                &bull; {pattern}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Drills */}
+      {report.drills.length > 0 && (
+        <div className="px-4 pb-3">
+          <h4 className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase tracking-wider mb-1">
+            Drills
+          </h4>
+          <ul className="space-y-0.5">
+            {report.drills.map((drill, i) => (
+              <li key={i} className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                &bull; {drill}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
