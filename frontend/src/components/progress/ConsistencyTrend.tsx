@@ -5,6 +5,7 @@ import * as d3 from 'd3';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
 import { colors, fonts } from '@/lib/design-tokens';
 import type { TrendSessionSummary } from '@/lib/types';
+import { drawTrendAxes } from './progressChartHelpers';
 
 interface ConsistencyTrendProps {
   sessions: TrendSessionSummary[];
@@ -13,61 +14,6 @@ interface ConsistencyTrendProps {
 }
 
 const MARGINS = { top: 20, right: 20, bottom: 44, left: 64 };
-
-function drawAxes(
-  ctx: CanvasRenderingContext2D,
-  xScale: d3.ScaleLinear<number, number>,
-  yScale: d3.ScaleLinear<number, number>,
-  sessions: TrendSessionSummary[],
-  innerWidth: number,
-  innerHeight: number,
-) {
-  ctx.strokeStyle = colors.axis;
-  ctx.fillStyle = colors.axis;
-  ctx.font = `10px ${fonts.mono}`;
-
-  // Y-axis ticks
-  const yTicks = yScale.ticks(5);
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'middle';
-  for (const tick of yTicks) {
-    const y = yScale(tick);
-    ctx.strokeStyle = colors.grid;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(MARGINS.left, y);
-    ctx.lineTo(MARGINS.left + innerWidth, y);
-    ctx.stroke();
-    ctx.fillStyle = colors.axis;
-    ctx.fillText(`${tick}`, MARGINS.left - 6, y);
-  }
-
-  // X-axis labels
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  for (let i = 0; i < sessions.length; i++) {
-    const x = xScale(i);
-    ctx.fillStyle = colors.axis;
-    const dateLabel = new Date(sessions[i].session_date).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
-    ctx.fillText(dateLabel, x, MARGINS.top + innerHeight + 6);
-  }
-
-  // Axis labels
-  ctx.fillStyle = colors.text.secondary;
-  ctx.font = `11px ${fonts.sans}`;
-  ctx.textAlign = 'center';
-  ctx.fillText('Session', MARGINS.left + innerWidth / 2, MARGINS.top + innerHeight + 28);
-
-  ctx.save();
-  ctx.translate(14, MARGINS.top + innerHeight / 2);
-  ctx.rotate(-Math.PI / 2);
-  ctx.textAlign = 'center';
-  ctx.fillText('Consistency (0-100)', 0, 0);
-  ctx.restore();
-}
 
 export function ConsistencyTrend({ sessions, consistencyTrend, className }: ConsistencyTrendProps) {
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx } =
@@ -106,7 +52,16 @@ export function ConsistencyTrend({ sessions, consistencyTrend, className }: Cons
 
     ctx.clearRect(0, 0, dimensions.width, dimensions.height);
 
-    drawAxes(ctx, xScale, yScale, sessions, dimensions.innerWidth, dimensions.innerHeight);
+    drawTrendAxes({
+      ctx,
+      xScale,
+      yScale,
+      sessions,
+      innerWidth: dimensions.innerWidth,
+      innerHeight: dimensions.innerHeight,
+      margins: MARGINS,
+      yLabel: 'Consistency (0-100)',
+    });
 
     // Fill area under line
     if (consistencyTrend.length > 1) {
@@ -143,9 +98,10 @@ export function ConsistencyTrend({ sessions, consistencyTrend, className }: Cons
     // Dots
     ctx.fillStyle = colors.motorsport.optimal;
     for (let i = 0; i < consistencyTrend.length; i++) {
-      if (consistencyTrend[i] == null) continue;
+      const dotVal = consistencyTrend[i];
+      if (dotVal == null) continue;
       ctx.beginPath();
-      ctx.arc(xScale(i), yScale(consistencyTrend[i]), 3.5, 0, Math.PI * 2);
+      ctx.arc(xScale(i), yScale(dotVal), 3.5, 0, Math.PI * 2);
       ctx.fill();
     }
   }, [sessions, consistencyTrend, xScale, yScale, dimensions, getDataCtx]);

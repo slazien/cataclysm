@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import * as d3 from 'd3';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
 import { colors, fonts } from '@/lib/design-tokens';
+import { formatTimeShort } from '@/lib/formatters';
 import type { TrendSessionSummary } from '@/lib/types';
 
 interface SessionBoxPlotProps {
@@ -33,11 +34,6 @@ function computeBoxStats(values: number[]): BoxStats | null {
   };
 }
 
-function formatTime(seconds: number): string {
-  const min = Math.floor(seconds / 60);
-  const sec = seconds % 60;
-  return min > 0 ? `${min}:${sec.toFixed(1).padStart(4, '0')}` : `${sec.toFixed(2)}s`;
-}
 
 export function SessionBoxPlot({ sessions, className }: SessionBoxPlotProps) {
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx } =
@@ -112,7 +108,7 @@ export function SessionBoxPlot({ sessions, className }: SessionBoxPlotProps) {
       ctx.stroke();
       ctx.fillStyle = colors.axis;
       ctx.font = `10px ${fonts.mono}`;
-      ctx.fillText(formatTime(tick), MARGINS.left - 6, y);
+      ctx.fillText(formatTimeShort(tick), MARGINS.left - 6, y);
     }
 
     // X-axis labels
@@ -253,11 +249,11 @@ export function SessionBoxPlot({ sessions, className }: SessionBoxPlotProps) {
 
     // Tooltip
     const lines = [
-      `Max: ${formatTime(stats.max)}`,
-      `Q3:  ${formatTime(stats.q3)}`,
-      `Med: ${formatTime(stats.median)}`,
-      `Q1:  ${formatTime(stats.q1)}`,
-      `Min: ${formatTime(stats.min)}`,
+      `Max: ${formatTimeShort(stats.max)}`,
+      `Q3:  ${formatTimeShort(stats.q3)}`,
+      `Med: ${formatTimeShort(stats.median)}`,
+      `Q1:  ${formatTimeShort(stats.q1)}`,
+      `Min: ${formatTimeShort(stats.min)}`,
     ];
 
     ctx.font = `11px ${fonts.mono}`;

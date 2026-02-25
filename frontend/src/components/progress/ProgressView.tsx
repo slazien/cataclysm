@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { useSessionStore } from '@/stores';
 import { useSession } from '@/hooks/useSession';
 import { useTrends, useMilestones } from '@/hooks/useTrends';
+import { formatTimeShort } from '@/lib/formatters';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { AiInsight } from '@/components/shared/AiInsight';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -13,15 +14,9 @@ import { ConsistencyTrend } from './ConsistencyTrend';
 import { CornerHeatmap } from './CornerHeatmap';
 import { SessionBoxPlot } from './SessionBoxPlot';
 
-function formatTime(seconds: number): string {
-  const min = Math.floor(seconds / 60);
-  const sec = seconds % 60;
-  return min > 0 ? `${min}:${sec.toFixed(1).padStart(4, '0')}` : `${sec.toFixed(2)}s`;
-}
-
 export function ProgressView() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
-  const { data: session } = useSession(activeSessionId);
+  const { data: session, isLoading: sessionLoading } = useSession(activeSessionId);
 
   const trackName = session?.track_name ?? null;
 
@@ -93,8 +88,8 @@ export function ProgressView() {
     return parts.join(' ');
   }, [trendData, milestones]);
 
-  // Loading state
-  if (trendsLoading) {
+  // Loading session or trends
+  if (sessionLoading || trendsLoading) {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--cata-accent)] border-t-transparent" />
@@ -103,7 +98,7 @@ export function ProgressView() {
   }
 
   // No session selected
-  if (!activeSessionId || !session) {
+  if (!activeSessionId) {
     return (
       <EmptyState
         title="No session selected"
@@ -139,12 +134,12 @@ export function ProgressView() {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricCard
             label="Best Lap"
-            value={formatTime(heroMetrics.bestLap)}
+            value={formatTimeShort(heroMetrics.bestLap)}
             highlight="pb"
           />
           <MetricCard
             label="Top 3 Average"
-            value={formatTime(heroMetrics.latestTop3)}
+            value={formatTimeShort(heroMetrics.latestTop3)}
             subtitle="Latest session"
           />
           <MetricCard

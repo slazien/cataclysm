@@ -81,25 +81,21 @@ export function MilestoneTimeline({ sessions, milestones, className }: Milestone
     return () => observer.disconnect();
   }, []);
 
-  // Scale canvas for HiDPI
+  // Draw (includes HiDPI scaling to avoid race condition between separate effects)
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || dims.width <= 0) return;
+    if (!canvas || dims.width <= 0 || sessions.length === 0) return;
+
+    // Scale for HiDPI
     const dpr = window.devicePixelRatio || 1;
     canvas.width = dims.width * dpr;
     canvas.height = dims.height * dpr;
     canvas.style.width = `${dims.width}px`;
     canvas.style.height = `${dims.height}px`;
-    const ctx = canvas.getContext('2d');
-    if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  }, [dims]);
 
-  // Draw
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || dims.width <= 0 || sessions.length === 0) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     ctx.clearRect(0, 0, dims.width, dims.height);
 

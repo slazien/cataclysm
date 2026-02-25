@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useCallback, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
 import { colors, fonts } from '@/lib/design-tokens';
+import { formatTimeShort } from '@/lib/formatters';
 import type { TrendSessionSummary } from '@/lib/types';
+import { drawTrendAxes } from './progressChartHelpers';
 
 interface LapTimeTrendProps {
   sessions: TrendSessionSummary[];
@@ -15,67 +17,6 @@ interface LapTimeTrendProps {
 }
 
 const MARGINS = { top: 20, right: 20, bottom: 44, left: 64 };
-
-function formatTime(seconds: number): string {
-  const min = Math.floor(seconds / 60);
-  const sec = seconds % 60;
-  return min > 0 ? `${min}:${sec.toFixed(1).padStart(4, '0')}` : `${sec.toFixed(2)}s`;
-}
-
-function drawAxes(
-  ctx: CanvasRenderingContext2D,
-  xScale: d3.ScaleLinear<number, number>,
-  yScale: d3.ScaleLinear<number, number>,
-  sessions: TrendSessionSummary[],
-  innerWidth: number,
-  innerHeight: number,
-) {
-  ctx.strokeStyle = colors.axis;
-  ctx.fillStyle = colors.axis;
-  ctx.font = `10px ${fonts.mono}`;
-
-  // Y-axis ticks
-  const yTicks = yScale.ticks(6);
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'middle';
-  for (const tick of yTicks) {
-    const y = yScale(tick);
-    ctx.strokeStyle = colors.grid;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(MARGINS.left, y);
-    ctx.lineTo(MARGINS.left + innerWidth, y);
-    ctx.stroke();
-    ctx.fillStyle = colors.axis;
-    ctx.fillText(formatTime(tick), MARGINS.left - 6, y);
-  }
-
-  // X-axis labels
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  for (let i = 0; i < sessions.length; i++) {
-    const x = xScale(i);
-    ctx.fillStyle = colors.axis;
-    const dateLabel = new Date(sessions[i].session_date).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    });
-    ctx.fillText(dateLabel, x, MARGINS.top + innerHeight + 6);
-  }
-
-  // Axis labels
-  ctx.fillStyle = colors.text.secondary;
-  ctx.font = `11px ${fonts.sans}`;
-  ctx.textAlign = 'center';
-  ctx.fillText('Session', MARGINS.left + innerWidth / 2, MARGINS.top + innerHeight + 28);
-
-  ctx.save();
-  ctx.translate(14, MARGINS.top + innerHeight / 2);
-  ctx.rotate(-Math.PI / 2);
-  ctx.textAlign = 'center';
-  ctx.fillText('Lap Time', 0, 0);
-  ctx.restore();
-}
 
 function drawLine(
   ctx: CanvasRenderingContext2D,
@@ -168,7 +109,18 @@ export function LapTimeTrend({
 
     ctx.clearRect(0, 0, dimensions.width, dimensions.height);
 
-    drawAxes(ctx, xScale, yScale, sessions, dimensions.innerWidth, dimensions.innerHeight);
+    drawTrendAxes({
+      ctx,
+      xScale,
+      yScale,
+      sessions,
+      innerWidth: dimensions.innerWidth,
+      innerHeight: dimensions.innerHeight,
+      margins: MARGINS,
+      yLabel: 'Lap Time',
+      formatYTick: formatTimeShort,
+      yTickCount: 6,
+    });
     drawLine(ctx, xScale, yScale, theoreticalTrend, colors.motorsport.pb, 1.5, true);
     drawLine(ctx, xScale, yScale, top3AvgTrend, colors.motorsport.neutral, 2);
     drawLine(ctx, xScale, yScale, bestLapTrend, colors.motorsport.optimal, 2);
@@ -253,11 +205,10 @@ export function LapTimeTrend({
     ctx.stroke();
 
     // Tooltip
-    const s = sessions[hoveredIdx];
     const lines = [
-      `Best: ${formatTime(bestLapTrend[hoveredIdx])}`,
-      `Top 3: ${formatTime(top3AvgTrend[hoveredIdx])}`,
-      theoreticalTrend[hoveredIdx] > 0 ? `Optimal: ${formatTime(theoreticalTrend[hoveredIdx])}` : '',
+      `Best: ${formatTimeShort(bestLapTrend[hoveredIdx])}`,
+      `Top 3: ${formatTimeShort(top3AvgTrend[hoveredIdx])}`,
+      theoreticalTrend[hoveredIdx] > 0 ? `Optimal: ${formatTimeShort(theoreticalTrend[hoveredIdx])}` : '',
     ].filter(Boolean);
 
     ctx.font = `11px ${fonts.mono}`;

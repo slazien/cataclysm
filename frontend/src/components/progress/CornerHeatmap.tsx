@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
+import { useUiStore, useAnalysisStore } from '@/stores';
 import { colors, fonts } from '@/lib/design-tokens';
 import type { TrendSessionSummary } from '@/lib/types';
 
@@ -41,6 +42,10 @@ export function CornerHeatmap({
   cornerConsistencyTrends,
   className,
 }: CornerHeatmapProps) {
+  const setActiveView = useUiStore((s) => s.setActiveView);
+  const selectCorner = useAnalysisStore((s) => s.selectCorner);
+  const setDeepDiveMode = useAnalysisStore((s) => s.setMode);
+
   const [metric, setMetric] = useState<HeatmapMetric>('min_speed');
   const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
 
@@ -220,6 +225,23 @@ export function CornerHeatmap({
     [cornerKeys, data, metric, nCorners, nSessions, sessions],
   );
 
+  const handleClick = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const canvas = overlayCanvasRef.current;
+      if (!canvas || nCorners === 0) return;
+      const rect = canvas.getBoundingClientRect();
+      const mouseY = e.clientY - rect.top;
+      const row = Math.floor((mouseY - MARGINS.top) / cellGeomRef.current.cellHeight);
+      if (row < 0 || row >= nCorners) return;
+
+      const cornerNumber = cornerKeys[row];
+      selectCorner(`T${cornerNumber}`);
+      setDeepDiveMode('corner');
+      setActiveView('deep-dive');
+    },
+    [cornerKeys, nCorners, selectCorner, setDeepDiveMode, setActiveView],
+  );
+
   const handleMouseLeave = useCallback(() => setTooltip(null), []);
 
   if (nCorners === 0 || nSessions === 0) {
@@ -264,9 +286,10 @@ export function CornerHeatmap({
         <canvas
           ref={overlayCanvasRef}
           className="absolute inset-0"
-          style={{ width: '100%', height: '100%', cursor: 'crosshair' }}
+          style={{ width: '100%', height: '100%', cursor: 'pointer' }}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
+          onClick={handleClick}
         />
         {tooltip && (
           <div

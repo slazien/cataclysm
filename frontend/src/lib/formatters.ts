@@ -17,3 +17,10 @@ export function formatDelta(seconds: number): string {
 export function formatSpeed(mph: number): string {
   return `${mph.toFixed(1)} mph`;
 }
+
+/** Format seconds as M:SS.s or SS.SSs for canvas chart labels */
+export function formatTimeShort(seconds: number): string {
+  const min = Math.floor(seconds / 60);
+  const sec = seconds % 60;
+  return min > 0 ? `${min}:${sec.toFixed(1).padStart(4, '0')}` : `${sec.toFixed(2)}s`;
+}
