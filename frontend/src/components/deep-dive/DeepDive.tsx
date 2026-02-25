@@ -3,6 +3,7 @@
 import { useAnalysisStore } from '@/stores';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SpeedAnalysis } from './SpeedAnalysis';
+import { CornerAnalysis } from './CornerAnalysis';
 
 type DeepDiveMode = 'speed' | 'corner' | 'custom';
 
@@ -26,11 +27,7 @@ export function DeepDive() {
       {/* Content */}
       <div className="min-h-0 flex-1">
         {mode === 'speed' && <SpeedAnalysis />}
-        {mode === 'corner' && (
-          <div className="flex h-full items-center justify-center">
-            <p className="text-sm text-[var(--text-secondary)]">Corner Analysis (Phase 5)</p>
-          </div>
-        )}
+        {mode === 'corner' && <CornerAnalysis />}
         {mode === 'custom' && (
           <div className="flex h-full items-center justify-center">
             <p className="text-sm text-[var(--text-secondary)]">Custom (Future)</p>
