@@ -31,11 +31,12 @@ export function useGenerateReport() {
       sessionId: string;
       skillLevel: string;
     }) => generateCoachingReport(sessionId, skillLevel),
-    onSuccess: (data, variables) => {
-      queryClient.setQueryData(
-        ["coaching-report", variables.sessionId],
-        data,
-      );
+    onSuccess: (_data, variables) => {
+      // Invalidate the query so it refetches from GET (which now returns
+      // status="generating" instead of 404). This also clears the error state.
+      void queryClient.invalidateQueries({
+        queryKey: ["coaching-report", variables.sessionId],
+      });
     },
   });
 }

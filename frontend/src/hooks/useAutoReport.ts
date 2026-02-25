@@ -18,20 +18,20 @@ interface UseAutoReportResult {
  *
  * Flow:
  * 1. GET report → 404 means no report exists
- * 2. POST to trigger generation → returns {status: "generating"} immediately
- * 3. useCoachingReport polls GET every 2s until status is "ready"
+ * 2. POST to trigger generation → returns {status: "generating"} instantly
+ * 3. POST onSuccess invalidates the query → GET now returns {status: "generating"}
+ * 4. refetchInterval polls GET every 2s until status is "ready"
  */
 export function useAutoReport(sessionId: string | null): UseAutoReportResult {
-  const { data: report, isLoading, isError: queryError } = useCoachingReport(sessionId);
+  const { data: report, isLoading, isError: queryError, isFetching } = useCoachingReport(sessionId);
   const generateReport = useGenerateReport();
   const skillLevel = useUiStore((s) => s.skillLevel);
   const hasTriggered = useRef(false);
 
-  // Keep generateReport in a ref to avoid re-triggering the effect on mutation object changes
   const generateReportRef = useRef(generateReport);
   useEffect(() => { generateReportRef.current = generateReport; });
 
-  // Auto-trigger report generation if no report exists
+  // Auto-trigger report generation when GET returns 404
   useEffect(() => {
     if (
       sessionId !== null &&
@@ -50,28 +50,23 @@ export function useAutoReport(sessionId: string | null): UseAutoReportResult {
     hasTriggered.current = false;
   }, [sessionId]);
 
-  // Allow manual retry by resetting the trigger flag and re-triggering
   const retry = useCallback(() => {
     if (sessionId !== null) {
-      hasTriggered.current = false;
+      hasTriggered.current = true;
       generateReportRef.current.mutate({ sessionId, skillLevel });
     }
   }, [sessionId, skillLevel]);
 
-  // Report is "generating" if we have data with status "generating"
   const isGenerating = report?.status === 'generating' || generateReport.isPending;
-
-  // Only show error if the mutation itself failed (not if GET returned 404 — that's expected)
   const hasError = generateReport.isError || report?.status === 'error';
-
-  // Report is ready when we have actual content
   const isReady = report?.status === 'ready';
 
   return {
     report: isReady ? report : undefined,
-    isLoading: isLoading || isGenerating,
+    // Show loading state during: initial fetch, mutation pending, refetching, or generating
+    isLoading: isLoading || generateReport.isPending || isGenerating || (isFetching && !isReady),
     isGenerating,
-    isError: hasError,
+    isError: hasError && !isGenerating,
     retry,
   };
 }
