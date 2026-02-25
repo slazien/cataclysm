@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 from dataclasses import dataclass, field
+from typing import Any
 
 from cataclysm.corners import Corner
 from cataclysm.driving_physics import COACHING_SYSTEM_PROMPT
@@ -15,7 +17,13 @@ from cataclysm.kb_selector import select_kb_snippets
 from cataclysm.landmarks import Landmark, format_corner_landmarks
 from cataclysm.optimal_comparison import OptimalComparisonResult
 
+logger = logging.getLogger(__name__)
+
 MPS_TO_MPH = 2.23694
+
+# Anthropic client settings for resilience against transient API errors (429, 529, 5xx)
+_API_MAX_RETRIES = 4  # 5 total attempts with exponential backoff + jitter
+_API_TIMEOUT_S = 120.0  # generous timeout for overloaded periods
 
 SkillLevel = str  # "novice", "intermediate", "advanced"
 
@@ -440,6 +448,25 @@ def _parse_coaching_response(text: str) -> CoachingReport:
     )
 
 
+def _create_client() -> Any:
+    """Create an Anthropic client with resilient retry settings.
+
+    Returns the client or None if the API key is not set.
+    The SDK automatically retries on 429, 500, and 529 errors with
+    exponential backoff + jitter.
+    """
+    import anthropic
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return None
+    return anthropic.Anthropic(
+        api_key=api_key,
+        max_retries=_API_MAX_RETRIES,
+        timeout=_API_TIMEOUT_S,
+    )
+
+
 def generate_coaching_report(
     summaries: list[LapSummary],
     all_lap_corners: dict[int, list[Corner]],
@@ -458,8 +485,8 @@ def generate_coaching_report(
     Returns a CoachingReport. If the API key is not set, returns a report
     with a message explaining how to enable coaching.
     """
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
+    client = _create_client()
+    if client is None:
         return CoachingReport(
             summary="Set ANTHROPIC_API_KEY environment variable to enable AI coaching.",
             priority_corners=[],
@@ -467,9 +494,6 @@ def generate_coaching_report(
             patterns=[],
         )
 
-    import anthropic
-
-    client = anthropic.Anthropic(api_key=api_key)
     prompt = _build_coaching_prompt(
         summaries,
         all_lap_corners,
@@ -493,8 +517,12 @@ def generate_coaching_report(
             messages=[{"role": "user", "content": prompt}],
         )
     except Exception as e:
+        logger.warning("Coaching report API call failed after retries: %s", e)
         return CoachingReport(
-            summary=f"AI coaching error: {e}",
+            summary=(
+                "AI coaching is temporarily unavailable (the service is overloaded). "
+                "Please try again in a few minutes."
+            ),
             priority_corners=[],
             corner_grades=[],
             patterns=[],
@@ -519,13 +547,9 @@ def ask_followup(
 
     Maintains conversation context for multi-turn chat.
     """
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
+    client = _create_client()
+    if client is None:
         return "Set ANTHROPIC_API_KEY to enable AI coaching chat."
-
-    import anthropic
-
-    client = anthropic.Anthropic(api_key=api_key)
 
     if not context.messages:
         # First follow-up: include the coaching report as context
@@ -552,7 +576,11 @@ def ask_followup(
             messages=context.messages,  # type: ignore[arg-type]
         )
     except Exception as e:
-        return f"AI coaching error: {e}"
+        logger.warning("Follow-up chat API call failed after retries: %s", e)
+        return (
+            "AI coaching is temporarily unavailable (the service is overloaded). "
+            "Please try again in a moment."
+        )
 
     followup_block = message.content[0]
     response_text = followup_block.text if hasattr(followup_block, "text") else str(followup_block)
