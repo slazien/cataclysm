@@ -34,7 +34,9 @@ export default function LapTimesBar({ laps, className = "" }: LapTimesBarProps) 
       .attr("transform", `translate(${margin.left},${margin.top})`);
 
     const cleanLaps = laps.filter((l) => l.is_clean);
-    const data = cleanLaps.length > 0 ? cleanLaps : laps;
+    const data = (cleanLaps.length > 0 ? cleanLaps : laps)
+      .slice()
+      .sort((a, b) => a.lap_number - b.lap_number);
     const bestTime = Math.min(...data.map((l) => l.lap_time_s));
     const maxTime = Math.max(...data.map((l) => l.lap_time_s));
 
