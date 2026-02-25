@@ -132,7 +132,7 @@ export function SessionDrawer() {
         </div>
 
         {/* Session list */}
-        <ScrollArea className="flex-1 px-4">
+        <ScrollArea className="min-h-0 flex-1 px-4">
           <div className="flex flex-col gap-2 pb-2">
             {sessions.length === 0 && (
               <p className="py-8 text-center text-sm text-[var(--text-muted)]">
