@@ -23,19 +23,23 @@ export function useAutoReport(sessionId: string | null): UseAutoReportResult {
   const skillLevel = useUiStore((s) => s.skillLevel);
   const hasTriggered = useRef(false);
 
+  // Keep generateReport in a ref to avoid re-triggering the effect on mutation object changes
+  const generateReportRef = useRef(generateReport);
+  useEffect(() => { generateReportRef.current = generateReport; });
+
   // Auto-trigger report generation if no report exists
   useEffect(() => {
     if (
       sessionId !== null &&
       !isLoading &&
       (queryError || !report) &&
-      !generateReport.isPending &&
+      !generateReportRef.current.isPending &&
       !hasTriggered.current
     ) {
       hasTriggered.current = true;
-      generateReport.mutate({ sessionId, skillLevel });
+      generateReportRef.current.mutate({ sessionId, skillLevel });
     }
-  }, [sessionId, isLoading, queryError, report, generateReport, skillLevel]);
+  }, [sessionId, isLoading, queryError, report, skillLevel]);
 
   // Reset trigger flag when session changes
   useEffect(() => {
@@ -46,9 +50,9 @@ export function useAutoReport(sessionId: string | null): UseAutoReportResult {
   const retry = useCallback(() => {
     if (sessionId !== null) {
       hasTriggered.current = false;
-      generateReport.mutate({ sessionId, skillLevel });
+      generateReportRef.current.mutate({ sessionId, skillLevel });
     }
-  }, [sessionId, generateReport, skillLevel]);
+  }, [sessionId, skillLevel]);
 
   const hasError = generateReport.isError;
 

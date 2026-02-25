@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AiInsight } from '@/components/shared/AiInsight';
 import { useCoachStore, useSessionStore } from '@/stores';
+import { API_BASE } from '@/lib/constants';
 import type { ChatMessage } from '@/lib/types';
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -15,6 +16,7 @@ export function ChatInterface() {
   const chatHistory = useCoachStore((s) => s.chatHistory);
   const contextChips = useCoachStore((s) => s.contextChips);
   const addMessage = useCoachStore((s) => s.addMessage);
+  const clearChat = useCoachStore((s) => s.clearChat);
   const panelOpen = useCoachStore((s) => s.panelOpen);
   const pendingQuestion = useCoachStore((s) => s.pendingQuestion);
   const setPendingQuestion = useCoachStore((s) => s.setPendingQuestion);
@@ -25,6 +27,15 @@ export function ChatInterface() {
 
   const wsRef = useRef<WebSocket | null>(null);
   const scrollEndRef = useRef<HTMLDivElement>(null);
+
+  // Keep addMessage in a ref to avoid rebuilding the WebSocket on store changes
+  const addMessageRef = useRef(addMessage);
+  useEffect(() => { addMessageRef.current = addMessage; });
+
+  // Clear chat history when session changes
+  useEffect(() => {
+    clearChat();
+  }, [activeSessionId, clearChat]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -42,9 +53,9 @@ export function ChatInterface() {
       return;
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    const url = `${protocol}//${host}/api/coaching/${activeSessionId}/chat`;
+    // Derive WebSocket URL from the API base constant (not window.location)
+    const wsBase = API_BASE.replace(/^http/, 'ws');
+    const url = `${wsBase}/api/coaching/${activeSessionId}/chat`;
 
     setConnectionState('connecting');
     const ws = new WebSocket(url);
@@ -61,7 +72,7 @@ export function ChatInterface() {
           role: data.role as 'assistant',
           content: data.content,
         };
-        addMessage(msg);
+        addMessageRef.current(msg);
         setIsWaiting(false);
       } catch {
         // Ignore malformed messages
@@ -83,7 +94,7 @@ export function ChatInterface() {
       ws.close();
       wsRef.current = null;
     };
-  }, [panelOpen, activeSessionId, addMessage]);
+  }, [panelOpen, activeSessionId]);
 
   const sendMessage = useCallback(
     (text: string) => {
@@ -102,7 +113,7 @@ export function ChatInterface() {
         } else if (chip.label === 'Corner') {
           context.corner = chip.value.replace('Turn ', 'T');
         } else if (chip.label === 'View') {
-          context.view = chip.value.toLowerCase().replace(' ', '-');
+          context.view = chip.value.toLowerCase().replaceAll(' ', '-');
         }
       }
 
