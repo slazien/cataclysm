@@ -12,6 +12,12 @@ export function useCoachingReport(sessionId: string | null) {
     retry: false,
     refetchOnWindowFocus: false,
     staleTime: 5 * 60 * 1000, // 5 min — avoid repeated 404s when no report exists
+    // Poll every 2s while the report is still generating
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (data && data.status === "generating") return 2000;
+      return false;
+    },
   });
 }
 

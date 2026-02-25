@@ -13,6 +13,7 @@ from backend.api.schemas.coaching import CoachingReportResponse
 # Module-level in-memory stores
 _reports: dict[str, CoachingReportResponse] = {}
 _contexts: dict[str, CoachingContext] = {}
+_generating: set[str] = set()  # session IDs currently generating
 
 
 def store_coaching_report(session_id: str, report: CoachingReportResponse) -> None:
@@ -41,7 +42,23 @@ def clear_coaching_data(session_id: str) -> None:
     _contexts.pop(session_id, None)
 
 
+def mark_generating(session_id: str) -> None:
+    """Mark a session as currently generating a coaching report."""
+    _generating.add(session_id)
+
+
+def unmark_generating(session_id: str) -> None:
+    """Remove the generating flag for a session."""
+    _generating.discard(session_id)
+
+
+def is_generating(session_id: str) -> bool:
+    """Check if a session is currently generating a coaching report."""
+    return session_id in _generating
+
+
 def clear_all_coaching() -> None:
     """Remove all coaching data."""
     _reports.clear()
     _contexts.clear()
+    _generating.clear()

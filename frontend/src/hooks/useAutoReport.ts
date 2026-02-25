@@ -15,7 +15,11 @@ interface UseAutoReportResult {
 
 /**
  * Auto-triggers coaching report generation on mount if no report exists.
- * Returns the report data, loading state, generation state, error state, and retry function.
+ *
+ * Flow:
+ * 1. GET report → 404 means no report exists
+ * 2. POST to trigger generation → returns {status: "generating"} immediately
+ * 3. useCoachingReport polls GET every 2s until status is "ready"
  */
 export function useAutoReport(sessionId: string | null): UseAutoReportResult {
   const { data: report, isLoading, isError: queryError } = useCoachingReport(sessionId);
@@ -32,14 +36,14 @@ export function useAutoReport(sessionId: string | null): UseAutoReportResult {
     if (
       sessionId !== null &&
       !isLoading &&
-      (queryError || !report) &&
+      queryError &&
       !generateReportRef.current.isPending &&
       !hasTriggered.current
     ) {
       hasTriggered.current = true;
       generateReportRef.current.mutate({ sessionId, skillLevel });
     }
-  }, [sessionId, isLoading, queryError, report, skillLevel]);
+  }, [sessionId, isLoading, queryError, skillLevel]);
 
   // Reset trigger flag when session changes
   useEffect(() => {
@@ -54,12 +58,19 @@ export function useAutoReport(sessionId: string | null): UseAutoReportResult {
     }
   }, [sessionId, skillLevel]);
 
-  const hasError = generateReport.isError;
+  // Report is "generating" if we have data with status "generating"
+  const isGenerating = report?.status === 'generating' || generateReport.isPending;
+
+  // Only show error if the mutation itself failed (not if GET returned 404 — that's expected)
+  const hasError = generateReport.isError || report?.status === 'error';
+
+  // Report is ready when we have actual content
+  const isReady = report?.status === 'ready';
 
   return {
-    report,
-    isLoading: isLoading || generateReport.isPending,
-    isGenerating: generateReport.isPending,
+    report: isReady ? report : undefined,
+    isLoading: isLoading || isGenerating,
+    isGenerating,
     isError: hasError,
     retry,
   };

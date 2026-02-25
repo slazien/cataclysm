@@ -16,11 +16,15 @@ from backend.api.schemas.coaching import (
     ReportRequest,
 )
 from backend.api.services import session_store
+from backend.api.services.session_store import SessionData
 from backend.api.services.coaching_store import (
     get_coaching_context,
     get_coaching_report,
+    is_generating,
+    mark_generating,
     store_coaching_context,
     store_coaching_report,
+    unmark_generating,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,70 +39,98 @@ async def generate_report(
 ) -> CoachingReportResponse:
     """Trigger AI coaching report generation for a session.
 
-    Runs the coaching pipeline in a thread to avoid blocking the event loop.
-    Returns the full report when complete.
+    Returns immediately with status="generating". The report is built in a
+    background task; poll GET /{session_id}/report until status is "ready".
     """
     sd = session_store.get_session(session_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
-    from cataclysm.coaching import generate_coaching_report
-    from cataclysm.track_match import detect_track_or_lookup
+    # If already generating, return current status
+    if is_generating(session_id):
+        return CoachingReportResponse(session_id=session_id, status="generating")
 
-    # Resolve track landmarks for coaching context
-    layout = detect_track_or_lookup(sd.parsed.data, sd.parsed.metadata.track_name)
-    landmarks = layout.landmarks if layout else []
+    # If report already exists, return it
+    existing = get_coaching_report(session_id)
+    if existing is not None:
+        return existing
 
-    # Filter summaries to coaching laps only
-    coaching_summaries = [s for s in sd.processed.lap_summaries if s.lap_number in sd.coaching_laps]
+    mark_generating(session_id)
 
-    report = await asyncio.to_thread(
-        generate_coaching_report,
-        coaching_summaries,
-        sd.all_lap_corners,
-        sd.parsed.metadata.track_name,
-        gains=sd.gains,
-        skill_level=body.skill_level,
-        landmarks=landmarks or None,
-    )
+    # Fire-and-forget background task
+    asyncio.create_task(_run_generation(session_id, sd, body.skill_level))
 
-    # Build response
-    priority_corners = [
-        PriorityCornerSchema(
-            corner=int(pc.get("corner", 0)),  # type: ignore[call-overload]
-            time_cost_s=float(pc.get("time_cost_s", 0)),  # type: ignore[arg-type]
-            issue=str(pc.get("issue", "")),
-            tip=str(pc.get("tip", "")),
+    return CoachingReportResponse(session_id=session_id, status="generating")
+
+
+async def _run_generation(
+    session_id: str,
+    sd: SessionData,
+    skill_level: str,
+) -> None:
+    """Background task that generates the coaching report."""
+    try:
+        from cataclysm.coaching import generate_coaching_report
+        from cataclysm.track_match import detect_track_or_lookup
+
+        layout = detect_track_or_lookup(sd.parsed.data, sd.parsed.metadata.track_name)
+        landmarks = layout.landmarks if layout else []
+
+        coaching_summaries = [
+            s for s in sd.processed.lap_summaries if s.lap_number in sd.coaching_laps
+        ]
+
+        report = await asyncio.to_thread(
+            generate_coaching_report,
+            coaching_summaries,
+            sd.all_lap_corners,
+            sd.parsed.metadata.track_name,
+            gains=sd.gains,
+            skill_level=skill_level,
+            landmarks=landmarks or None,
         )
-        for pc in report.priority_corners
-    ]
 
-    corner_grades = [
-        CornerGradeSchema(
-            corner=g.corner,
-            braking=g.braking,
-            trail_braking=g.trail_braking,
-            min_speed=g.min_speed,
-            throttle=g.throttle,
-            notes=g.notes,
+        priority_corners = [
+            PriorityCornerSchema(
+                corner=int(pc.get("corner", 0)),  # type: ignore[call-overload]
+                time_cost_s=float(pc.get("time_cost_s", 0)),  # type: ignore[arg-type]
+                issue=str(pc.get("issue", "")),
+                tip=str(pc.get("tip", "")),
+            )
+            for pc in report.priority_corners
+        ]
+
+        corner_grades = [
+            CornerGradeSchema(
+                corner=g.corner,
+                braking=g.braking,
+                trail_braking=g.trail_braking,
+                min_speed=g.min_speed,
+                throttle=g.throttle,
+                notes=g.notes,
+            )
+            for g in report.corner_grades
+        ]
+
+        response = CoachingReportResponse(
+            session_id=session_id,
+            status="ready",
+            summary=report.summary,
+            priority_corners=priority_corners,
+            corner_grades=corner_grades,
+            patterns=report.patterns,
+            drills=report.drills,
         )
-        for g in report.corner_grades
-    ]
 
-    response = CoachingReportResponse(
-        session_id=session_id,
-        status="ready",
-        summary=report.summary,
-        priority_corners=priority_corners,
-        corner_grades=corner_grades,
-        patterns=report.patterns,
-        drills=report.drills,
-    )
-
-    # Store report and coaching context for later retrieval and chat
-    store_coaching_report(session_id, response)
-
-    return response
+        store_coaching_report(session_id, response)
+    except Exception:
+        logger.exception("Failed to generate coaching report for %s", session_id)
+        store_coaching_report(
+            session_id,
+            CoachingReportResponse(session_id=session_id, status="error"),
+        )
+    finally:
+        unmark_generating(session_id)
 
 
 @router.get("/{session_id}/report", response_model=CoachingReportResponse)
@@ -107,15 +139,20 @@ async def get_report(
 ) -> CoachingReportResponse:
     """Get the coaching report for a session.
 
-    Returns the stored report or 404 if no report has been generated.
+    Returns the stored report, a "generating" status if in progress,
+    or 404 if no report has been generated or requested.
     """
     report = get_coaching_report(session_id)
-    if report is None:
-        raise HTTPException(
-            status_code=404,
-            detail=f"No coaching report found for session {session_id}",
-        )
-    return report
+    if report is not None:
+        return report
+
+    if is_generating(session_id):
+        return CoachingReportResponse(session_id=session_id, status="generating")
+
+    raise HTTPException(
+        status_code=404,
+        detail=f"No coaching report found for session {session_id}",
+    )
 
 
 @router.websocket("/{session_id}/chat")
