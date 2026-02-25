@@ -22,6 +22,7 @@ export function TopBar() {
   const setActiveView = useUiStore((s) => s.setActiveView);
   const toggleSessionDrawer = useUiStore((s) => s.toggleSessionDrawer);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const panelOpen = useCoachStore((s) => s.panelOpen);
   const togglePanel = useCoachStore((s) => s.togglePanel);
 
@@ -36,7 +37,13 @@ export function TopBar() {
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    uploadMutation.mutate(Array.from(files));
+    uploadMutation.mutate(Array.from(files), {
+      onSuccess: (data) => {
+        if (data.session_ids.length > 0 && !activeSessionId) {
+          setActiveSession(data.session_ids[0]);
+        }
+      },
+    });
     // Reset input so the same file can be re-selected
     e.target.value = '';
   }
