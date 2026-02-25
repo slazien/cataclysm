@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 export interface ChartMargins {
   top: number;
@@ -25,13 +25,14 @@ const DEFAULT_MARGINS: ChartMargins = { top: 20, right: 20, bottom: 40, left: 60
  * - dataCanvas: static data layer (speed traces, fills, etc.)
  * - overlayCanvas: interactive overlay (cursor line, tooltips, highlights)
  *
- * Handles ResizeObserver for responsive sizing with device pixel ratio scaling,
- * and exposes context getters for both canvases.
+ * Uses a callback ref for the container so the ResizeObserver is set up
+ * whenever the container element mounts — even if conditional rendering
+ * delays the mount (e.g. components with early-return guards).
  */
 export function useCanvasChart(margins: ChartMargins = DEFAULT_MARGINS) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const dataCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+  const observerRef = useRef<ResizeObserver | null>(null);
 
   const [dimensions, setDimensions] = useState<ChartDimensions>({
     width: 0,
@@ -74,25 +75,31 @@ export function useCanvasChart(margins: ChartMargins = DEFAULT_MARGINS) {
     [margins],
   );
 
-  // Observe container resizes
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+  // Callback ref for the container element.
+  // Sets up / tears down the ResizeObserver whenever the element mounts or unmounts.
+  const containerRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      // Tear down previous observer
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+        observerRef.current = null;
+      }
 
-    const observer = new ResizeObserver(handleResize);
-    observer.observe(container);
+      if (!el) return;
 
-    // Perform an initial measurement imperatively since ResizeObserver
-    // may not fire synchronously on mount, leaving the canvas at 0x0.
-    const rect = container.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) {
-      handleResize([
-        { contentRect: rect } as ResizeObserverEntry,
-      ]);
-    }
+      const observer = new ResizeObserver(handleResize);
+      observer.observe(el);
+      observerRef.current = observer;
 
-    return () => observer.disconnect();
-  }, [handleResize]);
+      // Perform an initial measurement imperatively since ResizeObserver
+      // may not fire synchronously on mount, leaving the canvas at 0x0.
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        handleResize([{ contentRect: rect } as ResizeObserverEntry]);
+      }
+    },
+    [handleResize],
+  );
 
   // Context getters
   const getDataCtx = useCallback(() => {
