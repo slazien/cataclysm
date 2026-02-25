@@ -19,7 +19,7 @@ export function SessionDashboard() {
   const { data: session, isLoading: sessionLoading } = useSession(sessionId);
   const { data: laps, isLoading: lapsLoading } = useSessionLaps(sessionId);
   const { data: consistency, isLoading: consistencyLoading } = useConsistency(sessionId);
-  const { data: idealLap, isLoading: idealLoading } = useIdealLap(sessionId);
+  const { data: idealLap } = useIdealLap(sessionId);
 
   // Derive best lap number
   const bestLapNumber = useMemo(() => {

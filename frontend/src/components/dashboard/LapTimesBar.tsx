@@ -59,8 +59,8 @@ export function LapTimesBar({ sessionId }: LapTimesBarProps) {
     const yMax = Math.max(...lapTimes) + 1;
 
     const xScale = d3
-      .scaleBand<number>()
-      .domain(sortedLaps.map((l) => l.lap_number))
+      .scaleBand<string>()
+      .domain(sortedLaps.map((l) => String(l.lap_number)))
       .range([0, chartWidth])
       .padding(0.25);
 
@@ -88,7 +88,7 @@ export function LapTimesBar({ sessionId }: LapTimesBarProps) {
       .data(sortedLaps)
       .enter()
       .append('rect')
-      .attr('x', (d) => xScale(d.lap_number)!)
+      .attr('x', (d) => xScale(String(d.lap_number))!)
       .attr('y', (d) => yScale(d.lap_time_s))
       .attr('width', xScale.bandwidth())
       .attr('height', (d) => chartHeight - yScale(d.lap_time_s))
@@ -137,7 +137,7 @@ export function LapTimesBar({ sessionId }: LapTimesBarProps) {
       .text('avg');
 
     // X-axis
-    const xAxis = d3.axisBottom(xScale).tickFormat((d) => `L${d}`);
+    const xAxis = d3.axisBottom(xScale).tickFormat((d) => `L${d}`) as d3.Axis<string>;
     g.append('g')
       .attr('transform', `translate(0,${chartHeight})`)
       .call(xAxis)

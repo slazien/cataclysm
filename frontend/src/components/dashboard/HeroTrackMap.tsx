@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import * as d3 from 'd3';
 import { useLapData } from '@/hooks/useSession';
 import { useCorners } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
@@ -26,10 +27,11 @@ function projectCoords(
 ): { x: number[]; y: number[] } {
   if (lat.length === 0) return { x: [], y: [] };
 
-  const minLat = Math.min(...lat);
-  const maxLat = Math.max(...lat);
-  const minLon = Math.min(...lon);
-  const maxLon = Math.max(...lon);
+  // Use d3.min/max to avoid stack overflow with large arrays
+  const minLat = d3.min(lat) ?? 0;
+  const maxLat = d3.max(lat) ?? 0;
+  const minLon = d3.min(lon) ?? 0;
+  const maxLon = d3.max(lon) ?? 0;
 
   const latRange = maxLat - minLat || 1e-6;
   const lonRange = maxLon - minLon || 1e-6;
@@ -143,8 +145,8 @@ function computeSegments(
       }
     } else {
       // No grades — color by speed
-      const minSpd = Math.min(...speed_mph);
-      const maxSpd = Math.max(...speed_mph);
+      const minSpd = d3.min(speed_mph) ?? 0;
+      const maxSpd = d3.max(speed_mph) ?? 1;
       cornerColor = speedToColor(corner.min_speed_mph, minSpd, maxSpd);
     }
 

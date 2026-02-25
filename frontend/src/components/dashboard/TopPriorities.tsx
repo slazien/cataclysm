@@ -22,11 +22,9 @@ const priorityLabels = ['Biggest Gain', 'Second Priority', 'Quick Win'];
 function PriorityCard({
   priority,
   index,
-  sessionId,
 }: {
   priority: PriorityCorner;
   index: number;
-  sessionId: string;
 }) {
   const setActiveView = useUiStore((s) => s.setActiveView);
   const selectCorner = useAnalysisStore((s) => s.selectCorner);
@@ -127,7 +125,7 @@ export function TopPriorities({ sessionId }: TopPrioritiesProps) {
       </h2>
       <div className="flex flex-col gap-3">
         {priorities.map((p, i) => (
-          <PriorityCard key={p.corner} priority={p} index={i} sessionId={sessionId} />
+          <PriorityCard key={p.corner} priority={p} index={i} />
         ))}
       </div>
     </div>
