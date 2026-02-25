@@ -36,12 +36,12 @@ export function CornerAnalysis() {
     <div className="flex h-full min-h-0 flex-col gap-3 p-3">
       {/* Top row: Track Map (60%) + Corner Detail Panel (40%) */}
       <div className="flex min-h-0 flex-1 gap-3">
-        {/* Track Map — 60% */}
-        <div className="w-[60%]">
+        {/* Track Map — 60%, bounded to row height so SVG doesn't overflow */}
+        <div className="h-full w-[60%] overflow-hidden">
           <TrackMapInteractive sessionId={sessionId} />
         </div>
         {/* Corner Detail Panel — 40% */}
-        <div className="w-[40%]">
+        <div className="h-full w-[40%] overflow-auto">
           <CornerDetailPanel sessionId={sessionId} />
         </div>
       </div>
@@ -49,11 +49,11 @@ export function CornerAnalysis() {
       {/* Bottom row: Corner Speed Overlay (50%) + Brake Consistency (50%) */}
       <div className="flex min-h-0 flex-1 gap-3">
         {/* Corner Speed Overlay — 50% */}
-        <div className="w-[50%]">
+        <div className="h-full w-[50%]">
           <CornerSpeedOverlay sessionId={sessionId} />
         </div>
         {/* Brake Consistency Chart — 50% */}
-        <div className="w-[50%]">
+        <div className="h-full w-[50%]">
           <BrakeConsistency sessionId={sessionId} />
         </div>
       </div>

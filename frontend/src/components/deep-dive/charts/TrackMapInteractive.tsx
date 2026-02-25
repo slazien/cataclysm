@@ -263,10 +263,10 @@ export function TrackMapInteractive({ sessionId }: TrackMapInteractiveProps) {
   }
 
   return (
-    <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-2">
+    <div className="h-full rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-2">
       <svg
         viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
-        className="h-auto w-full"
+        className="h-full max-h-full w-full"
         preserveAspectRatio="xMidYMid meet"
       >
         {/* Track path segments */}
