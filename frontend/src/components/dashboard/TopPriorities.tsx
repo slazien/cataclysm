@@ -61,7 +61,7 @@ function PriorityCard({
 }
 
 export function TopPriorities({ sessionId }: TopPrioritiesProps) {
-  const { report, isLoading } = useAutoReport(sessionId);
+  const { report, isLoading, isError, retry } = useAutoReport(sessionId);
 
   if (isLoading) {
     return (
@@ -74,6 +74,28 @@ export function TopPriorities({ sessionId }: TopPrioritiesProps) {
           <p className="text-sm text-[var(--text-secondary)]">
             Generating AI coaching insights...
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col gap-3">
+        <h2 className="text-sm font-medium uppercase tracking-wider text-[var(--text-muted)]">
+          Top Priorities
+        </h2>
+        <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-6 text-center">
+          <p className="text-sm text-[var(--text-secondary)]">
+            Failed to generate coaching insights.
+          </p>
+          <button
+            type="button"
+            onClick={retry}
+            className="mt-3 rounded-md bg-[var(--cata-accent)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );

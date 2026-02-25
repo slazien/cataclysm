@@ -11,7 +11,7 @@ import { SessionScore } from './SessionScore';
 import { TopPriorities } from './TopPriorities';
 import { HeroTrackMap } from './HeroTrackMap';
 import { LapTimesBar } from './LapTimesBar';
-import { formatLapTime, formatSpeed } from '@/lib/formatters';
+import { formatLapTime, formatSpeed, normalizeScore } from '@/lib/formatters';
 import { MPS_TO_MPH } from '@/lib/constants';
 
 export function SessionDashboard() {
@@ -64,16 +64,15 @@ export function SessionDashboard() {
 
     // Consistency component (0-100)
     if (consistency?.lap_consistency) {
-      const raw = consistency.lap_consistency.consistency_score;
-      const consistencyScore = raw <= 1 ? raw * 100 : raw;
+      const consistencyScore = normalizeScore(consistency.lap_consistency.consistency_score);
       components.push({ value: consistencyScore, weight: 0.4 });
     }
 
     // Best lap vs optimal component (0-100)
+    // More penalizing curve: 100 at perfect, 75 at 5% off, 50 at 10% off, 0 at 20%+ off
     if (idealLapInfo && session) {
-      const ratio = idealLapInfo.time / session.best_lap_time_s;
-      // ratio close to 1.0 means best lap is near optimal — clamp to 0-100
-      const optimalScore = Math.min(100, Math.max(0, ratio * 100));
+      const gapPct = 1 - (idealLapInfo.time / session.best_lap_time_s);
+      const optimalScore = Math.min(100, Math.max(0, 100 - gapPct * 500));
       components.push({ value: optimalScore, weight: 0.3 });
     }
 
@@ -176,11 +175,7 @@ export function SessionDashboard() {
           label="Consistency"
           value={
             consistency?.lap_consistency
-              ? `${Math.round(
-                  consistency.lap_consistency.consistency_score <= 1
-                    ? consistency.lap_consistency.consistency_score * 100
-                    : consistency.lap_consistency.consistency_score,
-                )}%`
+              ? `${Math.round(normalizeScore(consistency.lap_consistency.consistency_score))}%`
               : '--'
           }
           subtitle={
@@ -190,9 +185,7 @@ export function SessionDashboard() {
           }
           highlight={
             consistency?.lap_consistency
-              ? (consistency.lap_consistency.consistency_score <= 1
-                  ? consistency.lap_consistency.consistency_score * 100
-                  : consistency.lap_consistency.consistency_score) >= 80
+              ? normalizeScore(consistency.lap_consistency.consistency_score) >= 80
                 ? 'good'
                 : 'none'
               : 'none'

@@ -1,3 +1,8 @@
+/** Normalize a score that may be in 0-1 or 0-100 range to 0-100. */
+export function normalizeScore(raw: number): number {
+  return raw <= 1 ? raw * 100 : raw;
+}
+
 export function formatLapTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;

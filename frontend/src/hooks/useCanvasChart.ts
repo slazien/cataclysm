@@ -81,6 +81,16 @@ export function useCanvasChart(margins: ChartMargins = DEFAULT_MARGINS) {
 
     const observer = new ResizeObserver(handleResize);
     observer.observe(container);
+
+    // Perform an initial measurement imperatively since ResizeObserver
+    // may not fire synchronously on mount, leaving the canvas at 0x0.
+    const rect = container.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      handleResize([
+        { contentRect: rect } as ResizeObserverEntry,
+      ]);
+    }
+
     return () => observer.disconnect();
   }, [handleResize]);
 

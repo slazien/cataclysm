@@ -60,8 +60,7 @@ function projectCoords(
 }
 
 function gradeToColor(grade: string): string {
-  const g = grade.toUpperCase();
-  return (colors.grade as Record<string, string>)[g.toLowerCase()] ?? colors.text.muted;
+  return (colors.grade as Record<string, string>)[grade.toLowerCase()] ?? colors.text.muted;
 }
 
 function speedToColor(speed: number, minSpeed: number, maxSpeed: number): string {
@@ -77,10 +76,8 @@ function speedToColor(speed: number, minSpeed: number, maxSpeed: number): string
 }
 
 function findSegmentIndex(distance_m: number[], targetDist: number): number {
-  for (let i = 0; i < distance_m.length - 1; i++) {
-    if (distance_m[i] >= targetDist) return i;
-  }
-  return distance_m.length - 1;
+  const i = d3.bisectLeft(distance_m, targetDist);
+  return Math.min(i, distance_m.length - 1);
 }
 
 interface TrackSegment {
@@ -108,6 +105,10 @@ function computeSegments(
   if (cornerGrades) {
     cornerGrades.forEach((cg) => gradeMap.set(cg.corner, cg));
   }
+
+  // Precompute speed range once (constant for a given lap)
+  const minSpd = d3.min(speed_mph) ?? 0;
+  const maxSpd = d3.max(speed_mph) ?? 1;
 
   let currentIdx = 0;
 
@@ -145,8 +146,6 @@ function computeSegments(
       }
     } else {
       // No grades — color by speed
-      const minSpd = d3.min(speed_mph) ?? 0;
-      const maxSpd = d3.max(speed_mph) ?? 1;
       cornerColor = speedToColor(corner.min_speed_mph, minSpd, maxSpd);
     }
 
