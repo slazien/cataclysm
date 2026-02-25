@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:3000"]
 
     # File storage
-    session_data_dir: str = "data/sessions"
+    session_data_dir: str = "data/session"
 
     # Upload limits
     max_upload_size_mb: int = 50
