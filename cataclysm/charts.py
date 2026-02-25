@@ -76,6 +76,7 @@ def lap_times_chart(summaries: list[LapSummary]) -> go.Figure:
         yaxis_title="Time (s)",
         showlegend=False,
         height=400,
+        xaxis={"categoryorder": "array", "categoryarray": labels},
         yaxis={"range": [min(times) * 0.95, max(times) * 1.05]},
     )
     return fig
