@@ -142,8 +142,10 @@ async def test_generate_report_default_skill_level(client: AsyncClient) -> None:
             f"/api/coaching/{session_id}/report",
             json={},
         )
+        assert response.status_code == 200
+        # Let the background task complete while mock is still active
+        await asyncio.sleep(0.2)
 
-    assert response.status_code == 200
     # The mock was called — verify skill_level passed
     call_kwargs = mock_gen.call_args
     assert call_kwargs.kwargs.get("skill_level") == "intermediate"
@@ -207,8 +209,10 @@ async def test_generate_report_with_advanced_skill(client: AsyncClient) -> None:
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "advanced"},
         )
+        assert response.status_code == 200
+        # Let the background task complete while mock is still active
+        await asyncio.sleep(0.2)
 
-    assert response.status_code == 200
     call_kwargs = mock_gen.call_args
     assert call_kwargs.kwargs.get("skill_level") == "advanced"
 
