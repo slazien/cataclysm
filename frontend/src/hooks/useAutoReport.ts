@@ -24,13 +24,14 @@ export function useAutoReport(sessionId: string | null): UseAutoReportResult {
   // Auto-trigger report generation if no report exists
   useEffect(() => {
     if (
+      sessionId !== null &&
       !isLoading &&
       (isError || !report) &&
       !generateReport.isPending &&
       !hasTriggered.current
     ) {
       hasTriggered.current = true;
-      generateReport.mutate({ sessionId: sessionId!, skillLevel });
+      generateReport.mutate({ sessionId, skillLevel });
     }
   }, [sessionId, isLoading, isError, report, generateReport, skillLevel]);
 
