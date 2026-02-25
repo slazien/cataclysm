@@ -23,12 +23,12 @@ jobs:
       - name: Lint
         run: |
           source .venv/bin/activate
-          ruff check cataclysm/ tests/ app.py backend/
-          ruff format --check cataclysm/ tests/ app.py backend/
+          ruff check cataclysm/ tests/ backend/
+          ruff format --check cataclysm/ tests/ backend/
       - name: Type check
         run: |
           source .venv/bin/activate
-          mypy cataclysm/ app.py backend/ --exclude migrations
+          mypy cataclysm/ backend/ --exclude migrations
       - name: Test
         run: |
           source .venv/bin/activate

@@ -63,7 +63,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Cataclysm is an AI-powered motorsport telemetry analysis and coaching platform for track day drivers. It ingests RaceChrono CSV v3 exports, processes them in the distance domain, detects corners, and generates AI coaching reports via the Claude API.
 
-Current state: Streamlit MVP on branch `claude/review-track-plan-FQmfe` (main branch only has CSV data files). Next.js + FastAPI rewrite in progress on `nextjs-rewrite` branch.
+Current state: Next.js + FastAPI on `nextjs-rewrite` branch (main branch only has CSV data files). Streamlit MVP was removed from this branch.
 
 ## Virtual Environment
 
@@ -89,9 +89,6 @@ The `.venv/` directory is gitignored. All `pip install`, `pytest`, `ruff`, `mypy
 # Install dependencies (venv must be active)
 pip install -e ".[dev]"
 
-# Run the Streamlit app
-streamlit run app.py
-
 # Run tests
 pytest
 pytest tests/test_engine.py              # single module
@@ -105,15 +102,14 @@ pytest backend/tests/ -v
 uvicorn backend.api.main:app --reload --port 8000
 
 # Linting, formatting, and type checking — run ALL THREE before committing
-ruff check cataclysm/ tests/ app.py backend/  # lint errors
-ruff format cataclysm/ tests/ app.py backend/ # auto-format
-mypy cataclysm/ app.py backend/               # type checking (must pass with 0 errors)
+ruff check cataclysm/ tests/ backend/  # lint errors
+ruff format cataclysm/ tests/ backend/ # auto-format
+mypy cataclysm/ backend/               # type checking (must pass with 0 errors)
 
 # Debugging
 pytest -x --tb=short                     # stop on first failure, short traceback
 pytest --pdb                             # drop into debugger on failure
 pytest -k "test_name" -v                 # run specific test verbosely
-streamlit run app.py --logger.level=debug  # verbose Streamlit logging
 ```
 
 ## Architecture
@@ -122,7 +118,7 @@ All processing converts time-domain GPS telemetry into **distance-domain** data 
 
 **Data pipeline flow:**
 ```
-RaceChrono CSV v3 → parser.py → engine.py → corners.py / delta.py → coaching.py → charts.py → app.py (Streamlit UI)
+RaceChrono CSV v3 → parser.py → engine.py → corners.py / delta.py → coaching.py → FastAPI backend → Next.js frontend
 ```
 
 **Core modules in `cataclysm/`:**
@@ -133,9 +129,8 @@ RaceChrono CSV v3 → parser.py → engine.py → corners.py / delta.py → coac
 - **delta.py** — Computes delta-T between two resampled laps at each distance point.
 - **coaching.py** — Sends structured telemetry context to Claude API (claude-sonnet-4-6) and parses JSON coaching reports with per-corner grades and improvement suggestions.
 - **track_db.py** — Database of known tracks with official corner positions stored as % of lap distance. Currently has Barber Motorsports Park.
-- **charts.py** — Plotly chart builders: speed traces, delta-T, g-force scatter, track map, lap times bar chart, corner KPI table.
-
-**Entry point:** `app.py` — Streamlit app that orchestrates the full pipeline. Auto-loads CSV files from the working directory or accepts uploads.
+- **track_match.py** — GPS-based track auto-detection using session centroid vs known track coordinates.
+- **sectors.py** — Sector time analysis reusing gains.py segment infrastructure.
 
 ## Architecture (Next.js Rewrite)
 
@@ -184,9 +179,9 @@ All structured data uses **dataclasses**: `ParsedSession`, `SessionMetadata`, `L
 
 All of these must pass before committing:
 
-1. **Ruff check** — zero lint errors: `ruff check cataclysm/ tests/ app.py backend/`
-2. **Ruff format** — auto-format first, then verify: `ruff format cataclysm/ tests/ app.py backend/`
-3. **Mypy** — zero type errors: `mypy cataclysm/ app.py backend/`
+1. **Ruff check** — zero lint errors: `ruff check cataclysm/ tests/ backend/`
+2. **Ruff format** — auto-format first, then verify: `ruff format cataclysm/ tests/ backend/`
+3. **Mypy** — zero type errors: `mypy cataclysm/ backend/`
 4. **Tests** — all pass: `pytest tests/ backend/tests/ -v`
 5. **Coverage** — write tests targeting as close to 100% coverage as realistically possible. Every new module needs a companion test file. Test edge cases, error paths, and boundary conditions, not just the happy path.
 
