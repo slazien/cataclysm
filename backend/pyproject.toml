@@ -53,6 +53,7 @@ check_untyped_defs = true
 
 [[tool.mypy.overrides]]
 module = [
+    "sqlalchemy",
     "sqlalchemy.*",
     "asyncpg",
     "uvicorn",

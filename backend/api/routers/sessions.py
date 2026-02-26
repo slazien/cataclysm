@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 
 from backend.api.config import Settings
 from backend.api.dependencies import get_settings
+from backend.api.routers.coaching import trigger_auto_coaching
 from backend.api.schemas.session import (
     LapData,
     LapSummary,
@@ -42,7 +43,13 @@ async def upload_sessions(
         try:
             file_bytes = await f.read()
             result = await process_upload(file_bytes, f.filename)
-            session_ids.append(str(result["session_id"]))
+            sid = str(result["session_id"])
+            session_ids.append(sid)
+
+            # Auto-generate coaching report in the background
+            sd = session_store.get_session(sid)
+            if sd is not None:
+                trigger_auto_coaching(sid, sd)
         except Exception as exc:
             logger.warning("Failed to process %s: %s", f.filename, exc, exc_info=True)
             errors.append(f"{f.filename}: {exc}")

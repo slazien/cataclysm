@@ -23,8 +23,16 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Manage application startup and shutdown lifecycle."""
-    # Startup: nothing needed for in-memory mode
+    # Startup: initialise coaching persistence and reload cached reports
+    from backend.api.services.coaching_store import init_coaching_dir, load_persisted_reports
+
+    init_coaching_dir(settings.coaching_data_dir)
+    n = load_persisted_reports()
+    if n:
+        logger.info("Loaded %d persisted coaching report(s)", n)
+
     yield
+
     # Shutdown: clear in-memory store
     from backend.api.services.session_store import clear_all
 

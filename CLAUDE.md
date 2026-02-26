@@ -185,6 +185,8 @@ All of these must pass before committing:
 4. **Tests** — all pass: `pytest tests/ backend/tests/ -v`
 5. **Coverage** — write tests targeting as close to 100% coverage as realistically possible. Every new module needs a companion test file. Test edge cases, error paths, and boundary conditions, not just the happy path.
 
+**CRITICAL: Fix ALL errors, including pre-existing ones.** Never dismiss errors as "pre-existing" and move on. If mypy, ruff, or tests show failures — even from code you didn't write — fix them immediately. Zero errors means zero errors, no exceptions.
+
 ## Testing Philosophy
 
 - Every new module gets a `tests/test_<module>.py` companion

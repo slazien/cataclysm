@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -156,6 +157,16 @@ def synthetic_csv_bytes() -> bytes:
 def synthetic_csv_bytes_3laps() -> bytes:
     """Return synthetic RaceChrono CSV bytes with 3 laps (needed for gains/consistency)."""
     return build_synthetic_csv(n_laps=3)
+
+
+@pytest.fixture(autouse=True)
+def _disable_auto_coaching() -> Generator[None, None, None]:
+    """Disable auto-coaching on upload in all tests by default.
+
+    Tests that specifically test auto-coaching should override this fixture.
+    """
+    with patch("backend.api.routers.sessions.trigger_auto_coaching"):
+        yield
 
 
 @pytest_asyncio.fixture

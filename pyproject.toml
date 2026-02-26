@@ -47,6 +47,10 @@ check_untyped_defs = true
 [[tool.mypy.overrides]]
 module = [
     "plotly.*",
+    "sqlalchemy",
+    "sqlalchemy.*",
+    "asyncpg",
+    "uvicorn",
     "scipy.*",
     "numpy",
     "numpy.*",
@@ -62,6 +66,7 @@ module = [
     "kaleido.*",
 ]
 ignore_missing_imports = true
+disable_error_code = ["import-untyped"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

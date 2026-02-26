@@ -29,6 +29,7 @@ class Settings(BaseSettings):
 
     # File storage
     session_data_dir: str = "data/session"
+    coaching_data_dir: str = "data/coaching"
 
     # Upload limits
     max_upload_size_mb: int = 50
