@@ -815,8 +815,10 @@ class TestGenerateCoachingReportWithLandmarks:
             )
 
         assert report.summary == "Good with landmarks"
-        call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args
-        prompt_text = call_kwargs.kwargs["messages"][0]["content"]
+        # call_args_list[0] is the coaching call; later calls may be the validator.
+        call_list = mock_anthropic.Anthropic.return_value.messages.create.call_args_list
+        coaching_call = call_list[0]
+        prompt_text = coaching_call.kwargs["messages"][0]["content"]
         assert "Visual Landmarks" in prompt_text
 
 
