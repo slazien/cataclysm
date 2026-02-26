@@ -1,7 +1,9 @@
 'use client';
 
-import { useMemo } from 'react';
-import { useSession, useSessionLaps } from '@/hooks/useSession';
+import { useMemo, useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { GitCompareArrows } from 'lucide-react';
+import { useSession, useSessionLaps, useSessions } from '@/hooks/useSession';
 import { useConsistency } from '@/hooks/useAnalysis';
 import { useIdealLap, useCoachingReport } from '@/hooks/useCoaching';
 import { useSessionStore } from '@/stores';
@@ -12,8 +14,9 @@ import { SessionScore } from './SessionScore';
 import { TopPriorities } from './TopPriorities';
 import { HeroTrackMap } from './HeroTrackMap';
 import { LapTimesBar } from './LapTimesBar';
-import { formatLapTime, formatSpeed, normalizeScore } from '@/lib/formatters';
+import { formatLapTime, formatSpeed, normalizeScore, parseSessionDate } from '@/lib/formatters';
 import { MPS_TO_MPH } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 
 export function SessionDashboard() {
   const sessionId = useSessionStore((s) => s.activeSessionId);
@@ -146,6 +149,9 @@ export function SessionDashboard() {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 lg:p-6">
+      {/* Compare Action */}
+      <CompareButton sessionId={sessionId} />
+
       {/* Hero Metrics Row */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
         <SessionScore score={sessionScore} isLoading={consistencyLoading} />
@@ -234,6 +240,85 @@ export function SessionDashboard() {
           highlight={idealLapInfo ? 'good' : 'none'}
         />
       </div>
+    </div>
+  );
+}
+
+/** Inline compare button with dropdown to pick another session. */
+function CompareButton({ sessionId }: { sessionId: string }) {
+  const router = useRouter();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const { data: sessionsData } = useSessions();
+
+  const sessions = sessionsData?.items ?? [];
+  const otherSessions = sessions.filter((s) => s.session_id !== sessionId);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [dropdownOpen]);
+
+  function handleSelect(otherId: string) {
+    setDropdownOpen(false);
+    router.push(`/compare/${sessionId}?with=${otherId}`);
+  }
+
+  return (
+    <div className="relative flex justify-end" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => {
+          if (otherSessions.length === 0) {
+            router.push(`/compare/${sessionId}`);
+          } else {
+            setDropdownOpen((prev) => !prev);
+          }
+        }}
+        className="flex items-center gap-1.5 rounded-md border border-[var(--cata-border)] bg-[var(--bg-surface)] px-3 py-1.5 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--text-muted)]/40 hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+      >
+        <GitCompareArrows className="h-3.5 w-3.5" />
+        Compare
+      </button>
+      {dropdownOpen && otherSessions.length > 0 && (
+        <div className="absolute right-0 top-full z-50 mt-1 max-h-72 w-72 overflow-y-auto rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] py-1 shadow-xl">
+          <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            Compare with...
+          </p>
+          {otherSessions
+            .sort((a, b) => {
+              const dateA = parseSessionDate(a.session_date).getTime();
+              const dateB = parseSessionDate(b.session_date).getTime();
+              return dateB - dateA;
+            })
+            .map((s) => (
+              <button
+                key={s.session_id}
+                type="button"
+                onClick={() => handleSelect(s.session_id)}
+                className={cn(
+                  'flex w-full items-center justify-between px-3 py-2 text-left transition-colors',
+                  'hover:bg-[var(--bg-elevated)]',
+                )}
+              >
+                <div>
+                  <p className="text-sm text-[var(--text-primary)]">{s.track_name}</p>
+                  <p className="text-xs text-[var(--text-muted)]">{s.session_date}</p>
+                </div>
+                <span className="font-mono text-xs font-medium text-[var(--text-secondary)]">
+                  {formatLapTime(s.best_lap_time_s)}
+                </span>
+              </button>
+            ))}
+        </div>
+      )}
     </div>
   );
 }

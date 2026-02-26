@@ -199,3 +199,25 @@ export interface MilestoneResponse {
   track_name: string;
   milestones: Milestone[];
 }
+
+// --- Comparison Types ---
+
+export interface ComparisonCornerDelta {
+  corner_number: number;
+  speed_diff_mph: number;
+  a_min_speed_mph: number;
+  b_min_speed_mph: number;
+}
+
+export interface ComparisonResult {
+  session_a_id: string;
+  session_b_id: string;
+  session_a_track: string;
+  session_b_track: string;
+  session_a_best_lap: number | null;
+  session_b_best_lap: number | null;
+  delta_s: number;
+  distance_m: number[];
+  delta_time_s: number[];
+  corner_deltas: ComparisonCornerDelta[];
+}

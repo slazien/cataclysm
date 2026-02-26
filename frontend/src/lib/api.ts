@@ -10,6 +10,7 @@ import type {
   IdealLapData,
   TrendAnalysisResponse,
   MilestoneResponse,
+  ComparisonResult,
 } from "./types";
 
 const API_BASE = "";
@@ -181,5 +182,13 @@ export async function getTrends(trackName: string) {
 export async function getMilestones(trackName: string) {
   return fetchApi<MilestoneResponse>(
     `/api/trends/${encodeURIComponent(trackName)}/milestones`,
+  );
+}
+
+// --- Comparison API ---
+
+export async function getComparison(sessionId: string, otherId: string) {
+  return fetchApi<ComparisonResult>(
+    `/api/sessions/${sessionId}/compare/${otherId}`,
   );
 }
