@@ -1,0 +1,169 @@
+"""Tests for equipment API endpoints."""
+
+from __future__ import annotations
+
+from collections.abc import AsyncGenerator
+
+import pytest
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+
+from backend.api.main import app
+from backend.api.services import equipment_store
+
+
+@pytest_asyncio.fixture
+async def client() -> AsyncGenerator[AsyncClient, None]:
+    equipment_store.clear_all_equipment()
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        yield c
+    equipment_store.clear_all_equipment()
+
+
+SAMPLE_TIRE: dict[str, object] = {
+    "model": "Bridgestone RE-71RS",
+    "compound_category": "super_200tw",
+    "size": "255/40R17",
+    "treadwear_rating": 200,
+    "estimated_mu": 1.10,
+    "mu_source": "curated_table",
+    "mu_confidence": "Track test aggregate",
+}
+
+SAMPLE_PROFILE: dict[str, object] = {"name": "Track Day Setup", "tires": SAMPLE_TIRE}
+
+SAMPLE_BRAKES: dict[str, object] = {
+    "compound": "Ferodo DS2500",
+    "rotor_type": "slotted",
+    "pad_temp_range": "200-600C",
+    "fluid_type": "Motul RBF 660",
+}
+
+SAMPLE_SUSPENSION: dict[str, object] = {
+    "type": "coilover",
+    "front_spring_rate": "700 lb/in",
+    "rear_spring_rate": "500 lb/in",
+    "front_camber_deg": -2.5,
+    "rear_camber_deg": -1.8,
+    "front_toe": "0 mm",
+    "rear_toe": "2 mm in",
+    "front_rebound": 8,
+    "front_compression": 5,
+    "rear_rebound": 7,
+    "rear_compression": 4,
+    "sway_bar_front": "stiff",
+    "sway_bar_rear": "medium",
+}
+
+
+@pytest.mark.asyncio
+async def test_create_and_get_profile(client: AsyncClient) -> None:
+    """POST create a profile, then GET it by ID and verify fields."""
+    resp = await client.post("/api/equipment/profiles", json=SAMPLE_PROFILE)
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["name"] == "Track Day Setup"
+    assert data["id"].startswith("eq_")
+    assert data["tires"]["model"] == "Bridgestone RE-71RS"
+    assert data["tires"]["estimated_mu"] == 1.10
+
+    profile_id = data["id"]
+    resp2 = await client.get(f"/api/equipment/profiles/{profile_id}")
+    assert resp2.status_code == 200
+    data2 = resp2.json()
+    assert data2["id"] == profile_id
+    assert data2["name"] == "Track Day Setup"
+    assert data2["tires"]["compound_category"] == "super_200tw"
+
+
+@pytest.mark.asyncio
+async def test_list_profiles(client: AsyncClient) -> None:
+    """Create one profile, list all, verify total=1."""
+    await client.post("/api/equipment/profiles", json=SAMPLE_PROFILE)
+    resp = await client.get("/api/equipment/profiles")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["name"] == "Track Day Setup"
+
+
+@pytest.mark.asyncio
+async def test_delete_profile(client: AsyncClient) -> None:
+    """Create, delete, then verify 404 on GET."""
+    resp = await client.post("/api/equipment/profiles", json=SAMPLE_PROFILE)
+    profile_id = resp.json()["id"]
+
+    del_resp = await client.delete(f"/api/equipment/profiles/{profile_id}")
+    assert del_resp.status_code == 200
+
+    get_resp = await client.get(f"/api/equipment/profiles/{profile_id}")
+    assert get_resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_missing_profile_404(client: AsyncClient) -> None:
+    """GET a nonexistent profile returns 404."""
+    resp = await client.get("/api/equipment/profiles/eq_nonexistent99")
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_create_profile_with_brakes_and_suspension(client: AsyncClient) -> None:
+    """Create a full profile with brakes and suspension, verify all fields."""
+    full_profile: dict[str, object] = {
+        "name": "Full Race Setup",
+        "tires": SAMPLE_TIRE,
+        "brakes": SAMPLE_BRAKES,
+        "suspension": SAMPLE_SUSPENSION,
+        "notes": "Spa configuration",
+    }
+    resp = await client.post("/api/equipment/profiles", json=full_profile)
+    assert resp.status_code == 201
+    data = resp.json()
+
+    assert data["name"] == "Full Race Setup"
+    assert data["notes"] == "Spa configuration"
+
+    assert data["brakes"]["compound"] == "Ferodo DS2500"
+    assert data["brakes"]["rotor_type"] == "slotted"
+    assert data["brakes"]["fluid_type"] == "Motul RBF 660"
+
+    assert data["suspension"]["type"] == "coilover"
+    assert data["suspension"]["front_camber_deg"] == -2.5
+    assert data["suspension"]["front_rebound"] == 8
+    assert data["suspension"]["sway_bar_front"] == "stiff"
+
+
+@pytest.mark.asyncio
+async def test_update_profile(client: AsyncClient) -> None:
+    """PATCH an existing profile updates its fields."""
+    resp = await client.post("/api/equipment/profiles", json=SAMPLE_PROFILE)
+    profile_id = resp.json()["id"]
+
+    updated: dict[str, object] = {
+        "name": "Updated Setup",
+        "tires": SAMPLE_TIRE,
+        "notes": "Changed name",
+    }
+    patch_resp = await client.patch(f"/api/equipment/profiles/{profile_id}", json=updated)
+    assert patch_resp.status_code == 200
+    data = patch_resp.json()
+    assert data["name"] == "Updated Setup"
+    assert data["notes"] == "Changed name"
+    assert data["id"] == profile_id
+
+
+@pytest.mark.asyncio
+async def test_update_missing_profile_404(client: AsyncClient) -> None:
+    """PATCH a nonexistent profile returns 404."""
+    resp = await client.patch("/api/equipment/profiles/eq_nonexistent99", json=SAMPLE_PROFILE)
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_missing_profile_404(client: AsyncClient) -> None:
+    """DELETE a nonexistent profile returns 404."""
+    resp = await client.delete("/api/equipment/profiles/eq_nonexistent99")
+    assert resp.status_code == 404

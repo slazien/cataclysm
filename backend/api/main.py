@@ -15,7 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.responses import Response
 
 from backend.api.config import Settings
-from backend.api.routers import analysis, coaching, sessions, tracks, trends
+from backend.api.routers import analysis, coaching, equipment, sessions, tracks, trends
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     n = load_persisted_reports()
     if n:
         logger.info("Loaded %d persisted coaching report(s)", n)
+
+    from backend.api.services.equipment_store import (
+        init_equipment_dir,
+        load_persisted_profiles,
+        load_persisted_session_equipment,
+    )
+
+    init_equipment_dir(settings.equipment_data_dir)
+    n_eq = load_persisted_profiles()
+    n_se = load_persisted_session_equipment()
+    if n_eq or n_se:
+        logger.info("Loaded %d equipment profile(s), %d session assignment(s)", n_eq, n_se)
 
     yield
 
@@ -57,6 +69,8 @@ app = FastAPI(
 _CACHE_RULES: list[tuple[str, str]] = [
     # Coaching endpoints: mutable (generated on demand)
     ("/api/coaching", "no-cache"),
+    # Equipment endpoints: mutable (CRUD)
+    ("/api/equipment", "no-cache"),
     # Session list: mutable (changes on upload/delete)
     ("/api/sessions/upload", "no-cache"),
     # Analysis sub-routes: immutable once computed for a session
@@ -140,6 +154,7 @@ app.add_middleware(
 app.include_router(sessions.router, prefix="/api/sessions", tags=["sessions"])
 app.include_router(analysis.router, prefix="/api/sessions", tags=["analysis"])
 app.include_router(coaching.router, prefix="/api/coaching", tags=["coaching"])
+app.include_router(equipment.router, prefix="/api/equipment", tags=["equipment"])
 app.include_router(trends.router, prefix="/api/trends", tags=["trends"])
 app.include_router(tracks.router, prefix="/api/tracks", tags=["tracks"])
 
