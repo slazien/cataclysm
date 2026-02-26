@@ -6,7 +6,11 @@ import asyncio
 import contextlib
 import logging
 
-from cataclysm.topic_guardrail import OFF_TOPIC_RESPONSE, classify_topic
+from cataclysm.topic_guardrail import (
+    INPUT_TOO_LONG_RESPONSE,
+    OFF_TOPIC_RESPONSE,
+    classify_topic,
+)
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
 from backend.api.schemas.coaching import (
@@ -264,14 +268,16 @@ async def coaching_chat(
                 )
                 continue
 
-            # Layer 1: Off-topic pre-screen via Haiku classifier
+            # Layer 1: Off-topic pre-screen (length + jailbreak + Haiku)
             classification = await asyncio.to_thread(classify_topic, question)
             if not classification.on_topic:
+                content = (
+                    INPUT_TOO_LONG_RESPONSE
+                    if classification.source == "too_long"
+                    else OFF_TOPIC_RESPONSE
+                )
                 await websocket.send_json(
-                    FollowUpMessage(
-                        role="assistant",
-                        content=OFF_TOPIC_RESPONSE,
-                    ).model_dump()
+                    FollowUpMessage(role="assistant", content=content).model_dump()
                 )
                 continue
 

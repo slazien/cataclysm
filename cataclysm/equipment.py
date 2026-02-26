@@ -13,6 +13,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from cataclysm.velocity_profile import VehicleParams
 
 # ---------------------------------------------------------------------------
 # Enums
@@ -59,6 +63,21 @@ CATEGORY_MU_DEFAULTS: dict[TireCompoundCategory, float] = {
     TireCompoundCategory.R_COMPOUND: 1.35,
     TireCompoundCategory.SLICK: 1.50,
 }
+
+# Drivetrain-limited peak acceleration by compound category.
+# Acceleration is drivetrain-limited, not grip-limited, so it doesn't
+# scale 1:1 with tire mu.  Higher-grip tires allow slightly more
+# traction off corners but the engine/gearing is the primary bottleneck.
+_CATEGORY_ACCEL_G: dict[TireCompoundCategory, float] = {
+    TireCompoundCategory.STREET: 0.40,
+    TireCompoundCategory.ENDURANCE_200TW: 0.50,
+    TireCompoundCategory.SUPER_200TW: 0.55,
+    TireCompoundCategory.TW_100: 0.60,
+    TireCompoundCategory.R_COMPOUND: 0.65,
+    TireCompoundCategory.SLICK: 0.70,
+}
+
+_BRAKE_EFFICIENCY = 0.95  # real-world brake efficiency factor
 
 
 # ---------------------------------------------------------------------------
@@ -167,3 +186,34 @@ class SessionEquipment:
     profile_id: str
     overrides: dict[str, object] = field(default_factory=dict)
     conditions: SessionConditions | None = None
+
+
+# ---------------------------------------------------------------------------
+# Vehicle params mapping
+# ---------------------------------------------------------------------------
+
+
+def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
+    """Convert an equipment profile to physics solver vehicle parameters.
+
+    Mapping:
+    - ``mu`` and ``max_lateral_g`` come directly from the tire's estimated_mu
+      (lateral grip scales linearly with tire friction).
+    - ``max_accel_g`` is looked up from a per-category table since acceleration
+      is drivetrain-limited, not purely grip-limited.
+    - ``max_decel_g`` is mu scaled by a brake efficiency factor (0.95) to
+      account for real-world brake system losses.
+    - ``top_speed_mps`` is fixed at 80 m/s (~179 mph).
+    """
+    from cataclysm.velocity_profile import VehicleParams
+
+    mu = profile.tires.estimated_mu
+    category = profile.tires.compound_category
+
+    return VehicleParams(
+        mu=mu,
+        max_lateral_g=mu,
+        max_accel_g=_CATEGORY_ACCEL_G[category],
+        max_decel_g=mu * _BRAKE_EFFICIENCY,
+        top_speed_mps=80.0,
+    )
