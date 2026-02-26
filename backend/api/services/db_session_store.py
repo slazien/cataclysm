@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from cataclysm.equipment import SessionConditions, TrackCondition
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -69,6 +70,46 @@ async def store_session_db(
     Uses ``merge`` so re-uploading the same session updates rather than errors.
     """
     snap = session_data.snapshot
+    # Build snapshot JSON for immutable per-session data.
+    # These are computed/fetched once and never change for a given session.
+    snapshot_json: dict[str, object] = {}
+
+    # Weather conditions (fetched from Open-Meteo on upload)
+    if session_data.weather is not None:
+        w = session_data.weather
+        snapshot_json["weather"] = {
+            "track_condition": w.track_condition.value
+            if hasattr(w.track_condition, "value")
+            else str(w.track_condition),
+            "ambient_temp_c": w.ambient_temp_c,
+            "track_temp_c": w.track_temp_c,
+            "humidity_pct": w.humidity_pct,
+            "wind_speed_kmh": w.wind_speed_kmh,
+            "wind_direction_deg": w.wind_direction_deg,
+            "precipitation_mm": w.precipitation_mm,
+            "weather_source": w.weather_source,
+        }
+
+    # GPS centroid (derived from session telemetry)
+    try:
+        df = session_data.parsed.data
+        if not df.empty and "lat" in df.columns and "lon" in df.columns:
+            snapshot_json["gps_centroid"] = {
+                "lat": round(float(df["lat"].mean()), 6),
+                "lon": round(float(df["lon"].mean()), 6),
+            }
+    except Exception:
+        pass  # Non-critical, skip if data is unavailable
+
+    # GPS quality assessment (computed from telemetry)
+    if session_data.gps_quality is not None:
+        gps = session_data.gps_quality
+        snapshot_json["gps_quality"] = {
+            "overall_score": gps.overall_score,
+            "grade": gps.grade,
+            "is_usable": gps.is_usable,
+        }
+
     session_row = SessionModel(
         session_id=session_data.session_id,
         user_id=user_id,
@@ -83,9 +124,30 @@ async def store_session_db(
         top3_avg_time_s=snap.top3_avg_time_s,
         avg_lap_time_s=snap.avg_lap_time_s,
         consistency_score=snap.consistency_score,
+        snapshot_json=snapshot_json if snapshot_json else None,
     )
     await db.merge(session_row)
     await db.flush()
+
+
+def restore_weather_from_snapshot(snapshot_json: dict | None) -> SessionConditions | None:
+    """Restore weather conditions from a DB snapshot_json blob.
+
+    Returns None if no weather data is stored.
+    """
+    if not snapshot_json or "weather" not in snapshot_json:
+        return None
+    w = snapshot_json["weather"]
+    return SessionConditions(
+        track_condition=TrackCondition(w.get("track_condition", "dry")),
+        ambient_temp_c=w.get("ambient_temp_c"),
+        track_temp_c=w.get("track_temp_c"),
+        humidity_pct=w.get("humidity_pct"),
+        wind_speed_kmh=w.get("wind_speed_kmh"),
+        wind_direction_deg=w.get("wind_direction_deg"),
+        precipitation_mm=w.get("precipitation_mm"),
+        weather_source=w.get("weather_source"),
+    )
 
 
 async def list_sessions_for_user(

@@ -24,6 +24,11 @@ class SessionSummary(BaseModel):
     equipment_profile_name: str | None = None
     gps_quality_score: float | None = None
     gps_quality_grade: str | None = None
+    weather_temp_c: float | None = None
+    weather_condition: str | None = None
+    weather_humidity_pct: float | None = None
+    weather_wind_kmh: float | None = None
+    weather_precipitation_mm: float | None = None
 
 
 class SessionList(BaseModel):

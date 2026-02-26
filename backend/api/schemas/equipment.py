@@ -75,6 +75,17 @@ class EquipmentProfileList(BaseModel):
     total: int
 
 
+class BrakePadSearchResult(BaseModel):
+    """Curated brake pad search result."""
+
+    model: str
+    brand: str
+    category: str
+    temp_range: str
+    initial_bite: str
+    notes: str
+
+
 class SessionConditionsSchema(BaseModel):
     """Environmental conditions during a session."""
 

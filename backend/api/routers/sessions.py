@@ -39,6 +39,89 @@ router = APIRouter()
 MPS_TO_MPH = 2.23694
 
 
+async def _auto_fetch_weather(sd: session_store.SessionData) -> None:
+    """Auto-fetch weather for a session using its GPS centroid and date.
+
+    Weather is immutable per session — fetched once and stored permanently.
+    """
+    from datetime import UTC, datetime
+
+    from cataclysm.weather_client import lookup_weather
+
+    parsed = sd.parsed
+    df = parsed.data
+    if df.empty or "lat" not in df.columns or "lon" not in df.columns:
+        return
+
+    lat = float(df["lat"].mean())
+    lon = float(df["lon"].mean())
+
+    # Parse session date + derive approximate hour from first timestamp
+    date_str = parsed.metadata.session_date
+    hour = 12  # default noon
+    if "timestamp" in df.columns:
+        try:
+            first_ts = float(df["timestamp"].iloc[0])
+            dt = datetime.fromtimestamp(first_ts, tz=UTC)
+            hour = dt.hour
+        except (ValueError, TypeError, OSError):
+            pass
+
+    # Try parsing session date
+    session_dt: datetime | None = None
+    for fmt in [
+        "%d/%m/%Y %H:%M",
+        "%d/%m/%Y,%H:%M",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%Y-%m-%d",
+        "%d/%m/%Y",
+    ]:
+        try:
+            session_dt = datetime.strptime(date_str.strip(), fmt).replace(  # noqa: DTZ007
+                hour=hour, tzinfo=UTC
+            )
+            break
+        except ValueError:
+            continue
+
+    if session_dt is None:
+        logger.warning("Could not parse session date '%s' for weather lookup", date_str)
+        return
+
+    weather = await lookup_weather(lat, lon, session_dt)
+    if weather is not None:
+        sd.weather = weather
+        logger.info(
+            "Auto-fetched weather for %s: %s, %.1f°C",
+            sd.session_id,
+            weather.track_condition.value,
+            weather.ambient_temp_c or 0,
+        )
+
+
+def _weather_fields(sd: session_store.SessionData) -> dict[str, object]:
+    """Extract weather fields from a session for SessionSummary."""
+    w = sd.weather
+    if w is None:
+        return {
+            "weather_temp_c": None,
+            "weather_condition": None,
+            "weather_humidity_pct": None,
+            "weather_wind_kmh": None,
+            "weather_precipitation_mm": None,
+        }
+    return {
+        "weather_temp_c": w.ambient_temp_c,
+        "weather_condition": w.track_condition.value
+        if hasattr(w.track_condition, "value")
+        else str(w.track_condition),
+        "weather_humidity_pct": w.humidity_pct,
+        "weather_wind_kmh": w.wind_speed_kmh,
+        "weather_precipitation_mm": w.precipitation_mm,
+    }
+
+
 def _equipment_fields(session_id: str) -> dict[str, str | None]:
     """Look up equipment for a session and return fields for SessionSummary."""
     tire_model: str | None = None
@@ -81,10 +164,17 @@ async def upload_sessions(
             sid = str(result["session_id"])
             session_ids.append(sid)
 
+            # Auto-fetch weather (immutable per session, stored in DB)
+            sd = session_store.get_session(sid)
+            if sd is not None and sd.weather is None:
+                try:
+                    await _auto_fetch_weather(sd)
+                except Exception:
+                    logger.warning("Auto weather fetch failed for %s", sid, exc_info=True)
+
             # Persist session metadata to DB for user scoping.
             # Commit immediately so the session appears in the list even if
             # subsequent operations (CSV bytes, coaching) fail.
-            sd = session_store.get_session(sid)
             if sd is not None:
                 await store_session_db(db, current_user.user_id, sd)
                 await db.commit()
@@ -149,6 +239,7 @@ async def list_sessions(
                     gps_quality_score=sd.gps_quality.overall_score if sd.gps_quality else None,
                     gps_quality_grade=sd.gps_quality.grade if sd.gps_quality else None,
                     **_equipment_fields(sd.session_id),
+                    **_weather_fields(sd),
                 )
             )
         else:
@@ -193,6 +284,7 @@ async def get_session(
         gps_quality_score=sd.gps_quality.overall_score if sd.gps_quality else None,
         gps_quality_grade=sd.gps_quality.grade if sd.gps_quality else None,
         **_equipment_fields(sd.session_id),
+        **_weather_fields(sd),
     )
 
 
@@ -245,6 +337,65 @@ async def delete_session(
     session_store.delete_session(session_id)
     await clear_coaching_data(session_id)
     return {"message": f"Session {session_id} deleted"}
+
+
+@router.get("/{session_id}/weather")
+async def get_session_weather(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> dict[str, object]:
+    """Get weather conditions for a session.
+
+    Returns cached weather if available. If not yet fetched, attempts a
+    live lookup using the session's GPS centroid and date, then stores
+    the result permanently.
+    """
+    sd = session_store.get_session(session_id)
+    if sd is None:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+    # Return cached weather if available
+    if sd.weather is not None:
+        w = sd.weather
+        return {
+            "session_id": session_id,
+            "weather": {
+                "track_condition": w.track_condition.value
+                if hasattr(w.track_condition, "value")
+                else str(w.track_condition),
+                "ambient_temp_c": w.ambient_temp_c,
+                "humidity_pct": w.humidity_pct,
+                "wind_speed_kmh": w.wind_speed_kmh,
+                "wind_direction_deg": w.wind_direction_deg,
+                "precipitation_mm": w.precipitation_mm,
+                "weather_source": w.weather_source,
+            },
+        }
+
+    # Try live fetch if not cached
+    try:
+        await _auto_fetch_weather(sd)
+    except Exception:
+        logger.warning("On-demand weather fetch failed for %s", session_id, exc_info=True)
+
+    if sd.weather is not None:
+        w = sd.weather
+        return {
+            "session_id": session_id,
+            "weather": {
+                "track_condition": w.track_condition.value
+                if hasattr(w.track_condition, "value")
+                else str(w.track_condition),
+                "ambient_temp_c": w.ambient_temp_c,
+                "humidity_pct": w.humidity_pct,
+                "wind_speed_kmh": w.wind_speed_kmh,
+                "wind_direction_deg": w.wind_direction_deg,
+                "precipitation_mm": w.precipitation_mm,
+                "weather_source": w.weather_source,
+            },
+        }
+
+    return {"session_id": session_id, "weather": None}
 
 
 @router.get("/{session_id}/laps", response_model=list[LapSummary])

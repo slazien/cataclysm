@@ -30,8 +30,11 @@ async def _reload_sessions_from_db() -> int:
     from sqlalchemy import select
 
     from backend.api.db.database import async_session_factory
+    from backend.api.db.models import Session as SessionModel
     from backend.api.db.models import SessionFile as SessionFileModel
+    from backend.api.services.db_session_store import restore_weather_from_snapshot
     from backend.api.services.pipeline import process_upload
+    from backend.api.services.session_store import get_session
 
     loaded = 0
     try:
@@ -40,9 +43,24 @@ async def _reload_sessions_from_db() -> int:
             rows = result.scalars().all()
             logger.info("Found %d session file(s) in database", len(rows))
 
+            # Build a lookup of session metadata (for snapshot_json) keyed by session_id
+            sess_result = await db.execute(select(SessionModel))
+            sess_rows = {s.session_id: s for s in sess_result.scalars().all()}
+
             for row in rows:
                 try:
-                    await process_upload(row.csv_bytes, row.filename)
+                    upload_result = await process_upload(row.csv_bytes, row.filename)
+                    sid = str(upload_result["session_id"])
+
+                    # Restore immutable data (weather, GPS centroid, etc.) from DB
+                    sess_meta = sess_rows.get(sid) or sess_rows.get(row.session_id)
+                    if sess_meta and sess_meta.snapshot_json:
+                        sd = get_session(sid)
+                        if sd is not None:
+                            weather = restore_weather_from_snapshot(sess_meta.snapshot_json)
+                            if weather is not None:
+                                sd.weather = weather
+
                     loaded += 1
                 except Exception:
                     logger.warning(

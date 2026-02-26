@@ -22,6 +22,7 @@ from pydantic import BaseModel
 
 from backend.api.dependencies import AuthenticatedUser, get_current_user
 from backend.api.schemas.equipment import (
+    BrakePadSearchResult,
     BrakeSpecSchema,
     EquipmentProfileCreate,
     EquipmentProfileList,
@@ -67,6 +68,61 @@ async def search_tires(
         )
         for t in curated
     ]
+
+
+# ---------------------------------------------------------------------------
+# Brake pad search (must be defined before /{session_id} routes)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/brakes/search")
+async def search_brake_pads(
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    q: str = "",
+) -> list[BrakePadSearchResult]:
+    """Search curated brake pad database. Returns matching pads."""
+    from cataclysm.brake_pad_db import search_curated_brake_pads
+
+    if not q or len(q) < 2:
+        return []
+
+    curated = search_curated_brake_pads(q)
+    return [
+        BrakePadSearchResult(
+            model=p.model,
+            brand=p.brand,
+            category=p.category,
+            temp_range=p.temp_range,
+            initial_bite=p.initial_bite,
+            notes=p.notes,
+        )
+        for p in curated
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Reference data (must be defined before /{session_id} routes)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/reference/tire-sizes")
+async def get_reference_tire_sizes(
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> list[str]:
+    """Return common tire sizes for track days."""
+    from cataclysm.tire_db import list_common_tire_sizes
+
+    return list_common_tire_sizes()
+
+
+@router.get("/reference/brake-fluids")
+async def get_reference_brake_fluids(
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> list[str]:
+    """Return common brake fluid options."""
+    from cataclysm.brake_pad_db import COMMON_BRAKE_FLUIDS
+
+    return list(COMMON_BRAKE_FLUIDS)
 
 
 # ---------------------------------------------------------------------------

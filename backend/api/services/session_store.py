@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from cataclysm.consistency import SessionConsistency
 from cataclysm.corners import Corner
 from cataclysm.engine import ProcessedSession
+from cataclysm.equipment import SessionConditions
 from cataclysm.gains import GainEstimate
 from cataclysm.gps_quality import GPSQualityReport
 from cataclysm.grip import GripEstimate
@@ -39,12 +40,20 @@ class SessionData:
     grip: GripEstimate | None = None
     gps_quality: GPSQualityReport | None = None
     lap_tags: LapTagStore = field(default_factory=LapTagStore)
+    weather: SessionConditions | None = None
     coaching_laps: list[int] = field(default_factory=list)
     anomalous_laps: set[int] = field(default_factory=set)
 
 
 # Module-level in-memory store
 _store: dict[str, SessionData] = {}
+
+
+def set_session_weather(session_id: str, weather: SessionConditions) -> None:
+    """Attach weather conditions to an existing session in the store."""
+    sd = _store.get(session_id)
+    if sd is not None:
+        sd.weather = weather
 
 
 def store_session(session_id: str, data: SessionData) -> None:

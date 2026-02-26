@@ -163,3 +163,34 @@ def get_curated_tire(slug: str) -> TireSpec | None:
 def list_all_curated_tires() -> list[TireSpec]:
     """Return all curated tires sorted alphabetically by model name."""
     return sorted(_CURATED_TIRES.values(), key=lambda t: t.model)
+
+
+# ---------------------------------------------------------------------------
+# Common tire sizes
+# ---------------------------------------------------------------------------
+
+COMMON_TIRE_SIZES: list[str] = [
+    "205/50R15",
+    "205/50R16",
+    "215/45R17",
+    "225/45R17",
+    "225/40R18",
+    "235/40R17",
+    "235/40R18",
+    "245/40R17",
+    "245/40R18",
+    "255/35R17",
+    "255/40R17",
+    "255/40R18",
+    "265/35R18",
+    "265/40R17",
+    "275/35R18",
+    "275/40R17",
+    "285/30R18",
+    "295/30R18",
+]
+
+
+def list_common_tire_sizes() -> list[str]:
+    """Return the list of common track-day tire sizes."""
+    return list(COMMON_TIRE_SIZES)
