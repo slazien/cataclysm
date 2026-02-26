@@ -20,8 +20,8 @@ interface SessionScoreProps {
   isLoading: boolean;
 }
 
-const SIZE = 120;
-const STROKE_WIDTH = 10;
+const SIZE = 80;
+const STROKE_WIDTH = 7;
 const RADIUS = (SIZE - STROKE_WIDTH) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
@@ -99,8 +99,8 @@ export function SessionScore({ score, breakdown, isLoading }: SessionScoreProps)
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] px-4 py-3">
-        <div className="h-[120px] w-[120px] animate-pulse rounded-full bg-[var(--bg-elevated)]" />
+      <div className="flex flex-col items-center justify-center rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] px-3 py-2">
+        <div className="h-[80px] w-[80px] animate-pulse rounded-full bg-[var(--bg-elevated)]" />
       </div>
     );
   }
@@ -113,8 +113,8 @@ export function SessionScore({ score, breakdown, isLoading }: SessionScoreProps)
   const hasBreakdown = breakdown && Object.values(breakdown).some((v) => v !== null);
 
   const ring = (
-    <div className="flex flex-col items-center justify-center rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] px-4 py-3">
-      <p className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+    <div className="flex flex-col items-center justify-center rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] px-3 py-2">
+      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
         Session Score
       </p>
       <div className="relative" style={{ width: SIZE, height: SIZE }}>
@@ -152,16 +152,16 @@ export function SessionScore({ score, breakdown, isLoading }: SessionScoreProps)
         {/* Center label */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span
-            className="text-2xl font-bold tabular-nums"
+            className="text-lg font-bold tabular-nums"
             style={{ color }}
           >
             {displayScore !== null ? displayScore : '--'}
           </span>
-          <span className="text-[10px] font-medium text-[var(--text-muted)]">/ 100</span>
+          <span className="text-[9px] font-medium text-[var(--text-muted)]">/ 100</span>
         </div>
       </div>
       {displayScore !== null && (
-        <p className="mt-1 text-xs text-[var(--text-secondary)]">
+        <p className="mt-0.5 text-[11px] text-[var(--text-secondary)]">
           {getSubtitle(displayScore)}
         </p>
       )}
