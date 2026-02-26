@@ -28,6 +28,7 @@ from backend.api.services.db_session_store import (
     delete_session_db,
     ensure_user_exists,
     list_sessions_for_user,
+    restore_weather_from_snapshot,
     store_session_db,
 )
 from backend.api.services.pipeline import process_upload
@@ -258,6 +259,11 @@ async def list_sessions(
         # Try in-memory store for richer data (e.g. after upload)
         sd = session_store.get_session(row.session_id)
         if sd is not None:
+            # Backfill weather from DB snapshot for sessions uploaded before auto-fetch
+            if sd.weather is None and row.snapshot_json:
+                restored = restore_weather_from_snapshot(row.snapshot_json)
+                if restored is not None:
+                    sd.weather = restored
             tire_model, compound_category, profile_name = _equipment_fields(sd.session_id)
             w_temp, w_cond, w_hum, w_wind, w_precip = _weather_fields(sd)
             score = await _compute_session_score(sd)
