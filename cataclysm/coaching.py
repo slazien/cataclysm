@@ -346,7 +346,8 @@ Total laps: {len(summaries)}
 {landmark_instruction}\
 Analyze the FULL session. Look at every lap's data for each corner to identify:
 - Consistency: which corners are repeatable vs high-variance across laps
-- Trends: whether the driver improved or degraded through the session (fatigue, tire wear, learning)
+- Trends: whether the driver improved or degraded through the session AND WHY \
+(diagnose the cause: technique ceiling, fatigue, tire degradation, confidence plateau, etc.)
 - Best-vs-rest gaps: where the best lap gained time vs the driver's typical performance
 - Technique patterns: brake point consistency, apex type shifts, min-speed spread
 {gains_instruction}{optimal_instruction}
@@ -371,7 +372,7 @@ Respond in JSON with this exact structure:
       "notes": "<one sentence referencing lap-to-lap data>"
     }}
   ],
-  "patterns": ["<session-wide pattern 1>", "<session-wide pattern 2>", "<pattern 3>"],
+  "patterns": ["<session-wide pattern with root cause>", "<pattern 2 with why>", "<pattern 3>"],
   "drills": [
     "<specific practice drill for weakness 1>",
     "<specific practice drill for weakness 2>"
@@ -389,7 +390,10 @@ Grades reflect consistency across ALL laps, not just one comparison:
   C = moderate variance or a clear technique gap on some laps
   D = high variance, inconsistent execution
   F = major issue across most laps
-Be encouraging but honest. Focus on the 2-3 biggest improvements."""
+Be encouraging but honest. Focus on the 2-3 biggest improvements.
+For each pattern, don't just describe WHAT happened — diagnose WHY. \
+If lap times plateaued, explain whether it's a technique ceiling, \
+fatigue, tire degradation, or confidence limit based on the data."""
 
 
 def _parse_coaching_response(text: str) -> CoachingReport:
