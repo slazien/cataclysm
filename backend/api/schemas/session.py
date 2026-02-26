@@ -19,6 +19,7 @@ class SessionSummary(BaseModel):
     top3_avg_time_s: float | None = None
     avg_lap_time_s: float | None = None
     consistency_score: float | None = None
+    session_score: float | None = None
     tire_model: str | None = None
     compound_category: str | None = None
     equipment_profile_name: str | None = None
@@ -64,6 +65,7 @@ class LapData(BaseModel):
     lateral_g: list[float]
     longitudinal_g: list[float]
     lap_time_s: list[float]
+    altitude_m: list[float] | None = None
 
 
 class UploadResponse(BaseModel):

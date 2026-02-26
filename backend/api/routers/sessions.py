@@ -22,7 +22,7 @@ from backend.api.schemas.session import (
     UploadResponse,
 )
 from backend.api.services import equipment_store, session_store
-from backend.api.services.coaching_store import clear_coaching_data
+from backend.api.services.coaching_store import clear_coaching_data, get_coaching_report
 from backend.api.services.comparison import compare_sessions as run_comparison
 from backend.api.services.db_session_store import (
     delete_session_db,
@@ -127,6 +127,55 @@ def _equipment_fields(session_id: str) -> tuple[str | None, str | None, str | No
     return profile.tires.model, profile.tires.compound_category.value, profile.name
 
 
+def _normalize_score(raw: float) -> float:
+    """Normalize a score that may be 0-1 or 0-100 to the 0-100 range."""
+    return raw * 100 if raw <= 1 else raw
+
+
+async def _compute_session_score(sd: session_store.SessionData) -> float | None:
+    """Compute composite session score matching the dashboard formula.
+
+    Weighted composite: consistency 40% + pace 30% + corner grades 30%.
+    Falls back gracefully when some components are unavailable.
+    """
+    components: list[tuple[float, float]] = []  # (value, weight)
+
+    # Consistency (40%)
+    if sd.consistency and sd.consistency.lap_consistency:
+        components.append(
+            (_normalize_score(sd.consistency.lap_consistency.consistency_score), 0.4)
+        )
+
+    # Pace: best lap vs optimal (30%)
+    snap = sd.snapshot
+    if snap.best_lap_time_s > 0:
+        optimal = snap.optimal_lap_time_s
+        gap_pct = 1 - (optimal / snap.best_lap_time_s)
+        pace_value = min(100.0, max(0.0, 100 - gap_pct * 500))
+        components.append((pace_value, 0.3))
+
+    # Corner grades (30%)
+    report = await get_coaching_report(sd.session_id)
+    if report and report.corner_grades:
+        grade_map = {"A": 100, "B": 80, "C": 60, "D": 40, "F": 20}
+        total = 0
+        count = 0
+        for cg in report.corner_grades:
+            for field in ("braking", "trail_braking", "min_speed", "throttle"):
+                letter = getattr(cg, field, "")[:1].upper()
+                if letter in grade_map:
+                    total += grade_map[letter]
+                    count += 1
+        if count > 0:
+            components.append((total / count, 0.3))
+
+    if not components:
+        return None
+
+    total_weight = sum(w for _, w in components)
+    return sum(v * (w / total_weight) for v, w in components)
+
+
 @router.post("/upload", response_model=UploadResponse)
 async def upload_sessions(
     files: list[UploadFile],
@@ -213,6 +262,7 @@ async def list_sessions(
         if sd is not None:
             tire_model, compound_category, profile_name = _equipment_fields(sd.session_id)
             w_temp, w_cond, w_hum, w_wind, w_precip = _weather_fields(sd)
+            score = await _compute_session_score(sd)
             items.append(
                 SessionSummary(
                     session_id=sd.session_id,
@@ -224,6 +274,7 @@ async def list_sessions(
                     top3_avg_time_s=sd.snapshot.top3_avg_time_s,
                     avg_lap_time_s=sd.snapshot.avg_lap_time_s,
                     consistency_score=sd.snapshot.consistency_score,
+                    session_score=score,
                     gps_quality_score=sd.gps_quality.overall_score if sd.gps_quality else None,
                     gps_quality_grade=sd.gps_quality.grade if sd.gps_quality else None,
                     tire_model=tire_model,
@@ -267,6 +318,7 @@ async def get_session(
 
     tire_model, compound_category, profile_name = _equipment_fields(sd.session_id)
     w_temp, w_cond, w_hum, w_wind, w_precip = _weather_fields(sd)
+    score = await _compute_session_score(sd)
     return SessionSummary(
         session_id=sd.session_id,
         track_name=sd.snapshot.metadata.track_name,
@@ -277,6 +329,7 @@ async def get_session(
         top3_avg_time_s=sd.snapshot.top3_avg_time_s,
         avg_lap_time_s=sd.snapshot.avg_lap_time_s,
         consistency_score=sd.snapshot.consistency_score,
+        session_score=score,
         gps_quality_score=sd.gps_quality.overall_score if sd.gps_quality else None,
         gps_quality_grade=sd.gps_quality.grade if sd.gps_quality else None,
         tire_model=tire_model,
@@ -440,6 +493,7 @@ async def get_lap_data(
         )
 
     df = sd.processed.resampled_laps[lap_number]
+    altitude = df["altitude_m"].tolist() if "altitude_m" in df.columns else None
     return LapData(
         lap_number=lap_number,
         distance_m=df["lap_distance_m"].tolist(),
@@ -450,6 +504,7 @@ async def get_lap_data(
         lateral_g=df["lateral_g"].tolist(),
         longitudinal_g=df["longitudinal_g"].tolist(),
         lap_time_s=df["lap_time_s"].tolist(),
+        altitude_m=altitude,
     )
 
 

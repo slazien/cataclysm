@@ -5,7 +5,7 @@ import { ChartErrorBoundary } from '@/components/shared/ChartErrorBoundary';
 import { SpeedTrace } from './charts/SpeedTrace';
 import { DeltaT } from './charts/DeltaT';
 import { BrakeThrottle } from './charts/BrakeThrottle';
-import { TrackMapInteractive } from './charts/TrackMapInteractive';
+import { TrackMapContainer } from './charts/TrackMapContainer';
 import { CornerQuickCard } from './CornerQuickCard';
 import { ComparisonLegend } from './ComparisonLegend';
 
@@ -71,7 +71,7 @@ export function SpeedAnalysis() {
         {/* Track Map -- takes available space */}
         <div className="min-h-[16rem] flex-1 lg:min-h-0">
           <ChartErrorBoundary name="Track Map">
-            <TrackMapInteractive sessionId={sessionId} />
+            <TrackMapContainer sessionId={sessionId} />
           </ChartErrorBoundary>
         </div>
 

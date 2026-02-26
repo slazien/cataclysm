@@ -5,7 +5,7 @@ import { useSessionStore, useAnalysisStore } from '@/stores';
 import { useCorners } from '@/hooks/useAnalysis';
 import { cn } from '@/lib/utils';
 import { ChartErrorBoundary } from '@/components/shared/ChartErrorBoundary';
-import { TrackMapInteractive } from './charts/TrackMapInteractive';
+import { TrackMapContainer } from './charts/TrackMapContainer';
 import { CornerDetailPanel } from './CornerDetailPanel';
 import { CornerSpeedOverlay } from './charts/CornerSpeedOverlay';
 import { BrakeConsistency } from './charts/BrakeConsistency';
@@ -124,7 +124,7 @@ export function CornerAnalysis() {
             {/* Track Map */}
             <div className="min-h-[16rem] overflow-hidden lg:min-h-0">
               <ChartErrorBoundary name="Track Map">
-                <TrackMapInteractive sessionId={sessionId} />
+                <TrackMapContainer sessionId={sessionId} />
               </ChartErrorBoundary>
             </div>
             {/* Corner Detail Panel — overflow-hidden so content never shifts the grid */}

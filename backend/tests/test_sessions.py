@@ -162,6 +162,29 @@ async def test_get_lap_data(client: AsyncClient, synthetic_csv_bytes: bytes) -> 
 
 
 @pytest.mark.asyncio
+async def test_get_lap_data_includes_altitude(
+    client: AsyncClient, synthetic_csv_bytes: bytes
+) -> None:
+    """GET /api/sessions/{id}/laps/{n}/data includes altitude_m when available."""
+    upload_resp = await client.post(
+        "/api/sessions/upload",
+        files=[("files", ("test.csv", synthetic_csv_bytes, "text/csv"))],
+    )
+    session_id = upload_resp.json()["session_ids"][0]
+
+    laps_resp = await client.get(f"/api/sessions/{session_id}/laps")
+    first_lap = laps_resp.json()[0]["lap_number"]
+
+    response = await client.get(f"/api/sessions/{session_id}/laps/{first_lap}/data")
+    assert response.status_code == 200
+    data = response.json()
+    # altitude_m is present since synthetic CSV includes altitude column
+    assert "altitude_m" in data
+    assert isinstance(data["altitude_m"], list)
+    assert len(data["altitude_m"]) > 0
+
+
+@pytest.mark.asyncio
 async def test_get_lap_data_not_found(client: AsyncClient, synthetic_csv_bytes: bytes) -> None:
     """GET /api/sessions/{id}/laps/999/data returns 404 for nonexistent lap."""
     upload_resp = await client.post(

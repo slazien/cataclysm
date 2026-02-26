@@ -8,6 +8,7 @@ export interface SessionSummary {
   top3_avg_time_s: number | null;
   avg_lap_time_s: number | null;
   consistency_score: number | null;
+  session_score: number | null;
   tire_model?: string | null;
   compound_category?: string | null;
   equipment_profile_name?: string | null;
@@ -38,6 +39,7 @@ export interface LapData {
   lateral_g: number[];
   longitudinal_g: number[];
   lap_time_s: number[];
+  altitude_m?: number[] | null;
 }
 
 export interface Corner {
