@@ -15,6 +15,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.db.models import Session as SessionModel
+from backend.api.db.models import User as UserModel
+from backend.api.dependencies import AuthenticatedUser
 from backend.api.services.session_store import SessionData
 
 # RaceChrono date formats — mirrors cataclysm.trends._DATE_FORMATS
@@ -42,12 +44,30 @@ def _parse_session_date(date_str: str) -> datetime:
     return datetime.min  # noqa: DTZ001
 
 
+async def ensure_user_exists(db: AsyncSession, user: AuthenticatedUser) -> None:
+    """Create the User row if it doesn't already exist (FK target for sessions)."""
+    result = await db.execute(select(UserModel).where(UserModel.id == user.user_id))
+    if result.scalar_one_or_none() is None:
+        db.add(
+            UserModel(
+                id=user.user_id,
+                email=user.email,
+                name=user.name,
+                avatar_url=user.picture,
+            )
+        )
+        await db.flush()
+
+
 async def store_session_db(
     db: AsyncSession,
     user_id: str,
     session_data: SessionData,
 ) -> None:
-    """Persist session metadata to the database after upload."""
+    """Persist session metadata to the database after upload.
+
+    Uses ``merge`` so re-uploading the same session updates rather than errors.
+    """
     snap = session_data.snapshot
     session_row = SessionModel(
         session_id=session_data.session_id,
@@ -56,7 +76,7 @@ async def store_session_db(
         session_date=_parse_session_date(snap.metadata.session_date)
         if isinstance(snap.metadata.session_date, str)
         else snap.metadata.session_date,
-        file_key=session_data.session_id,  # Use session_id as file key
+        file_key=session_data.session_id,
         n_laps=snap.n_laps,
         n_clean_laps=snap.n_clean_laps,
         best_lap_time_s=snap.best_lap_time_s,
@@ -64,7 +84,7 @@ async def store_session_db(
         avg_lap_time_s=snap.avg_lap_time_s,
         consistency_score=snap.consistency_score,
     )
-    db.add(session_row)
+    await db.merge(session_row)
     await db.flush()
 
 
