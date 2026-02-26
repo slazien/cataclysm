@@ -1,7 +1,8 @@
 'use client';
 
-import { useRef } from 'react';
-import { Bot, Plus, Settings, ChevronRight } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { useSession as useAuthSession, signOut } from 'next-auth/react';
+import { Bot, Plus, Settings, ChevronRight, LogOut } from 'lucide-react';
 import { useUiStore, useSessionStore, useCoachStore } from '@/stores';
 import { useSession, useUploadSessions } from '@/hooks/useSession';
 import { cn } from '@/lib/utils';
@@ -25,7 +26,9 @@ export function TopBar() {
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const panelOpen = useCoachStore((s) => s.panelOpen);
   const togglePanel = useCoachStore((s) => s.togglePanel);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
+  const { data: authSession } = useAuthSession();
   const { data: session } = useSession(activeSessionId);
   const uploadMutation = useUploadSessions();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -119,6 +122,44 @@ export function TopBar() {
           >
             <Settings className="h-4 w-4" />
           </Button>
+          {/* User avatar + sign-out */}
+          {authSession?.user && (
+            <div className="relative ml-1">
+              <button
+                type="button"
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full ring-2 ring-transparent transition-all hover:ring-[var(--cata-accent)]"
+              >
+                {authSession.user.image ? (
+                  <img
+                    src={authSession.user.image}
+                    alt={authSession.user.name ?? 'User'}
+                    className="h-full w-full rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center rounded-full bg-[var(--cata-accent)] text-xs font-bold text-white">
+                    {(authSession.user.name ?? 'U')[0].toUpperCase()}
+                  </span>
+                )}
+              </button>
+              {userMenuOpen && (
+                <div className="absolute right-0 top-9 z-50 w-48 rounded-md border border-[var(--cata-border)] bg-[var(--bg-surface)] py-1 shadow-lg">
+                  <div className="border-b border-[var(--cata-border)] px-3 py-2">
+                    <p className="text-sm font-medium text-[var(--text-primary)]">{authSession.user.name}</p>
+                    <p className="text-xs text-[var(--text-muted)]">{authSession.user.email}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => signOut()}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)]"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

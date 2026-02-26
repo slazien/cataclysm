@@ -42,6 +42,7 @@ export async function uploadSessions(
   const res = await fetch(`${API_BASE}/api/sessions/upload`, {
     method: "POST",
     body: formData,
+    credentials: "include",
   });
   if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
   return res.json();
