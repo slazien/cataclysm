@@ -14,6 +14,7 @@ from cataclysm.coaching import (
     _build_coaching_prompt,
     _format_all_laps_corners,
     _format_corner_analysis,
+    _format_equipment_context,
     _format_gains_for_prompt,
     _format_landmark_context,
     _format_lap_summaries,
@@ -1033,3 +1034,238 @@ class TestGenerateCoachingReportWithCornerAnalysis:
         prompt_text = call_kwargs.kwargs["messages"][0]["content"]
         assert "Pre-Computed Corner Analysis" in prompt_text
         assert "DO NOT re-derive" in prompt_text
+
+
+# ---------------------------------------------------------------------------
+# Equipment context integration tests
+# ---------------------------------------------------------------------------
+
+
+class TestFormatEquipmentContext:
+    """Test the _format_equipment_context() function."""
+
+    def test_format_equipment_context_full(self) -> None:
+        """Equipment and conditions format correctly for the coaching prompt."""
+        from cataclysm.equipment import (
+            BrakeSpec,
+            EquipmentProfile,
+            MuSource,
+            SessionConditions,
+            TireCompoundCategory,
+            TireSpec,
+            TrackCondition,
+        )
+
+        tire = TireSpec(
+            model="Bridgestone RE-71RS",
+            compound_category=TireCompoundCategory.SUPER_200TW,
+            size="255/40R17",
+            treadwear_rating=200,
+            estimated_mu=1.10,
+            mu_source=MuSource.CURATED_TABLE,
+            mu_confidence="Track test aggregate",
+            pressure_psi=32.0,
+        )
+        brakes = BrakeSpec(compound="Hawk DTC-60")
+        profile = EquipmentProfile(id="p1", name="Track Setup", tires=tire, brakes=brakes)
+        conditions = SessionConditions(
+            track_condition=TrackCondition.DRY,
+            ambient_temp_c=28.0,
+            humidity_pct=55.0,
+        )
+
+        text = _format_equipment_context(profile, conditions)
+        assert "RE-71RS" in text
+        assert "super_200tw" in text
+        assert "1.10" in text
+        assert "curated_table" in text
+        assert "32.0 psi" in text
+        assert "Hawk DTC-60" in text
+        assert "dry" in text
+        assert "28" in text
+        assert "55" in text
+
+    def test_format_equipment_context_none(self) -> None:
+        """None inputs produce empty string."""
+        assert _format_equipment_context(None, None) == ""
+
+    def test_format_equipment_context_profile_only(self) -> None:
+        """Profile without conditions still formats tire info."""
+        from cataclysm.equipment import (
+            EquipmentProfile,
+            MuSource,
+            TireCompoundCategory,
+            TireSpec,
+        )
+
+        tire = TireSpec(
+            model="Hoosier R7",
+            compound_category=TireCompoundCategory.R_COMPOUND,
+            size="275/35R18",
+            treadwear_rating=40,
+            estimated_mu=1.35,
+            mu_source=MuSource.CURATED_TABLE,
+            mu_confidence="test",
+        )
+        profile = EquipmentProfile(id="p2", name="Race", tires=tire)
+        text = _format_equipment_context(profile, None)
+        assert "Hoosier R7" in text
+        assert "r_comp" in text
+        assert "1.35" in text
+        # No pressure set, so "psi" should not appear
+        assert "psi" not in text
+
+    def test_format_equipment_context_conditions_only(self) -> None:
+        """Conditions without profile still formats weather info."""
+        from cataclysm.equipment import SessionConditions, TrackCondition
+
+        conditions = SessionConditions(
+            track_condition=TrackCondition.WET,
+            ambient_temp_c=15.0,
+        )
+        text = _format_equipment_context(None, conditions)
+        assert "wet" in text
+        assert "15" in text
+        assert "Tires" not in text
+
+    def test_format_equipment_context_no_brakes(self) -> None:
+        """Profile without brakes omits brake line."""
+        from cataclysm.equipment import (
+            EquipmentProfile,
+            MuSource,
+            TireCompoundCategory,
+            TireSpec,
+        )
+
+        tire = TireSpec(
+            model="Test Tire",
+            compound_category=TireCompoundCategory.STREET,
+            size="225/45R17",
+            treadwear_rating=400,
+            estimated_mu=0.85,
+            mu_source=MuSource.FORMULA_ESTIMATE,
+            mu_confidence="formula",
+        )
+        profile = EquipmentProfile(id="p3", name="Street", tires=tire)
+        text = _format_equipment_context(profile, None)
+        assert "Brakes" not in text
+
+
+class TestBuildCoachingPromptWithEquipment:
+    """Test equipment_profile and conditions in _build_coaching_prompt."""
+
+    def test_includes_equipment_section(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        from cataclysm.equipment import (
+            EquipmentProfile,
+            MuSource,
+            SessionConditions,
+            TireCompoundCategory,
+            TireSpec,
+            TrackCondition,
+        )
+
+        tire = TireSpec(
+            model="RE-71RS",
+            compound_category=TireCompoundCategory.SUPER_200TW,
+            size="255/40R17",
+            treadwear_rating=200,
+            estimated_mu=1.10,
+            mu_source=MuSource.CURATED_TABLE,
+            mu_confidence="test",
+        )
+        profile = EquipmentProfile(id="p1", name="Track", tires=tire)
+        conditions = SessionConditions(
+            track_condition=TrackCondition.DRY,
+            ambient_temp_c=30.0,
+        )
+
+        prompt = _build_coaching_prompt(
+            sample_summaries,
+            sample_all_lap_corners,
+            "Barber",
+            equipment_profile=profile,
+            conditions=conditions,
+        )
+        assert "Vehicle Equipment & Conditions" in prompt
+        assert "RE-71RS" in prompt
+        assert "dry" in prompt
+
+    def test_no_equipment_backward_compatible(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        prompt = _build_coaching_prompt(
+            sample_summaries,
+            sample_all_lap_corners,
+            "Test",
+        )
+        assert "Vehicle Equipment & Conditions" not in prompt
+
+
+class TestGenerateCoachingReportWithEquipment:
+    """Test that equipment is passed through to the API prompt."""
+
+    def test_passes_equipment_to_prompt(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        from cataclysm.equipment import (
+            EquipmentProfile,
+            MuSource,
+            SessionConditions,
+            TireCompoundCategory,
+            TireSpec,
+            TrackCondition,
+        )
+
+        mock_anthropic = _make_mock_anthropic(
+            json.dumps(
+                {
+                    "summary": "Good with equipment",
+                    "priority_corners": [],
+                    "corner_grades": [],
+                    "patterns": [],
+                }
+            )
+        )
+
+        tire = TireSpec(
+            model="NT01",
+            compound_category=TireCompoundCategory.SUPER_200TW,
+            size="245/40R17",
+            treadwear_rating=200,
+            estimated_mu=1.05,
+            mu_source=MuSource.CURATED_TABLE,
+            mu_confidence="test",
+        )
+        profile = EquipmentProfile(id="p1", name="Track", tires=tire)
+        conditions = SessionConditions(
+            track_condition=TrackCondition.DAMP,
+            ambient_temp_c=20.0,
+            humidity_pct=80.0,
+        )
+
+        with (
+            patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test"}),
+            patch.dict(sys.modules, {"anthropic": mock_anthropic}),
+        ):
+            report = generate_coaching_report(
+                sample_summaries,
+                sample_all_lap_corners,
+                "Barber",
+                equipment_profile=profile,
+                conditions=conditions,
+            )
+
+        assert report.summary == "Good with equipment"
+        call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args
+        prompt_text = call_kwargs.kwargs["messages"][0]["content"]
+        assert "NT01" in prompt_text
+        assert "damp" in prompt_text
+        assert "80" in prompt_text

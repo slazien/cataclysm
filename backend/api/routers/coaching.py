@@ -20,7 +20,7 @@ from backend.api.schemas.coaching import (
     PriorityCornerSchema,
     ReportRequest,
 )
-from backend.api.services import session_store
+from backend.api.services import equipment_store, session_store
 from backend.api.services.coaching_store import (
     clear_coaching_data,
     get_coaching_context,
@@ -97,6 +97,7 @@ async def _run_generation(
     try:
         from cataclysm.coaching import generate_coaching_report
         from cataclysm.corner_analysis import compute_corner_analysis
+        from cataclysm.equipment import EquipmentProfile, SessionConditions
         from cataclysm.track_match import detect_track_or_lookup
 
         layout = detect_track_or_lookup(sd.parsed.data, sd.parsed.metadata.track_name)
@@ -105,6 +106,14 @@ async def _run_generation(
         coaching_summaries = [
             s for s in sd.processed.lap_summaries if s.lap_number in sd.coaching_laps
         ]
+
+        # Look up equipment context for the session
+        equipment_profile: EquipmentProfile | None = None
+        conditions: SessionConditions | None = None
+        se = equipment_store.get_session_equipment(session_id)
+        if se is not None:
+            equipment_profile = equipment_store.get_profile(se.profile_id)
+            conditions = se.conditions
 
         # Pre-compute corner analysis so the LLM gets stats, not raw numbers
         corner_analysis = await asyncio.to_thread(
@@ -125,6 +134,8 @@ async def _run_generation(
             skill_level=skill_level,
             landmarks=landmarks or None,
             corner_analysis=corner_analysis,
+            equipment_profile=equipment_profile,
+            conditions=conditions,
         )
 
         priority_corners = [

@@ -14,6 +14,7 @@ from cataclysm.corner_analysis import SessionCornerAnalysis
 from cataclysm.corners import Corner
 from cataclysm.driving_physics import COACHING_SYSTEM_PROMPT
 from cataclysm.engine import LapSummary
+from cataclysm.equipment import EquipmentProfile, SessionConditions
 from cataclysm.gains import GainEstimate
 from cataclysm.kb_selector import select_kb_snippets
 from cataclysm.landmarks import Landmark, format_corner_landmarks
@@ -372,6 +373,35 @@ def _format_corner_analysis(analysis: SessionCornerAnalysis) -> str:
     return "\n".join(lines)
 
 
+def _format_equipment_context(
+    profile: EquipmentProfile | None,
+    conditions: SessionConditions | None,
+) -> str:
+    """Format equipment and conditions as context for the coaching prompt."""
+    if profile is None and conditions is None:
+        return ""
+
+    lines = ["\n## Vehicle Equipment & Conditions"]
+    if profile is not None:
+        lines.append(f"**Tires:** {profile.tires.model} ({profile.tires.compound_category.value})")
+        lines.append(
+            f"  - Grip coefficient (mu): {profile.tires.estimated_mu:.2f}"
+            f" [{profile.tires.mu_source.value}]"
+        )
+        if profile.tires.pressure_psi is not None:
+            lines.append(f"  - Pressure: {profile.tires.pressure_psi} psi")
+        if profile.brakes is not None and profile.brakes.compound:
+            lines.append(f"**Brakes:** {profile.brakes.compound}")
+    if conditions is not None:
+        lines.append(f"**Track condition:** {conditions.track_condition.value}")
+        if conditions.ambient_temp_c is not None:
+            lines.append(f"**Ambient temp:** {conditions.ambient_temp_c:.0f}\u00b0C")
+        if conditions.humidity_pct is not None:
+            lines.append(f"**Humidity:** {conditions.humidity_pct:.0f}%")
+
+    return "\n".join(lines)
+
+
 def _build_coaching_prompt(
     summaries: list[LapSummary],
     all_lap_corners: dict[int, list[Corner]],
@@ -382,6 +412,8 @@ def _build_coaching_prompt(
     landmarks: list[Landmark] | None = None,
     optimal_comparison: OptimalComparisonResult | None = None,
     corner_analysis: SessionCornerAnalysis | None = None,
+    equipment_profile: EquipmentProfile | None = None,
+    conditions: SessionConditions | None = None,
 ) -> str:
     """Build the full coaching prompt for Claude."""
     lap_text = _format_lap_summaries(summaries)
@@ -422,6 +454,8 @@ def _build_coaching_prompt(
             "leaving more time on the table.\n"
         )
 
+    equipment_section = _format_equipment_context(equipment_profile, conditions)
+
     corner_analysis_section = ""
     corner_analysis_instruction = ""
     if corner_analysis is not None and corner_analysis.corners:
@@ -447,7 +481,7 @@ Total laps: {len(summaries)}
 
 ## Corner KPIs — All Laps (best lap marked with *)
 {corner_text}
-{gains_section}{optimal_section}{landmark_section}{skill_section}
+{gains_section}{optimal_section}{landmark_section}{skill_section}{equipment_section}
 {corner_analysis_instruction}\
 {landmark_instruction}\
 Analyze the FULL session. Look at every lap's data for each corner to identify:
@@ -587,6 +621,8 @@ def generate_coaching_report(
     landmarks: list[Landmark] | None = None,
     optimal_comparison: OptimalComparisonResult | None = None,
     corner_analysis: SessionCornerAnalysis | None = None,
+    equipment_profile: EquipmentProfile | None = None,
+    conditions: SessionConditions | None = None,
 ) -> CoachingReport:
     """Generate an AI coaching report using the Claude API.
 
@@ -614,6 +650,8 @@ def generate_coaching_report(
         landmarks=landmarks,
         optimal_comparison=optimal_comparison,
         corner_analysis=corner_analysis,
+        equipment_profile=equipment_profile,
+        conditions=conditions,
     )
 
     system = COACHING_SYSTEM_PROMPT
