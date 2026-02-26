@@ -11,12 +11,13 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from cataclysm.consistency import CornerConsistencyEntry
 from cataclysm.corners import Corner, classify_corner_type
 from cataclysm.gains import GainEstimate
 from cataclysm.landmarks import (
+    _BRAKE_PREFERRED_TYPES,
     Landmark,
     LandmarkReference,
-    _BRAKE_PREFERRED_TYPES,
     find_nearest_landmark,
 )
 
@@ -188,7 +189,7 @@ def _find_gain_for_corner(
 def compute_corner_analysis(
     all_lap_corners: dict[int, list[Corner]],
     gains: GainEstimate | None,
-    consistency_entries: list[object] | None,
+    consistency_entries: list[CornerConsistencyEntry] | None,
     landmarks: list[Landmark] | None,
     best_lap: int,
 ) -> SessionCornerAnalysis:
@@ -286,12 +287,8 @@ def compute_corner_analysis(
 
         # Stats
         stats_min_speed = _compute_kpi_stats_max(min_speeds_mph, speed_laps)
-        stats_brake = (
-            _compute_kpi_stats(brake_points_m, brake_laps) if brake_points_m else None
-        )
-        stats_peak_g = (
-            _compute_kpi_stats_max(peak_brake_gs, peak_g_laps) if peak_brake_gs else None
-        )
+        stats_brake = _compute_kpi_stats(brake_points_m, brake_laps) if brake_points_m else None
+        stats_peak_g = _compute_kpi_stats_max(peak_brake_gs, peak_g_laps) if peak_brake_gs else None
         stats_throttle = (
             _compute_kpi_stats(throttle_commits_m, throttle_laps) if throttle_commits_m else None
         )
@@ -350,9 +347,7 @@ def compute_corner_analysis(
                 )
 
         # Correlations (need >= 4 data points)
-        correlations = _compute_correlations(
-            brake_points_m, min_speeds_mph, brake_laps, speed_laps
-        )
+        correlations = _compute_correlations(brake_points_m, min_speeds_mph, brake_laps, speed_laps)
 
         analyses.append(
             CornerAnalysis(

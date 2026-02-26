@@ -5,8 +5,6 @@ from __future__ import annotations
 import pytest
 
 from cataclysm.corner_analysis import (
-    CornerAnalysis,
-    CornerCorrelation,
     SessionCornerAnalysis,
     _compute_correlations,
     _correlation_strength,
@@ -23,7 +21,6 @@ from cataclysm.gains import (
     TheoreticalBestResult,
 )
 from cataclysm.landmarks import Landmark, LandmarkType
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -154,9 +151,7 @@ class TestHappyPath:
         gains: GainEstimate,
         landmarks: list[Landmark],
     ) -> None:
-        result = compute_corner_analysis(
-            all_lap_corners, gains, None, landmarks, best_lap=1
-        )
+        result = compute_corner_analysis(all_lap_corners, gains, None, landmarks, best_lap=1)
         assert isinstance(result, SessionCornerAnalysis)
         assert result.best_lap == 1
         assert result.n_laps_analyzed == 8
@@ -167,9 +162,7 @@ class TestHappyPath:
         gains: GainEstimate,
         landmarks: list[Landmark],
     ) -> None:
-        result = compute_corner_analysis(
-            all_lap_corners, gains, None, landmarks, best_lap=1
-        )
+        result = compute_corner_analysis(all_lap_corners, gains, None, landmarks, best_lap=1)
         assert len(result.corners) == 1
         ca = result.corners[0]
         assert ca.corner_number == 5
@@ -181,9 +174,7 @@ class TestHappyPath:
         gains: GainEstimate,
         landmarks: list[Landmark],
     ) -> None:
-        result = compute_corner_analysis(
-            all_lap_corners, gains, None, landmarks, best_lap=1
-        )
+        result = compute_corner_analysis(all_lap_corners, gains, None, landmarks, best_lap=1)
         ca = result.corners[0]
         # Best (max) min speed should be from lap 1: 18.0 m/s * 2.23694
         expected_best_mph = 18.0 * 2.23694
@@ -197,9 +188,7 @@ class TestHappyPath:
         gains: GainEstimate,
         landmarks: list[Landmark],
     ) -> None:
-        result = compute_corner_analysis(
-            all_lap_corners, gains, None, landmarks, best_lap=1
-        )
+        result = compute_corner_analysis(all_lap_corners, gains, None, landmarks, best_lap=1)
         ca = result.corners[0]
         assert ca.stats_brake_point is not None
         # Best (min) brake point is from lap 1: 500.0
@@ -212,9 +201,7 @@ class TestHappyPath:
         gains: GainEstimate,
         landmarks: list[Landmark],
     ) -> None:
-        result = compute_corner_analysis(
-            all_lap_corners, gains, None, landmarks, best_lap=1
-        )
+        result = compute_corner_analysis(all_lap_corners, gains, None, landmarks, best_lap=1)
         ca = result.corners[0]
         assert ca.recommendation.gain_s == 0.42
 
@@ -224,9 +211,7 @@ class TestHappyPath:
         gains: GainEstimate,
         landmarks: list[Landmark],
     ) -> None:
-        result = compute_corner_analysis(
-            all_lap_corners, gains, None, landmarks, best_lap=1
-        )
+        result = compute_corner_analysis(all_lap_corners, gains, None, landmarks, best_lap=1)
         ca = result.corners[0]
         assert ca.recommendation.target_brake_landmark is not None
         # Best-lap brake at 500.0, nearest brake_board is T5 3 board at 490.0
@@ -238,9 +223,7 @@ class TestHappyPath:
         gains: GainEstimate,
         landmarks: list[Landmark],
     ) -> None:
-        result = compute_corner_analysis(
-            all_lap_corners, gains, None, landmarks, best_lap=1
-        )
+        result = compute_corner_analysis(all_lap_corners, gains, None, landmarks, best_lap=1)
         ca = result.corners[0]
         assert ca.time_value is not None
         assert ca.time_value.approach_speed_mph > 0
@@ -253,9 +236,7 @@ class TestHappyPath:
         gains: GainEstimate,
         landmarks: list[Landmark],
     ) -> None:
-        result = compute_corner_analysis(
-            all_lap_corners, gains, None, landmarks, best_lap=1
-        )
+        result = compute_corner_analysis(all_lap_corners, gains, None, landmarks, best_lap=1)
         ca = result.corners[0]
         # 8 laps with brake data → should have correlations
         assert len(ca.correlations) >= 1
@@ -270,9 +251,7 @@ class TestHappyPath:
         gains: GainEstimate,
         landmarks: list[Landmark],
     ) -> None:
-        result = compute_corner_analysis(
-            all_lap_corners, gains, None, landmarks, best_lap=1
-        )
+        result = compute_corner_analysis(all_lap_corners, gains, None, landmarks, best_lap=1)
         ca = result.corners[0]
         assert "late" in ca.apex_distribution
         assert ca.apex_distribution["late"] == 6
@@ -284,9 +263,7 @@ class TestHappyPath:
         gains: GainEstimate,
         landmarks: list[Landmark],
     ) -> None:
-        result = compute_corner_analysis(
-            all_lap_corners, gains, None, landmarks, best_lap=1
-        )
+        result = compute_corner_analysis(all_lap_corners, gains, None, landmarks, best_lap=1)
         assert result.total_consistency_gain_s == 0.42
 
 
