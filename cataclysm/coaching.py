@@ -134,8 +134,7 @@ _FOLLOWUP_SYSTEM = (
     COACHING_SYSTEM_PROMPT
     + "\nThe driver is asking follow-up questions about their telemetry data and your "
     "coaching report. Be specific, practical, and encouraging. "
-    "Reference corner numbers and speeds in mph."
-    + TOPIC_RESTRICTION_PROMPT
+    "Reference corner numbers and speeds in mph." + TOPIC_RESTRICTION_PROMPT
 )
 
 

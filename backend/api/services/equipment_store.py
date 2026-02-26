@@ -120,7 +120,9 @@ def _opt_float(d: dict[str, object], key: str) -> float | None:
 def _opt_int(d: dict[str, object], key: str) -> int | None:
     """Extract an optional int value from *d*."""
     v = d.get(key)
-    return int(v) if v is not None else None  # type: ignore[call-overload]
+    if v is None:
+        return None
+    return v if isinstance(v, int) else int(str(v))
 
 
 def _tire_spec_from_dict(d: dict[str, object]) -> TireSpec:

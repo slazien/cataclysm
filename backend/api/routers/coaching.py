@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import logging
 
+from cataclysm.topic_guardrail import OFF_TOPIC_RESPONSE, classify_topic
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
 from backend.api.schemas.coaching import (
@@ -15,8 +16,6 @@ from backend.api.schemas.coaching import (
     PriorityCornerSchema,
     ReportRequest,
 )
-from cataclysm.topic_guardrail import OFF_TOPIC_RESPONSE, classify_topic
-
 from backend.api.services import session_store
 from backend.api.services.coaching_store import (
     clear_coaching_data,

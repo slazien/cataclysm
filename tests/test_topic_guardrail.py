@@ -2,20 +2,15 @@
 
 from __future__ import annotations
 
-import json
 import sys
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from cataclysm.topic_guardrail import (
     OFF_TOPIC_RESPONSE,
     TOPIC_RESTRICTION_PROMPT,
-    TopicClassification,
     _parse_classification,
     classify_topic,
 )
-
 
 # ---------------------------------------------------------------------------
 # Tests: _parse_classification
