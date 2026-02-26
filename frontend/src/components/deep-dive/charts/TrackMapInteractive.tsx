@@ -5,6 +5,7 @@ import * as d3 from 'd3';
 import { useMultiLapData, useCorners, useDelta } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useAnalysisStore } from '@/stores';
+import { CircularProgress } from '@/components/shared/CircularProgress';
 import { colors } from '@/lib/design-tokens';
 import { worstGrade } from '@/lib/gradeUtils';
 // GradeChip cannot be used inside SVG <foreignObject> reliably, so grade badges are rendered inline
@@ -247,7 +248,7 @@ export function TrackMapInteractive({ sessionId }: TrackMapInteractiveProps) {
   if (lapsLoading) {
     return (
       <div className="flex h-full items-center justify-center rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)]">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--cata-accent)] border-t-transparent" />
+        <CircularProgress size={20} />
       </div>
     );
   }

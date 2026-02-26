@@ -1,7 +1,9 @@
+import { CircularProgress } from '@/components/shared/CircularProgress';
+
 export default function Loading() {
   return (
     <div className="flex min-h-screen items-center justify-center">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--accent-blue)] border-t-transparent" />
+      <CircularProgress size={32} color="var(--accent-blue)" />
     </div>
   );
 }

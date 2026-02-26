@@ -7,6 +7,7 @@ import { useIdealLap, useCoachingReport } from '@/hooks/useCoaching';
 import { useSessionStore } from '@/stores';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { CircularProgress } from '@/components/shared/CircularProgress';
 import { SessionScore } from './SessionScore';
 import { TopPriorities } from './TopPriorities';
 import { HeroTrackMap } from './HeroTrackMap';
@@ -114,7 +115,7 @@ export function SessionDashboard() {
     return (
       <div className="flex h-full items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--cata-accent)] border-t-transparent" />
+          <CircularProgress size={32} />
           <p className="text-sm text-[var(--text-secondary)]">Loading session...</p>
         </div>
       </div>

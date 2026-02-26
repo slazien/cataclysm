@@ -6,6 +6,7 @@ import { useLapData } from '@/hooks/useSession';
 import { useCorners } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useUiStore, useAnalysisStore } from '@/stores';
+import { CircularProgress } from '@/components/shared/CircularProgress';
 import { colors } from '@/lib/design-tokens';
 import type { Corner, CornerGrade, LapData } from '@/lib/types';
 
@@ -221,7 +222,7 @@ export function HeroTrackMap({ sessionId, bestLapNumber }: HeroTrackMapProps) {
           Track Map
         </h2>
         <div className="flex items-center justify-center rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-8">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--cata-accent)] border-t-transparent" />
+          <CircularProgress size={24} />
         </div>
       </div>
     );

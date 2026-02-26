@@ -6,6 +6,7 @@ import { useCanvasChart } from '@/hooks/useCanvasChart';
 import { useAllLapCorners, useMultiLapData, useCorners } from '@/hooks/useAnalysis';
 import { useSessionLaps } from '@/hooks/useSession';
 import { useAnalysisStore } from '@/stores';
+import { CircularProgress } from '@/components/shared/CircularProgress';
 import { colors, fonts } from '@/lib/design-tokens';
 import { parseCornerNumber } from '@/lib/cornerUtils';
 import { CHART_MARGINS as MARGINS } from './chartHelpers';
@@ -447,7 +448,7 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
       </div>
       {isLoading && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--bg-surface)]/80">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--cata-accent)] border-t-transparent" />
+          <CircularProgress size={20} />
         </div>
       )}
     </div>

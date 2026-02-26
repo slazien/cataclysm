@@ -6,6 +6,7 @@ import { useCanvasChart } from '@/hooks/useCanvasChart';
 import { useAnimationFrame } from '@/hooks/useAnimationFrame';
 import { useMultiLapData, useCorners } from '@/hooks/useAnalysis';
 import { useAnalysisStore } from '@/stores';
+import { CircularProgress } from '@/components/shared/CircularProgress';
 import { colors, fonts } from '@/lib/design-tokens';
 import { CHART_MARGINS as MARGINS, drawCornerZones } from './chartHelpers';
 
@@ -245,7 +246,7 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--cata-accent)] border-t-transparent" />
+        <CircularProgress size={20} />
       </div>
     );
   }

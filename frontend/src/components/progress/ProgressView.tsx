@@ -8,6 +8,7 @@ import { formatTimeShort } from '@/lib/formatters';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { AiInsight } from '@/components/shared/AiInsight';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { CircularProgress } from '@/components/shared/CircularProgress';
 import { MilestoneTimeline } from './MilestoneTimeline';
 import { LapTimeTrend } from './LapTimeTrend';
 import { ConsistencyTrend } from './ConsistencyTrend';
@@ -92,7 +93,7 @@ export function ProgressView() {
   if (sessionLoading || trendsLoading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--cata-accent)] border-t-transparent" />
+        <CircularProgress size={20} />
       </div>
     );
   }

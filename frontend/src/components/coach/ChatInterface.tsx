@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Send, Loader2, WifiOff } from 'lucide-react';
+import { Send, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { CircularProgress } from '@/components/shared/CircularProgress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AiInsight } from '@/components/shared/AiInsight';
 import { useCoachStore, useSessionStore } from '@/stores';
@@ -199,7 +200,7 @@ export function ChatInterface() {
             <div className="flex items-start gap-2">
               <AiInsight mode="compact">
                 <span className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <CircularProgress size={12} strokeWidth={1.5} />
                   Thinking...
                 </span>
               </AiInsight>

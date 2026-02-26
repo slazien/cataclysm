@@ -1,6 +1,7 @@
 'use client';
 
 import { AiInsight } from '@/components/shared/AiInsight';
+import { CircularProgress } from '@/components/shared/CircularProgress';
 import { useAutoReport } from '@/hooks/useAutoReport';
 import { useUiStore, useAnalysisStore } from '@/stores';
 import { cn } from '@/lib/utils';
@@ -70,7 +71,7 @@ export function TopPriorities({ sessionId }: TopPrioritiesProps) {
           Top Priorities
         </h2>
         <div className="flex flex-col items-center gap-3 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-8">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--ai-icon)] border-t-transparent" />
+          <CircularProgress size={24} color="var(--ai-icon)" />
           <p className="text-sm text-[var(--text-secondary)]">
             Generating AI coaching insights...
           </p>

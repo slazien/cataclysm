@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertTriangle, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
+import { CircularProgress } from '@/components/shared/CircularProgress';
 import { GradeChip } from '@/components/shared/GradeChip';
 import { AiInsight } from '@/components/shared/AiInsight';
 import { useSessionStore } from '@/stores';
@@ -25,7 +26,7 @@ export function ReportSummary() {
   if (isLoading || isGenerating) {
     return (
       <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--cata-border)]">
-        <Loader2 className="h-4 w-4 animate-spin text-[var(--cata-accent)]" />
+        <CircularProgress size={16} strokeWidth={2} />
         <span className="text-xs text-[var(--text-secondary)]">
           {isGenerating ? 'Generating coaching report...' : 'Loading report...'}
         </span>
