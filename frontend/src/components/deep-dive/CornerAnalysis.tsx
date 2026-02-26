@@ -1,17 +1,62 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSessionStore, useAnalysisStore } from '@/stores';
 import { useCorners } from '@/hooks/useAnalysis';
+import { cn } from '@/lib/utils';
 import { TrackMapInteractive } from './charts/TrackMapInteractive';
 import { CornerDetailPanel } from './CornerDetailPanel';
 import { CornerSpeedOverlay } from './charts/CornerSpeedOverlay';
 import { BrakeConsistency } from './charts/BrakeConsistency';
+import { CornerReportCardGrid } from './CornerReportCardGrid';
+
+type ViewMode = 'grid' | 'detail';
+
+function GridIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="3" width="7" height="7" />
+      <rect x="14" y="3" width="7" height="7" />
+      <rect x="3" y="14" width="7" height="7" />
+      <rect x="14" y="14" width="7" height="7" />
+    </svg>
+  );
+}
+
+function DetailIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <line x1="9" y1="3" x2="9" y2="21" />
+    </svg>
+  );
+}
 
 export function CornerAnalysis() {
   const sessionId = useSessionStore((s) => s.activeSessionId);
   const selectedCorner = useAnalysisStore((s) => s.selectedCorner);
   const selectCorner = useAnalysisStore((s) => s.selectCorner);
+  const [viewMode, setViewMode] = useState<ViewMode>('detail');
 
   const { data: corners } = useCorners(sessionId);
 
@@ -34,40 +79,78 @@ export function CornerAnalysis() {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 p-3">
-      {/* Top row: Track Map (60%) + Corner Detail Panel (40%) */}
-      <div className="flex min-h-0 flex-1 gap-3">
-        {/* Track Map — 60%, bounded to row height so SVG doesn't overflow */}
-        <div className="h-full w-[60%] overflow-hidden">
-          <TrackMapInteractive sessionId={sessionId} />
-        </div>
-        {/* Corner Detail Panel — 40% */}
-        <div className="h-full w-[40%] overflow-auto">
-          <CornerDetailPanel sessionId={sessionId} />
-        </div>
+      {/* View mode toggle */}
+      <div className="flex items-center justify-end gap-1">
+        <button
+          onClick={() => setViewMode('grid')}
+          className={cn(
+            'rounded-md p-1.5 transition-colors',
+            viewMode === 'grid'
+              ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)]'
+              : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+          )}
+          title="Report Card Grid"
+        >
+          <GridIcon />
+        </button>
+        <button
+          onClick={() => setViewMode('detail')}
+          className={cn(
+            'rounded-md p-1.5 transition-colors',
+            viewMode === 'detail'
+              ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)]'
+              : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+          )}
+          title="Detail View"
+        >
+          <DetailIcon />
+        </button>
       </div>
 
-      {/* Bottom row: Corner Speed Overlay (50%) + Brake Consistency (50%) */}
-      <div className="flex min-h-0 flex-1 gap-3">
-        {/* Corner Speed Overlay — 50% */}
-        <div className="h-full w-[50%]">
-          <CornerSpeedOverlay sessionId={sessionId} />
+      {viewMode === 'grid' ? (
+        /* Grid view: all corners as report cards */
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <CornerReportCardGrid onSelectCorner={() => setViewMode('detail')} />
         </div>
-        {/* Brake Consistency Chart — 50% */}
-        <div className="h-full w-[50%]">
-          <BrakeConsistency sessionId={sessionId} />
-        </div>
-      </div>
+      ) : (
+        /* Detail view: existing layout */
+        <>
+          {/* Top row: Track Map (60%) + Corner Detail Panel (40%) */}
+          <div className="flex min-h-0 flex-1 gap-3">
+            {/* Track Map — 60%, bounded to row height so SVG doesn't overflow */}
+            <div className="h-full w-[60%] overflow-hidden">
+              <TrackMapInteractive sessionId={sessionId} />
+            </div>
+            {/* Corner Detail Panel — 40% */}
+            <div className="h-full w-[40%] overflow-auto">
+              <CornerDetailPanel sessionId={sessionId} />
+            </div>
+          </div>
 
-      {/* Corner navigation hint */}
-      <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-muted)]">
-        <kbd className="rounded border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-1.5 py-0.5 font-mono text-[10px]">
-          ←
-        </kbd>
-        <kbd className="rounded border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-1.5 py-0.5 font-mono text-[10px]">
-          →
-        </kbd>
-        <span>to cycle corners</span>
-      </div>
+          {/* Bottom row: Corner Speed Overlay (50%) + Brake Consistency (50%) */}
+          <div className="flex min-h-0 flex-1 gap-3">
+            {/* Corner Speed Overlay — 50% */}
+            <div className="h-full w-[50%]">
+              <CornerSpeedOverlay sessionId={sessionId} />
+            </div>
+            {/* Brake Consistency Chart — 50% */}
+            <div className="h-full w-[50%]">
+              <BrakeConsistency sessionId={sessionId} />
+            </div>
+          </div>
+
+          {/* Corner navigation hint */}
+          <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-muted)]">
+            <kbd className="rounded border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-1.5 py-0.5 font-mono text-[10px]">
+              ←
+            </kbd>
+            <kbd className="rounded border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-1.5 py-0.5 font-mono text-[10px]">
+              →
+            </kbd>
+            <span>to cycle corners</span>
+          </div>
+        </>
+      )}
     </div>
   );
 }
