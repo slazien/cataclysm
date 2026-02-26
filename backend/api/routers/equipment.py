@@ -34,6 +34,35 @@ router = APIRouter()
 
 
 # ---------------------------------------------------------------------------
+# Tire search (must be defined before /{session_id} routes)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/tires/search")
+async def search_tires(q: str = "") -> list[TireSpecSchema]:
+    """Search curated tire database. Returns matching tires."""
+    from cataclysm.tire_db import search_curated_tires
+
+    if not q or len(q) < 2:
+        return []
+
+    curated = search_curated_tires(q)
+    return [
+        TireSpecSchema(
+            model=t.model,
+            compound_category=t.compound_category.value,
+            size=t.size,
+            treadwear_rating=t.treadwear_rating,
+            estimated_mu=t.estimated_mu,
+            mu_source=t.mu_source.value,
+            mu_confidence=t.mu_confidence,
+            brand=t.brand,
+        )
+        for t in curated
+    ]
+
+
+# ---------------------------------------------------------------------------
 # Conversion helpers
 # ---------------------------------------------------------------------------
 

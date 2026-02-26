@@ -254,3 +254,53 @@ async def test_session_without_equipment_has_null_fields(client: AsyncClient) ->
     assert data["tire_model"] is None
     assert data["compound_category"] is None
     assert data["equipment_profile_name"] is None
+
+
+# ---------------------------------------------------------------------------
+# Tire search
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_tire_search(client: AsyncClient) -> None:
+    """Search for a known tire model returns matching results."""
+    resp = await client.get("/api/equipment/tires/search", params={"q": "RE-71RS"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) >= 1
+    assert "RE-71RS" in data[0]["model"]
+    assert data[0]["mu_source"] == "curated_table"
+
+
+@pytest.mark.asyncio
+async def test_tire_search_short_query(client: AsyncClient) -> None:
+    """Query shorter than 2 characters returns empty list."""
+    resp = await client.get("/api/equipment/tires/search", params={"q": "R"})
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+@pytest.mark.asyncio
+async def test_tire_search_empty_query(client: AsyncClient) -> None:
+    """Empty query returns empty list."""
+    resp = await client.get("/api/equipment/tires/search", params={"q": ""})
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+@pytest.mark.asyncio
+async def test_tire_search_no_match(client: AsyncClient) -> None:
+    """Query with no matches returns empty list."""
+    resp = await client.get("/api/equipment/tires/search", params={"q": "ZZZnonexistent"})
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+@pytest.mark.asyncio
+async def test_tire_search_by_brand(client: AsyncClient) -> None:
+    """Search by brand name returns matching tires."""
+    resp = await client.get("/api/equipment/tires/search", params={"q": "Michelin"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) >= 1
+    assert data[0]["brand"] == "Michelin"
