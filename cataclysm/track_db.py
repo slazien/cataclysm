@@ -135,9 +135,66 @@ BARBER_MOTORSPORTS_PARK = TrackLayout(
     ],
 )
 
+# ---------------------------------------------------------------------------
+# Atlanta Motorsports Park visual landmarks
+# ---------------------------------------------------------------------------
+# Approximate positions along the 3220m AMP circuit in Dawsonville, GA.
+# Distances derived from track map analysis and public corner guides.
+
+_AMP_LANDMARKS: list[Landmark] = [
+    # --- Start/Finish area ---
+    Landmark("S/F line", 0.0, LandmarkType.structure, description="Timing gantry"),
+    Landmark("pit entry", 96.0, LandmarkType.road, description="Pit lane entry on right"),
+    Landmark("pit exit", 225.0, LandmarkType.road, description="Pit merge on left"),
+    # --- T1-T2 ---
+    Landmark("T1 brake board", 257.0, LandmarkType.brake_board),
+    Landmark("T2 apex curb", 451.0, LandmarkType.curbing),
+    # --- T3-T6 Hill section ---
+    Landmark("T3 crest", 709.0, LandmarkType.natural, description="Uphill blind crest"),
+    Landmark("T5 brake board", 998.0, LandmarkType.brake_board),
+    Landmark("T6 gravel trap", 1159.0, LandmarkType.barrier, description="Runoff on outside"),
+    # --- T7 Back straight ---
+    Landmark("T7 brake board", 1575.0, LandmarkType.brake_board),
+    Landmark("bridge", 1610.0, LandmarkType.structure, description="Pedestrian bridge"),
+    # --- T8-T9 Chicane ---
+    Landmark("T8 chicane curb", 1771.0, LandmarkType.curbing),
+    Landmark("T9 chicane curb", 1900.0, LandmarkType.curbing),
+    Landmark("timing loop", 1997.0, LandmarkType.structure, description="Secondary timing"),
+    # --- T10-T11 ---
+    Landmark("T10 brake board", 2127.0, LandmarkType.brake_board),
+    # --- T11-T12 ---
+    Landmark("T12 exit curb", 2866.0, LandmarkType.curbing),
+    Landmark("podium", 2963.0, LandmarkType.structure, description="Visible on left"),
+    Landmark("victory lane", 3123.0, LandmarkType.structure, description="Near front straight"),
+]
+
+ATLANTA_MOTORSPORTS_PARK = TrackLayout(
+    name="Atlanta Motorsports Park",
+    landmarks=_AMP_LANDMARKS,
+    center_lat=34.4218,
+    center_lon=-84.1173,
+    country="US",
+    length_m=3220.0,
+    corners=[
+        OfficialCorner(1, "Fast Right Entry", 0.09),
+        OfficialCorner(2, "Hairpin", 0.14),
+        OfficialCorner(3, "Uphill Right", 0.22),
+        OfficialCorner(4, "Uphill Left", 0.27),
+        OfficialCorner(5, "Technical Right", 0.31),
+        OfficialCorner(6, "Downhill Left", 0.36),
+        OfficialCorner(7, "Back Straight Right", 0.50),
+        OfficialCorner(8, "Chicane Left", 0.55),
+        OfficialCorner(9, "Chicane Right", 0.59),
+        OfficialCorner(10, "Fast Left", 0.67),
+        OfficialCorner(11, "Double Apex Right", 0.78),
+        OfficialCorner(12, "Final Complex", 0.89),
+    ],
+)
+
 # Registry of known tracks — keys are normalized (lowercased, stripped).
 _TRACK_REGISTRY: dict[str, TrackLayout] = {
     "barber motorsports park": BARBER_MOTORSPORTS_PARK,
+    "atlanta motorsports park": ATLANTA_MOTORSPORTS_PARK,
 }
 
 

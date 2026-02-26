@@ -129,3 +129,34 @@ class TestDetectTrackOrLookup:
         layout = detect_track_or_lookup(df, "Barber Motorsports Park")
         assert layout is not None
         assert layout.name == "Barber Motorsports Park"
+
+
+class TestAMPDetection:
+    def _make_gps_df(self, lat: float, lon: float, n: int = 200) -> pd.DataFrame:
+        rng = np.random.default_rng(42)
+        return pd.DataFrame(
+            {
+                "lat": lat + rng.normal(0, 0.001, n),
+                "lon": lon + rng.normal(0, 0.001, n),
+            }
+        )
+
+    def test_detect_amp_from_gps(self) -> None:
+        df = self._make_gps_df(lat=34.4218, lon=-84.1173)
+        match = detect_track(df)
+        assert match is not None
+        assert match.layout.name == "Atlanta Motorsports Park"
+        assert match.distance_m < 1000
+        assert match.confidence > 0.5
+
+    def test_amp_not_detected_as_barber(self) -> None:
+        df = self._make_gps_df(lat=34.4218, lon=-84.1173)
+        match = detect_track(df)
+        assert match is not None
+        assert match.layout.name != "Barber Motorsports Park"
+
+    def test_barber_not_detected_as_amp(self) -> None:
+        df = self._make_gps_df(lat=33.5302, lon=-86.6215)
+        match = detect_track(df)
+        assert match is not None
+        assert match.layout.name != "Atlanta Motorsports Park"

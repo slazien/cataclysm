@@ -8,6 +8,7 @@ import pytest
 
 from cataclysm.landmarks import Landmark, LandmarkType
 from cataclysm.track_db import (
+    ATLANTA_MOTORSPORTS_PARK,
     BARBER_MOTORSPORTS_PARK,
     OfficialCorner,
     TrackLayout,
@@ -215,3 +216,59 @@ class TestTrackLayoutLandmarks:
         layout = lookup_track("Barber Motorsports Park")
         assert layout is not None
         assert len(layout.landmarks) > 0
+
+
+class TestAtlantaMotorsportsPark:
+    def test_lookup_by_name(self) -> None:
+        layout = lookup_track("Atlanta Motorsports Park")
+        assert layout is not None
+        assert layout.name == "Atlanta Motorsports Park"
+
+    def test_lookup_case_insensitive(self) -> None:
+        layout = lookup_track("atlanta motorsports park")
+        assert layout is not None
+        assert layout.name == "Atlanta Motorsports Park"
+
+    def test_has_twelve_corners(self) -> None:
+        assert len(ATLANTA_MOTORSPORTS_PARK.corners) == 12
+
+    def test_corner_numbering(self) -> None:
+        numbers = [c.number for c in ATLANTA_MOTORSPORTS_PARK.corners]
+        assert numbers == list(range(1, 13))
+
+    def test_fractions_monotonic(self) -> None:
+        fractions = [c.fraction for c in ATLANTA_MOTORSPORTS_PARK.corners]
+        for i in range(1, len(fractions)):
+            assert fractions[i] > fractions[i - 1]
+
+    def test_fractions_in_range(self) -> None:
+        for c in ATLANTA_MOTORSPORTS_PARK.corners:
+            assert 0.0 < c.fraction < 1.0
+
+    def test_gps_metadata(self) -> None:
+        assert ATLANTA_MOTORSPORTS_PARK.center_lat == pytest.approx(34.42, abs=0.01)
+        assert ATLANTA_MOTORSPORTS_PARK.center_lon == pytest.approx(-84.12, abs=0.01)
+
+    def test_landmarks_present(self) -> None:
+        assert len(ATLANTA_MOTORSPORTS_PARK.landmarks) >= 10
+
+    def test_landmarks_sorted(self) -> None:
+        distances = [lm.distance_m for lm in ATLANTA_MOTORSPORTS_PARK.landmarks]
+        for i in range(1, len(distances)):
+            assert distances[i] >= distances[i - 1]
+
+    def test_landmarks_in_range(self) -> None:
+        length = ATLANTA_MOTORSPORTS_PARK.length_m
+        assert length is not None
+        for lm in ATLANTA_MOTORSPORTS_PARK.landmarks:
+            assert 0.0 <= lm.distance_m < length
+
+    def test_track_length(self) -> None:
+        assert ATLANTA_MOTORSPORTS_PARK.length_m == pytest.approx(3220.0)
+
+    def test_in_all_tracks(self) -> None:
+        tracks = get_all_tracks()
+        assert any(t.name == "Atlanta Motorsports Park" for t in tracks)
+
+    def test_country(self) -> None:
+        assert ATLANTA_MOTORSPORTS_PARK.country == "US"
