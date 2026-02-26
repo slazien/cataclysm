@@ -56,6 +56,8 @@ export async function uploadSessions(
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve(JSON.parse(xhr.responseText));
+      } else if (xhr.status === 401) {
+        reject(new Error("Please sign in to upload sessions."));
       } else {
         reject(new Error(`Upload failed: ${xhr.status}`));
       }

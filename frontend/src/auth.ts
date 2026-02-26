@@ -10,6 +10,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   session: { strategy: "jwt" },
   callbacks: {
+    authorized({ auth: session }) {
+      // Block unauthenticated users — middleware redirects them to /api/auth/signin
+      return !!session?.user;
+    },
     jwt({ token, user, profile }) {
       if (user) {
         token.sub = user.id;
