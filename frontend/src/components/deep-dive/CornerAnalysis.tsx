@@ -118,8 +118,9 @@ export function CornerAnalysis() {
       ) : (
         /* Detail view: existing layout */
         <>
-          {/* Top row: Track Map (60%) + Corner Detail Panel (40%) */}
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[60%_1fr]">
+          {/* Top row: Track Map (60%) + Corner Detail Panel (40%) — grid-rows-[1fr] locks the row
+              height so variable-length AI advice text doesn't cause layout shift */}
+          <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[1fr] gap-3 lg:grid-cols-[60%_1fr]">
             {/* Track Map */}
             <div className="min-h-[16rem] overflow-hidden lg:min-h-0">
               <ChartErrorBoundary name="Track Map">
@@ -135,7 +136,7 @@ export function CornerAnalysis() {
           </div>
 
           {/* Bottom row: Corner Speed Overlay (50%) + Brake Consistency (50%) */}
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-2">
+          <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[1fr] gap-3 lg:grid-cols-2">
             {/* Corner Speed Overlay */}
             <div className="min-h-[16rem] overflow-hidden lg:min-h-0">
               <ChartErrorBoundary name="Corner Speed Overlay">
