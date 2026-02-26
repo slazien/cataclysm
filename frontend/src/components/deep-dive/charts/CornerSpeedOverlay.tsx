@@ -10,6 +10,7 @@ import { CircularProgress } from '@/components/shared/CircularProgress';
 import { colors, fonts } from '@/lib/design-tokens';
 import { parseCornerNumber } from '@/lib/cornerUtils';
 import { CHART_MARGINS as MARGINS } from './chartHelpers';
+import { useUnits } from '@/hooks/useUnits';
 import type { Corner } from '@/lib/types';
 
 interface CornerSpeedOverlayProps {
@@ -45,6 +46,7 @@ function drawLabels(
   innerWidth: number,
   innerHeight: number,
   margins: typeof MARGINS,
+  speedLabel = 'Speed (mph)',
 ) {
   ctx.font = `10px ${fonts.mono}`;
 
@@ -76,7 +78,7 @@ function drawLabels(
   ctx.translate(14, margins.top + innerHeight / 2);
   ctx.rotate(-Math.PI / 2);
   ctx.textAlign = 'center';
-  ctx.fillText('Speed (mph)', 0, 0);
+  ctx.fillText(speedLabel, 0, 0);
   ctx.restore();
 }
 
@@ -84,6 +86,7 @@ function drawLabels(
 const G_STRIP_RATIO = 0.25;
 
 export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
+  const { convertSpeed, speedUnit } = useUnits();
   const selectedCorner = useAnalysisStore((s) => s.selectedCorner);
   const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
 
@@ -160,8 +163,9 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
     for (const lap of lapDataArr) {
       for (let i = 0; i < lap.distance_m.length; i++) {
         if (lap.distance_m[i] >= xMin && lap.distance_m[i] <= xMax) {
-          if (lap.speed_mph[i] < minSpeed) minSpeed = lap.speed_mph[i];
-          if (lap.speed_mph[i] > maxSpeed) maxSpeed = lap.speed_mph[i];
+          const spd = convertSpeed(lap.speed_mph[i]);
+          if (spd < minSpeed) minSpeed = spd;
+          if (spd > maxSpeed) maxSpeed = spd;
           const absG = Math.abs(lap.longitudinal_g[i]);
           if (absG > maxAbsG) maxAbsG = absG;
         }
@@ -192,7 +196,7 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
       gStripTop: gTop,
       gStripHeight: gH,
     };
-  }, [corner, lapDataArr, dimensions.innerWidth, dimensions.innerHeight]);
+  }, [corner, lapDataArr, dimensions.innerWidth, dimensions.innerHeight, convertSpeed]);
 
   // Draw
   useEffect(() => {
@@ -246,7 +250,7 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
       let started = false;
       for (let i = 0; i < lap.distance_m.length; i++) {
         const x = xScale(lap.distance_m[i]);
-        const y = yScale(lap.speed_mph[i]);
+        const y = yScale(convertSpeed(lap.speed_mph[i]));
         if (!started) {
           ctx.moveTo(x, y);
           started = true;
@@ -268,7 +272,7 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
         let started = false;
         for (let i = 0; i < compData.distance_m.length; i++) {
           const x = xScale(compData.distance_m[i]);
-          const y = yScale(compData.speed_mph[i]);
+          const y = yScale(convertSpeed(compData.speed_mph[i]));
           if (!started) {
             ctx.moveTo(x, y);
             started = true;
@@ -293,7 +297,7 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
       let started = false;
       for (let i = 0; i < bestData.distance_m.length; i++) {
         const x = xScale(bestData.distance_m[i]);
-        const y = yScale(bestData.speed_mph[i]);
+        const y = yScale(convertSpeed(bestData.speed_mph[i]));
         if (!started) {
           ctx.moveTo(x, y);
           started = true;
@@ -366,7 +370,7 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
     }
 
     // --- 4. Axis tick labels and axis labels (on top) ---
-    drawLabels(ctx, xScale, yScale, dimensions.innerWidth, speedAreaHeight, MARGINS);
+    drawLabels(ctx, xScale, yScale, dimensions.innerWidth, speedAreaHeight, MARGINS, `Speed (${speedUnit})`);
 
     // Entry/apex/exit marker labels
     for (const m of markers) {
@@ -419,6 +423,8 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
     gStripHeight,
     dimensions,
     getDataCtx,
+    convertSpeed,
+    speedUnit,
   ]);
 
   if (!selectedCorner || cornerNumber === null) {

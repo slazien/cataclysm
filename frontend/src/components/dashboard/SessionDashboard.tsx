@@ -16,9 +16,10 @@ import { TopPriorities } from './TopPriorities';
 import { HeroTrackMap } from './HeroTrackMap';
 import { LapTimesBar } from './LapTimesBar';
 import { AssignEquipmentButton } from '@/components/equipment/AssignEquipmentButton';
-import { formatLapTime, formatSpeed, normalizeScore, parseSessionDate } from '@/lib/formatters';
+import { formatLapTime, normalizeScore, parseSessionDate } from '@/lib/formatters';
 import { MPS_TO_MPH } from '@/lib/constants';
 import { GPSQualityPanel } from './GPSQualityPanel';
+import { useUnits } from '@/hooks/useUnits';
 import { cn } from '@/lib/utils';
 
 export function SessionDashboard() {
@@ -29,6 +30,7 @@ export function SessionDashboard() {
   const { data: idealLap } = useIdealLap(sessionId);
   const { data: coachingReport } = useCoachingReport(sessionId);
   const { data: gpsQuality } = useGPSQuality(sessionId);
+  const { formatSpeed } = useUnits();
 
   // Derive best lap number
   const bestLapNumber = useMemo(() => {

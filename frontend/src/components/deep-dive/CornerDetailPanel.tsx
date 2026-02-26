@@ -9,6 +9,7 @@ import { AiInsight } from '@/components/shared/AiInsight';
 import { colors } from '@/lib/design-tokens';
 import { worstGrade } from '@/lib/gradeUtils';
 import { parseCornerNumber } from '@/lib/cornerUtils';
+import { useUnits } from '@/hooks/useUnits';
 import type { Corner, CornerGrade, PriorityCorner } from '@/lib/types';
 
 interface CornerDetailPanelProps {
@@ -91,6 +92,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
   const { data: corners } = useCorners(sessionId);
   const { data: allLapCorners } = useAllLapCorners(sessionId);
   const { data: report } = useCoachingReport(sessionId);
+  const { convertSpeed, speedUnit } = useUnits();
 
   if (!selectedCorner) {
     return (
@@ -122,10 +124,11 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
   const bestCorner = findBestCorner(cornerNumber, allLapCorners);
   const EPS = 0.05;
 
-  const minSpeedDelta =
+  const rawMinSpeedDelta =
     bestCorner && Math.abs(corner.min_speed_mph - bestCorner.min_speed_mph) > EPS
       ? corner.min_speed_mph - bestCorner.min_speed_mph
       : null;
+  const minSpeedDelta = rawMinSpeedDelta !== null ? convertSpeed(rawMinSpeedDelta) : null;
 
   const brakePointDelta =
     bestCorner &&
@@ -187,8 +190,8 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
       <div className="divide-y divide-[var(--cata-border)]">
         <KpiRow
           label={<GlossaryTerm term="Min Speed">Min Speed</GlossaryTerm>}
-          value={corner.min_speed_mph.toFixed(1)}
-          unit="mph"
+          value={convertSpeed(corner.min_speed_mph).toFixed(1)}
+          unit={speedUnit}
           delta={minSpeedDelta}
         />
         {corner.brake_point_m !== null && (

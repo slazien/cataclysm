@@ -9,6 +9,7 @@ import { useAnalysisStore } from '@/stores';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { colors, fonts } from '@/lib/design-tokens';
 import { CHART_MARGINS as MARGINS, drawCornerZones } from './chartHelpers';
+import { useUnits } from '@/hooks/useUnits';
 
 interface SpeedTraceProps {
   sessionId: string;
@@ -21,6 +22,7 @@ function drawAxes(
   innerWidth: number,
   innerHeight: number,
   margins: typeof MARGINS,
+  speedLabel = 'Speed (mph)',
 ) {
   ctx.strokeStyle = colors.axis;
   ctx.lineWidth = 1;
@@ -64,13 +66,14 @@ function drawAxes(
   ctx.translate(14, margins.top + innerHeight / 2);
   ctx.rotate(-Math.PI / 2);
   ctx.textAlign = 'center';
-  ctx.fillText('Speed (mph)', 0, 0);
+  ctx.fillText(speedLabel, 0, 0);
   ctx.restore();
 }
 
 export function SpeedTrace({ sessionId }: SpeedTraceProps) {
   const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
   const cursorDistance = useAnalysisStore((s) => s.cursorDistance);
+  const { convertSpeed, speedUnit } = useUnits();
 
   const { data: lapDataArr, isLoading } = useMultiLapData(sessionId, selectedLaps);
   const { data: corners } = useCorners(sessionId);
@@ -96,6 +99,8 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
       if (ls !== undefined && ls > maxSpeed) maxSpeed = ls;
     }
 
+    const displayMaxSpeed = convertSpeed(maxSpeed);
+
     return {
       xScale: d3
         .scaleLinear()
@@ -103,10 +108,10 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
         .range([MARGINS.left, MARGINS.left + dimensions.innerWidth]),
       yScale: d3
         .scaleLinear()
-        .domain([0, maxSpeed * 1.05])
+        .domain([0, displayMaxSpeed * 1.05])
         .range([MARGINS.top + dimensions.innerHeight, MARGINS.top]),
     };
-  }, [lapDataArr, dimensions.innerWidth, dimensions.innerHeight]);
+  }, [lapDataArr, dimensions.innerWidth, dimensions.innerHeight, convertSpeed]);
 
   // Stable ref for xScale to use in mouse events
   const xScaleRef = useRef(xScale);
@@ -136,7 +141,7 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
       ctx.beginPath();
       for (let i = 0; i < lap.distance_m.length; i++) {
         const x = xScale(lap.distance_m[i]);
-        const y = yScale(lap.speed_mph[i]);
+        const y = yScale(convertSpeed(lap.speed_mph[i]));
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       }
@@ -144,8 +149,8 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
     }
 
     // Axes
-    drawAxes(ctx, xScale, yScale, dimensions.innerWidth, dimensions.innerHeight, MARGINS);
-  }, [lapDataArr, corners, xScale, yScale, dimensions]);
+    drawAxes(ctx, xScale, yScale, dimensions.innerWidth, dimensions.innerHeight, MARGINS, `Speed (${speedUnit})`);
+  }, [lapDataArr, corners, xScale, yScale, dimensions, convertSpeed, speedUnit]);
 
   // Mouse events
   useEffect(() => {
@@ -204,11 +209,11 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
         const lap = lapDataArr[li];
         const idx = d3.bisectLeft(lap.distance_m, cursorDistance);
         const clampedIdx = Math.min(idx, lap.speed_mph.length - 1);
-        const speed = lap.speed_mph[clampedIdx];
+        const speed = convertSpeed(lap.speed_mph[clampedIdx]);
         const color = lapDataArr.length === 2
           ? (li === 0 ? colors.comparison.reference : colors.comparison.compare)
           : colors.lap[li % colors.lap.length];
-        const label = `L${lap.lap_number}: ${speed.toFixed(1)} mph`;
+        const label = `L${lap.lap_number}: ${speed.toFixed(1)} ${speedUnit}`;
 
         const textWidth = ctx.measureText(label).width;
         const rightEdge = MARGINS.left + dimensions.innerWidth;

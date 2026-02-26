@@ -8,6 +8,7 @@ import { GradeChip } from '@/components/shared/GradeChip';
 import { colors } from '@/lib/design-tokens';
 import { worstGrade } from '@/lib/gradeUtils';
 import { parseCornerNumber } from '@/lib/cornerUtils';
+import { useUnits } from '@/hooks/useUnits';
 import type { Corner, CornerGrade, PriorityCorner } from '@/lib/types';
 
 interface CornerQuickCardProps {
@@ -68,6 +69,7 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
   const { data: corners } = useCorners(sessionId);
   const { data: report } = useCoachingReport(sessionId);
   const { data: allLapCorners } = useAllLapCorners(sessionId);
+  const { convertSpeed, speedUnit } = useUnits();
 
   if (!selectedCorner) {
     return (
@@ -97,10 +99,11 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
 
   // Compute "vs best" deltas (epsilon check instead of object identity)
   const bestCorner = findBestCorner(cornerNumber, allLapCorners);
-  const minSpeedDelta =
+  const rawMinSpeedDelta =
     bestCorner && Math.abs(corner.min_speed_mph - bestCorner.min_speed_mph) > 0.05
       ? corner.min_speed_mph - bestCorner.min_speed_mph
       : null;
+  const minSpeedDelta = rawMinSpeedDelta !== null ? convertSpeed(rawMinSpeedDelta) : null;
 
   // Determine overall grade letter (worst of the four sub-grades)
   let overallGrade: string | null = null;
@@ -133,8 +136,8 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
       <div className="divide-y divide-[var(--cata-border)]">
         <KpiRow
           label={<GlossaryTerm term="Min Speed">Min Speed</GlossaryTerm>}
-          value={corner.min_speed_mph.toFixed(1)}
-          unit="mph"
+          value={convertSpeed(corner.min_speed_mph).toFixed(1)}
+          unit={speedUnit}
           delta={minSpeedDelta}
         />
         {corner.brake_point_m !== null && (
