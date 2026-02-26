@@ -67,7 +67,7 @@ export function AssignEquipmentButton({ sessionId }: AssignEquipmentButtonProps)
         <EquipmentSetupModal
           open={modalOpen}
           onOpenChange={setModalOpen}
-          onCreated={handleProfileCreated}
+          onSaved={handleProfileCreated}
         />
       </div>
     );
@@ -107,7 +107,7 @@ export function AssignEquipmentButton({ sessionId }: AssignEquipmentButtonProps)
       <EquipmentSetupModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        onCreated={handleProfileCreated}
+        onSaved={handleProfileCreated}
       />
     </div>
   );

@@ -79,6 +79,7 @@ export function useKeyboardShortcuts() {
           )
             break;
           e.preventDefault();
+          e.stopPropagation();
 
           // Parse current corner number
           const currentNum = selectedCorner
@@ -117,7 +118,10 @@ export function useKeyboardShortcuts() {
   );
 
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    // Use capture phase so our handler runs before React/Radix event handlers,
+    // allowing e.preventDefault() + e.stopPropagation() to prevent Radix Tabs
+    // from intercepting ArrowLeft/ArrowRight for tab navigation.
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [handleKeyDown]);
 }

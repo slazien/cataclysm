@@ -14,7 +14,7 @@ export function DeepDive() {
     <div className="flex h-full flex-col">
       {/* Segmented control: Speed | Corner | Custom */}
       <div className="flex items-center gap-2 border-b border-[var(--cata-border)] px-4 py-2">
-        <Tabs value={mode} onValueChange={(v) => setMode(v as DeepDiveMode)}>
+        <Tabs value={mode} onValueChange={(v) => setMode(v as DeepDiveMode)} activationMode="manual">
           <TabsList>
             <TabsTrigger value="speed">Speed</TabsTrigger>
             <TabsTrigger value="corner">Corner</TabsTrigger>
