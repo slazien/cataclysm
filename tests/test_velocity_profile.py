@@ -589,11 +589,17 @@ class TestComputeOptimalProfile:
         cr = _make_curvature_result(curvature, step_m=0.7)
 
         params_no_drag = VehicleParams(
-            mu=1.0, max_accel_g=0.5, max_decel_g=1.0, max_lateral_g=1.0,
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
             drag_coefficient=0.0,
         )
         params_drag = VehicleParams(
-            mu=1.0, max_accel_g=0.5, max_decel_g=1.0, max_lateral_g=1.0,
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
             drag_coefficient=0.005,
         )
 
@@ -608,14 +614,19 @@ class TestComputeOptimalProfile:
 
     def test_zero_drag_identical_to_no_drag(self) -> None:
         """drag_coefficient=0.0 should produce identical results to old behavior."""
-        curvature = np.concatenate([
-            np.zeros(300),
-            np.full(200, 0.01),
-            np.zeros(300),
-        ])
+        curvature = np.concatenate(
+            [
+                np.zeros(300),
+                np.full(200, 0.01),
+                np.zeros(300),
+            ]
+        )
         cr = _make_curvature_result(curvature, step_m=0.7)
         params = VehicleParams(
-            mu=1.0, max_accel_g=0.5, max_decel_g=1.0, max_lateral_g=1.0,
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
             drag_coefficient=0.0,
         )
 

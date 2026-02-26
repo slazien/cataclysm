@@ -316,18 +316,12 @@ def _format_corner_analysis(analysis: SessionCornerAnalysis) -> str:
 
         # Min speed
         ms = ca.stats_min_speed
-        lines.append(
-            f"  Min speed: best={ms.best:.1f} mean={ms.mean:.1f} "
-            f"std={ms.std:.1f} mph"
-        )
+        lines.append(f"  Min speed: best={ms.best:.1f} mean={ms.mean:.1f} std={ms.std:.1f} mph")
 
         # Brake point
         if ca.stats_brake_point is not None:
             bp = ca.stats_brake_point
-            lines.append(
-                f"  Brake pt: best={bp.best:.0f} mean={bp.mean:.0f} "
-                f"std={bp.std:.1f}m"
-            )
+            lines.append(f"  Brake pt: best={bp.best:.0f} mean={bp.mean:.0f} std={bp.std:.1f}m")
 
         # Peak brake g
         if ca.stats_peak_brake_g is not None:
@@ -337,15 +331,11 @@ def _format_corner_analysis(analysis: SessionCornerAnalysis) -> str:
         # Throttle commit
         if ca.stats_throttle_commit is not None:
             tc = ca.stats_throttle_commit
-            lines.append(
-                f"  Throttle: best={tc.best:.0f} mean={tc.mean:.0f} "
-                f"std={tc.std:.1f}m"
-            )
+            lines.append(f"  Throttle: best={tc.best:.0f} mean={tc.mean:.0f} std={tc.std:.1f}m")
 
         # Apex distribution
         apex_parts = [
-            f"{count}/{ca.n_laps} {atype}"
-            for atype, count in sorted(ca.apex_distribution.items())
+            f"{count}/{ca.n_laps} {atype}" for atype, count in sorted(ca.apex_distribution.items())
         ]
         if apex_parts:
             lines.append(f"  Apex: {', '.join(apex_parts)}")
@@ -358,9 +348,7 @@ def _format_corner_analysis(analysis: SessionCornerAnalysis) -> str:
             lines.append(f"  Target brake: {ca.recommendation.target_brake_m:.0f}m")
 
         # Target min speed
-        lines.append(
-            f"  Target min speed: {ca.recommendation.target_min_speed_mph:.1f} mph"
-        )
+        lines.append(f"  Target min speed: {ca.recommendation.target_min_speed_mph:.1f} mph")
 
         # Time value
         if ca.time_value is not None:
@@ -369,9 +357,7 @@ def _format_corner_analysis(analysis: SessionCornerAnalysis) -> str:
                 f"  Approach speed: {tv.approach_speed_mph:.0f} mph, "
                 f"time/m: {tv.time_per_meter_ms:.1f}ms"
             )
-            lines.append(
-                f"  Brake variance time cost: ~{tv.brake_variance_time_cost_s:.3f}s"
-            )
+            lines.append(f"  Brake variance time cost: ~{tv.brake_variance_time_cost_s:.3f}s")
 
         # Correlations
         for corr in ca.correlations:

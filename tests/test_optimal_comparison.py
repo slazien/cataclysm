@@ -270,8 +270,11 @@ class TestComputeCornerOpportunities:
         lap_df = _make_lap_df(speed=35.0)
         # Driver brakes at 210m, optimal brake at 200m → gap = 210 - 200 = +10
         corner = _make_corner(
-            entry=200.0, exit_d=350.0, apex=275.0,
-            min_speed=25.0, brake_m=210.0,
+            entry=200.0,
+            exit_d=350.0,
+            apex=275.0,
+            min_speed=25.0,
+            brake_m=210.0,
         )
 
         result = compute_corner_opportunities([corner], lap_df, optimal)
@@ -286,8 +289,11 @@ class TestComputeCornerOpportunities:
         lap_df = _make_lap_df(speed=35.0)
         # Driver brakes at 180m, optimal brake at 200m → gap = 180 - 200 = -20
         corner = _make_corner(
-            entry=200.0, exit_d=350.0, apex=275.0,
-            min_speed=25.0, brake_m=180.0,
+            entry=200.0,
+            exit_d=350.0,
+            apex=275.0,
+            min_speed=25.0,
+            brake_m=180.0,
         )
 
         result = compute_corner_opportunities([corner], lap_df, optimal)
