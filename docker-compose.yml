@@ -34,8 +34,8 @@ services:
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: ../Dockerfile.frontend
+      context: .
+      dockerfile: Dockerfile.frontend
       args:
         BACKEND_URL: http://backend:8000
     ports:
