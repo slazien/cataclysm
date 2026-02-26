@@ -110,8 +110,12 @@ def get_current_user(
         salt = _SESSION_COOKIE
 
     if not token:
-        logger.warning("Auth: no token found (header=%s, secure=%s, session=%s)",
-                       bool(authorization), bool(secure_session_token), bool(session_token))
+        logger.warning(
+            "Auth: no token found (header=%s, secure=%s, session=%s)",
+            bool(authorization),
+            bool(secure_session_token),
+            bool(session_token),
+        )
         if is_dev:
             return AuthenticatedUser(
                 user_id="dev-user",
@@ -120,10 +124,8 @@ def get_current_user(
             )
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    logger.info("Auth: token found, length=%d, salt=%s", len(token), salt)
     try:
         payload = _decrypt_nextauth_token(token, settings.nextauth_secret, salt)
-        logger.info("Auth: decryption succeeded, keys=%s", list(payload.keys()))
     except (JWEError, JWTError, Exception) as exc:
         logger.warning("Auth: token decryption failed: %s: %s", type(exc).__name__, exc)
         if is_dev:
