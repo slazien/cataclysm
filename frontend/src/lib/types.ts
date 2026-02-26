@@ -11,6 +11,8 @@ export interface SessionSummary {
   tire_model?: string | null;
   compound_category?: string | null;
   equipment_profile_name?: string | null;
+  gps_quality_score?: number | null;
+  gps_quality_grade?: string | null;
 }
 
 export interface LapSummary {
@@ -279,6 +281,35 @@ export interface SessionEquipmentSet {
     track_temp_c?: number | null;
     humidity_pct?: number | null;
   } | null;
+}
+
+// --- GPS Quality Types ---
+
+export interface GPSQualityMetric {
+  score: number;
+  [key: string]: unknown;
+}
+
+export interface GPSQualityReport {
+  overall_score: number;
+  grade: string;
+  is_usable: boolean;
+  accuracy: { p50: number; p90: number; score: number };
+  satellites: { p10: number; p50: number; score: number };
+  lap_distance_cv: { cv_percent: number; score: number; n_laps: number } | null;
+  speed_spikes: {
+    spikes_per_km: number;
+    total_spikes: number;
+    total_distance_km: number;
+    score: number;
+  };
+  heading_jitter: {
+    jitter_std: number;
+    straight_fraction: number;
+    score: number;
+  } | null;
+  lateral_scatter: { scatter_p90: number; score: number };
+  metric_weights: Record<string, number>;
 }
 
 export interface SessionEquipmentResponse {

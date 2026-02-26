@@ -4,7 +4,7 @@ import { useMemo, useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { GitCompareArrows } from 'lucide-react';
 import { useSession, useSessionLaps, useSessions } from '@/hooks/useSession';
-import { useConsistency } from '@/hooks/useAnalysis';
+import { useConsistency, useGPSQuality } from '@/hooks/useAnalysis';
 import { useIdealLap, useCoachingReport } from '@/hooks/useCoaching';
 import { useSessionStore } from '@/stores';
 import { MetricCard } from '@/components/shared/MetricCard';
@@ -18,6 +18,7 @@ import { LapTimesBar } from './LapTimesBar';
 import { AssignEquipmentButton } from '@/components/equipment/AssignEquipmentButton';
 import { formatLapTime, formatSpeed, normalizeScore, parseSessionDate } from '@/lib/formatters';
 import { MPS_TO_MPH } from '@/lib/constants';
+import { GPSQualityPanel } from './GPSQualityPanel';
 import { cn } from '@/lib/utils';
 
 export function SessionDashboard() {
@@ -27,6 +28,7 @@ export function SessionDashboard() {
   const { data: consistency, isLoading: consistencyLoading } = useConsistency(sessionId);
   const { data: idealLap } = useIdealLap(sessionId);
   const { data: coachingReport } = useCoachingReport(sessionId);
+  const { data: gpsQuality } = useGPSQuality(sessionId);
 
   // Derive best lap number
   const bestLapNumber = useMemo(() => {
@@ -164,9 +166,35 @@ export function SessionDashboard() {
     <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 lg:p-6">
       {/* Action Row */}
       <div className="flex items-center justify-between">
-        <AssignEquipmentButton sessionId={sessionId} />
+        <div className="flex items-center gap-3">
+          <AssignEquipmentButton sessionId={sessionId} />
+          {session.gps_quality_grade && (
+            <GPSQualityBadge grade={session.gps_quality_grade} score={session.gps_quality_score} />
+          )}
+        </div>
         <CompareButton sessionId={sessionId} />
       </div>
+
+      {/* GPS Quality Warning */}
+      {session.gps_quality_grade && ['D', 'F'].includes(session.gps_quality_grade) && (
+        <div className={cn(
+          'rounded-lg border px-4 py-3 text-sm',
+          session.gps_quality_grade === 'F'
+            ? 'border-red-500/30 bg-red-500/10 text-red-400'
+            : 'border-orange-500/30 bg-orange-500/10 text-orange-400',
+        )}>
+          <span className="font-semibold">
+            {session.gps_quality_grade === 'F' ? 'Poor GPS Quality' : 'Low GPS Quality'}
+          </span>
+          {' — '}
+          {session.gps_quality_grade === 'F'
+            ? 'This session has unreliable GPS data. Corner detection and coaching may be inaccurate. Excluded from trends by default.'
+            : 'GPS data quality is below average. Analysis results may be less precise than usual.'}
+        </div>
+      )}
+
+      {/* GPS Quality Detail Panel */}
+      {gpsQuality && <GPSQualityPanel report={gpsQuality} />}
 
       {/* Hero Metrics Row */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
@@ -263,6 +291,30 @@ export function SessionDashboard() {
         />
       </div>
     </div>
+  );
+}
+
+const GRADE_COLORS: Record<string, string> = {
+  A: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  B: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  C: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  D: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  F: 'bg-red-500/20 text-red-400 border-red-500/30',
+};
+
+function GPSQualityBadge({ grade, score }: { grade: string; score?: number | null }) {
+  const colors = GRADE_COLORS[grade] ?? GRADE_COLORS.C;
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-semibold',
+        colors,
+      )}
+      title={score != null ? `GPS Quality Score: ${Math.round(score)}/100` : `GPS Quality: Grade ${grade}`}
+    >
+      <span className="text-[10px] uppercase tracking-wide opacity-70">GPS</span>
+      {grade}
+    </span>
   );
 }
 

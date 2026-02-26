@@ -11,6 +11,7 @@ import type {
   TrendAnalysisResponse,
   MilestoneResponse,
   ComparisonResult,
+  GPSQualityReport,
 } from "./types";
 
 const API_BASE = "";
@@ -188,6 +189,15 @@ export async function downloadPdfReport(sessionId: string): Promise<void> {
 
 export async function getIdealLap(sessionId: string) {
   return fetchApi<IdealLapData>(`/api/sessions/${sessionId}/ideal-lap`);
+}
+
+// --- GPS Quality API ---
+
+export async function getGPSQuality(sessionId: string) {
+  const resp = await fetchApi<{ data: GPSQualityReport }>(
+    `/api/sessions/${sessionId}/gps-quality`,
+  );
+  return resp.data;
 }
 
 // --- Trends API ---

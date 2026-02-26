@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery, useQueries } from "@tanstack/react-query";
-import { getCorners, getAllLapCorners, getConsistency, getGains, getGrip, getDelta, getLapData } from "@/lib/api";
-import type { Corner, SessionConsistency, DeltaData, LapData } from "@/lib/types";
+import { getCorners, getAllLapCorners, getConsistency, getGains, getGrip, getDelta, getLapData, getGPSQuality } from "@/lib/api";
+import type { Corner, SessionConsistency, DeltaData, LapData, GPSQualityReport } from "@/lib/types";
 
 export function useCorners(sessionId: string | null) {
   return useQuery<Corner[]>({
@@ -53,6 +53,14 @@ export function useDelta(
     queryKey: ["delta", sessionId, ref, comp],
     queryFn: () => getDelta(sessionId!, ref!, comp!),
     enabled: !!sessionId && ref !== null && comp !== null,
+  });
+}
+
+export function useGPSQuality(sessionId: string | null) {
+  return useQuery<GPSQualityReport>({
+    queryKey: ["gps-quality", sessionId],
+    queryFn: () => getGPSQuality(sessionId!),
+    enabled: !!sessionId,
   });
 }
 
