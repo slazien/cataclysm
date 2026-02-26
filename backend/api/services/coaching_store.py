@@ -71,9 +71,7 @@ async def store_coaching_context(session_id: str, context: CoachingContext) -> N
             await upsert_coaching_context_db(db, session_id, context.messages)
             await db.commit()
     except Exception:
-        logger.warning(
-            "Failed to persist coaching context to DB for %s", session_id, exc_info=True
-        )
+        logger.warning("Failed to persist coaching context to DB for %s", session_id, exc_info=True)
 
 
 async def get_coaching_context(session_id: str) -> CoachingContext | None:
@@ -91,9 +89,7 @@ async def get_coaching_context(session_id: str) -> CoachingContext | None:
             _contexts[session_id] = ctx
             return ctx
     except Exception:
-        logger.warning(
-            "Failed to load coaching context from DB for %s", session_id, exc_info=True
-        )
+        logger.warning("Failed to load coaching context from DB for %s", session_id, exc_info=True)
     return None
 
 
@@ -106,9 +102,7 @@ async def clear_coaching_data(session_id: str) -> None:
             await delete_coaching_data_db(db, session_id)
             await db.commit()
     except Exception:
-        logger.warning(
-            "Failed to delete coaching data from DB for %s", session_id, exc_info=True
-        )
+        logger.warning("Failed to delete coaching data from DB for %s", session_id, exc_info=True)
 
 
 def mark_generating(session_id: str) -> None:

@@ -12,7 +12,6 @@ from backend.api.config import Settings
 from backend.api.db.database import get_db
 from backend.api.dependencies import AuthenticatedUser, get_current_user, get_settings
 from backend.api.routers.coaching import trigger_auto_coaching
-from backend.api.services.coaching_store import clear_coaching_data
 from backend.api.schemas.comparison import ComparisonResult
 from backend.api.schemas.session import (
     LapData,
@@ -22,6 +21,7 @@ from backend.api.schemas.session import (
     UploadResponse,
 )
 from backend.api.services import equipment_store, session_store
+from backend.api.services.coaching_store import clear_coaching_data
 from backend.api.services.comparison import compare_sessions as run_comparison
 from backend.api.services.db_session_store import (
     delete_session_db,

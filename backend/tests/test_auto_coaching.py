@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 from unittest.mock import patch
 
 import pytest
 from cataclysm.coaching import CoachingContext, CoachingReport, CornerGrade
 from httpx import AsyncClient
 
+from backend.api.db.models import Session as SessionModel
 from backend.api.schemas.coaching import (
     CoachingReportResponse,
     CornerGradeSchema,
@@ -25,7 +27,22 @@ from backend.api.services.db_coaching_store import (
     get_coaching_context_db,
     get_coaching_report_db,
 )
-from backend.tests.conftest import _test_session_factory, build_synthetic_csv
+from backend.tests.conftest import _TEST_USER, _test_session_factory, build_synthetic_csv
+
+
+async def _seed_session(session_id: str) -> None:
+    """Insert a minimal Session row so FK constraints on coaching tables succeed."""
+    async with _test_session_factory() as db:
+        await db.merge(
+            SessionModel(
+                session_id=session_id,
+                user_id=_TEST_USER.user_id,
+                track_name="Test Circuit",
+                session_date=datetime(2026, 1, 1),  # noqa: DTZ001
+                file_key=session_id,
+            )
+        )
+        await db.commit()
 
 
 def _mock_coaching_report() -> CoachingReport:
@@ -121,6 +138,7 @@ class TestCoachingPersistence:
     @pytest.mark.asyncio
     async def test_store_and_load_report(self) -> None:
         """Stored reports should be persisted to DB and retrievable."""
+        await _seed_session("test-session-1")
         report = CoachingReportResponse(
             session_id="test-session-1",
             status="ready",
@@ -159,6 +177,7 @@ class TestCoachingPersistence:
     @pytest.mark.asyncio
     async def test_error_reports_not_cached_on_lazy_load(self) -> None:
         """Error reports in DB should not be cached by lazy loader."""
+        await _seed_session("error-session")
         error_report = CoachingReportResponse(
             session_id="error-session",
             status="error",
@@ -175,6 +194,7 @@ class TestCoachingPersistence:
     @pytest.mark.asyncio
     async def test_clear_coaching_data_removes_db_rows(self) -> None:
         """Clearing coaching data should remove from both memory and DB."""
+        await _seed_session("delete-me")
         report = CoachingReportResponse(
             session_id="delete-me",
             status="ready",
@@ -204,6 +224,7 @@ class TestCoachingPersistence:
     @pytest.mark.asyncio
     async def test_lazy_load_from_db(self) -> None:
         """After clearing memory cache, get should lazy-load from DB."""
+        await _seed_session("lazy-session")
         report = CoachingReportResponse(
             session_id="lazy-session",
             status="ready",
