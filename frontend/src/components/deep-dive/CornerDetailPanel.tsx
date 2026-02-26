@@ -3,6 +3,7 @@
 import { useCorners, useAllLapCorners } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useAnalysisStore } from '@/stores';
+import { GlossaryTerm } from '@/components/shared/GlossaryTerm';
 import { GradeChip } from '@/components/shared/GradeChip';
 import { AiInsight } from '@/components/shared/AiInsight';
 import { colors } from '@/lib/design-tokens';
@@ -30,7 +31,7 @@ function findBestCorner(
 }
 
 interface KpiRowProps {
-  label: string;
+  label: React.ReactNode;
   value: string;
   unit?: string;
   delta?: number | null;
@@ -72,7 +73,7 @@ function KpiRow({ label, value, unit = '', delta, deltaUnit, invertDelta }: KpiR
 }
 
 interface GradeRowProps {
-  label: string;
+  label: React.ReactNode;
   grade: string;
 }
 
@@ -185,14 +186,14 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
       {/* KPIs with vs-best deltas */}
       <div className="divide-y divide-[var(--cata-border)]">
         <KpiRow
-          label="Min Speed"
+          label={<GlossaryTerm term="Min Speed">Min Speed</GlossaryTerm>}
           value={corner.min_speed_mph.toFixed(1)}
           unit="mph"
           delta={minSpeedDelta}
         />
         {corner.brake_point_m !== null && (
           <KpiRow
-            label="Brake Point"
+            label={<GlossaryTerm term="Brake Point">Brake Point</GlossaryTerm>}
             value={corner.brake_point_m.toFixed(0)}
             unit="m"
             delta={brakePointDelta}
@@ -202,7 +203,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
         )}
         {corner.peak_brake_g !== null && (
           <KpiRow
-            label="Peak Brake G"
+            label={<GlossaryTerm term="Peak Brake G">Peak Brake G</GlossaryTerm>}
             value={corner.peak_brake_g.toFixed(2)}
             unit="g"
             delta={peakBrakeDelta}
@@ -211,7 +212,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
         )}
         {corner.throttle_commit_m !== null && (
           <KpiRow
-            label="Throttle Commit"
+            label={<GlossaryTerm term="Throttle Commit">Throttle Commit</GlossaryTerm>}
             value={corner.throttle_commit_m.toFixed(0)}
             unit="m"
             delta={throttleDelta}
@@ -229,9 +230,9 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
           </h4>
           {cornerGrade.braking && <GradeRow label="Braking" grade={cornerGrade.braking} />}
           {cornerGrade.trail_braking && (
-            <GradeRow label="Trail Braking" grade={cornerGrade.trail_braking} />
+            <GradeRow label={<GlossaryTerm term="Trail Braking">Trail Braking</GlossaryTerm>} grade={cornerGrade.trail_braking} />
           )}
-          {cornerGrade.min_speed && <GradeRow label="Min Speed" grade={cornerGrade.min_speed} />}
+          {cornerGrade.min_speed && <GradeRow label={<GlossaryTerm term="Min Speed">Min Speed</GlossaryTerm>} grade={cornerGrade.min_speed} />}
           {cornerGrade.throttle && <GradeRow label="Throttle" grade={cornerGrade.throttle} />}
         </div>
       )}

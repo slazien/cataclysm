@@ -7,7 +7,7 @@ import { useIdealLap, useCoachingReport } from '@/hooks/useCoaching';
 import { useSessionStore } from '@/stores';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { CircularProgress } from '@/components/shared/CircularProgress';
+import { SkeletonCard } from '@/components/shared/SkeletonCard';
 import { SessionScore } from './SessionScore';
 import { TopPriorities } from './TopPriorities';
 import { HeroTrackMap } from './HeroTrackMap';
@@ -110,13 +110,26 @@ export function SessionDashboard() {
     return <EmptyState />;
   }
 
-  // Loading state
+  // Loading state — skeleton placeholders matching the dashboard layout
   if (sessionLoading || lapsLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <CircularProgress size={32} />
-          <p className="text-sm text-[var(--text-secondary)]">Loading session...</p>
+      <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 lg:p-6">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+          <SkeletonCard height="h-24" />
+          <SkeletonCard height="h-24" />
+          <SkeletonCard height="h-24" />
+          <SkeletonCard height="h-24" />
+        </div>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
+          <SkeletonCard height="h-48" />
+          <SkeletonCard height="h-48" />
+        </div>
+        <SkeletonCard height="h-40" />
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+          <SkeletonCard height="h-24" />
+          <SkeletonCard height="h-24" />
+          <SkeletonCard height="h-24" />
+          <SkeletonCard height="h-24" />
         </div>
       </div>
     );

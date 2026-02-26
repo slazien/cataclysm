@@ -3,6 +3,7 @@
 import { useCorners, useAllLapCorners } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useAnalysisStore } from '@/stores';
+import { GlossaryTerm } from '@/components/shared/GlossaryTerm';
 import { GradeChip } from '@/components/shared/GradeChip';
 import { colors } from '@/lib/design-tokens';
 import { worstGrade } from '@/lib/gradeUtils';
@@ -29,7 +30,7 @@ function findBestCorner(
 }
 
 interface KpiRowProps {
-  label: string;
+  label: React.ReactNode;
   value: string;
   delta?: number | null;
   unit?: string;
@@ -131,28 +132,28 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
       {/* KPIs */}
       <div className="divide-y divide-[var(--cata-border)]">
         <KpiRow
-          label="Min Speed"
+          label={<GlossaryTerm term="Min Speed">Min Speed</GlossaryTerm>}
           value={corner.min_speed_mph.toFixed(1)}
           unit="mph"
           delta={minSpeedDelta}
         />
         {corner.brake_point_m !== null && (
           <KpiRow
-            label="Brake Point"
+            label={<GlossaryTerm term="Brake Point">Brake Point</GlossaryTerm>}
             value={corner.brake_point_m.toFixed(0)}
             unit="m"
           />
         )}
         {corner.peak_brake_g !== null && (
           <KpiRow
-            label="Peak Brake G"
+            label={<GlossaryTerm term="Peak Brake G">Peak Brake G</GlossaryTerm>}
             value={corner.peak_brake_g.toFixed(2)}
             unit="g"
           />
         )}
         {corner.throttle_commit_m !== null && (
           <KpiRow
-            label="Throttle Commit"
+            label={<GlossaryTerm term="Throttle Commit">Throttle Commit</GlossaryTerm>}
             value={corner.throttle_commit_m.toFixed(0)}
             unit="m"
           />
@@ -180,13 +181,13 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
           )}
           {cornerGrade.trail_braking && (
             <div className="flex items-center gap-1">
-              <span className="text-xs text-[var(--text-muted)]">Trail</span>
+              <span className="text-xs text-[var(--text-muted)]"><GlossaryTerm term="Trail Braking">Trail</GlossaryTerm></span>
               <GradeChip grade={cornerGrade.trail_braking} />
             </div>
           )}
           {cornerGrade.min_speed && (
             <div className="flex items-center gap-1">
-              <span className="text-xs text-[var(--text-muted)]">Min Spd</span>
+              <span className="text-xs text-[var(--text-muted)]"><GlossaryTerm term="Min Speed">Min Spd</GlossaryTerm></span>
               <GradeChip grade={cornerGrade.min_speed} />
             </div>
           )}

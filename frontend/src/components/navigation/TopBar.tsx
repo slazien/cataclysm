@@ -26,6 +26,7 @@ export function TopBar() {
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const panelOpen = useCoachStore((s) => s.panelOpen);
   const togglePanel = useCoachStore((s) => s.togglePanel);
+  const toggleSettingsPanel = useUiStore((s) => s.toggleSettingsPanel);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const { data: authSession } = useAuthSession();
@@ -117,6 +118,7 @@ export function TopBar() {
           <Button
             variant="ghost"
             size="icon-sm"
+            onClick={toggleSettingsPanel}
             title="Settings"
             className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           >
