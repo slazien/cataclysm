@@ -10,8 +10,15 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
+from backend.api.dependencies import AuthenticatedUser, get_current_user
 from backend.api.main import app
 from backend.api.services.session_store import clear_all
+
+_TEST_USER = AuthenticatedUser(
+    user_id="test-user-123",
+    email="test@example.com",
+    name="Test Driver",
+)
 
 # CSV header/unit/source rows matching the RaceChrono v3 format from tests/conftest.py
 _CSV_COLUMNS = (
@@ -167,6 +174,14 @@ def _disable_auto_coaching() -> Generator[None, None, None]:
     """
     with patch("backend.api.routers.sessions.trigger_auto_coaching"):
         yield
+
+
+@pytest.fixture(autouse=True)
+def _mock_auth() -> Generator[None, None, None]:
+    """Override the auth dependency so all test requests are authenticated."""
+    app.dependency_overrides[get_current_user] = lambda: _TEST_USER
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
 
 
 @pytest_asyncio.fixture

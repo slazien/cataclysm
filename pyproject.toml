@@ -16,6 +16,7 @@ dependencies = [
     "ruptures>=1.1",
     "fpdf2>=2.7",
     "kaleido>=0.2",
+    "python-jose[cryptography]>=3.3",
 ]
 
 [project.optional-dependencies]
@@ -64,6 +65,8 @@ module = [
     "fpdf.*",
     "kaleido",
     "kaleido.*",
+    "jose",
+    "jose.*",
 ]
 ignore_missing_imports = true
 disable_error_code = ["import-untyped"]

@@ -35,5 +35,8 @@ class Settings(BaseSettings):
     # Upload limits
     max_upload_size_mb: int = 50
 
+    # Auth
+    nextauth_secret: str = ""
+
     # Debug mode
     debug: bool = False
