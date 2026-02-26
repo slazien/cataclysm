@@ -101,18 +101,14 @@ async def upload_sessions(
                     )
                     await db.commit()
                 except Exception:
-                    logger.warning(
-                        "Failed to persist CSV bytes for %s", sid, exc_info=True
-                    )
+                    logger.warning("Failed to persist CSV bytes for %s", sid, exc_info=True)
                     await db.rollback()
 
                 # Auto-generate coaching report in the background
                 try:
                     await trigger_auto_coaching(sid, sd)
                 except Exception:
-                    logger.warning(
-                        "Auto-coaching failed for %s", sid, exc_info=True
-                    )
+                    logger.warning("Auto-coaching failed for %s", sid, exc_info=True)
         except Exception as exc:
             logger.warning("Failed to process %s: %s", f.filename, exc, exc_info=True)
             errors.append(f"{f.filename}: {exc}")

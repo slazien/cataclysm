@@ -121,3 +121,52 @@ class SessionFile(Base):
 
     # Relationship
     session: Mapped[Session] = relationship(back_populates="session_file")
+
+
+class EquipmentProfileDB(Base):
+    """Equipment profile persisted in PostgreSQL."""
+
+    __tablename__ = "equipment_profiles"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=True
+    )
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    profile_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # Relationships
+    user: Mapped[User | None] = relationship()
+    session_assignments: Mapped[list[SessionEquipmentDB]] = relationship(
+        back_populates="profile", cascade="all, delete-orphan"
+    )
+
+
+class SessionEquipmentDB(Base):
+    """Session-equipment assignment persisted in PostgreSQL."""
+
+    __tablename__ = "session_equipment_assignments"
+
+    session_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("sessions.session_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    profile_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("equipment_profiles.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    assignment_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # Relationships
+    session: Mapped[Session] = relationship()
+    profile: Mapped[EquipmentProfileDB] = relationship(back_populates="session_assignments")

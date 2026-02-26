@@ -144,15 +144,25 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     from backend.api.services.equipment_store import (
         init_equipment_dir,
+        load_equipment_from_db,
         load_persisted_profiles,
         load_persisted_session_equipment,
     )
 
     init_equipment_dir(settings.equipment_data_dir)
-    n_eq = load_persisted_profiles()
-    n_se = load_persisted_session_equipment()
+
+    # Try DB first (survives Railway redeployments), fall back to disk
+    n_eq, n_se = await load_equipment_from_db()
     if n_eq or n_se:
-        logger.info("Loaded %d equipment profile(s), %d session assignment(s)", n_eq, n_se)
+        logger.info("Loaded %d equipment profile(s), %d session assignment(s) from DB", n_eq, n_se)
+    else:
+        # Fallback to disk for local dev
+        n_eq = load_persisted_profiles()
+        n_se = load_persisted_session_equipment()
+        if n_eq or n_se:
+            logger.info(
+                "Loaded %d equipment profile(s), %d session assignment(s) from disk", n_eq, n_se
+            )
 
     # Reload CSV session data into memory so GET endpoints don't 404
     # Try database first (survives Railway redeployments), fall back to disk

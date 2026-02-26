@@ -253,6 +253,7 @@ async def create_profile(
         notes=body.notes,
     )
     equipment_store.store_profile(profile)
+    await equipment_store.db_persist_profile(profile, user_id=current_user.user_id)
     return _profile_to_response(profile)
 
 
@@ -298,6 +299,7 @@ async def update_profile(
         notes=body.notes,
     )
     equipment_store.store_profile(updated)
+    await equipment_store.db_persist_profile(updated, user_id=current_user.user_id)
     return _profile_to_response(updated)
 
 
@@ -310,6 +312,7 @@ async def delete_profile(
     deleted = equipment_store.delete_profile(profile_id)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Profile {profile_id} not found")
+    await equipment_store.db_delete_profile(profile_id)
     return {"message": f"Profile {profile_id} deleted"}
 
 
@@ -356,6 +359,7 @@ async def set_session_equipment(
         conditions=conditions,
     )
     equipment_store.store_session_equipment(se)
+    await equipment_store.db_persist_session_equipment(se)
 
     return SessionEquipmentResponse(
         session_id=session_id,

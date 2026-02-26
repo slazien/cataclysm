@@ -338,3 +338,142 @@ def clear_all_equipment() -> None:
     """Remove all equipment data from memory (does not delete disk files)."""
     _profiles.clear()
     _session_equipment.clear()
+
+
+# ---------------------------------------------------------------------------
+# Database persistence helpers
+# ---------------------------------------------------------------------------
+
+
+async def db_persist_profile(profile: EquipmentProfile, user_id: str | None = None) -> None:
+    """Write an equipment profile to PostgreSQL.
+
+    Uses upsert semantics (merge) so it works for both create and update.
+    """
+    from backend.api.db.database import async_session_factory
+    from backend.api.db.models import EquipmentProfileDB
+
+    try:
+        async with async_session_factory() as db:
+            await db.merge(
+                EquipmentProfileDB(
+                    id=profile.id,
+                    user_id=user_id,
+                    name=profile.name,
+                    profile_json=asdict(profile),
+                )
+            )
+            await db.commit()
+    except Exception:
+        logger.warning("Failed to persist equipment profile %s to DB", profile.id, exc_info=True)
+
+
+async def db_delete_profile(profile_id: str) -> None:
+    """Delete an equipment profile from PostgreSQL."""
+    from sqlalchemy import delete
+
+    from backend.api.db.database import async_session_factory
+    from backend.api.db.models import EquipmentProfileDB
+
+    try:
+        async with async_session_factory() as db:
+            await db.execute(delete(EquipmentProfileDB).where(EquipmentProfileDB.id == profile_id))
+            await db.commit()
+    except Exception:
+        logger.warning("Failed to delete equipment profile %s from DB", profile_id, exc_info=True)
+
+
+async def db_persist_session_equipment(se: SessionEquipment) -> None:
+    """Write a session-equipment assignment to PostgreSQL."""
+    from backend.api.db.database import async_session_factory
+    from backend.api.db.models import SessionEquipmentDB
+
+    try:
+        async with async_session_factory() as db:
+            await db.merge(
+                SessionEquipmentDB(
+                    session_id=se.session_id,
+                    profile_id=se.profile_id,
+                    assignment_json=asdict(se),
+                )
+            )
+            await db.commit()
+    except Exception:
+        logger.warning(
+            "Failed to persist session equipment for %s to DB",
+            se.session_id,
+            exc_info=True,
+        )
+
+
+async def db_delete_session_equipment(session_id: str) -> None:
+    """Delete a session-equipment assignment from PostgreSQL."""
+    from sqlalchemy import delete
+
+    from backend.api.db.database import async_session_factory
+    from backend.api.db.models import SessionEquipmentDB
+
+    try:
+        async with async_session_factory() as db:
+            await db.execute(
+                delete(SessionEquipmentDB).where(SessionEquipmentDB.session_id == session_id)
+            )
+            await db.commit()
+    except Exception:
+        logger.warning(
+            "Failed to delete session equipment for %s from DB",
+            session_id,
+            exc_info=True,
+        )
+
+
+async def load_equipment_from_db() -> tuple[int, int]:
+    """Load all equipment profiles and session assignments from PostgreSQL.
+
+    Returns (n_profiles, n_assignments) loaded.
+    """
+    from sqlalchemy import select
+
+    from backend.api.db.database import async_session_factory
+    from backend.api.db.models import EquipmentProfileDB, SessionEquipmentDB
+
+    n_profiles = 0
+    n_assignments = 0
+
+    try:
+        async with async_session_factory() as db:
+            # Load profiles
+            profile_result = await db.execute(select(EquipmentProfileDB))
+            profile_rows = profile_result.scalars().all()
+            for p_row in profile_rows:
+                try:
+                    if p_row.profile_json:
+                        profile = _profile_from_dict(p_row.profile_json)
+                        _profiles[profile.id] = profile
+                        n_profiles += 1
+                except Exception:
+                    logger.warning(
+                        "Failed to deserialize equipment profile %s from DB",
+                        p_row.id,
+                        exc_info=True,
+                    )
+
+            # Load session equipment
+            se_result = await db.execute(select(SessionEquipmentDB))
+            se_rows = se_result.scalars().all()
+            for se_row in se_rows:
+                try:
+                    if se_row.assignment_json:
+                        se = _session_equipment_from_dict(se_row.assignment_json)
+                        _session_equipment[se.session_id] = se
+                        n_assignments += 1
+                except Exception:
+                    logger.warning(
+                        "Failed to deserialize session equipment for %s from DB",
+                        se_row.session_id,
+                        exc_info=True,
+                    )
+    except Exception:
+        logger.warning("Database equipment load failed", exc_info=True)
+
+    return n_profiles, n_assignments
