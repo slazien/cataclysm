@@ -614,3 +614,55 @@ class TestFlatCornerCharacter:
         rec = result.corners[0].recommendation
         assert rec.target_brake_m == 2150.0
         assert rec.character == "lift"
+
+
+# ---------------------------------------------------------------------------
+# Tests: enriched coaching fields in CornerRecommendation
+# ---------------------------------------------------------------------------
+
+
+class TestEnrichedRecommendation:
+    """Enriched coaching fields flow from Corner to CornerRecommendation."""
+
+    def test_enriched_fields_populated(self) -> None:
+        corner = Corner(
+            number=5,
+            entry_distance_m=400.0,
+            exit_distance_m=750.0,
+            apex_distance_m=600.0,
+            min_speed_mps=18.0,
+            brake_point_m=500.0,
+            peak_brake_g=-0.8,
+            throttle_commit_m=700.0,
+            apex_type="mid",
+            corner_type_hint="hairpin",
+            elevation_trend="downhill",
+            camber="off-camber",
+            blind=True,
+            coaching_notes="Brake at the 3-board.",
+            elevation_change_m=-5.0,
+            gradient_pct=-2.5,
+        )
+        corners = {1: [corner]}
+        result = compute_corner_analysis(corners, None, None, None, best_lap=1)
+        rec = result.corners[0].recommendation
+        assert rec.corner_type_hint == "hairpin"
+        assert rec.elevation_trend == "downhill"
+        assert rec.camber == "off-camber"
+        assert rec.blind is True
+        assert rec.coaching_notes == "Brake at the 3-board."
+        assert rec.elevation_change_m == -5.0
+        assert rec.gradient_pct == -2.5
+
+    def test_enriched_fields_none_when_not_set(self) -> None:
+        corner = _make_corner(1)
+        corners = {1: [corner]}
+        result = compute_corner_analysis(corners, None, None, None, best_lap=1)
+        rec = result.corners[0].recommendation
+        assert rec.corner_type_hint is None
+        assert rec.elevation_trend is None
+        assert rec.camber is None
+        assert rec.blind is False
+        assert rec.coaching_notes is None
+        assert rec.elevation_change_m is None
+        assert rec.gradient_pct is None

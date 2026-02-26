@@ -28,6 +28,13 @@ class OfficialCorner:
     lat: float | None = None  # GPS latitude of apex
     lon: float | None = None  # GPS longitude of apex
     character: str | None = None  # "flat" | "lift" | "brake" | None (auto-detect)
+    # Coaching knowledge fields
+    direction: str | None = None  # "left" | "right"
+    corner_type: str | None = None  # "hairpin" | "sweeper" | "chicane" | "kink" | "esses"
+    elevation_trend: str | None = None  # "uphill" | "downhill" | "flat" | "crest" | "compression"
+    camber: str | None = None  # "positive" | "negative" | "off-camber"
+    blind: bool = False  # Blind apex or exit
+    coaching_notes: str | None = None  # 1-2 sentence instructor tip
 
 
 @dataclass(frozen=True)
@@ -41,6 +48,7 @@ class TrackLayout:
     center_lon: float | None = None
     country: str = ""
     length_m: float | None = None
+    elevation_range_m: float | None = None  # max - min altitude across track
 
 
 # ---------------------------------------------------------------------------
@@ -116,23 +124,181 @@ BARBER_MOTORSPORTS_PARK = TrackLayout(
     center_lon=-86.6215,
     country="US",
     length_m=3662.4,
+    elevation_range_m=60.0,
     corners=[
-        OfficialCorner(1, "Fast Downhill Left", 0.05),
-        OfficialCorner(2, "Uphill Right", 0.10),
-        OfficialCorner(3, "Uphill Crest", 0.15),
-        OfficialCorner(4, "Hilltop Right", 0.20),
-        OfficialCorner(5, "Charlotte's Web", 0.30),
-        OfficialCorner(6, "Downhill Left Kink", 0.34, character="flat"),
-        OfficialCorner(7, "Corkscrew Entry", 0.40),
-        OfficialCorner(8, "Corkscrew Mid", 0.44),
-        OfficialCorner(9, "Corkscrew Exit", 0.49),
-        OfficialCorner(10, "Esses Left", 0.58, character="flat"),
-        OfficialCorner(11, "Esses Right", 0.62, character="lift"),
-        OfficialCorner(12, "Rollercoaster Entry", 0.73),
-        OfficialCorner(13, "Rollercoaster Mid", 0.76, character="flat"),
-        OfficialCorner(14, "Rollercoaster Exit", 0.81),
-        OfficialCorner(15, "Blind Apex Right", 0.87),
-        OfficialCorner(16, "Final Left", 0.90),
+        OfficialCorner(
+            1,
+            "Fast Downhill Left",
+            0.05,
+            direction="left",
+            corner_type="sweeper",
+            elevation_trend="downhill",
+            camber="positive",
+            coaching_notes=(
+                "Heavy braking from top speed. Downhill increases stopping distance. "
+                "Late apex to set up T2."
+            ),
+        ),
+        OfficialCorner(
+            2,
+            "Uphill Right",
+            0.10,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="uphill",
+            camber="positive",
+            coaching_notes="Uphill helps braking. Carry speed — exit sets up T3 climb.",
+        ),
+        OfficialCorner(
+            3,
+            "Uphill Crest",
+            0.15,
+            direction="left",
+            corner_type="kink",
+            elevation_trend="crest",
+            camber="positive",
+            coaching_notes="Car goes light over the crest. Smooth inputs — don't upset the car.",
+        ),
+        OfficialCorner(
+            4,
+            "Hilltop Right",
+            0.20,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="downhill",
+            camber="positive",
+            coaching_notes=(
+                "Downhill exit into long straight to T5. Sacrifice entry for strong exit."
+            ),
+        ),
+        OfficialCorner(
+            5,
+            "Charlotte's Web",
+            0.30,
+            direction="right",
+            corner_type="hairpin",
+            elevation_trend="flat",
+            camber="positive",
+            coaching_notes=(
+                "Key overtaking spot. Use brake boards. Very late apex — corner tightens at exit."
+            ),
+        ),
+        OfficialCorner(
+            6,
+            "Downhill Left Kink",
+            0.34,
+            character="flat",
+            direction="left",
+            corner_type="kink",
+            elevation_trend="downhill",
+            coaching_notes="Flat out. Smooth steering — downhill transition to corkscrew.",
+        ),
+        OfficialCorner(
+            7,
+            "Corkscrew Entry",
+            0.40,
+            direction="left",
+            corner_type="sweeper",
+            elevation_trend="downhill",
+            camber="positive",
+            coaching_notes="Downhill entry — braking distance is longer. Trail brake to rotate.",
+        ),
+        OfficialCorner(
+            8,
+            "Corkscrew Mid",
+            0.44,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="downhill",
+            camber="positive",
+            coaching_notes="Steep downhill. Stay patient on throttle — car is still descending.",
+        ),
+        OfficialCorner(
+            9,
+            "Corkscrew Exit",
+            0.49,
+            direction="left",
+            corner_type="sweeper",
+            elevation_trend="compression",
+            coaching_notes="Compression at bottom loads the car. Use the grip to accelerate hard.",
+        ),
+        OfficialCorner(
+            10,
+            "Esses Left",
+            0.58,
+            character="flat",
+            direction="left",
+            corner_type="esses",
+            elevation_trend="flat",
+            coaching_notes="Flat out or brief lift. Smooth transition to T11.",
+        ),
+        OfficialCorner(
+            11,
+            "Esses Right",
+            0.62,
+            character="lift",
+            direction="right",
+            corner_type="esses",
+            elevation_trend="flat",
+            coaching_notes="Brief lift, not heavy braking. Smooth weight transfer left to right.",
+        ),
+        OfficialCorner(
+            12,
+            "Rollercoaster Entry",
+            0.73,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="downhill",
+            camber="off-camber",
+            blind=True,
+            coaching_notes=(
+                "Significant downhill, car goes light over crest. Blind entry "
+                "— commit to reference points."
+            ),
+        ),
+        OfficialCorner(
+            13,
+            "Rollercoaster Mid",
+            0.76,
+            character="flat",
+            direction="left",
+            corner_type="kink",
+            elevation_trend="crest",
+            coaching_notes="Car crests and goes light. Stay smooth — don't lift abruptly.",
+        ),
+        OfficialCorner(
+            14,
+            "Rollercoaster Exit",
+            0.81,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="uphill",
+            camber="positive",
+            coaching_notes="Uphill exit adds grip. Get on power early for the run to T15.",
+        ),
+        OfficialCorner(
+            15,
+            "Blind Apex Right",
+            0.87,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="flat",
+            camber="positive",
+            blind=True,
+            coaching_notes="Blind apex. Don't overdrive — exit speed sets up T16.",
+        ),
+        OfficialCorner(
+            16,
+            "Final Left",
+            0.90,
+            direction="left",
+            corner_type="sweeper",
+            elevation_trend="flat",
+            camber="positive",
+            coaching_notes=(
+                "Exit speed onto main straight is critical. Sacrifice entry for strong exit."
+            ),
+        ),
     ],
 )
 
@@ -248,15 +414,13 @@ def locate_official_corners(
     """
     max_dist = float(lap_df["lap_distance_m"].iloc[-1])
 
-    # Compute apex distances from fractions, sorted by position on track
-    apex_positions: list[tuple[int, float, str | None]] = [
-        (c.number, c.fraction * max_dist, c.character)
-        for c in sorted(layout.corners, key=lambda c: c.fraction)
-    ]
+    # Sort corners by position on track, keeping the full OfficialCorner reference
+    sorted_corners = sorted(layout.corners, key=lambda c: c.fraction)
+    apex_positions = [(c, c.fraction * max_dist) for c in sorted_corners]
 
     # Build skeleton corners with entry/exit at midpoints
     skeletons: list[Corner] = []
-    for i, (number, apex_m, character) in enumerate(apex_positions):
+    for i, (oc, apex_m) in enumerate(apex_positions):
         if i == 0:
             entry_m = max(0.0, apex_m - _ZONE_MARGIN_M)
         else:
@@ -269,7 +433,7 @@ def locate_official_corners(
 
         skeletons.append(
             Corner(
-                number=number,
+                number=oc.number,
                 entry_distance_m=round(entry_m, 1),
                 exit_distance_m=round(exit_m, 1),
                 apex_distance_m=round(apex_m, 1),
@@ -278,7 +442,13 @@ def locate_official_corners(
                 peak_brake_g=None,
                 throttle_commit_m=None,
                 apex_type="mid",
-                character=character,
+                character=oc.character,
+                direction=oc.direction,
+                corner_type_hint=oc.corner_type,
+                elevation_trend=oc.elevation_trend,
+                camber=oc.camber,
+                blind=oc.blind,
+                coaching_notes=oc.coaching_notes,
             )
         )
 

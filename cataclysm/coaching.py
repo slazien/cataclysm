@@ -327,6 +327,20 @@ def _format_corner_analysis(analysis: SessionCornerAnalysis) -> str:
                 "— focus on smooth carry)"
             )
 
+        # Enriched coaching context
+        rec = ca.recommendation
+        if rec.elevation_trend and rec.elevation_trend != "flat":
+            grad = f" ({rec.gradient_pct:.1f}%)" if rec.gradient_pct else ""
+            lines.append(f"  Elevation: {rec.elevation_trend.upper()}{grad}")
+        if rec.corner_type_hint:
+            lines.append(f"  Type: {rec.corner_type_hint}")
+        if rec.blind:
+            lines.append("  Visibility: BLIND — trust reference points, not visual apex")
+        if rec.camber and rec.camber not in ("positive", None):
+            lines.append(f"  Camber: {rec.camber}")
+        if rec.coaching_notes:
+            lines.append(f"  Coach tip: {rec.coaching_notes}")
+
         # Min speed
         ms = ca.stats_min_speed
         lines.append(f"  Min speed: best={ms.best:.1f} mean={ms.mean:.1f} std={ms.std:.1f} mph")

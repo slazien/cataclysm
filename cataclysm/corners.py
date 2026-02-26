@@ -32,6 +32,15 @@ class Corner:
     parent_complex: int | None = None  # hierarchical grouping ID
     detection_method: str | None = None  # "heading_rate" | "spline" | "pelt" | "css" | "asc"
     character: str | None = None  # "flat" | "lift" | "brake" | None (auto-detect)
+    # Curated coaching knowledge (from OfficialCorner)
+    corner_type_hint: str | None = None  # "hairpin" | "sweeper" etc.
+    elevation_trend: str | None = None  # "uphill" | "downhill" | "flat" | "crest" | "compression"
+    camber: str | None = None  # "positive" | "negative" | "off-camber"
+    blind: bool = False  # Blind apex or exit
+    coaching_notes: str | None = None  # Instructor tip
+    # Computed elevation (from elevation.py)
+    elevation_change_m: float | None = None
+    gradient_pct: float | None = None
 
 
 # Detection parameters
@@ -587,6 +596,14 @@ def extract_corner_kpis_for_lap(
                 apex_lat=a_lat,
                 apex_lon=a_lon,
                 character=ref.character,
+                direction=ref.direction,
+                corner_type_hint=ref.corner_type_hint,
+                elevation_trend=ref.elevation_trend,
+                camber=ref.camber,
+                blind=ref.blind,
+                coaching_notes=ref.coaching_notes,
+                elevation_change_m=ref.elevation_change_m,
+                gradient_pct=ref.gradient_pct,
             )
         )
         prev_exit = exit_idx

@@ -533,3 +533,63 @@ class TestBackwardCompatibility:
         assert c.parent_complex is None
         assert c.detection_method is None
         assert c.character is None
+        assert c.corner_type_hint is None
+        assert c.elevation_trend is None
+        assert c.camber is None
+        assert c.blind is False
+        assert c.coaching_notes is None
+        assert c.elevation_change_m is None
+        assert c.gradient_pct is None
+
+
+class TestCornerCoachingFieldDefaults:
+    """Tests that coaching knowledge fields default correctly."""
+
+    def test_defaults(self) -> None:
+        c = Corner(
+            number=1,
+            entry_distance_m=0,
+            exit_distance_m=100,
+            apex_distance_m=50,
+            min_speed_mps=20.0,
+            brake_point_m=None,
+            peak_brake_g=None,
+            throttle_commit_m=None,
+            apex_type="mid",
+        )
+        assert c.corner_type_hint is None
+        assert c.elevation_trend is None
+        assert c.camber is None
+        assert c.blind is False
+        assert c.coaching_notes is None
+        assert c.elevation_change_m is None
+        assert c.gradient_pct is None
+
+
+class TestExtractKpisPreservesCoachingFields:
+    """extract_corner_kpis_for_lap should copy coaching fields from reference."""
+
+    def test_coaching_fields_copied(self, sample_resampled_lap: pd.DataFrame) -> None:
+        ref = detect_corners(sample_resampled_lap)
+        if not ref:
+            pytest.skip("No corners detected")
+        # Set coaching fields on reference corners
+        ref[0].direction = "left"
+        ref[0].corner_type_hint = "hairpin"
+        ref[0].elevation_trend = "downhill"
+        ref[0].camber = "off-camber"
+        ref[0].blind = True
+        ref[0].coaching_notes = "Brake early."
+        ref[0].elevation_change_m = -5.0
+        ref[0].gradient_pct = -2.5
+
+        result = extract_corner_kpis_for_lap(sample_resampled_lap, ref)
+        c = result[0]
+        assert c.direction == "left"
+        assert c.corner_type_hint == "hairpin"
+        assert c.elevation_trend == "downhill"
+        assert c.camber == "off-camber"
+        assert c.blind is True
+        assert c.coaching_notes == "Brake early."
+        assert c.elevation_change_m == -5.0
+        assert c.gradient_pct == -2.5

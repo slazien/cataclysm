@@ -18,6 +18,7 @@ from typing import Any
 from cataclysm.consistency import compute_session_consistency
 from cataclysm.corners import Corner, detect_corners, extract_corner_kpis_for_lap
 from cataclysm.curvature import compute_curvature
+from cataclysm.elevation import compute_corner_elevation, enrich_corners_with_elevation
 from cataclysm.engine import LapSummary, ProcessedSession, find_anomalous_laps, process_session
 from cataclysm.equipment import equipment_to_vehicle_params
 from cataclysm.gains import (
@@ -83,6 +84,14 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
             all_lap_corners[lap_num] = corners
         else:
             all_lap_corners[lap_num] = extract_corner_kpis_for_lap(lap_df, corners)
+
+    # 5b. Enrich corners with elevation data
+    try:
+        elev = compute_corner_elevation(best_lap_df, corners)
+        if elev:
+            enrich_corners_with_elevation(all_lap_corners, elev)
+    except Exception:
+        logger.warning("Failed to compute elevation for %s", filename, exc_info=True)
 
     # 6. Compute consistency
     consistency = None

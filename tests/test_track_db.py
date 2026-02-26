@@ -322,3 +322,133 @@ class TestOfficialCornerCharacter:
         """Most Barber corners should have None character (auto-detect)."""
         none_count = sum(1 for c in BARBER_MOTORSPORTS_PARK.corners if c.character is None)
         assert none_count >= 10  # 16 total, 4 have explicit character
+
+
+class TestOfficialCornerCoachingFields:
+    """Tests for coaching knowledge fields on OfficialCorner."""
+
+    def test_defaults_none_and_false(self) -> None:
+        c = OfficialCorner(1, "T1", 0.5)
+        assert c.direction is None
+        assert c.corner_type is None
+        assert c.elevation_trend is None
+        assert c.camber is None
+        assert c.blind is False
+        assert c.coaching_notes is None
+
+    def test_populated_values(self) -> None:
+        c = OfficialCorner(
+            5,
+            "Charlotte's Web",
+            0.30,
+            direction="right",
+            corner_type="hairpin",
+            elevation_trend="flat",
+            camber="positive",
+            blind=False,
+            coaching_notes="Very late apex.",
+        )
+        assert c.direction == "right"
+        assert c.corner_type == "hairpin"
+        assert c.elevation_trend == "flat"
+        assert c.camber == "positive"
+        assert c.blind is False
+        assert c.coaching_notes == "Very late apex."
+
+
+class TestEnrichedFieldPropagation:
+    """Tests that locate_official_corners carries coaching fields to Corner."""
+
+    def _make_lap_df(self, max_dist: float = 1000.0, n: int = 100) -> pd.DataFrame:
+        return pd.DataFrame({"lap_distance_m": np.linspace(0, max_dist, n)})
+
+    def test_coaching_fields_propagated(self) -> None:
+        layout = TrackLayout(
+            name="Test",
+            corners=[
+                OfficialCorner(
+                    1,
+                    "Test Corner",
+                    0.50,
+                    direction="left",
+                    corner_type="hairpin",
+                    elevation_trend="downhill",
+                    camber="off-camber",
+                    blind=True,
+                    coaching_notes="Brake early.",
+                ),
+            ],
+        )
+        lap_df = self._make_lap_df()
+        result = locate_official_corners(lap_df, layout)
+        c = result[0]
+        assert c.direction == "left"
+        assert c.corner_type_hint == "hairpin"
+        assert c.elevation_trend == "downhill"
+        assert c.camber == "off-camber"
+        assert c.blind is True
+        assert c.coaching_notes == "Brake early."
+
+    def test_none_fields_propagated(self) -> None:
+        layout = TrackLayout(
+            name="Test",
+            corners=[OfficialCorner(1, "Plain", 0.50)],
+        )
+        lap_df = self._make_lap_df()
+        result = locate_official_corners(lap_df, layout)
+        c = result[0]
+        assert c.direction is None
+        assert c.corner_type_hint is None
+        assert c.coaching_notes is None
+        assert c.blind is False
+
+
+class TestBarberEnrichedData:
+    """Tests that specific Barber corners have expected curated values."""
+
+    def _get_corner(self, number: int) -> OfficialCorner:
+        matches = [c for c in BARBER_MOTORSPORTS_PARK.corners if c.number == number]
+        assert len(matches) == 1
+        return matches[0]
+
+    def test_t1_downhill_left(self) -> None:
+        c = self._get_corner(1)
+        assert c.direction == "left"
+        assert c.corner_type == "sweeper"
+        assert c.elevation_trend == "downhill"
+
+    def test_t5_hairpin(self) -> None:
+        c = self._get_corner(5)
+        assert c.direction == "right"
+        assert c.corner_type == "hairpin"
+        assert c.coaching_notes is not None
+        assert "late apex" in c.coaching_notes.lower()
+
+    def test_t12_blind_offcamber(self) -> None:
+        c = self._get_corner(12)
+        assert c.blind is True
+        assert c.camber == "off-camber"
+        assert c.elevation_trend == "downhill"
+
+    def test_t15_blind(self) -> None:
+        c = self._get_corner(15)
+        assert c.blind is True
+        assert c.direction == "right"
+
+    def test_t16_exit_critical(self) -> None:
+        c = self._get_corner(16)
+        assert c.direction == "left"
+        assert c.coaching_notes is not None
+        assert "exit" in c.coaching_notes.lower()
+
+    def test_all_corners_have_direction(self) -> None:
+        for c in BARBER_MOTORSPORTS_PARK.corners:
+            assert c.direction in ("left", "right"), f"T{c.number} missing direction"
+
+    def test_all_corners_have_coaching_notes(self) -> None:
+        for c in BARBER_MOTORSPORTS_PARK.corners:
+            assert c.coaching_notes is not None, f"T{c.number} missing coaching_notes"
+            assert len(c.coaching_notes) > 10, f"T{c.number} coaching_notes too short"
+
+    def test_elevation_range(self) -> None:
+        assert BARBER_MOTORSPORTS_PARK.elevation_range_m == pytest.approx(60.0)

@@ -57,6 +57,14 @@ class CornerRecommendation:
     gain_s: float
     corner_type: str  # "slow", "medium", "fast"
     character: str | None = None  # "flat" | "lift" | "brake" | None
+    # Enriched coaching knowledge
+    corner_type_hint: str | None = None  # "hairpin" | "sweeper" etc.
+    elevation_trend: str | None = None
+    camber: str | None = None
+    blind: bool = False
+    coaching_notes: str | None = None
+    elevation_change_m: float | None = None
+    gradient_pct: float | None = None
 
 
 @dataclass
@@ -326,6 +334,13 @@ def compute_corner_analysis(
             gain_s=gain_s,
             corner_type=corner_type,
             character=corner_character,
+            corner_type_hint=best_lap_corner.corner_type_hint,
+            elevation_trend=best_lap_corner.elevation_trend,
+            camber=best_lap_corner.camber,
+            blind=best_lap_corner.blind,
+            coaching_notes=best_lap_corner.coaching_notes,
+            elevation_change_m=best_lap_corner.elevation_change_m,
+            gradient_pct=best_lap_corner.gradient_pct,
         )
 
         # Time value: estimate approach speed via kinematics

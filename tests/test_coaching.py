@@ -1276,3 +1276,114 @@ class TestGenerateCoachingReportWithEquipment:
         assert "NT01" in prompt_text
         assert "damp" in prompt_text
         assert "80" in prompt_text
+
+
+# ---------------------------------------------------------------------------
+# Enriched coaching context in _format_corner_analysis
+# ---------------------------------------------------------------------------
+
+
+def _make_enriched_corner_analysis(
+    *,
+    coaching_notes: str | None = None,
+    elevation_trend: str | None = None,
+    gradient_pct: float | None = None,
+    corner_type_hint: str | None = None,
+    camber: str | None = None,
+    blind: bool = False,
+) -> SessionCornerAnalysis:
+    """Build a SessionCornerAnalysis with enriched coaching fields."""
+    ca = CornerAnalysis(
+        corner_number=5,
+        n_laps=4,
+        stats_min_speed=CornerStats(
+            best=38.0, mean=36.0, std=1.5, value_range=4.0, best_lap=1, n_laps=4
+        ),
+        stats_brake_point=None,
+        stats_peak_brake_g=None,
+        stats_throttle_commit=None,
+        apex_distribution={"mid": 4},
+        recommendation=CornerRecommendation(
+            target_brake_m=None,
+            target_brake_landmark=None,
+            target_min_speed_mph=38.0,
+            gain_s=0.10,
+            corner_type="slow",
+            coaching_notes=coaching_notes,
+            elevation_trend=elevation_trend,
+            gradient_pct=gradient_pct,
+            corner_type_hint=corner_type_hint,
+            camber=camber,
+            blind=blind,
+        ),
+        time_value=None,
+    )
+    return SessionCornerAnalysis(
+        corners=[ca],
+        best_lap=1,
+        total_consistency_gain_s=0.10,
+        n_laps_analyzed=4,
+    )
+
+
+class TestFormatIncludesCoachingNotes:
+    def test_coaching_notes_present(self) -> None:
+        analysis = _make_enriched_corner_analysis(
+            coaching_notes="Brake at the 3-board. Very late apex."
+        )
+        text = _format_corner_analysis(analysis)
+        assert "Coach tip:" in text
+        assert "Brake at the 3-board" in text
+
+    def test_coaching_notes_absent(self) -> None:
+        analysis = _make_enriched_corner_analysis()
+        text = _format_corner_analysis(analysis)
+        assert "Coach tip:" not in text
+
+
+class TestFormatIncludesElevation:
+    def test_elevation_downhill(self) -> None:
+        analysis = _make_enriched_corner_analysis(elevation_trend="downhill", gradient_pct=-3.5)
+        text = _format_corner_analysis(analysis)
+        assert "Elevation: DOWNHILL" in text
+        assert "-3.5%" in text
+
+    def test_elevation_flat_omitted(self) -> None:
+        analysis = _make_enriched_corner_analysis(elevation_trend="flat")
+        text = _format_corner_analysis(analysis)
+        assert "Elevation:" not in text
+
+
+class TestFormatIncludesEnrichedFields:
+    def test_corner_type_hint(self) -> None:
+        analysis = _make_enriched_corner_analysis(corner_type_hint="hairpin")
+        text = _format_corner_analysis(analysis)
+        assert "Type: hairpin" in text
+
+    def test_blind_visibility(self) -> None:
+        analysis = _make_enriched_corner_analysis(blind=True)
+        text = _format_corner_analysis(analysis)
+        assert "Visibility: BLIND" in text
+
+    def test_camber_off_camber(self) -> None:
+        analysis = _make_enriched_corner_analysis(camber="off-camber")
+        text = _format_corner_analysis(analysis)
+        assert "Camber: off-camber" in text
+
+    def test_positive_camber_omitted(self) -> None:
+        """Positive camber is the default and should not be shown."""
+        analysis = _make_enriched_corner_analysis(camber="positive")
+        text = _format_corner_analysis(analysis)
+        assert "Camber:" not in text
+
+
+class TestFormatOmitsEnrichedWhenNone:
+    def test_all_none(self) -> None:
+        """No enriched lines when all coaching fields are None."""
+        analysis = _make_enriched_corner_analysis()
+        text = _format_corner_analysis(analysis)
+        assert "Elevation:" not in text
+        assert "Type:" not in text
+        assert "Visibility:" not in text
+        assert "Camber:" not in text
+        assert "Coach tip:" not in text
