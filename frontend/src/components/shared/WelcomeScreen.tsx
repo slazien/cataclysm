@@ -1,11 +1,12 @@
 'use client';
 
-import { useRef, useState, useCallback } from 'react';
-import { Upload, FileSpreadsheet } from 'lucide-react';
+import { useRef, useState, useCallback, useEffect } from 'react';
+import { Upload, FileSpreadsheet, ChevronDown } from 'lucide-react';
 import { useSessionStore } from '@/stores';
 import { useUploadSessions } from '@/hooks/useSession';
 import { useTracks, useLoadTrackFolder } from '@/hooks/useTracks';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export function WelcomeScreen() {
   const uploadMutation = useUploadSessions();
@@ -15,6 +16,16 @@ export function WelcomeScreen() {
   const [isDragging, setIsDragging] = useState(false);
   const [loadingSample, setLoadingSample] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [instructionsOpen, setInstructionsOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 1023px)');
+    setIsMobile(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
 
   const handleFiles = useCallback(
     (files: File[]) => {
@@ -125,15 +136,19 @@ export function WelcomeScreen() {
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onClick={() => fileInputRef.current?.click()}
-        className={`flex w-full max-w-md cursor-pointer flex-col items-center gap-4 rounded-xl border-2 border-dashed p-10 transition-colors ${
+        className={cn(
+          'flex w-full max-w-md cursor-pointer flex-col items-center gap-4 rounded-xl border-2 border-dashed p-6 lg:p-10 min-h-[12rem] lg:min-h-0 transition-colors',
           isDragging
             ? 'border-[var(--cata-accent)] bg-[var(--cata-accent)]/5'
-            : 'border-[var(--cata-border)] bg-[var(--bg-surface)] hover:border-[var(--text-muted)]'
-        }`}
+            : 'border-[var(--cata-border)] bg-[var(--bg-surface)] hover:border-[var(--text-muted)]',
+        )}
       >
         <div className="rounded-full bg-[var(--bg-elevated)] p-4">
           <Upload
-            className={`h-8 w-8 ${isDragging ? 'text-[var(--cata-accent)]' : 'text-[var(--text-muted)]'}`}
+            className={cn(
+              'h-8 w-8',
+              isDragging ? 'text-[var(--cata-accent)]' : 'text-[var(--text-muted)]',
+            )}
           />
         </div>
         <div className="text-center">
@@ -177,29 +192,43 @@ export function WelcomeScreen() {
 
       {/* How to export from RaceChrono */}
       <div className="w-full max-w-sm rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-          How to export from RaceChrono
-        </h3>
-        <ol className="mt-3 space-y-2 text-sm text-[var(--text-secondary)]">
-          <li className="flex items-start gap-2">
-            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-xs font-bold text-[var(--text-muted)]">
-              1
-            </span>
-            Open session in RaceChrono Pro
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-xs font-bold text-[var(--text-muted)]">
-              2
-            </span>
-            Tap Export → CSV v3 format
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-xs font-bold text-[var(--text-muted)]">
-              3
-            </span>
-            Include GPS, speed, and lap data channels
-          </li>
-        </ol>
+        <button
+          type="button"
+          onClick={() => setInstructionsOpen((o) => !o)}
+          className="flex w-full items-center justify-between"
+        >
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            How to export from RaceChrono
+          </h3>
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 text-[var(--text-muted)] transition-transform',
+              (instructionsOpen || !isMobile) ? 'rotate-180' : '',
+            )}
+          />
+        </button>
+        {(instructionsOpen || !isMobile) && (
+          <ol className="mt-3 space-y-2 text-sm text-[var(--text-secondary)]">
+            <li className="flex items-start gap-2">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-xs font-bold text-[var(--text-muted)]">
+                1
+              </span>
+              Open session in RaceChrono Pro
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-xs font-bold text-[var(--text-muted)]">
+                2
+              </span>
+              Tap Export → CSV v3 format
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-xs font-bold text-[var(--text-muted)]">
+                3
+              </span>
+              Include GPS, speed, and lap data channels
+            </li>
+          </ol>
+        )}
       </div>
     </div>
   );

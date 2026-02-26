@@ -2,12 +2,12 @@ export interface SessionSummary {
   session_id: string;
   track_name: string;
   session_date: string;
-  n_laps: number;
-  n_clean_laps: number;
-  best_lap_time_s: number;
-  top3_avg_time_s: number;
-  avg_lap_time_s: number;
-  consistency_score: number;
+  n_laps: number | null;
+  n_clean_laps: number | null;
+  best_lap_time_s: number | null;
+  top3_avg_time_s: number | null;
+  avg_lap_time_s: number | null;
+  consistency_score: number | null;
 }
 
 export interface LapSummary {

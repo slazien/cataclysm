@@ -77,7 +77,7 @@ export function SessionSelector({ currentSessionId }: SessionSelectorProps) {
             {currentSession.track_name} &mdash; {currentSession.session_date}
           </p>
           <p className="mt-0.5 font-mono text-lg font-semibold text-[var(--text-primary)]">
-            {formatLapTime(currentSession.best_lap_time_s)}
+            {formatLapTime(currentSession.best_lap_time_s ?? 0)}
           </p>
         </div>
       )}
@@ -121,12 +121,12 @@ export function SessionSelector({ currentSessionId }: SessionSelectorProps) {
                       {s.track_name}
                     </p>
                     <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-                      {s.session_date} &middot; {s.n_clean_laps}/{s.n_laps} clean laps
+                      {s.session_date} &middot; {s.n_clean_laps ?? 0}/{s.n_laps ?? 0} clean laps
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="font-mono text-sm font-semibold text-[var(--text-primary)]">
-                      {formatLapTime(s.best_lap_time_s)}
+                      {formatLapTime(s.best_lap_time_s ?? 0)}
                     </p>
                     <p className="font-mono text-xs text-[var(--text-muted)]">
                       {s.session_id.slice(0, 8)}
