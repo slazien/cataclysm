@@ -467,6 +467,131 @@ async def get_session_weather(
     return {"session_id": session_id, "weather": None}
 
 
+@router.post("/backfill-weather")
+async def backfill_weather(
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, object]:
+    """Backfill weather for all user sessions missing it.
+
+    Uses the stored GPS centroid and session date from snapshot_json
+    to fetch weather from Open-Meteo for sessions that were uploaded
+    before weather auto-fetch was implemented.
+    """
+    from datetime import UTC, datetime
+
+    from cataclysm.weather_client import lookup_weather
+
+    db_rows = await list_sessions_for_user(db, current_user.user_id)
+    backfilled = 0
+    skipped = 0
+    failed = 0
+
+    for row in db_rows:
+        snap = row.snapshot_json or {}
+
+        # Skip if weather already exists in snapshot
+        if snap.get("weather"):
+            skipped += 1
+            continue
+
+        # Need GPS centroid to fetch weather
+        centroid = snap.get("gps_centroid")
+        if not centroid:
+            # Try in-memory session for GPS data
+            sd = session_store.get_session(row.session_id)
+            if sd is not None and sd.weather is None:
+                try:
+                    await _auto_fetch_weather(sd)
+                    if sd.weather is not None:
+                        # Persist to DB snapshot_json
+                        w = sd.weather
+                        snap["weather"] = {
+                            "track_condition": w.track_condition.value
+                            if hasattr(w.track_condition, "value")
+                            else str(w.track_condition),
+                            "ambient_temp_c": w.ambient_temp_c,
+                            "track_temp_c": w.track_temp_c,
+                            "humidity_pct": w.humidity_pct,
+                            "wind_speed_kmh": w.wind_speed_kmh,
+                            "wind_direction_deg": w.wind_direction_deg,
+                            "precipitation_mm": w.precipitation_mm,
+                            "weather_source": w.weather_source,
+                        }
+                        row.snapshot_json = snap
+                        await db.flush()
+                        backfilled += 1
+                        continue
+                except Exception:
+                    logger.warning("Backfill via memory failed for %s", row.session_id)
+            skipped += 1
+            continue
+
+        lat = centroid.get("lat")
+        lon = centroid.get("lon")
+        if lat is None or lon is None:
+            skipped += 1
+            continue
+
+        # Parse session date
+        session_dt: datetime | None = None
+        if row.session_date:
+            dt = row.session_date
+            session_dt = dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt
+        if session_dt is None:
+            skipped += 1
+            continue
+
+        try:
+            weather = await lookup_weather(lat, lon, session_dt)
+            if weather is None:
+                failed += 1
+                continue
+
+            # Update snapshot_json with weather
+            w = weather
+            snap["weather"] = {
+                "track_condition": w.track_condition.value
+                if hasattr(w.track_condition, "value")
+                else str(w.track_condition),
+                "ambient_temp_c": w.ambient_temp_c,
+                "track_temp_c": w.track_temp_c,
+                "humidity_pct": w.humidity_pct,
+                "wind_speed_kmh": w.wind_speed_kmh,
+                "wind_direction_deg": w.wind_direction_deg,
+                "precipitation_mm": w.precipitation_mm,
+                "weather_source": w.weather_source,
+            }
+            row.snapshot_json = snap
+            await db.flush()
+
+            # Also update in-memory store if available
+            sd = session_store.get_session(row.session_id)
+            if sd is not None:
+                sd.weather = weather
+
+            backfilled += 1
+            logger.info(
+                "Backfilled weather for %s: %s, %.1f°C",
+                row.session_id,
+                w.track_condition.value
+                if hasattr(w.track_condition, "value")
+                else str(w.track_condition),
+                w.ambient_temp_c or 0,
+            )
+        except Exception:
+            logger.warning("Weather backfill failed for %s", row.session_id, exc_info=True)
+            failed += 1
+
+    await db.commit()
+    return {
+        "backfilled": backfilled,
+        "skipped": skipped,
+        "failed": failed,
+        "total": len(db_rows),
+    }
+
+
 @router.get("/{session_id}/laps", response_model=list[LapSummary])
 async def get_lap_summaries(
     session_id: str,
