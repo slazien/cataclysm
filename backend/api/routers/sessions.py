@@ -17,7 +17,7 @@ from backend.api.schemas.session import (
     SessionSummary,
     UploadResponse,
 )
-from backend.api.services import session_store
+from backend.api.services import equipment_store, session_store
 from backend.api.services.pipeline import process_upload
 
 logger = logging.getLogger(__name__)
@@ -25,6 +25,25 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 MPS_TO_MPH = 2.23694
+
+
+def _equipment_fields(session_id: str) -> dict[str, str | None]:
+    """Look up equipment for a session and return fields for SessionSummary."""
+    tire_model: str | None = None
+    compound_category: str | None = None
+    profile_name: str | None = None
+    se = equipment_store.get_session_equipment(session_id)
+    if se is not None:
+        profile = equipment_store.get_profile(se.profile_id)
+        if profile is not None:
+            tire_model = profile.tires.model
+            compound_category = profile.tires.compound_category.value
+            profile_name = profile.name
+    return {
+        "tire_model": tire_model,
+        "compound_category": compound_category,
+        "equipment_profile_name": profile_name,
+    }
 
 
 @router.post("/upload", response_model=UploadResponse)
@@ -76,6 +95,7 @@ async def list_sessions() -> SessionList:
             top3_avg_time_s=sd.snapshot.top3_avg_time_s,
             avg_lap_time_s=sd.snapshot.avg_lap_time_s,
             consistency_score=sd.snapshot.consistency_score,
+            **_equipment_fields(sd.session_id),
         )
         for sd in all_sessions
     ]
@@ -99,6 +119,7 @@ async def get_session(session_id: str) -> SessionSummary:
         top3_avg_time_s=sd.snapshot.top3_avg_time_s,
         avg_lap_time_s=sd.snapshot.avg_lap_time_s,
         consistency_score=sd.snapshot.consistency_score,
+        **_equipment_fields(sd.session_id),
     )
 
 

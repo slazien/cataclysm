@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
+from unittest.mock import patch
 
 import pytest
 import pytest_asyncio
@@ -10,15 +11,25 @@ from httpx import ASGITransport, AsyncClient
 
 from backend.api.main import app
 from backend.api.services import equipment_store
+from backend.api.services.session_store import clear_all as clear_all_sessions
+
+
+@pytest.fixture(autouse=True)
+def _disable_auto_coaching() -> Generator[None, None, None]:
+    """Disable auto-coaching on upload in equipment tests."""
+    with patch("backend.api.routers.sessions.trigger_auto_coaching"):
+        yield
 
 
 @pytest_asyncio.fixture
 async def client() -> AsyncGenerator[AsyncClient, None]:
     equipment_store.clear_all_equipment()
+    clear_all_sessions()
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
     equipment_store.clear_all_equipment()
+    clear_all_sessions()
 
 
 SAMPLE_TIRE: dict[str, object] = {
@@ -167,3 +178,79 @@ async def test_delete_missing_profile_404(client: AsyncClient) -> None:
     """DELETE a nonexistent profile returns 404."""
     resp = await client.delete("/api/equipment/profiles/eq_nonexistent99")
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_session_list_includes_equipment(client: AsyncClient) -> None:
+    """After assigning equipment, session list shows tire info."""
+    from backend.tests.conftest import build_synthetic_csv
+
+    csv_bytes = build_synthetic_csv()
+    files = {"files": ("test.csv", csv_bytes, "text/csv")}
+    resp = await client.post("/api/sessions/upload", files=files)
+    assert resp.status_code == 200
+    session_id = resp.json()["session_ids"][0]
+
+    # Create profile + assign to session
+    resp = await client.post("/api/equipment/profiles", json=SAMPLE_PROFILE)
+    profile_id = resp.json()["id"]
+    await client.put(
+        f"/api/equipment/{session_id}/equipment",
+        json={"profile_id": profile_id},
+    )
+
+    # Verify session list includes equipment
+    resp = await client.get("/api/sessions")
+    items = resp.json()["items"]
+    match = [s for s in items if s["session_id"] == session_id]
+    assert len(match) == 1
+    assert match[0]["tire_model"] == "Bridgestone RE-71RS"
+    assert match[0]["compound_category"] == "super_200tw"
+    assert match[0]["equipment_profile_name"] == "Track Day Setup"
+
+
+@pytest.mark.asyncio
+async def test_single_session_includes_equipment(client: AsyncClient) -> None:
+    """After assigning equipment, single session endpoint shows tire info."""
+    from backend.tests.conftest import build_synthetic_csv
+
+    csv_bytes = build_synthetic_csv()
+    files = {"files": ("test.csv", csv_bytes, "text/csv")}
+    resp = await client.post("/api/sessions/upload", files=files)
+    assert resp.status_code == 200
+    session_id = resp.json()["session_ids"][0]
+
+    # Create profile + assign to session
+    resp = await client.post("/api/equipment/profiles", json=SAMPLE_PROFILE)
+    profile_id = resp.json()["id"]
+    await client.put(
+        f"/api/equipment/{session_id}/equipment",
+        json={"profile_id": profile_id},
+    )
+
+    # Verify single session endpoint includes equipment
+    resp = await client.get(f"/api/sessions/{session_id}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["tire_model"] == "Bridgestone RE-71RS"
+    assert data["compound_category"] == "super_200tw"
+    assert data["equipment_profile_name"] == "Track Day Setup"
+
+
+@pytest.mark.asyncio
+async def test_session_without_equipment_has_null_fields(client: AsyncClient) -> None:
+    """Session without equipment assignment has null tire fields."""
+    from backend.tests.conftest import build_synthetic_csv
+
+    csv_bytes = build_synthetic_csv()
+    files = {"files": ("test.csv", csv_bytes, "text/csv")}
+    resp = await client.post("/api/sessions/upload", files=files)
+    assert resp.status_code == 200
+    session_id = resp.json()["session_ids"][0]
+
+    resp = await client.get(f"/api/sessions/{session_id}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["tire_model"] is None
+    assert data["compound_category"] is None
+    assert data["equipment_profile_name"] is None

@@ -19,6 +19,9 @@ class SessionSummary(BaseModel):
     top3_avg_time_s: float | None = None
     avg_lap_time_s: float | None = None
     consistency_score: float | None = None
+    tire_model: str | None = None
+    compound_category: str | None = None
+    equipment_profile_name: str | None = None
 
 
 class SessionList(BaseModel):
