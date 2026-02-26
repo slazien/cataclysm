@@ -9,10 +9,36 @@ import numpy as np
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import JSON, event
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from backend.api.db.database import get_db
+from backend.api.db.models import Base
 from backend.api.dependencies import AuthenticatedUser, get_current_user
 from backend.api.main import app
 from backend.api.services.session_store import clear_all
+
+# In-memory SQLite for test isolation — map JSONB → JSON for SQLite compat
+_test_engine = create_async_engine("sqlite+aiosqlite:///", echo=False)
+
+
+@event.listens_for(_test_engine.sync_engine, "connect")
+def _set_sqlite_pragma(dbapi_conn: object, connection_record: object) -> None:
+    """Enable WAL mode and foreign keys for SQLite test database."""
+    cursor = dbapi_conn.cursor()  # type: ignore[union-attr]
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
+
+# Patch JSONB columns to use JSON for SQLite
+for table in Base.metadata.tables.values():
+    for column in table.columns:
+        if isinstance(column.type, JSONB):
+            column.type = JSON()
+_test_session_factory = async_sessionmaker(
+    bind=_test_engine, class_=AsyncSession, expire_on_commit=False
+)
 
 _TEST_USER = AuthenticatedUser(
     user_id="test-user-123",
@@ -182,6 +208,29 @@ def _mock_auth() -> Generator[None, None, None]:
     app.dependency_overrides[get_current_user] = lambda: _TEST_USER
     yield
     app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _test_db() -> AsyncGenerator[None, None]:
+    """Create tables in in-memory SQLite and override get_db for each test."""
+    async with _test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:
+        async with _test_session_factory() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+
+    app.dependency_overrides[get_db] = _override_get_db
+    yield
+    app.dependency_overrides.pop(get_db, None)
+
+    async with _test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
 
 
 @pytest_asyncio.fixture
