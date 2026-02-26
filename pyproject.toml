@@ -45,6 +45,7 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 check_untyped_defs = true
+exclude = ["backend/api/db/migrations/"]
 
 [[tool.mypy.overrides]]
 module = [
@@ -69,6 +70,8 @@ module = [
     "jose",
     "jose.*",
     "aiosqlite",
+    "alembic",
+    "alembic.*",
 ]
 ignore_missing_imports = true
 disable_error_code = ["import-untyped"]
