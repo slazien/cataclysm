@@ -215,6 +215,22 @@ async def compare_sessions(
     return ComparisonResult(**result)
 
 
+@router.delete("/all/clear")
+async def delete_all_sessions(
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, str]:
+    """Delete all sessions for the current user."""
+    db_rows = await list_sessions_for_user(db, current_user.user_id)
+    sids = [row.session_id for row in db_rows]
+    for sid in sids:
+        await delete_session_db(db, sid, current_user.user_id)
+        session_store.delete_session(sid)
+        await clear_coaching_data(sid)
+    await db.commit()
+    return {"message": f"Deleted {len(sids)} session(s)"}
+
+
 @router.delete("/{session_id}")
 async def delete_session(
     session_id: str,
@@ -229,22 +245,6 @@ async def delete_session(
     session_store.delete_session(session_id)
     await clear_coaching_data(session_id)
     return {"message": f"Session {session_id} deleted"}
-
-
-@router.delete("/all/clear")
-async def delete_all_sessions(
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> dict[str, str]:
-    """Delete all sessions for the current user."""
-    db_rows = await list_sessions_for_user(db, current_user.user_id)
-    count = 0
-    for row in db_rows:
-        await delete_session_db(db, row.session_id, current_user.user_id)
-        session_store.delete_session(row.session_id)
-        await clear_coaching_data(row.session_id)
-        count += 1
-    return {"message": f"Deleted {count} session(s)"}
 
 
 @router.get("/{session_id}/laps", response_model=list[LapSummary])

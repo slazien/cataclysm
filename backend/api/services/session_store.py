@@ -8,6 +8,7 @@ later phase.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 
 from cataclysm.consistency import SessionConsistency
@@ -19,6 +20,8 @@ from cataclysm.grip import GripEstimate
 from cataclysm.lap_tags import LapTagStore
 from cataclysm.parser import ParsedSession
 from cataclysm.trends import SessionSnapshot
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -46,17 +49,30 @@ _store: dict[str, SessionData] = {}
 
 def store_session(session_id: str, data: SessionData) -> None:
     """Persist a session in the in-memory store."""
+    logger.info("Storing session %s (total: %d)", session_id, len(_store) + 1)
     _store[session_id] = data
 
 
 def get_session(session_id: str) -> SessionData | None:
     """Retrieve a session by ID, or None if not found."""
-    return _store.get(session_id)
+    result = _store.get(session_id)
+    if result is None and _store:
+        logger.debug(
+            "Session %s not found in memory store (store has %d sessions)",
+            session_id,
+            len(_store),
+        )
+    return result
 
 
 def delete_session(session_id: str) -> bool:
     """Delete a session by ID. Returns True if it existed."""
-    return _store.pop(session_id, None) is not None
+    existed = _store.pop(session_id, None) is not None
+    if existed:
+        logger.info("Deleted session %s from memory (remaining: %d)", session_id, len(_store))
+    else:
+        logger.warning("Attempted to delete non-existent session %s", session_id)
+    return existed
 
 
 def list_sessions() -> list[SessionData]:
