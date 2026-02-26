@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def trigger_auto_coaching(session_id: str, sd: SessionData) -> None:
+async def trigger_auto_coaching(session_id: str, sd: SessionData) -> None:
     """Fire-and-forget coaching generation for a newly uploaded session.
 
     Silently skips if a report already exists or is currently generating.
@@ -56,7 +56,7 @@ def trigger_auto_coaching(session_id: str, sd: SessionData) -> None:
     """
     if is_generating(session_id):
         return
-    if get_coaching_report(session_id) is not None:
+    if await get_coaching_report(session_id) is not None:
         return
 
     mark_generating(session_id)
@@ -84,11 +84,11 @@ async def generate_report(
 
     # If report already exists and succeeded, return it.
     # If it errored, clear it so the user can retry.
-    existing = get_coaching_report(session_id)
+    existing = await get_coaching_report(session_id)
     if existing is not None:
         if existing.status != "error":
             return existing
-        clear_coaching_data(session_id)
+        await clear_coaching_data(session_id)
 
     mark_generating(session_id)
 
@@ -182,10 +182,10 @@ async def _run_generation(
             validation_violations=report.validation_violations,
         )
 
-        store_coaching_report(session_id, response)
+        await store_coaching_report(session_id, response, skill_level)
     except Exception:
         logger.exception("Failed to generate coaching report for %s", session_id)
-        store_coaching_report(
+        await store_coaching_report(
             session_id,
             CoachingReportResponse(
                 session_id=session_id,
@@ -207,7 +207,7 @@ async def get_report(
     Returns the stored report, a "generating" status if in progress,
     or 404 if no report has been generated or requested.
     """
-    report = get_coaching_report(session_id)
+    report = await get_coaching_report(session_id)
     if report is not None:
         return report
 
@@ -290,7 +290,7 @@ async def download_pdf_report(
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
-    coaching_response = get_coaching_report(session_id)
+    coaching_response = await get_coaching_report(session_id)
     if coaching_response is None or coaching_response.status != "ready":
         raise HTTPException(
             status_code=404,
@@ -340,7 +340,7 @@ async def coaching_chat(
         await websocket.close()
         return
 
-    report_response = get_coaching_report(session_id)
+    report_response = await get_coaching_report(session_id)
     if report_response is None:
         await websocket.send_json(
             FollowUpMessage(
@@ -354,10 +354,10 @@ async def coaching_chat(
     from cataclysm.coaching import CoachingContext, CoachingReport, ask_followup
 
     # Retrieve or create conversation context
-    ctx = get_coaching_context(session_id)
+    ctx = await get_coaching_context(session_id)
     if ctx is None:
         ctx = CoachingContext()
-        store_coaching_context(session_id, ctx)
+        await store_coaching_context(session_id, ctx)
 
     # Build a CoachingReport object for ask_followup
     coaching_report = CoachingReport(
@@ -409,7 +409,7 @@ async def coaching_chat(
                 gains=sd.gains,
             )
 
-            store_coaching_context(session_id, ctx)
+            await store_coaching_context(session_id, ctx)
 
             response = FollowUpMessage(role="assistant", content=answer)
             await websocket.send_json(response.model_dump())
