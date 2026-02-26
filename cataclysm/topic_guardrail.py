@@ -38,7 +38,7 @@ TOPIC_RESTRICTION_PROMPT = (
     "\n"
     "If the user asks about ANYTHING unrelated to motorsport, driving, cars, "
     "or vehicle performance, respond ONLY with:\n"
-    '"I\'m your motorsport driving coach — I can only help with driving '
+    "\"I'm your motorsport driving coach — I can only help with driving "
     "technique, telemetry analysis, and track performance. "
     'What would you like to know about your driving?"\n'
     "\n"
