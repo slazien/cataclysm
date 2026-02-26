@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
-import { Upload } from 'lucide-react';
+import { Upload, Sun, CloudDrizzle, CloudRain, Cloud } from 'lucide-react';
 import { useUiStore, useSessionStore } from '@/stores';
 import { useSessions, useUploadSessions, useDeleteAllSessions } from '@/hooks/useSession';
+import { useUnits } from '@/hooks/useUnits';
 import { formatLapTime, normalizeScore } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import {
@@ -172,6 +173,7 @@ export function SessionDrawer() {
                       {session.tire_model}
                     </span>
                   )}
+                  <WeatherBadge condition={session.weather_condition} tempC={session.weather_temp_c} />
                 </div>
               </button>
             ))}
@@ -194,6 +196,35 @@ export function SessionDrawer() {
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function WeatherBadge({
+  condition,
+  tempC,
+}: {
+  condition: string | null | undefined;
+  tempC: number | null | undefined;
+}) {
+  const { formatTemp } = useUnits();
+
+  if (condition == null && tempC == null) return null;
+
+  const condLower = (condition ?? '').toLowerCase();
+  const Icon =
+    condLower === 'clear' || condLower === 'sunny'
+      ? Sun
+      : condLower === 'drizzle' || condLower === 'light rain'
+        ? CloudDrizzle
+        : condLower === 'rain' || condLower === 'heavy rain'
+          ? CloudRain
+          : Cloud;
+
+  return (
+    <span className="inline-flex items-center gap-1 rounded bg-[var(--bg-elevated)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]">
+      <Icon className="h-2.5 w-2.5" />
+      {tempC != null && formatTemp(tempC)}
+    </span>
   );
 }
 

@@ -235,6 +235,10 @@ export interface ComparisonResult {
   distance_m: number[];
   delta_time_s: number[];
   corner_deltas: ComparisonCornerDelta[];
+  session_a_weather_condition?: string | null;
+  session_a_weather_temp_c?: number | null;
+  session_b_weather_condition?: string | null;
+  session_b_weather_temp_c?: number | null;
 }
 
 // --- Equipment Types ---

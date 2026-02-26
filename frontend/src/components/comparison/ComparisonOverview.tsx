@@ -8,6 +8,7 @@ import { formatLapTime } from '@/lib/formatters';
 import { Button } from '@/components/ui/button';
 import { DeltaTimeChart } from './DeltaTimeChart';
 import type { ComparisonResult } from '@/lib/types';
+import { ConditionsMismatchAlert } from '@/components/shared/ConditionsMismatchAlert';
 
 interface ComparisonOverviewProps {
   data: ComparisonResult;
@@ -109,6 +110,14 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
           </div>
         </div>
       </div>
+
+      {/* Conditions Mismatch Alert */}
+      <ConditionsMismatchAlert
+        conditionA={data.session_a_weather_condition}
+        tempA={data.session_a_weather_temp_c}
+        conditionB={data.session_b_weather_condition}
+        tempB={data.session_b_weather_temp_c}
+      />
 
       {/* Side-by-side Session Cards */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

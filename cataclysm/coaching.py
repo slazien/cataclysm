@@ -427,6 +427,66 @@ def _format_equipment_context(
     return "\n".join(lines)
 
 
+def _format_weather_context(
+    weather: SessionConditions | None,
+) -> str:
+    """Format weather conditions as context for the coaching prompt."""
+    if weather is None:
+        return ""
+
+    lines = ["\n## Weather Conditions"]
+    lines.append(f"**Track condition:** {weather.track_condition.value}")
+    if weather.ambient_temp_c is not None:
+        lines.append(f"**Ambient temp:** {weather.ambient_temp_c:.0f}\u00b0C")
+    if weather.humidity_pct is not None:
+        lines.append(f"**Humidity:** {weather.humidity_pct:.0f}%")
+    if weather.wind_speed_kmh is not None:
+        lines.append(f"**Wind:** {weather.wind_speed_kmh:.0f} km/h")
+    if weather.precipitation_mm is not None and weather.precipitation_mm > 0:
+        lines.append(f"**Precipitation:** {weather.precipitation_mm:.1f}mm")
+    return "\n".join(lines)
+
+
+def _format_cross_condition_context(
+    weather_a: SessionConditions | None,
+    weather_b: SessionConditions | None,
+) -> str:
+    """Format cross-condition context when comparing sessions in different weather."""
+    if weather_a is None or weather_b is None:
+        return ""
+
+    condition_differs = weather_a.track_condition != weather_b.track_condition
+    temp_a = weather_a.ambient_temp_c
+    temp_b = weather_b.ambient_temp_c
+    temp_differs = temp_a is not None and temp_b is not None and abs(temp_a - temp_b) >= 5.0
+
+    if not condition_differs and not temp_differs:
+        return ""
+
+    lines = [
+        "\n## Cross-Condition Warning",
+        "These sessions were driven in DIFFERENT conditions:",
+        f"- Session A: {weather_a.track_condition.value}"
+        + (f", {temp_a:.0f}\u00b0C" if temp_a is not None else ""),
+        f"- Session B: {weather_b.track_condition.value}"
+        + (f", {temp_b:.0f}\u00b0C" if temp_b is not None else ""),
+        "",
+        "IMPORTANT coaching adjustments:",
+        "- Factor weather differences into your analysis",
+        "- Do NOT attribute condition-related time loss to driver technique",
+        "- Explicitly note which time differences are likely weather-related vs technique-related",
+    ]
+
+    if condition_differs:
+        lines.append(
+            "- Wet/damp conditions reduce grip significantly — slower corner speeds are expected"
+        )
+    if temp_differs:
+        lines.append("- Temperature differences affect tire grip — colder temps mean less grip")
+
+    return "\n".join(lines)
+
+
 def _build_coaching_prompt(
     summaries: list[LapSummary],
     all_lap_corners: dict[int, list[Corner]],
@@ -439,6 +499,7 @@ def _build_coaching_prompt(
     corner_analysis: SessionCornerAnalysis | None = None,
     equipment_profile: EquipmentProfile | None = None,
     conditions: SessionConditions | None = None,
+    weather: SessionConditions | None = None,
 ) -> str:
     """Build the full coaching prompt for Claude."""
     lap_text = _format_lap_summaries(summaries)
@@ -480,6 +541,7 @@ def _build_coaching_prompt(
         )
 
     equipment_section = _format_equipment_context(equipment_profile, conditions)
+    weather_section = _format_weather_context(weather)
 
     corner_analysis_section = ""
     corner_analysis_instruction = ""
@@ -506,7 +568,7 @@ Total laps: {len(summaries)}
 
 ## Corner KPIs — All Laps (best lap marked with *)
 {corner_text}
-{gains_section}{optimal_section}{landmark_section}{skill_section}{equipment_section}
+{gains_section}{optimal_section}{landmark_section}{skill_section}{equipment_section}{weather_section}
 {corner_analysis_instruction}\
 {landmark_instruction}\
 Analyze the FULL session. Look at every lap's data for each corner to identify:
@@ -648,6 +710,7 @@ def generate_coaching_report(
     corner_analysis: SessionCornerAnalysis | None = None,
     equipment_profile: EquipmentProfile | None = None,
     conditions: SessionConditions | None = None,
+    weather: SessionConditions | None = None,
 ) -> CoachingReport:
     """Generate an AI coaching report using the Claude API.
 
@@ -677,6 +740,7 @@ def generate_coaching_report(
         corner_analysis=corner_analysis,
         equipment_profile=equipment_profile,
         conditions=conditions,
+        weather=weather,
     )
 
     system = COACHING_SYSTEM_PROMPT
@@ -727,6 +791,7 @@ def ask_followup(
     all_lap_corners: dict[int, list[Corner]] | None = None,
     skill_level: str = "intermediate",
     gains: GainEstimate | None = None,
+    weather: SessionConditions | None = None,
 ) -> str:
     """Ask a follow-up question to the AI coach.
 
@@ -748,6 +813,9 @@ def ask_followup(
     context.messages.append({"role": "user", "content": question})
 
     system = _FOLLOWUP_SYSTEM
+    weather_ctx = _format_weather_context(weather)
+    if weather_ctx:
+        system += f"\n\n{weather_ctx}"
     if all_lap_corners is not None:
         kb_context = select_kb_snippets(all_lap_corners, skill_level, gains=gains)
         if kb_context:

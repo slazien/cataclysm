@@ -27,3 +27,7 @@ class ComparisonResult(BaseModel):
     distance_m: list[float]  # distance points
     delta_time_s: list[float]  # delta at each point
     corner_deltas: list[CornerDeltaSchema]  # per-corner speed differences
+    session_a_weather_condition: str | None = None
+    session_a_weather_temp_c: float | None = None
+    session_b_weather_condition: str | None = None
+    session_b_weather_temp_c: float | None = None

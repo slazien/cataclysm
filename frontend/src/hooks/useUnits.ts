@@ -50,13 +50,36 @@ export function useUnits() {
     [isMetric],
   );
 
+  /** Format a Celsius temperature with unit label */
+  const formatTemp = useCallback(
+    (celsius: number, decimals = 0): string => {
+      if (!isMetric) {
+        return `${(celsius * 9 / 5 + 32).toFixed(decimals)}°F`;
+      }
+      return `${celsius.toFixed(decimals)}°C`;
+    },
+    [isMetric],
+  );
+
+  /** Convert Celsius to display unit */
+  const convertTemp = useCallback(
+    (celsius: number): number => (isMetric ? celsius : celsius * 9 / 5 + 32),
+    [isMetric],
+  );
+
+  /** Temperature unit label */
+  const tempUnit = isMetric ? '°C' : '°F';
+
   return {
     isMetric,
     formatSpeed,
     formatDistance,
+    formatTemp,
     speedUnit,
     distanceUnit,
+    tempUnit,
     convertSpeed,
     convertDistance,
+    convertTemp,
   };
 }

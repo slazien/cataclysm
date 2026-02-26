@@ -125,6 +125,8 @@ async def _run_generation(
             equipment_profile = equipment_store.get_profile(se.profile_id)
             conditions = se.conditions
 
+        weather = sd.weather
+
         # Pre-compute corner analysis so the LLM gets stats, not raw numbers
         corner_analysis = await asyncio.to_thread(
             compute_corner_analysis,
@@ -146,6 +148,7 @@ async def _run_generation(
             corner_analysis=corner_analysis,
             equipment_profile=equipment_profile,
             conditions=conditions,
+            weather=weather,
         )
 
         priority_corners = [
@@ -407,6 +410,7 @@ async def coaching_chat(
                 all_lap_corners=sd.all_lap_corners,
                 skill_level="intermediate",
                 gains=sd.gains,
+                weather=sd.weather,
             )
 
             await store_coaching_context(session_id, ctx)

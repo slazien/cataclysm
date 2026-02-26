@@ -19,7 +19,9 @@ import { AssignEquipmentButton } from '@/components/equipment/AssignEquipmentBut
 import { formatLapTime, normalizeScore, parseSessionDate } from '@/lib/formatters';
 import { MPS_TO_MPH } from '@/lib/constants';
 import { GPSQualityPanel } from './GPSQualityPanel';
+import { WeatherPanel } from './WeatherPanel';
 import { useUnits } from '@/hooks/useUnits';
+import { useSessionWeather } from '@/hooks/useEquipment';
 import { cn } from '@/lib/utils';
 
 export function SessionDashboard() {
@@ -30,6 +32,7 @@ export function SessionDashboard() {
   const { data: idealLap } = useIdealLap(sessionId);
   const { data: coachingReport } = useCoachingReport(sessionId);
   const { data: gpsQuality } = useGPSQuality(sessionId);
+  const { data: weatherData } = useSessionWeather(sessionId);
   const { formatSpeed } = useUnits();
 
   // Derive best lap number
@@ -197,6 +200,9 @@ export function SessionDashboard() {
 
       {/* GPS Quality Detail Panel */}
       {gpsQuality && <GPSQualityPanel report={gpsQuality} />}
+
+      {/* Weather Conditions Panel */}
+      {weatherData?.weather && <WeatherPanel weather={weatherData.weather} />}
 
       {/* Hero Metrics Row */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">

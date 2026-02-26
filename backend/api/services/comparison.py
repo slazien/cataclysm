@@ -66,6 +66,10 @@ async def compare_sessions(sd_a: SessionData, sd_b: SessionData) -> dict[str, An
             best_time_b = ls.lap_time_s
             break
 
+    # Weather conditions for mismatch detection
+    weather_a = sd_a.weather
+    weather_b = sd_b.weather
+
     return {
         "session_a_id": sd_a.session_id,
         "session_b_id": sd_b.session_id,
@@ -77,4 +81,8 @@ async def compare_sessions(sd_a: SessionData, sd_b: SessionData) -> dict[str, An
         "distance_m": delta_result.distance_m.tolist(),
         "delta_time_s": delta_result.delta_time_s.tolist(),
         "corner_deltas": corner_deltas,
+        "session_a_weather_condition": weather_a.track_condition.value if weather_a else None,
+        "session_a_weather_temp_c": weather_a.ambient_temp_c if weather_a else None,
+        "session_b_weather_condition": weather_b.track_condition.value if weather_b else None,
+        "session_b_weather_temp_c": weather_b.ambient_temp_c if weather_b else None,
     }
