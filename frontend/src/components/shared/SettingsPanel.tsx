@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useUiStore } from '@/stores';
 import { cn } from '@/lib/utils';
+import { EquipmentProfileList } from '@/components/equipment/EquipmentProfileList';
 
 const SKILL_LEVELS = [
   { value: 'novice' as const, label: 'Novice', description: 'New to track days' },
@@ -66,6 +67,9 @@ export function SettingsPanel() {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4">
+          {/* Equipment Profiles — most important customization */}
+          <EquipmentProfileList />
+
           {/* Skill Level */}
           <fieldset className="mb-6">
             <legend className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">

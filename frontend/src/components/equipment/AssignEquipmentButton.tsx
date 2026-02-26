@@ -1,14 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Settings2, ChevronDown, Check, Plus } from 'lucide-react';
+import { Settings2, ChevronDown, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useUiStore } from '@/stores';
 import {
   useEquipmentProfiles,
   useSessionEquipment,
   useAssignEquipment,
 } from '@/hooks/useEquipment';
-import { EquipmentSetupModal } from './EquipmentSetupModal';
 
 interface AssignEquipmentButtonProps {
   sessionId: string;
@@ -16,7 +16,7 @@ interface AssignEquipmentButtonProps {
 
 export function AssignEquipmentButton({ sessionId }: AssignEquipmentButtonProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
+  const toggleSettingsPanel = useUiStore((s) => s.toggleSettingsPanel);
 
   const { data: profilesData } = useEquipmentProfiles();
   const { data: currentEquipment } = useSessionEquipment(sessionId);
@@ -31,8 +31,9 @@ export function AssignEquipmentButton({ sessionId }: AssignEquipmentButtonProps)
     );
   }
 
-  function handleProfileCreated(profileId: string) {
-    handleAssign(profileId);
+  function handleManageProfiles() {
+    setDropdownOpen(false);
+    toggleSettingsPanel();
   }
 
   // If equipment is assigned, show a compact badge
@@ -57,18 +58,9 @@ export function AssignEquipmentButton({ sessionId }: AssignEquipmentButtonProps)
             currentProfileId={currentEquipment.profile_id}
             onSelect={handleAssign}
             onClose={() => setDropdownOpen(false)}
-            onCreateNew={() => {
-              setDropdownOpen(false);
-              setModalOpen(true);
-            }}
+            onManageProfiles={handleManageProfiles}
           />
         )}
-
-        <EquipmentSetupModal
-          open={modalOpen}
-          onOpenChange={setModalOpen}
-          onSaved={handleProfileCreated}
-        />
       </div>
     );
   }
@@ -82,7 +74,7 @@ export function AssignEquipmentButton({ sessionId }: AssignEquipmentButtonProps)
           if (profiles.length > 0) {
             setDropdownOpen((v) => !v);
           } else {
-            setModalOpen(true);
+            toggleSettingsPanel();
           }
         }}
         className="flex items-center gap-1.5 rounded-md border border-dashed border-[var(--cata-border)] bg-[var(--bg-surface)] px-2.5 py-1 text-xs text-[var(--text-muted)] transition-colors hover:border-[var(--text-secondary)] hover:text-[var(--text-secondary)]"
@@ -97,18 +89,9 @@ export function AssignEquipmentButton({ sessionId }: AssignEquipmentButtonProps)
           currentProfileId={null}
           onSelect={handleAssign}
           onClose={() => setDropdownOpen(false)}
-          onCreateNew={() => {
-            setDropdownOpen(false);
-            setModalOpen(true);
-          }}
+          onManageProfiles={handleManageProfiles}
         />
       )}
-
-      <EquipmentSetupModal
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        onSaved={handleProfileCreated}
-      />
     </div>
   );
 }
@@ -120,7 +103,7 @@ interface EquipmentDropdownProps {
   currentProfileId: string | null;
   onSelect: (profileId: string) => void;
   onClose: () => void;
-  onCreateNew: () => void;
+  onManageProfiles: () => void;
 }
 
 function EquipmentDropdown({
@@ -128,7 +111,7 @@ function EquipmentDropdown({
   currentProfileId,
   onSelect,
   onClose,
-  onCreateNew,
+  onManageProfiles,
 }: EquipmentDropdownProps) {
   return (
     <>
@@ -164,11 +147,11 @@ function EquipmentDropdown({
         <div className="mx-2 my-1 border-t border-[var(--cata-border)]" />
         <button
           type="button"
-          onClick={onCreateNew}
+          onClick={onManageProfiles}
           className="flex w-full items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)]"
         >
-          <Plus className="h-3.5 w-3.5" />
-          New Profile
+          <Settings2 className="h-3.5 w-3.5" />
+          Manage Profiles
         </button>
       </div>
     </>
