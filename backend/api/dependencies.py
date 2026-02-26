@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 from dataclasses import dataclass
 from functools import lru_cache
@@ -15,6 +16,8 @@ from jose import JWTError, jwe
 from jose.jwe import JWEError
 
 from backend.api.config import Settings
+
+logger = logging.getLogger(__name__)
 
 
 def _derive_encryption_key(secret: str) -> bytes:
@@ -97,6 +100,8 @@ def get_current_user(
         token = session_token
 
     if not token:
+        logger.warning("Auth: no token found (header=%s, secure=%s, session=%s)",
+                       bool(authorization), bool(secure_session_token), bool(session_token))
         if is_dev:
             return AuthenticatedUser(
                 user_id="dev-user",
@@ -105,9 +110,12 @@ def get_current_user(
             )
         raise HTTPException(status_code=401, detail="Not authenticated")
 
+    logger.info("Auth: token found, length=%d, prefix=%s", len(token), token[:20])
     try:
         payload = _decrypt_nextauth_token(token, settings.nextauth_secret)
-    except (JWEError, JWTError, Exception):
+        logger.info("Auth: decryption succeeded, keys=%s", list(payload.keys()))
+    except (JWEError, JWTError, Exception) as exc:
+        logger.warning("Auth: token decryption failed: %s: %s", type(exc).__name__, exc)
         if is_dev:
             return AuthenticatedUser(
                 user_id="dev-user",
