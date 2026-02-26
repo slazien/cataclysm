@@ -221,7 +221,7 @@ The app is deployed on Railway (3 services: PostgreSQL, backend, frontend).
 
 - **Railway auto-deploys from the `main` branch.** After committing to `nextjs-rewrite`, always merge to `main` and push for changes to go live.
 - Railway project: `cataclysm` on railway.com
-- Frontend URL: `https://frontend-production-edca.up.railway.app`
+- Frontend URL: `https://cataclysm.up.railway.app`
 - Backend URL: `https://backend-production-4c97.up.railway.app`
 - Backend `PORT=8000` is explicitly set (Railway assigns dynamic ports otherwise — must match `BACKEND_URL` in frontend)
 - Frontend connects to backend via Railway private network: `http://backend.railway.internal:8000`
@@ -254,4 +254,4 @@ The app is deployed on Railway (3 services: PostgreSQL, backend, frontend).
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` for Google OAuth (NextAuth.js v5)
 - `DATABASE_URL` PostgreSQL connection string (backend, uses `postgresql+asyncpg://`)
 - `BACKEND_URL` set on frontend service (Railway private network URL)
-- `CORS_ORIGINS` on backend must be valid JSON array, e.g. `["https://frontend-production-edca.up.railway.app"]`
+- `CORS_ORIGINS` on backend must be valid JSON array, e.g. `["https://cataclysm.up.railway.app"]`
