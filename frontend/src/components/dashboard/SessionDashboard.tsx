@@ -206,7 +206,7 @@ export function SessionDashboard() {
 
       {/* Hero Metrics Row */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-        <SessionScore score={sessionScoreData.score} breakdown={sessionScoreData.breakdown} isLoading={consistencyLoading} />
+        <SessionScore score={session.session_score ?? sessionScoreData.score} breakdown={sessionScoreData.breakdown} isLoading={consistencyLoading} />
 
         <MetricCard
           label="Best Lap"
