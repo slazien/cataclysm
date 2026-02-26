@@ -550,3 +550,67 @@ class TestCornerType:
         corners = {1: [_make_corner(1, min_speed_mps=40.0)]}  # ~89.5 mph
         result = compute_corner_analysis(corners, None, None, None, best_lap=1)
         assert result.corners[0].recommendation.corner_type == "fast"
+
+
+# ---------------------------------------------------------------------------
+# Tests: flat corner character suppresses brake recommendation
+# ---------------------------------------------------------------------------
+
+
+class TestFlatCornerCharacter:
+    def test_flat_corner_no_brake_recommendation(self) -> None:
+        """When corner has character='flat', target_brake_m should be None."""
+        corners = {
+            1: [
+                Corner(
+                    number=10,
+                    entry_distance_m=2000.0,
+                    exit_distance_m=2200.0,
+                    apex_distance_m=2100.0,
+                    min_speed_mps=38.0,  # ~85 mph, fast corner
+                    brake_point_m=1950.0,  # falsely detected brake point
+                    peak_brake_g=-0.3,
+                    throttle_commit_m=2150.0,
+                    apex_type="mid",
+                    character="flat",
+                )
+            ],
+        }
+        result = compute_corner_analysis(corners, None, None, None, best_lap=1)
+        rec = result.corners[0].recommendation
+        assert rec.target_brake_m is None
+        assert rec.target_brake_landmark is None
+        assert rec.character == "flat"
+
+    def test_non_flat_corner_keeps_brake_recommendation(self) -> None:
+        """Corners without 'flat' character should keep brake recommendations."""
+        corners = {
+            1: [_make_corner(5, brake_point_m=500.0)],
+        }
+        result = compute_corner_analysis(corners, None, None, None, best_lap=1)
+        rec = result.corners[0].recommendation
+        assert rec.target_brake_m == 500.0
+        assert rec.character is None
+
+    def test_lift_corner_keeps_brake_recommendation(self) -> None:
+        """Corners with character='lift' should still show brake data."""
+        corners = {
+            1: [
+                Corner(
+                    number=11,
+                    entry_distance_m=2200.0,
+                    exit_distance_m=2400.0,
+                    apex_distance_m=2300.0,
+                    min_speed_mps=35.0,
+                    brake_point_m=2150.0,
+                    peak_brake_g=-0.2,
+                    throttle_commit_m=2350.0,
+                    apex_type="mid",
+                    character="lift",
+                )
+            ],
+        }
+        result = compute_corner_analysis(corners, None, None, None, best_lap=1)
+        rec = result.corners[0].recommendation
+        assert rec.target_brake_m == 2150.0
+        assert rec.character == "lift"

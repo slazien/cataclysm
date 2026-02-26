@@ -27,6 +27,7 @@ class OfficialCorner:
     fraction: float  # Apex position as fraction of total lap distance (0.0–1.0)
     lat: float | None = None  # GPS latitude of apex
     lon: float | None = None  # GPS longitude of apex
+    character: str | None = None  # "flat" | "lift" | "brake" | None (auto-detect)
 
 
 @dataclass(frozen=True)
@@ -121,14 +122,14 @@ BARBER_MOTORSPORTS_PARK = TrackLayout(
         OfficialCorner(3, "Uphill Crest", 0.15),
         OfficialCorner(4, "Hilltop Right", 0.20),
         OfficialCorner(5, "Charlotte's Web", 0.30),
-        OfficialCorner(6, "Downhill Left Kink", 0.34),
+        OfficialCorner(6, "Downhill Left Kink", 0.34, character="flat"),
         OfficialCorner(7, "Corkscrew Entry", 0.40),
         OfficialCorner(8, "Corkscrew Mid", 0.44),
         OfficialCorner(9, "Corkscrew Exit", 0.49),
-        OfficialCorner(10, "Esses Left", 0.58),
-        OfficialCorner(11, "Esses Right", 0.62),
+        OfficialCorner(10, "Esses Left", 0.58, character="flat"),
+        OfficialCorner(11, "Esses Right", 0.62, character="lift"),
         OfficialCorner(12, "Rollercoaster Entry", 0.73),
-        OfficialCorner(13, "Rollercoaster Mid", 0.76),
+        OfficialCorner(13, "Rollercoaster Mid", 0.76, character="flat"),
         OfficialCorner(14, "Rollercoaster Exit", 0.81),
         OfficialCorner(15, "Blind Apex Right", 0.87),
         OfficialCorner(16, "Final Left", 0.90),
@@ -248,13 +249,14 @@ def locate_official_corners(
     max_dist = float(lap_df["lap_distance_m"].iloc[-1])
 
     # Compute apex distances from fractions, sorted by position on track
-    apex_positions: list[tuple[int, float]] = [
-        (c.number, c.fraction * max_dist) for c in sorted(layout.corners, key=lambda c: c.fraction)
+    apex_positions: list[tuple[int, float, str | None]] = [
+        (c.number, c.fraction * max_dist, c.character)
+        for c in sorted(layout.corners, key=lambda c: c.fraction)
     ]
 
     # Build skeleton corners with entry/exit at midpoints
     skeletons: list[Corner] = []
-    for i, (number, apex_m) in enumerate(apex_positions):
+    for i, (number, apex_m, character) in enumerate(apex_positions):
         if i == 0:
             entry_m = max(0.0, apex_m - _ZONE_MARGIN_M)
         else:
@@ -276,6 +278,7 @@ def locate_official_corners(
                 peak_brake_g=None,
                 throttle_commit_m=None,
                 apex_type="mid",
+                character=character,
             )
         )
 

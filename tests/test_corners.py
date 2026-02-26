@@ -146,6 +146,41 @@ class TestFindBrakePoint:
         assert brake_idx is None
         assert peak_g is None
 
+    def test_brake_point_clamped_to_prev_exit(self) -> None:
+        """Braking before prev_exit_idx should be ignored (belongs to previous corner)."""
+        lon_g = np.zeros(300)
+        # Braking at index 60–80, which is before prev corner's exit at 90
+        lon_g[60:80] = -0.6
+        brake_idx, peak_g = _find_brake_point(
+            lon_g, entry_idx=150, apex_idx=180, step_m=0.7, prev_exit_idx=90
+        )
+        # The braking at 60-80 should be excluded (before prev_exit=90)
+        assert brake_idx is None
+        assert peak_g is None
+
+    def test_brake_point_no_clamp_without_prev(self) -> None:
+        """Without prev_exit_idx, braking before entry should still be detected."""
+        lon_g = np.zeros(300)
+        # Same braking at index 60–80
+        lon_g[60:80] = -0.6
+        brake_idx, peak_g = _find_brake_point(lon_g, entry_idx=150, apex_idx=180, step_m=0.7)
+        # Without clamping, the search window extends back and finds it
+        assert brake_idx is not None
+        assert brake_idx == 60
+        assert peak_g is not None
+
+    def test_brake_after_prev_exit_still_detected(self) -> None:
+        """Braking between prev_exit and entry should be detected."""
+        lon_g = np.zeros(300)
+        # Braking at index 120–140, after prev exit at 90 and before entry at 150
+        lon_g[120:140] = -0.5
+        brake_idx, peak_g = _find_brake_point(
+            lon_g, entry_idx=150, apex_idx=180, step_m=0.7, prev_exit_idx=90
+        )
+        assert brake_idx is not None
+        assert brake_idx == 120
+        assert peak_g is not None
+
 
 class TestFindThrottleCommit:
     def test_detects_throttle(self) -> None:
@@ -497,3 +532,4 @@ class TestBackwardCompatibility:
         assert c.segment_type is None
         assert c.parent_complex is None
         assert c.detection_method is None
+        assert c.character is None

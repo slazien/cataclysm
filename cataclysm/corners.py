@@ -31,6 +31,7 @@ class Corner:
     segment_type: str | None = None  # "corner" | "transition" | None
     parent_complex: int | None = None  # hierarchical grouping ID
     detection_method: str | None = None  # "heading_rate" | "spline" | "pelt" | "css" | "asc"
+    character: str | None = None  # "flat" | "lift" | "brake" | None (auto-detect)
 
 
 # Detection parameters
@@ -142,6 +143,8 @@ def _find_brake_point(
     entry_idx: int,
     apex_idx: int,
     step_m: float,
+    *,
+    prev_exit_idx: int | None = None,
 ) -> tuple[int | None, float | None]:
     """Find brake point before corner entry or in the early part of the corner.
 
@@ -149,10 +152,19 @@ def _find_brake_point(
     way to the apex.  Trail braking means drivers often begin braking at or
     slightly inside the heading-rate corner boundary.
 
+    If *prev_exit_idx* is given, the search window is clamped so it never
+    extends into the previous corner's zone.  This prevents false brake
+    attribution when the search window overlaps a preceding corner's trail
+    braking.
+
     Returns (brake_idx, peak_brake_g) or (None, None).
     """
     search_before_pts = int(BRAKE_SEARCH_BEFORE_M / step_m)
     search_start = max(0, entry_idx - search_before_pts)
+
+    # Clamp to previous corner's exit to avoid false attribution
+    if prev_exit_idx is not None:
+        search_start = max(search_start, prev_exit_idx)
 
     # Allow search into the corner up to BRAKE_SEARCH_INTO_CORNER of the way to apex
     into_corner_pts = int((apex_idx - entry_idx) * BRAKE_SEARCH_INTO_CORNER)
@@ -266,6 +278,7 @@ def _detect_heading_rate(
 
     # Extract KPIs for each corner
     corners: list[Corner] = []
+    prev_exit: int | None = None
     for i, (entry_idx, exit_idx) in enumerate(regions, start=1):
         # Clamp indices
         entry_idx = max(0, entry_idx)
@@ -273,6 +286,7 @@ def _detect_heading_rate(
 
         corner_speed = speed[entry_idx:exit_idx]
         if len(corner_speed) == 0:
+            prev_exit = exit_idx
             continue
 
         apex_local = int(np.argmin(corner_speed))
@@ -283,7 +297,9 @@ def _detect_heading_rate(
         geo_apex_idx = entry_idx + int(np.argmax(corner_rate))
 
         # Brake point
-        brake_idx, peak_g = _find_brake_point(lon_g, entry_idx, apex_idx, step_m)
+        brake_idx, peak_g = _find_brake_point(
+            lon_g, entry_idx, apex_idx, step_m, prev_exit_idx=prev_exit
+        )
 
         # Throttle commit
         throttle_idx = _find_throttle_commit(lon_g, apex_idx, exit_idx, step_m)
@@ -318,6 +334,7 @@ def _detect_heading_rate(
                 apex_lon=a_lon,
             )
         )
+        prev_exit = exit_idx
 
     return corners
 
@@ -349,6 +366,7 @@ def _detect_advanced(
     lat_arr = lap_df["lat"].to_numpy() if has_gps else None
     lon_arr = lap_df["lon"].to_numpy() if has_gps else None
 
+    prev_exit: int | None = None
     for seg in seg_result.segments:
         if seg.segment_type != "corner":
             continue
@@ -360,10 +378,12 @@ def _detect_advanced(
         exit_idx = max(0, min(exit_idx, len(speed) - 1))
 
         if exit_idx <= entry_idx:
+            prev_exit = exit_idx
             continue
 
         corner_speed = speed[entry_idx:exit_idx]
         if len(corner_speed) == 0:
+            prev_exit = exit_idx
             continue
 
         apex_local = int(np.argmin(corner_speed))
@@ -378,6 +398,7 @@ def _detect_advanced(
             entry_idx,
             apex_idx,
             step_m,
+            prev_exit_idx=prev_exit,
         )
         throttle_idx = _find_throttle_commit(
             lon_g,
@@ -426,6 +447,7 @@ def _detect_advanced(
                 detection_method=method,
             )
         )
+        prev_exit = exit_idx
 
     return corners
 
@@ -500,6 +522,7 @@ def extract_corner_kpis_for_lap(
             pass
 
     corners: list[Corner] = []
+    prev_exit: int | None = None
     for ref in reference_corners:
         if ref.entry_distance_m > max_dist or ref.exit_distance_m > max_dist:
             continue
@@ -510,10 +533,12 @@ def extract_corner_kpis_for_lap(
         exit_idx = min(exit_idx, len(speed) - 1)
 
         if exit_idx <= entry_idx:
+            prev_exit = exit_idx
             continue
 
         corner_speed = speed[entry_idx:exit_idx]
         if len(corner_speed) == 0:
+            prev_exit = exit_idx
             continue
 
         apex_local = int(np.argmin(corner_speed))
@@ -529,7 +554,9 @@ def extract_corner_kpis_for_lap(
             if len(curv_slice) > 0:
                 geo_apex_idx = entry_idx + int(np.argmax(curv_slice))
 
-        brake_idx, peak_g = _find_brake_point(lon_g, entry_idx, apex_idx, step_m)
+        brake_idx, peak_g = _find_brake_point(
+            lon_g, entry_idx, apex_idx, step_m, prev_exit_idx=prev_exit
+        )
         throttle_idx = _find_throttle_commit(lon_g, apex_idx, exit_idx, step_m)
 
         brake_m = round(float(distance[brake_idx]), 1) if brake_idx is not None else None
@@ -559,7 +586,9 @@ def extract_corner_kpis_for_lap(
                 brake_point_lon=bp_lon,
                 apex_lat=a_lat,
                 apex_lon=a_lon,
+                character=ref.character,
             )
         )
+        prev_exit = exit_idx
 
     return corners

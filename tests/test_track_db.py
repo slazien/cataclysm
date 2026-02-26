@@ -272,3 +272,53 @@ class TestAtlantaMotorsportsPark:
 
     def test_country(self) -> None:
         assert ATLANTA_MOTORSPORTS_PARK.country == "US"
+
+
+class TestOfficialCornerCharacter:
+    """Tests for corner character propagation through locate_official_corners."""
+
+    def _make_lap_df(self, max_dist: float = 1000.0, n: int = 100) -> pd.DataFrame:
+        return pd.DataFrame({"lap_distance_m": np.linspace(0, max_dist, n)})
+
+    def test_official_corner_character_default_none(self) -> None:
+        c = OfficialCorner(1, "T1", 0.5)
+        assert c.character is None
+
+    def test_official_corner_character_set(self) -> None:
+        c = OfficialCorner(10, "Esses Left", 0.58, character="flat")
+        assert c.character == "flat"
+
+    def test_character_propagated_to_skeleton(self) -> None:
+        """character flows from OfficialCorner through locate_official_corners."""
+        layout = TrackLayout(
+            name="Test",
+            corners=[
+                OfficialCorner(1, "Brake Corner", 0.20, character="brake"),
+                OfficialCorner(2, "Flat Kink", 0.50, character="flat"),
+                OfficialCorner(3, "Normal Turn", 0.80),
+            ],
+        )
+        lap_df = self._make_lap_df()
+        result = locate_official_corners(lap_df, layout)
+        assert len(result) == 3
+        assert result[0].character == "brake"
+        assert result[1].character == "flat"
+        assert result[2].character is None
+
+    def test_barber_flat_corners(self) -> None:
+        """Barber T6, T10, T13 should have flat character."""
+        flat_numbers = {6, 10, 13}
+        for c in BARBER_MOTORSPORTS_PARK.corners:
+            if c.number in flat_numbers:
+                assert c.character == "flat", f"T{c.number} should be flat"
+
+    def test_barber_lift_corner(self) -> None:
+        """Barber T11 should have lift character."""
+        t11 = [c for c in BARBER_MOTORSPORTS_PARK.corners if c.number == 11]
+        assert len(t11) == 1
+        assert t11[0].character == "lift"
+
+    def test_barber_most_corners_none(self) -> None:
+        """Most Barber corners should have None character (auto-detect)."""
+        none_count = sum(1 for c in BARBER_MOTORSPORTS_PARK.corners if c.character is None)
+        assert none_count >= 10  # 16 total, 4 have explicit character

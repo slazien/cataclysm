@@ -56,6 +56,7 @@ class CornerRecommendation:
     target_min_speed_mph: float
     gain_s: float
     corner_type: str  # "slow", "medium", "fast"
+    character: str | None = None  # "flat" | "lift" | "brake" | None
 
 
 @dataclass
@@ -302,22 +303,29 @@ def compute_corner_analysis(
         # Gain
         gain_s = _find_gain_for_corner(cn, gains)
 
-        # Landmark resolution for brake target
+        # Resolve corner character from best-lap corner
+        corner_character = best_lap_corner.character
+
+        # Landmark resolution for brake target (skip for flat-out corners)
         target_brake_landmark: LandmarkReference | None = None
-        if best_lap_corner.brake_point_m is not None and landmarks:
+        target_brake_m: float | None = best_lap_corner.brake_point_m
+        if corner_character == "flat":
+            target_brake_m = None
+        elif target_brake_m is not None and landmarks:
             target_brake_landmark = find_nearest_landmark(
-                best_lap_corner.brake_point_m,
+                target_brake_m,
                 landmarks,
                 preferred_types=_BRAKE_PREFERRED_TYPES,
             )
 
         # Recommendation
         recommendation = CornerRecommendation(
-            target_brake_m=best_lap_corner.brake_point_m,
+            target_brake_m=target_brake_m,
             target_brake_landmark=target_brake_landmark,
             target_min_speed_mph=round(best_lap_corner.min_speed_mps * MPS_TO_MPH, 1),
             gain_s=gain_s,
             corner_type=corner_type,
+            character=corner_character,
         )
 
         # Time value: estimate approach speed via kinematics

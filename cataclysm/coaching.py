@@ -316,6 +316,17 @@ def _format_corner_analysis(analysis: SessionCornerAnalysis) -> str:
         header += f", {ca.n_laps} laps)"
         lines.append(header)
 
+        # Corner character hint for the LLM
+        if ca.recommendation.character == "flat":
+            lines.append(
+                "  Character: FLAT (typically taken without braking — focus on line/speed carry)"
+            )
+        elif ca.recommendation.character == "lift":
+            lines.append(
+                "  Character: LIFT (typically taken with a lift, not heavy braking "
+                "— focus on smooth carry)"
+            )
+
         # Min speed
         ms = ca.stats_min_speed
         lines.append(f"  Min speed: best={ms.best:.1f} mean={ms.mean:.1f} std={ms.std:.1f} mph")
