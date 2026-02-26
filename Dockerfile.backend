@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev &
 COPY pyproject.toml .
 COPY cataclysm/ cataclysm/
 RUN pip install --no-cache-dir . && \
-    pip install --no-cache-dir fastapi uvicorn pydantic-settings sqlalchemy asyncpg alembic python-multipart
+    pip install --no-cache-dir fastapi "uvicorn[standard]" pydantic-settings sqlalchemy asyncpg alembic python-multipart
 
 # Runtime stage
 FROM python:3.12-slim
