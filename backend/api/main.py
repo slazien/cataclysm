@@ -26,9 +26,16 @@ async def _reload_sessions_from_disk() -> int:
     This ensures sessions survive backend restarts.  The DB keeps metadata
     (for the session list) but telemetry lives in memory only — this fills
     the gap by re-processing the CSV files that are already on disk.
+
+    Also persists session metadata to the database for the dev user so that
+    ``list_sessions_for_user`` returns results after a restart.
     """
     from pathlib import Path
 
+    from backend.api.db.database import async_session_factory
+    from backend.api.db.models import Session as SessionModel
+    from backend.api.db.models import User as UserModel
+    from backend.api.services.db_session_store import _parse_session_date
     from backend.api.services.pipeline import process_file_path
     from backend.api.services.session_store import get_session
 
@@ -40,14 +47,53 @@ async def _reload_sessions_from_disk() -> int:
     csv_files = sorted(data_dir.rglob("*.csv"))
     logger.info("Found %d CSV file(s) in %s", len(csv_files), data_dir)
     loaded = 0
-    for csv_path in csv_files:
-        try:
-            result = await process_file_path(csv_path)
-            sid = str(result["session_id"])
-            if get_session(sid) is not None:
-                loaded += 1
-        except Exception:
-            logger.warning("Failed to reload %s on startup", csv_path.name, exc_info=True)
+    dev_user_id = "dev-user"
+
+    async with async_session_factory() as db:
+        # Ensure the dev user row exists (FK target for sessions)
+        existing = await db.get(UserModel, dev_user_id)
+        if existing is None:
+            db.add(
+                UserModel(
+                    id=dev_user_id,
+                    email="dev@localhost",
+                    name="Dev User",
+                )
+            )
+            await db.flush()
+
+        for csv_path in csv_files:
+            try:
+                result = await process_file_path(csv_path)
+                sid = str(result["session_id"])
+                sd = get_session(sid)
+                if sd is not None:
+                    snap = sd.snapshot
+                    date_val = (
+                        _parse_session_date(snap.metadata.session_date)
+                        if isinstance(snap.metadata.session_date, str)
+                        else snap.metadata.session_date
+                    )
+                    # merge handles both insert and update (idempotent)
+                    await db.merge(
+                        SessionModel(
+                            session_id=sid,
+                            user_id=dev_user_id,
+                            track_name=snap.metadata.track_name,
+                            session_date=date_val,
+                            file_key=sid,
+                            n_laps=snap.n_laps,
+                            n_clean_laps=snap.n_clean_laps,
+                            best_lap_time_s=snap.best_lap_time_s,
+                            top3_avg_time_s=snap.top3_avg_time_s,
+                            avg_lap_time_s=snap.avg_lap_time_s,
+                            consistency_score=snap.consistency_score,
+                        )
+                    )
+                    loaded += 1
+            except Exception:
+                logger.warning("Failed to reload %s on startup", csv_path.name, exc_info=True)
+        await db.commit()
 
     return loaded
 
