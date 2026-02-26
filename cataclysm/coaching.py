@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from cataclysm.coaching_validator import CoachingValidator
+from cataclysm.corner_analysis import SessionCornerAnalysis
 from cataclysm.corners import Corner
 from cataclysm.driving_physics import COACHING_SYSTEM_PROMPT
 from cataclysm.engine import LapSummary
@@ -297,6 +298,93 @@ def _format_landmark_context(
     return "\n".join(lines)
 
 
+def _format_corner_analysis(analysis: SessionCornerAnalysis) -> str:
+    """Format pre-computed corner analysis into prompt text."""
+    lines = [
+        "## Pre-Computed Corner Analysis (sorted by time opportunity)",
+        f"Best lap: L{analysis.best_lap} | "
+        f"Total consistency gain: {analysis.total_consistency_gain_s:.2f}s | "
+        f"Laps analyzed: {analysis.n_laps_analyzed}",
+        "",
+    ]
+
+    for ca in analysis.corners:
+        header = f"### T{ca.corner_number} ({ca.recommendation.corner_type}"
+        header += f", gain: {ca.recommendation.gain_s:.2f}s"
+        header += f", {ca.n_laps} laps)"
+        lines.append(header)
+
+        # Min speed
+        ms = ca.stats_min_speed
+        lines.append(
+            f"  Min speed: best={ms.best:.1f} mean={ms.mean:.1f} "
+            f"std={ms.std:.1f} mph"
+        )
+
+        # Brake point
+        if ca.stats_brake_point is not None:
+            bp = ca.stats_brake_point
+            lines.append(
+                f"  Brake pt: best={bp.best:.0f} mean={bp.mean:.0f} "
+                f"std={bp.std:.1f}m"
+            )
+
+        # Peak brake g
+        if ca.stats_peak_brake_g is not None:
+            pg = ca.stats_peak_brake_g
+            lines.append(f"  Peak brake: best={pg.best:.2f} mean={pg.mean:.2f}G")
+
+        # Throttle commit
+        if ca.stats_throttle_commit is not None:
+            tc = ca.stats_throttle_commit
+            lines.append(
+                f"  Throttle: best={tc.best:.0f} mean={tc.mean:.0f} "
+                f"std={tc.std:.1f}m"
+            )
+
+        # Apex distribution
+        apex_parts = [
+            f"{count}/{ca.n_laps} {atype}"
+            for atype, count in sorted(ca.apex_distribution.items())
+        ]
+        if apex_parts:
+            lines.append(f"  Apex: {', '.join(apex_parts)}")
+
+        # Target brake landmark
+        if ca.recommendation.target_brake_landmark is not None:
+            ref = ca.recommendation.target_brake_landmark.format_reference()
+            lines.append(f"  Target brake: {ref}")
+        elif ca.recommendation.target_brake_m is not None:
+            lines.append(f"  Target brake: {ca.recommendation.target_brake_m:.0f}m")
+
+        # Target min speed
+        lines.append(
+            f"  Target min speed: {ca.recommendation.target_min_speed_mph:.1f} mph"
+        )
+
+        # Time value
+        if ca.time_value is not None:
+            tv = ca.time_value
+            lines.append(
+                f"  Approach speed: {tv.approach_speed_mph:.0f} mph, "
+                f"time/m: {tv.time_per_meter_ms:.1f}ms"
+            )
+            lines.append(
+                f"  Brake variance time cost: ~{tv.brake_variance_time_cost_s:.3f}s"
+            )
+
+        # Correlations
+        for corr in ca.correlations:
+            lines.append(
+                f"  Corr {corr.kpi_x} vs {corr.kpi_y}: "
+                f"r={corr.r:.2f} ({corr.strength}, n={corr.n_points})"
+            )
+
+        lines.append("")
+
+    return "\n".join(lines)
+
+
 def _build_coaching_prompt(
     summaries: list[LapSummary],
     all_lap_corners: dict[int, list[Corner]],
@@ -306,6 +394,7 @@ def _build_coaching_prompt(
     skill_level: SkillLevel = "intermediate",
     landmarks: list[Landmark] | None = None,
     optimal_comparison: OptimalComparisonResult | None = None,
+    corner_analysis: SessionCornerAnalysis | None = None,
 ) -> str:
     """Build the full coaching prompt for Claude."""
     lap_text = _format_lap_summaries(summaries)
@@ -346,16 +435,33 @@ def _build_coaching_prompt(
             "leaving more time on the table.\n"
         )
 
+    corner_analysis_section = ""
+    corner_analysis_instruction = ""
+    if corner_analysis is not None and corner_analysis.corners:
+        corner_analysis_section = f"\n{_format_corner_analysis(corner_analysis)}\n"
+        corner_analysis_instruction = (
+            "\nIMPORTANT: Use the pre-computed corner analysis above as your primary data source. "
+            "The statistics, correlations, and recommendations are already computed — "
+            "DO NOT re-derive them. Your job is to:\n"
+            "1. Write narrative coaching advice explaining WHY these patterns matter\n"
+            "2. Prioritize corners by the pre-computed gain values\n"
+            "3. Reference the target brake/speed values in your tips\n"
+            "4. Use correlation insights to explain cause-effect relationships\n"
+            "5. Cite the specific numbers from the analysis in your grades and notes\n"
+            "The raw KPI table below is for lap-specific citations only.\n"
+        )
+
     return f"""Track: {track_name}
 Best Lap: L{best.lap_number} ({best_min}:{best_sec:05.2f})
 Total laps: {len(summaries)}
-
+{corner_analysis_section}\
 ## Lap Times
 {lap_text}
 
 ## Corner KPIs — All Laps (best lap marked with *)
 {corner_text}
 {gains_section}{optimal_section}{landmark_section}{skill_section}
+{corner_analysis_instruction}\
 {landmark_instruction}\
 Analyze the FULL session. Look at every lap's data for each corner to identify:
 - Consistency: which corners are repeatable vs high-variance across laps
@@ -493,6 +599,7 @@ def generate_coaching_report(
     skill_level: SkillLevel = "intermediate",
     landmarks: list[Landmark] | None = None,
     optimal_comparison: OptimalComparisonResult | None = None,
+    corner_analysis: SessionCornerAnalysis | None = None,
 ) -> CoachingReport:
     """Generate an AI coaching report using the Claude API.
 
@@ -519,6 +626,7 @@ def generate_coaching_report(
         skill_level=skill_level,
         landmarks=landmarks,
         optimal_comparison=optimal_comparison,
+        corner_analysis=corner_analysis,
     )
 
     system = COACHING_SYSTEM_PROMPT
