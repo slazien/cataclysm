@@ -21,7 +21,7 @@ interface CircularProgressProps {
  * Circular progress indicator that fills clockwise from 12 o'clock.
  *
  * - **Determinate**: pass `progress` (0-100) for a precise fill.
- * - **Indeterminate**: omit `progress` for a smooth repeating fill-up animation.
+ * - **Indeterminate**: omit `progress` for a single fill-up that slows near completion.
  */
 export function CircularProgress({
   size = 20,
@@ -34,7 +34,7 @@ export function CircularProgress({
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
-  // Indeterminate: auto-advance from 0 → ~92% over 2s, then reset
+  // Indeterminate: fill once from 0 → ~90% over ~8s, then slow-creep toward 95%
   const [indeterminate, setIndeterminate] = useState(0);
   const isIndeterminate = progress === undefined;
 
@@ -43,22 +43,32 @@ export function CircularProgress({
 
     let raf: number;
     let start: number | null = null;
-    const duration = 2200; // ms for one fill cycle
+    const fastPhase = 8000; // ms to reach ~90%
 
     function tick(ts: number) {
       if (start === null) start = ts;
       const elapsed = ts - start;
-      const t = (elapsed % duration) / duration;
-      // Ease-in-out: starts slow, peaks, then slows into reset
-      const eased = t < 0.5
-        ? 2 * t * t
-        : 1 - (-2 * t + 2) ** 2 / 2;
-      setIndeterminate(eased * 92);
+
+      let pct: number;
+      if (elapsed < fastPhase) {
+        // Fast phase: ease-out curve 0 → 90% over 8s
+        const t = elapsed / fastPhase;
+        pct = (1 - (1 - t) ** 3) * 90;
+      } else {
+        // Slow creep: 90 → 95% asymptotically (never reaches 100)
+        const extra = elapsed - fastPhase;
+        pct = 90 + 5 * (1 - Math.exp(-extra / 30000));
+      }
+
+      setIndeterminate(pct);
       raf = requestAnimationFrame(tick);
     }
 
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      setIndeterminate(0);
+    };
   }, [isIndeterminate]);
 
   const pct = isIndeterminate ? indeterminate : Math.min(100, Math.max(0, progress));
