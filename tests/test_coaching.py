@@ -13,12 +13,21 @@ from cataclysm.coaching import (
     CoachingReport,
     _build_coaching_prompt,
     _format_all_laps_corners,
+    _format_corner_analysis,
     _format_gains_for_prompt,
     _format_landmark_context,
     _format_lap_summaries,
     _parse_coaching_response,
     ask_followup,
     generate_coaching_report,
+)
+from cataclysm.corner_analysis import (
+    CornerAnalysis,
+    CornerCorrelation,
+    CornerRecommendation,
+    CornerStats,
+    SessionCornerAnalysis,
+    TimeValue,
 )
 from cataclysm.corners import Corner
 from cataclysm.engine import LapSummary
@@ -808,3 +817,219 @@ class TestGenerateCoachingReportWithLandmarks:
         call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args
         prompt_text = call_kwargs.kwargs["messages"][0]["content"]
         assert "Visual Landmarks" in prompt_text
+
+
+# ---------------------------------------------------------------------------
+# Pre-computed corner analysis integration tests
+# ---------------------------------------------------------------------------
+
+
+def _make_corner_analysis() -> SessionCornerAnalysis:
+    """Build a sample SessionCornerAnalysis for testing."""
+    from cataclysm.landmarks import Landmark, LandmarkReference, LandmarkType
+
+    brake_landmark = LandmarkReference(
+        landmark=Landmark("T5 3 board", 490.0, LandmarkType.brake_board),
+        offset_m=-10.0,
+    )
+    ca = CornerAnalysis(
+        corner_number=5,
+        n_laps=8,
+        stats_min_speed=CornerStats(
+            best=38.2, mean=36.1, std=1.8, value_range=5.0, best_lap=3, n_laps=8
+        ),
+        stats_brake_point=CornerStats(
+            best=924.0, mean=935.0, std=8.2, value_range=20.0, best_lap=3, n_laps=8
+        ),
+        stats_peak_brake_g=CornerStats(
+            best=0.92, mean=0.85, std=0.05, value_range=0.12, best_lap=3, n_laps=8
+        ),
+        stats_throttle_commit=CornerStats(
+            best=1120.0, mean=1118.0, std=5.1, value_range=15.0, best_lap=3, n_laps=8
+        ),
+        apex_distribution={"late": 6, "mid": 2},
+        recommendation=CornerRecommendation(
+            target_brake_m=924.0,
+            target_brake_landmark=brake_landmark,
+            target_min_speed_mph=38.2,
+            gain_s=0.42,
+            corner_type="slow",
+        ),
+        time_value=TimeValue(
+            approach_speed_mph=72.0,
+            time_per_meter_ms=31.1,
+            brake_variance_time_cost_s=0.255,
+        ),
+        correlations=[
+            CornerCorrelation(
+                kpi_x="brake_point",
+                kpi_y="min_speed",
+                r=-0.87,
+                strength="strong",
+                n_points=8,
+            )
+        ],
+    )
+    return SessionCornerAnalysis(
+        corners=[ca],
+        best_lap=3,
+        total_consistency_gain_s=1.24,
+        n_laps_analyzed=8,
+    )
+
+
+class TestFormatCornerAnalysis:
+    """Test the _format_corner_analysis() function."""
+
+    def test_includes_header(self) -> None:
+        analysis = _make_corner_analysis()
+        text = _format_corner_analysis(analysis)
+        assert "Pre-Computed Corner Analysis" in text
+
+    def test_includes_best_lap(self) -> None:
+        analysis = _make_corner_analysis()
+        text = _format_corner_analysis(analysis)
+        assert "Best lap: L3" in text
+
+    def test_includes_total_gain(self) -> None:
+        analysis = _make_corner_analysis()
+        text = _format_corner_analysis(analysis)
+        assert "1.24s" in text
+
+    def test_includes_corner_stats(self) -> None:
+        analysis = _make_corner_analysis()
+        text = _format_corner_analysis(analysis)
+        assert "T5" in text
+        assert "38.2" in text  # best min speed
+        assert "36.1" in text  # mean min speed
+
+    def test_includes_brake_stats(self) -> None:
+        analysis = _make_corner_analysis()
+        text = _format_corner_analysis(analysis)
+        assert "Brake pt:" in text
+        assert "924" in text
+
+    def test_includes_landmark(self) -> None:
+        analysis = _make_corner_analysis()
+        text = _format_corner_analysis(analysis)
+        assert "3 board" in text
+
+    def test_includes_correlation(self) -> None:
+        analysis = _make_corner_analysis()
+        text = _format_corner_analysis(analysis)
+        assert "r=-0.87" in text
+        assert "strong" in text
+
+    def test_includes_time_value(self) -> None:
+        analysis = _make_corner_analysis()
+        text = _format_corner_analysis(analysis)
+        assert "72 mph" in text
+        assert "0.255s" in text
+
+    def test_includes_apex_distribution(self) -> None:
+        analysis = _make_corner_analysis()
+        text = _format_corner_analysis(analysis)
+        assert "6/8 late" in text
+        assert "2/8 mid" in text
+
+
+class TestBuildCoachingPromptWithCornerAnalysis:
+    """Test corner_analysis parameter in _build_coaching_prompt."""
+
+    def test_includes_analysis_section(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        analysis = _make_corner_analysis()
+        prompt = _build_coaching_prompt(
+            sample_summaries,
+            sample_all_lap_corners,
+            "Barber",
+            corner_analysis=analysis,
+        )
+        assert "Pre-Computed Corner Analysis" in prompt
+        assert "DO NOT re-derive" in prompt
+
+    def test_includes_instructions(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        analysis = _make_corner_analysis()
+        prompt = _build_coaching_prompt(
+            sample_summaries,
+            sample_all_lap_corners,
+            "Barber",
+            corner_analysis=analysis,
+        )
+        assert "pre-computed corner analysis" in prompt.lower()
+        assert "primary data source" in prompt.lower()
+
+    def test_no_analysis_backward_compatible(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        prompt = _build_coaching_prompt(
+            sample_summaries,
+            sample_all_lap_corners,
+            "Test",
+        )
+        assert "Pre-Computed Corner Analysis" not in prompt
+        assert "DO NOT re-derive" not in prompt
+
+    def test_empty_analysis_backward_compatible(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        empty = SessionCornerAnalysis(
+            corners=[], best_lap=1, total_consistency_gain_s=0.0, n_laps_analyzed=0
+        )
+        prompt = _build_coaching_prompt(
+            sample_summaries,
+            sample_all_lap_corners,
+            "Test",
+            corner_analysis=empty,
+        )
+        assert "Pre-Computed Corner Analysis" not in prompt
+
+
+class TestGenerateCoachingReportWithCornerAnalysis:
+    """Test that corner_analysis is passed through to the API prompt."""
+
+    def test_passes_analysis_to_prompt(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        mock_anthropic = _make_mock_anthropic(
+            json.dumps(
+                {
+                    "summary": "Good with analysis",
+                    "priority_corners": [],
+                    "corner_grades": [],
+                    "patterns": [],
+                }
+            )
+        )
+
+        analysis = _make_corner_analysis()
+
+        with (
+            patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test"}),
+            patch.dict(sys.modules, {"anthropic": mock_anthropic}),
+        ):
+            report = generate_coaching_report(
+                sample_summaries,
+                sample_all_lap_corners,
+                "Barber",
+                corner_analysis=analysis,
+            )
+
+        assert report.summary == "Good with analysis"
+        call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args
+        prompt_text = call_kwargs.kwargs["messages"][0]["content"]
+        assert "Pre-Computed Corner Analysis" in prompt_text
+        assert "DO NOT re-derive" in prompt_text
