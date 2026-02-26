@@ -35,6 +35,8 @@ class CoachingReportResponse(BaseModel):
     corner_grades: list[CornerGradeSchema] = []
     patterns: list[str] = []
     drills: list[str] = []
+    validation_failed: bool = False
+    validation_violations: list[str] = []
 
 
 class ReportRequest(BaseModel):

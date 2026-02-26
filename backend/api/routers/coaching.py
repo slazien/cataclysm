@@ -33,6 +33,22 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def trigger_auto_coaching(session_id: str, sd: SessionData) -> None:
+    """Fire-and-forget coaching generation for a newly uploaded session.
+
+    Silently skips if a report already exists or is currently generating.
+    Called from the upload endpoint so coaching is ready when the user opens
+    the session.
+    """
+    if is_generating(session_id):
+        return
+    if get_coaching_report(session_id) is not None:
+        return
+
+    mark_generating(session_id)
+    asyncio.create_task(_run_generation(session_id, sd, "intermediate"))
+
+
 @router.post("/{session_id}/report", response_model=CoachingReportResponse)
 async def generate_report(
     session_id: str,
@@ -124,6 +140,8 @@ async def _run_generation(
             corner_grades=corner_grades,
             patterns=report.patterns,
             drills=report.drills,
+            validation_failed=report.validation_failed,
+            validation_violations=report.validation_violations,
         )
 
         store_coaching_report(session_id, response)

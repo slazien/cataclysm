@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { GradeChip } from '@/components/shared/GradeChip';
 import { AiInsight } from '@/components/shared/AiInsight';
 import { useSessionStore } from '@/stores';
@@ -57,6 +57,22 @@ export function ReportSummary() {
           <AiInsight mode="compact">
             <span className="text-xs leading-relaxed">{report.summary}</span>
           </AiInsight>
+        </div>
+      )}
+
+      {/* Validation disclaimer */}
+      {report.validation_failed && (
+        <div className="mx-4 mb-2 flex items-start gap-2 rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2">
+          <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-amber-500" />
+          <div>
+            <p className="text-xs font-medium text-amber-400">
+              Review with caution
+            </p>
+            <p className="text-[10px] text-amber-400/80 leading-relaxed mt-0.5">
+              Automated checks flagged potential inaccuracies in this report.
+              Verify advice against your own track knowledge before applying.
+            </p>
+          </div>
         </div>
       )}
 

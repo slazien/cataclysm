@@ -138,6 +138,8 @@ export interface CoachingReport {
   corner_grades: CornerGrade[];
   patterns: string[];
   drills: string[];
+  validation_failed?: boolean;
+  validation_violations?: string[];
 }
 
 export interface ChatMessage {
