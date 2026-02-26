@@ -273,6 +273,48 @@ def test_no_adjustment_with_few_checks(state_path: Path) -> None:
     assert v.state.current_interval == 20
 
 
+# ── force_validate ────────────────────────────────────────────────────
+
+
+@patch("cataclysm.coaching_validator.CoachingValidator._create_client")
+def test_force_validate_always_runs(
+    mock_client_factory: MagicMock,
+    validator: CoachingValidator,
+) -> None:
+    """force_validate runs regardless of output counter."""
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock(text='{"passed": true, "violations": []}')]
+    mock_client.messages.create.return_value = mock_response
+    mock_client_factory.return_value = mock_client
+
+    # No outputs recorded — force_validate should still run
+    result = validator.force_validate("some report")
+    assert result.passed is True
+    assert validator.state.total_checks == 1
+    # output counter should not have changed
+    assert validator.state.outputs_since_check == 0
+    assert validator.state.total_outputs == 0
+
+
+@patch("cataclysm.coaching_validator.CoachingValidator._create_client")
+def test_force_validate_records_failure(
+    mock_client_factory: MagicMock,
+    validator: CoachingValidator,
+) -> None:
+    """force_validate failure is tracked in history."""
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock(text='{"passed": false, "violations": ["bad physics"]}')]
+    mock_client.messages.create.return_value = mock_response
+    mock_client_factory.return_value = mock_client
+
+    result = validator.force_validate("bad report")
+    assert result.passed is False
+    assert validator.state.total_failures == 1
+    assert len(validator.state.checks) == 1
+
+
 # ── Summary ───────────────────────────────────────────────────────────
 
 

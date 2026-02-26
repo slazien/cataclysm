@@ -158,6 +158,8 @@ class CoachingReport:
     patterns: list[str]
     drills: list[str] = field(default_factory=list)
     raw_response: str = ""
+    validation_failed: bool = False
+    validation_violations: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -524,25 +526,37 @@ def generate_coaching_report(
     if kb_context:
         system += "\n\n" + kb_context
 
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=16384,
-        system=system,
-        messages=[{"role": "user", "content": prompt}],
-    )
+    def _call_coaching_api() -> tuple[str, CoachingReport]:
+        msg = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=16384,
+            system=system,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        blk = msg.content[0]
+        text = blk.text if hasattr(blk, "text") else str(blk)
+        return text, _parse_coaching_response(text)
 
-    block = message.content[0]
-    response_text = block.text if hasattr(block, "text") else str(block)
-    report = _parse_coaching_response(response_text)
+    response_text, report = _call_coaching_api()
 
-    # Adaptive sampling validation — checks every Nth output
+    # Adaptive sampling validation — checks every Nth output.
+    # On failure: retry once (regenerate), then flag if still bad.
     validator = _get_validator()
     validation = validator.record_and_maybe_validate(response_text)
     if validation and not validation.passed:
         logger.warning(
-            "Coaching guardrail violation detected: %s",
+            "Coaching guardrail violation detected, retrying: %s",
             validation.violations,
         )
+        response_text, report = _call_coaching_api()
+        retry_validation = validator.force_validate(response_text)
+        if not retry_validation.passed:
+            logger.warning(
+                "Coaching guardrail violation persists after retry: %s",
+                retry_validation.violations,
+            )
+            report.validation_failed = True
+            report.validation_violations = retry_validation.violations
 
     return report
 

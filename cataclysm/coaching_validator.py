@@ -105,6 +105,20 @@ class CoachingValidator:
         self._save()
         return record
 
+    def force_validate(self, report_text: str) -> ValidationRecord:
+        """Validate unconditionally (e.g. on retry after a failure).
+
+        Records the result in history but does not affect the output counter.
+        """
+        record = self._validate(report_text)
+        self.state.total_checks += 1
+        if not record.passed:
+            self.state.total_failures += 1
+        self.state.checks.append(record)
+        self._adjust_interval()
+        self._save()
+        return record
+
     @property
     def summary(self) -> dict[str, object]:
         """Return a human-readable summary of validation history."""
@@ -137,7 +151,7 @@ class CoachingValidator:
 
         try:
             message = client.messages.create(
-                model="claude-haiku-4-5-20251001",
+                model="claude-sonnet-4-6",
                 max_tokens=512,
                 messages=[{"role": "user", "content": prompt}],
             )
