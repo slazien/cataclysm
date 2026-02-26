@@ -9,6 +9,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Any
 
+from cataclysm.coaching_validator import CoachingValidator
 from cataclysm.corners import Corner
 from cataclysm.driving_physics import COACHING_SYSTEM_PROMPT
 from cataclysm.engine import LapSummary
@@ -20,6 +21,16 @@ from cataclysm.optimal_comparison import OptimalComparisonResult
 logger = logging.getLogger(__name__)
 
 MPS_TO_MPH = 2.23694
+
+_validator: CoachingValidator | None = None
+
+
+def _get_validator() -> CoachingValidator:
+    global _validator  # noqa: PLW0603
+    if _validator is None:
+        _validator = CoachingValidator()
+    return _validator
+
 
 # Anthropic client settings for resilience against transient API errors (429, 529, 5xx)
 _API_MAX_RETRIES = 4  # 5 total attempts with exponential backoff + jitter
@@ -514,7 +525,7 @@ def generate_coaching_report(
         system += "\n\n" + kb_context
 
     message = client.messages.create(
-        model="claude-sonnet-4-6",
+        model="claude-haiku-4-5-20251001",
         max_tokens=16384,
         system=system,
         messages=[{"role": "user", "content": prompt}],
@@ -523,6 +534,16 @@ def generate_coaching_report(
     block = message.content[0]
     response_text = block.text if hasattr(block, "text") else str(block)
     report = _parse_coaching_response(response_text)
+
+    # Adaptive sampling validation — checks every Nth output
+    validator = _get_validator()
+    validation = validator.record_and_maybe_validate(response_text)
+    if validation and not validation.passed:
+        logger.warning(
+            "Coaching guardrail violation detected: %s",
+            validation.violations,
+        )
+
     return report
 
 
@@ -562,7 +583,7 @@ def ask_followup(
 
     try:
         message = client.messages.create(
-            model="claude-sonnet-4-6",
+            model="claude-haiku-4-5-20251001",
             max_tokens=1024,
             system=system,
             messages=context.messages,  # type: ignore[arg-type]
