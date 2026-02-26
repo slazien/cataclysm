@@ -49,21 +49,32 @@ export function useLapData(sessionId: string | null, lapNumber: number | null) {
 
 export function useUploadSessions() {
   const queryClient = useQueryClient();
-  const setUploadState = useSessionStore.getState().setUploadState;
+  const store = useSessionStore.getState;
   const addToast = useUiStore.getState().addToast;
   return useMutation({
     mutationFn: (files: File[]) => {
-      setUploadState('uploading');
-      return uploadSessions(files);
+      store().setUploadState('uploading');
+      store().setUploadProgress(0);
+      return uploadSessions(files, (fraction) => {
+        // Upload bytes account for 0-60% of the progress bar.
+        // XHR fires progress during upload; server processing happens after
+        // upload completes, so once fraction=1 the server is working.
+        const pct = Math.round(fraction * 60);
+        store().setUploadProgress(pct);
+        if (fraction >= 1) {
+          store().setUploadState('processing');
+        }
+      });
     },
     onSuccess: async (data) => {
-      setUploadState('processing');
+      store().setUploadProgress(100);
+      store().setUploadState('done');
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
-      // Brief delay to show processing, then done, then auto-dismiss
+      // Brief pause to show 100% check, then auto-dismiss
       setTimeout(() => {
-        setUploadState('done');
-        setTimeout(() => setUploadState('idle'), 1500);
-      }, 800);
+        store().setUploadState('idle');
+        store().setUploadProgress(0);
+      }, 1500);
 
       // Check for PB milestones after upload
       try {
@@ -93,8 +104,9 @@ export function useUploadSessions() {
       }
     },
     onError: () => {
-      setUploadState('error');
-      setTimeout(() => setUploadState('idle'), 3000);
+      store().setUploadState('error');
+      store().setUploadProgress(0);
+      setTimeout(() => store().setUploadState('idle'), 3000);
     },
   });
 }
