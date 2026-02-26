@@ -24,7 +24,7 @@ export function SpeedAnalysis() {
       {/* Left column -- 65% on desktop, full width on mobile -- three stacked charts */}
       <div className="flex w-full flex-col gap-3 lg:w-[65%]">
         {/* Speed Trace -- tallest */}
-        <div className="relative min-h-[16rem] min-h-0 flex-[2] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:min-h-0">
+        <div className="relative min-h-[16rem] flex-[2] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:min-h-0">
           <h3 className="absolute left-3 top-2 z-10 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
             Speed Trace
           </h3>
@@ -34,7 +34,7 @@ export function SpeedAnalysis() {
         </div>
 
         {/* Delta-T */}
-        <div className="relative min-h-[16rem] min-h-0 flex-1 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:min-h-0">
+        <div className="relative min-h-[16rem] flex-1 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:min-h-0">
           <h3 className="absolute left-3 top-2 z-10 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
             Delta-T
           </h3>
@@ -44,7 +44,7 @@ export function SpeedAnalysis() {
         </div>
 
         {/* Brake/Throttle */}
-        <div className="relative min-h-[16rem] min-h-0 flex-1 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:min-h-0">
+        <div className="relative min-h-[16rem] flex-1 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:min-h-0">
           <h3 className="absolute left-3 top-2 z-10 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
             Brake / Throttle
           </h3>

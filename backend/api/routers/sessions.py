@@ -81,23 +81,38 @@ async def upload_sessions(
             sid = str(result["session_id"])
             session_ids.append(sid)
 
-            # Persist session metadata to DB for user scoping
+            # Persist session metadata to DB for user scoping.
+            # Commit immediately so the session appears in the list even if
+            # subsequent operations (CSV bytes, coaching) fail.
             sd = session_store.get_session(sid)
             if sd is not None:
                 await store_session_db(db, current_user.user_id, sd)
-
-                # Persist raw CSV bytes so sessions survive redeployments
-                await db.merge(
-                    SessionFileModel(
-                        session_id=sid,
-                        filename=f.filename or "",
-                        csv_bytes=file_bytes,
-                    )
-                )
                 await db.commit()
 
+                # Persist raw CSV bytes so sessions survive redeployments.
+                # Separate try/except: metadata is already committed above.
+                try:
+                    await db.merge(
+                        SessionFileModel(
+                            session_id=sid,
+                            filename=f.filename or "",
+                            csv_bytes=file_bytes,
+                        )
+                    )
+                    await db.commit()
+                except Exception:
+                    logger.warning(
+                        "Failed to persist CSV bytes for %s", sid, exc_info=True
+                    )
+                    await db.rollback()
+
                 # Auto-generate coaching report in the background
-                await trigger_auto_coaching(sid, sd)
+                try:
+                    await trigger_auto_coaching(sid, sd)
+                except Exception:
+                    logger.warning(
+                        "Auto-coaching failed for %s", sid, exc_info=True
+                    )
         except Exception as exc:
             logger.warning("Failed to process %s: %s", f.filename, exc, exc_info=True)
             errors.append(f"{f.filename}: {exc}")
