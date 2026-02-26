@@ -10,8 +10,6 @@ from cataclysm.engine import LapSummary, ProcessedSession
 from cataclysm.gps_quality import (
     AccuracyStats,
     GPSQualityReport,
-    HeadingJitterStats,
-    LapDistanceConsistency,
     LateralScatterStats,
     SatelliteStats,
     SpeedSpikeStats,
@@ -24,7 +22,6 @@ from cataclysm.gps_quality import (
     _piecewise_linear_score,
     assess_gps_quality,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers: synthetic data builders

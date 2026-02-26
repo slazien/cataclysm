@@ -5,7 +5,8 @@ from __future__ import annotations
 import asyncio
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from cataclysm.trends import SessionSnapshot
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from backend.api.dependencies import AuthenticatedUser, get_current_user
 from backend.api.schemas.trends import MilestoneResponse, MilestoneSchema, TrendAnalysisResponse
@@ -15,7 +16,7 @@ from backend.api.services.serializers import dataclass_to_dict
 router = APIRouter()
 
 
-def _collect_snapshots_for_track(track_name: str) -> list[object]:
+def _collect_snapshots_for_track(track_name: str) -> list[SessionSnapshot]:
     """Gather all session snapshots matching a track name (case-insensitive).
 
     NOTE: This currently searches all in-memory sessions regardless of user.
@@ -32,15 +33,27 @@ def _collect_snapshots_for_track(track_name: str) -> list[object]:
     ]
 
 
+_USABLE_THRESHOLD = 40.0
+
+
 @router.get("/{track_name}", response_model=TrendAnalysisResponse)
 async def get_trends(
     track_name: str,
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    include_low_quality: Annotated[
+        bool,
+        Query(description="Include sessions with GPS quality grade F (score < 40)"),
+    ] = False,
 ) -> TrendAnalysisResponse:
     """Get cross-session trend analysis for a track."""
     from cataclysm.trends import compute_trend_analysis
 
     snapshots = _collect_snapshots_for_track(track_name)
+
+    # Filter out grade-F sessions by default
+    if not include_low_quality:
+        snapshots = [s for s in snapshots if s.gps_quality_score >= _USABLE_THRESHOLD]  # type: ignore[union-attr]
+
     if len(snapshots) < 2:
         raise HTTPException(
             status_code=422,

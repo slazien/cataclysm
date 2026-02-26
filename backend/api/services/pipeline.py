@@ -20,7 +20,6 @@ from cataclysm.corners import Corner, detect_corners, extract_corner_kpis_for_la
 from cataclysm.curvature import compute_curvature
 from cataclysm.engine import LapSummary, ProcessedSession, find_anomalous_laps, process_session
 from cataclysm.equipment import equipment_to_vehicle_params
-from cataclysm.gps_quality import GPSQualityReport, assess_gps_quality
 from cataclysm.gains import (
     GainEstimate,
     build_segments,
@@ -28,6 +27,7 @@ from cataclysm.gains import (
     estimate_gains,
     reconstruct_ideal_lap,
 )
+from cataclysm.gps_quality import GPSQualityReport, assess_gps_quality
 from cataclysm.grip import estimate_grip_limit
 from cataclysm.parser import ParsedSession, parse_racechrono_csv
 from cataclysm.track_db import locate_official_corners
