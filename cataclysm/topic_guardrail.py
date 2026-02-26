@@ -65,7 +65,7 @@ Determine if the user's message is relevant to ANY of these topics:
 A message is ON-TOPIC if it relates to ANY of the above, even tangentially.
 A message is OFF-TOPIC if it has NO connection to driving or motorsport.
 
-Respond ONLY with JSON: {"on_topic": true} or {"on_topic": false}
+Respond ONLY with JSON: {{"on_topic": true}} or {{"on_topic": false}}
 
 User message: {message}"""
 
