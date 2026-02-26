@@ -24,8 +24,18 @@ type Step = 'tire' | 'details' | 'confirm';
 
 const COMPOUND_LABELS: Record<string, string> = {
   street: 'Street',
-  '200tw': '200TW',
-  'r-comp': 'R-Comp',
+  endurance_200tw: 'Endurance 200TW',
+  super_200tw: '200TW',
+  '100tw': '100TW',
+  r_comp: 'R-Comp',
+  slick: 'Slick',
+};
+
+/** Subset shown as selectable buttons in the UI (most common categories). */
+const COMPOUND_BUTTONS: Record<string, string> = {
+  street: 'Street',
+  super_200tw: '200TW',
+  r_comp: 'R-Comp',
   slick: 'Slick',
 };
 
@@ -38,7 +48,7 @@ export function EquipmentSetupModal({
   const [profileName, setProfileName] = useState('');
   const [tireQuery, setTireQuery] = useState('');
   const [selectedTire, setSelectedTire] = useState<TireSpec | null>(null);
-  const [compoundCategory, setCompoundCategory] = useState('200tw');
+  const [compoundCategory, setCompoundCategory] = useState('super_200tw');
   const [tireSize, setTireSize] = useState('');
 
   const { data: searchResults, isLoading: searching } = useTireSearch(tireQuery);
@@ -51,7 +61,7 @@ export function EquipmentSetupModal({
       setProfileName('');
       setTireQuery('');
       setSelectedTire(null);
-      setCompoundCategory('200tw');
+      setCompoundCategory('super_200tw');
       setTireSize('');
     }
   }, [open]);
@@ -189,7 +199,7 @@ export function EquipmentSetupModal({
                 Compound Category
               </label>
               <div className="grid grid-cols-2 gap-2">
-                {Object.entries(COMPOUND_LABELS).map(([key, label]) => (
+                {Object.entries(COMPOUND_BUTTONS).map(([key, label]) => (
                   <button
                     key={key}
                     type="button"

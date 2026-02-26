@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import unicodedata
 from dataclasses import dataclass
 from io import BytesIO
 
@@ -12,6 +13,36 @@ from cataclysm.coaching import CoachingReport, CornerGrade
 from cataclysm.engine import LapSummary
 
 MPS_TO_MPH = 2.23694
+
+
+def _sanitize_text(text: str) -> str:
+    """Replace Unicode characters unsupported by Helvetica with ASCII equivalents.
+
+    fpdf2's built-in fonts only support Latin-1. AI-generated text commonly
+    contains em-dashes, curly quotes, ellipses, etc. that must be transliterated.
+    """
+    replacements: dict[str, str] = {
+        "\u2014": "--",  # em-dash
+        "\u2013": "-",  # en-dash
+        "\u2018": "'",  # left single quote
+        "\u2019": "'",  # right single quote
+        "\u201c": '"',  # left double quote
+        "\u201d": '"',  # right double quote
+        "\u2026": "...",  # ellipsis
+        "\u2022": "*",  # bullet
+        "\u00b1": "+/-",  # plus-minus
+        "\u2264": "<=",  # less-than-or-equal
+        "\u2265": ">=",  # greater-than-or-equal
+        "\u00d7": "x",  # multiplication sign
+        "\u2192": "->",  # right arrow
+        "\u2190": "<-",  # left arrow
+        "\u2248": "~=",  # approximately equal
+    }
+    for char, replacement in replacements.items():
+        text = text.replace(char, replacement)
+    # Fallback: replace any remaining non-Latin-1 characters via NFKD decomposition
+    normalized = unicodedata.normalize("NFKD", text)
+    return normalized.encode("latin-1", errors="replace").decode("latin-1")
 
 
 @dataclass
@@ -118,7 +149,7 @@ def generate_pdf(content: ReportContent) -> bytes:
         _add_section_header(pdf, "Session Summary")
         pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(40, 40, 40)
-        pdf.multi_cell(0, 5, content.report.summary, new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(0, 5, _sanitize_text(content.report.summary), new_x="LMARGIN", new_y="NEXT")
         pdf.ln(4)
 
     # --- Lap Times Chart ---
@@ -144,10 +175,10 @@ def generate_pdf(content: ReportContent) -> bytes:
             pdf.cell(0, 5, f"T{cn} ({cost:+.3f}s)", new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Helvetica", "", 9)
             pdf.set_text_color(60, 60, 60)
-            pdf.multi_cell(0, 4.5, f"{issue}", new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(0, 4.5, _sanitize_text(f"{issue}"), new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Helvetica", "I", 9)
             pdf.set_text_color(0, 100, 0)
-            pdf.multi_cell(0, 4.5, f"Tip: {tip}", new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(0, 4.5, _sanitize_text(f"Tip: {tip}"), new_x="LMARGIN", new_y="NEXT")
             pdf.ln(2)
 
     # --- Patterns ---
@@ -156,7 +187,7 @@ def generate_pdf(content: ReportContent) -> bytes:
         pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(40, 40, 40)
         for p in content.report.patterns:
-            pdf.multi_cell(0, 5, f"  * {p}", new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(0, 5, _sanitize_text(f"  * {p}"), new_x="LMARGIN", new_y="NEXT")
         pdf.ln(3)
 
     # --- Practice Drills ---
@@ -165,7 +196,7 @@ def generate_pdf(content: ReportContent) -> bytes:
         pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(40, 40, 40)
         for i, drill in enumerate(content.report.drills, 1):
-            pdf.multi_cell(0, 5, f"  {i}. {drill}", new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(0, 5, _sanitize_text(f"  {i}. {drill}"), new_x="LMARGIN", new_y="NEXT")
         pdf.ln(3)
 
     # --- Charts ---
@@ -245,7 +276,7 @@ def _add_grades_table(pdf: _ReportPDF, grades: list[CornerGrade]) -> None:
         pdf.set_fill_color(255, 255, 255)
         # Truncate notes to fit
         notes = g.notes[:80] + "..." if len(g.notes) > 80 else g.notes
-        pdf.cell(col_widths[5], 6, notes, border=1, align="L")
+        pdf.cell(col_widths[5], 6, _sanitize_text(notes), border=1, align="L")
         pdf.ln()
 
 
