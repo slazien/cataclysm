@@ -100,45 +100,31 @@ async def _auto_fetch_weather(sd: session_store.SessionData) -> None:
         )
 
 
-def _weather_fields(sd: session_store.SessionData) -> dict[str, object]:
-    """Extract weather fields from a session for SessionSummary."""
+def _weather_fields(
+    sd: session_store.SessionData,
+) -> tuple[float | None, str | None, float | None, float | None, float | None]:
+    """Extract weather fields from a session.
+
+    Returns (temp_c, condition, humidity_pct, wind_kmh, precipitation_mm).
+    """
     w = sd.weather
     if w is None:
-        return {
-            "weather_temp_c": None,
-            "weather_condition": None,
-            "weather_humidity_pct": None,
-            "weather_wind_kmh": None,
-            "weather_precipitation_mm": None,
-        }
-    return {
-        "weather_temp_c": w.ambient_temp_c,
-        "weather_condition": w.track_condition.value
-        if hasattr(w.track_condition, "value")
-        else str(w.track_condition),
-        "weather_humidity_pct": w.humidity_pct,
-        "weather_wind_kmh": w.wind_speed_kmh,
-        "weather_precipitation_mm": w.precipitation_mm,
-    }
+        return None, None, None, None, None
+    condition = (
+        w.track_condition.value if hasattr(w.track_condition, "value") else str(w.track_condition)
+    )
+    return w.ambient_temp_c, condition, w.humidity_pct, w.wind_speed_kmh, w.precipitation_mm
 
 
-def _equipment_fields(session_id: str) -> dict[str, str | None]:
-    """Look up equipment for a session and return fields for SessionSummary."""
-    tire_model: str | None = None
-    compound_category: str | None = None
-    profile_name: str | None = None
+def _equipment_fields(session_id: str) -> tuple[str | None, str | None, str | None]:
+    """Look up equipment for a session. Returns (tire_model, compound_category, profile_name)."""
     se = equipment_store.get_session_equipment(session_id)
-    if se is not None:
-        profile = equipment_store.get_profile(se.profile_id)
-        if profile is not None:
-            tire_model = profile.tires.model
-            compound_category = profile.tires.compound_category.value
-            profile_name = profile.name
-    return {
-        "tire_model": tire_model,
-        "compound_category": compound_category,
-        "equipment_profile_name": profile_name,
-    }
+    if se is None:
+        return None, None, None
+    profile = equipment_store.get_profile(se.profile_id)
+    if profile is None:
+        return None, None, None
+    return profile.tires.model, profile.tires.compound_category.value, profile.name
 
 
 @router.post("/upload", response_model=UploadResponse)
@@ -225,6 +211,8 @@ async def list_sessions(
         # Try in-memory store for richer data (e.g. after upload)
         sd = session_store.get_session(row.session_id)
         if sd is not None:
+            tire_model, compound_category, profile_name = _equipment_fields(sd.session_id)
+            w_temp, w_cond, w_hum, w_wind, w_precip = _weather_fields(sd)
             items.append(
                 SessionSummary(
                     session_id=sd.session_id,
@@ -238,8 +226,14 @@ async def list_sessions(
                     consistency_score=sd.snapshot.consistency_score,
                     gps_quality_score=sd.gps_quality.overall_score if sd.gps_quality else None,
                     gps_quality_grade=sd.gps_quality.grade if sd.gps_quality else None,
-                    **_equipment_fields(sd.session_id),
-                    **_weather_fields(sd),
+                    tire_model=tire_model,
+                    compound_category=compound_category,
+                    equipment_profile_name=profile_name,
+                    weather_temp_c=w_temp,
+                    weather_condition=w_cond,
+                    weather_humidity_pct=w_hum,
+                    weather_wind_kmh=w_wind,
+                    weather_precipitation_mm=w_precip,
                 )
             )
         else:
@@ -271,6 +265,8 @@ async def get_session(
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
+    tire_model, compound_category, profile_name = _equipment_fields(sd.session_id)
+    w_temp, w_cond, w_hum, w_wind, w_precip = _weather_fields(sd)
     return SessionSummary(
         session_id=sd.session_id,
         track_name=sd.snapshot.metadata.track_name,
@@ -283,8 +279,14 @@ async def get_session(
         consistency_score=sd.snapshot.consistency_score,
         gps_quality_score=sd.gps_quality.overall_score if sd.gps_quality else None,
         gps_quality_grade=sd.gps_quality.grade if sd.gps_quality else None,
-        **_equipment_fields(sd.session_id),
-        **_weather_fields(sd),
+        tire_model=tire_model,
+        compound_category=compound_category,
+        equipment_profile_name=profile_name,
+        weather_temp_c=w_temp,
+        weather_condition=w_cond,
+        weather_humidity_pct=w_hum,
+        weather_wind_kmh=w_wind,
+        weather_precipitation_mm=w_precip,
     )
 
 

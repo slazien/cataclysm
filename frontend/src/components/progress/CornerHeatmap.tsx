@@ -282,12 +282,12 @@ export function CornerHeatmap({
         <canvas
           ref={dataCanvasRef}
           className="absolute inset-0"
-          style={{ width: '100%', height: '100%' }}
+          style={{ width: '100%', height: '100%', zIndex: 1 }}
         />
         <canvas
           ref={overlayCanvasRef}
           className="absolute inset-0"
-          style={{ width: '100%', height: '100%', cursor: 'pointer' }}
+          style={{ width: '100%', height: '100%', cursor: 'pointer', zIndex: 2, pointerEvents: 'auto' }}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
           onClick={handleClick}

@@ -13,6 +13,11 @@ export interface SessionSummary {
   equipment_profile_name?: string | null;
   gps_quality_score?: number | null;
   gps_quality_grade?: string | null;
+  weather_temp_c?: number | null;
+  weather_condition?: string | null;
+  weather_humidity_pct?: number | null;
+  weather_wind_kmh?: number | null;
+  weather_precipitation_mm?: number | null;
 }
 
 export interface LapSummary {
@@ -281,6 +286,25 @@ export interface SessionEquipmentSet {
     track_temp_c?: number | null;
     humidity_pct?: number | null;
   } | null;
+}
+
+export interface BrakePadSearchResult {
+  model: string;
+  brand: string;
+  category: string;
+  temp_range: string;
+  initial_bite: string;
+  notes: string;
+}
+
+export interface SessionWeather {
+  track_condition: string;
+  ambient_temp_c: number | null;
+  humidity_pct: number | null;
+  wind_speed_kmh: number | null;
+  wind_direction_deg: number | null;
+  precipitation_mm: number | null;
+  weather_source: string | null;
 }
 
 // --- GPS Quality Types ---

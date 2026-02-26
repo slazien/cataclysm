@@ -258,12 +258,12 @@ export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
         <canvas
           ref={dataCanvasRef}
           className="absolute inset-0"
-          style={{ width: '100%', height: '100%' }}
+          style={{ width: '100%', height: '100%', zIndex: 1 }}
         />
         <canvas
           ref={overlayCanvasRef}
           className="absolute inset-0"
-          style={{ width: '100%', height: '100%' }}
+          style={{ width: '100%', height: '100%', cursor: 'crosshair', zIndex: 2, pointerEvents: 'auto' }}
         />
       </div>
     </div>

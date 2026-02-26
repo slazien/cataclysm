@@ -3,10 +3,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchApi } from "@/lib/api";
 import type {
+  BrakePadSearchResult,
   EquipmentProfile,
   EquipmentProfileCreate,
   SessionEquipmentResponse,
   SessionEquipmentSet,
+  SessionWeather,
   TireSpec,
 } from "@/lib/types";
 
@@ -97,6 +99,31 @@ export function useAssignEquipment() {
 
 // --- Tire Search ---
 
+export function useUpdateProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      profileId,
+      body,
+    }: {
+      profileId: string;
+      body: EquipmentProfileCreate;
+    }) =>
+      fetchApi<EquipmentProfile>(
+        `/api/equipment/profiles/${profileId}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        },
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["equipment-profiles"] });
+    },
+  });
+}
+
+// --- Tire Search ---
+
 export function useTireSearch(query: string) {
   return useQuery({
     queryKey: ["tire-search", query],
@@ -106,5 +133,53 @@ export function useTireSearch(query: string) {
       ),
     enabled: query.length >= 2,
     staleTime: 60_000,
+  });
+}
+
+// --- Brake Pad Search ---
+
+export function useBrakePadSearch(query: string) {
+  return useQuery({
+    queryKey: ["brake-pad-search", query],
+    queryFn: () =>
+      fetchApi<BrakePadSearchResult[]>(
+        `/api/equipment/brakes/search?q=${encodeURIComponent(query)}`,
+      ),
+    enabled: query.length >= 2,
+    staleTime: 60_000,
+  });
+}
+
+// --- Reference Data ---
+
+export function useCommonTireSizes() {
+  return useQuery({
+    queryKey: ["common-tire-sizes"],
+    queryFn: () =>
+      fetchApi<string[]>("/api/equipment/reference/tire-sizes"),
+    staleTime: Infinity,
+  });
+}
+
+export function useCommonBrakeFluids() {
+  return useQuery({
+    queryKey: ["common-brake-fluids"],
+    queryFn: () =>
+      fetchApi<string[]>("/api/equipment/reference/brake-fluids"),
+    staleTime: Infinity,
+  });
+}
+
+// --- Session Weather ---
+
+export function useSessionWeather(sessionId: string | null) {
+  return useQuery({
+    queryKey: ["session-weather", sessionId],
+    queryFn: () =>
+      fetchApi<{ session_id: string; weather: SessionWeather | null }>(
+        `/api/sessions/${sessionId}/weather`,
+      ),
+    enabled: !!sessionId,
+    staleTime: Infinity, // Weather is immutable per session
   });
 }
