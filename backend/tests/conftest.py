@@ -26,7 +26,7 @@ _test_engine = create_async_engine("sqlite+aiosqlite:///", echo=False)
 @event.listens_for(_test_engine.sync_engine, "connect")
 def _set_sqlite_pragma(dbapi_conn: object, connection_record: object) -> None:
     """Enable WAL mode and foreign keys for SQLite test database."""
-    cursor = dbapi_conn.cursor()  # type: ignore[union-attr]
+    cursor = dbapi_conn.cursor()  # type: ignore[attr-defined]
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()
 
@@ -215,6 +215,19 @@ async def _test_db() -> AsyncGenerator[None, None]:
     """Create tables in in-memory SQLite and override get_db for each test."""
     async with _test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Seed the test user so FK constraints on sessions.user_id succeed
+    from backend.api.db.models import User as UserModel
+
+    async with _test_session_factory() as seed_session:
+        seed_session.add(
+            UserModel(
+                id=_TEST_USER.user_id,
+                email=_TEST_USER.email,
+                name=_TEST_USER.name,
+            )
+        )
+        await seed_session.commit()
 
     async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:
         async with _test_session_factory() as session:

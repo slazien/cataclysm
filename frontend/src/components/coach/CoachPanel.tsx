@@ -1,10 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { Download, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { useCoachStore } from '@/stores';
+import { useCoachStore, useSessionStore } from '@/stores';
+import { useAutoReport } from '@/hooks/useAutoReport';
+import { downloadPdfReport } from '@/lib/api';
 import { ContextChips } from './ContextChips';
 import { ReportSummary } from './ReportSummary';
 import { SuggestedQuestions } from './SuggestedQuestions';
@@ -12,6 +14,9 @@ import { ChatInterface } from './ChatInterface';
 
 function CoachPanelContent({ onClose }: { onClose: () => void }) {
   const setPendingQuestion = useCoachStore((s) => s.setPendingQuestion);
+  const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const { report } = useAutoReport(activeSessionId);
+  const [downloading, setDownloading] = useState(false);
 
   const handleAsk = useCallback(
     (question: string) => {
@@ -20,19 +25,47 @@ function CoachPanelContent({ onClose }: { onClose: () => void }) {
     [setPendingQuestion],
   );
 
+  const handleDownloadPdf = useCallback(async () => {
+    if (!activeSessionId) return;
+    setDownloading(true);
+    try {
+      await downloadPdfReport(activeSessionId);
+    } catch (err) {
+      console.error('PDF download failed:', err);
+    } finally {
+      setDownloading(false);
+    }
+  }, [activeSessionId]);
+
+  const reportReady = report?.status === 'ready';
+
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
       <div className="flex h-12 shrink-0 items-center justify-between border-b border-[var(--cata-border)] px-4">
         <h2 className="text-sm font-semibold text-[var(--text-primary)]">AI Coach</h2>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onClose}
-          className="h-7 w-7 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-        >
-          <X className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          {reportReady && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleDownloadPdf}
+              disabled={downloading}
+              title="Download PDF report"
+              className="h-7 w-7 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-7 w-7 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Context Chips */}

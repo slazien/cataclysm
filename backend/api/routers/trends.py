@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from backend.api.dependencies import AuthenticatedUser, get_current_user
 from backend.api.schemas.trends import MilestoneResponse, MilestoneSchema, TrendAnalysisResponse
 from backend.api.services import session_store
 from backend.api.services.serializers import dataclass_to_dict
@@ -14,7 +16,13 @@ router = APIRouter()
 
 
 def _collect_snapshots_for_track(track_name: str) -> list[object]:
-    """Gather all session snapshots matching a track name (case-insensitive)."""
+    """Gather all session snapshots matching a track name (case-insensitive).
+
+    NOTE: This currently searches all in-memory sessions regardless of user.
+    User-scoped filtering happens at the endpoint level via DB queries.
+    For now, the in-memory store doesn't track user_id, so we rely on
+    the auth middleware to ensure only authenticated users can call this.
+    """
     normalized = track_name.strip().lower().replace("_", " ")
     all_sessions = session_store.list_sessions()
     return [
@@ -25,7 +33,10 @@ def _collect_snapshots_for_track(track_name: str) -> list[object]:
 
 
 @router.get("/{track_name}", response_model=TrendAnalysisResponse)
-async def get_trends(track_name: str) -> TrendAnalysisResponse:
+async def get_trends(
+    track_name: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> TrendAnalysisResponse:
     """Get cross-session trend analysis for a track."""
     from cataclysm.trends import compute_trend_analysis
 
@@ -66,7 +77,10 @@ async def get_trends(track_name: str) -> TrendAnalysisResponse:
 
 
 @router.get("/{track_name}/milestones", response_model=MilestoneResponse)
-async def get_milestones(track_name: str) -> MilestoneResponse:
+async def get_milestones(
+    track_name: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> MilestoneResponse:
     """Get milestones (PBs, breakthroughs) for a track."""
     from cataclysm.trends import compute_trend_analysis
 

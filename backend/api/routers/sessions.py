@@ -6,9 +6,11 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.config import Settings
-from backend.api.dependencies import get_settings
+from backend.api.db.database import get_db
+from backend.api.dependencies import AuthenticatedUser, get_current_user, get_settings
 from backend.api.routers.coaching import trigger_auto_coaching
 from backend.api.schemas.session import (
     LapData,
@@ -18,6 +20,11 @@ from backend.api.schemas.session import (
     UploadResponse,
 )
 from backend.api.services import equipment_store, session_store
+from backend.api.services.db_session_store import (
+    delete_session_db,
+    list_sessions_for_user,
+    store_session_db,
+)
 from backend.api.services.pipeline import process_upload
 
 logger = logging.getLogger(__name__)
@@ -50,6 +57,8 @@ def _equipment_fields(session_id: str) -> dict[str, str | None]:
 async def upload_sessions(
     files: list[UploadFile],
     settings: Annotated[Settings, Depends(get_settings)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> UploadResponse:
     """Upload one or more RaceChrono CSV files and create sessions."""
     session_ids: list[str] = []
@@ -65,9 +74,11 @@ async def upload_sessions(
             sid = str(result["session_id"])
             session_ids.append(sid)
 
-            # Auto-generate coaching report in the background
+            # Persist session metadata to DB for user scoping
             sd = session_store.get_session(sid)
             if sd is not None:
+                await store_session_db(db, current_user.user_id, sd)
+                # Auto-generate coaching report in the background
                 trigger_auto_coaching(sid, sd)
         except Exception as exc:
             logger.warning("Failed to process %s: %s", f.filename, exc, exc_info=True)
@@ -81,29 +92,58 @@ async def upload_sessions(
 
 
 @router.get("", response_model=SessionList)
-async def list_sessions() -> SessionList:
-    """List all stored sessions ordered by date descending."""
-    all_sessions = session_store.list_sessions()
-    items = [
-        SessionSummary(
-            session_id=sd.session_id,
-            track_name=sd.snapshot.metadata.track_name,
-            session_date=sd.snapshot.metadata.session_date,
-            n_laps=sd.snapshot.n_laps,
-            n_clean_laps=sd.snapshot.n_clean_laps,
-            best_lap_time_s=sd.snapshot.best_lap_time_s,
-            top3_avg_time_s=sd.snapshot.top3_avg_time_s,
-            avg_lap_time_s=sd.snapshot.avg_lap_time_s,
-            consistency_score=sd.snapshot.consistency_score,
-            **_equipment_fields(sd.session_id),
-        )
-        for sd in all_sessions
-    ]
+async def list_sessions(
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> SessionList:
+    """List user's sessions ordered by date descending.
+
+    Uses DB metadata for the list; enriches from in-memory store if available.
+    """
+    db_rows = await list_sessions_for_user(db, current_user.user_id)
+    items: list[SessionSummary] = []
+    for row in db_rows:
+        # Try in-memory store for richer data (e.g. after upload)
+        sd = session_store.get_session(row.session_id)
+        if sd is not None:
+            items.append(
+                SessionSummary(
+                    session_id=sd.session_id,
+                    track_name=sd.snapshot.metadata.track_name,
+                    session_date=sd.snapshot.metadata.session_date,
+                    n_laps=sd.snapshot.n_laps,
+                    n_clean_laps=sd.snapshot.n_clean_laps,
+                    best_lap_time_s=sd.snapshot.best_lap_time_s,
+                    top3_avg_time_s=sd.snapshot.top3_avg_time_s,
+                    avg_lap_time_s=sd.snapshot.avg_lap_time_s,
+                    consistency_score=sd.snapshot.consistency_score,
+                    **_equipment_fields(sd.session_id),
+                )
+            )
+        else:
+            # Fallback to DB metadata (telemetry not in memory — needs re-upload)
+            date_str = row.session_date.isoformat() if row.session_date else ""
+            items.append(
+                SessionSummary(
+                    session_id=row.session_id,
+                    track_name=row.track_name,
+                    session_date=date_str,
+                    n_laps=row.n_laps,
+                    n_clean_laps=row.n_clean_laps,
+                    best_lap_time_s=row.best_lap_time_s,
+                    top3_avg_time_s=row.top3_avg_time_s,
+                    avg_lap_time_s=row.avg_lap_time_s,
+                    consistency_score=row.consistency_score,
+                )
+            )
     return SessionList(items=items, total=len(items))
 
 
 @router.get("/{session_id}", response_model=SessionSummary)
-async def get_session(session_id: str) -> SessionSummary:
+async def get_session(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> SessionSummary:
     """Get metadata and summary for a single session."""
     sd = session_store.get_session(session_id)
     if sd is None:
@@ -124,23 +164,40 @@ async def get_session(session_id: str) -> SessionSummary:
 
 
 @router.delete("/{session_id}")
-async def delete_session(session_id: str) -> dict[str, str]:
-    """Delete a session and its associated data."""
-    deleted = session_store.delete_session(session_id)
-    if not deleted:
+async def delete_session(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, str]:
+    """Delete a session owned by the current user."""
+    db_deleted = await delete_session_db(db, session_id, current_user.user_id)
+    if not db_deleted:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+    # Also remove from in-memory store
+    session_store.delete_session(session_id)
     return {"message": f"Session {session_id} deleted"}
 
 
 @router.delete("/all/clear")
-async def delete_all_sessions() -> dict[str, str]:
-    """Delete all sessions."""
-    count = session_store.clear_all()
+async def delete_all_sessions(
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, str]:
+    """Delete all sessions for the current user."""
+    db_rows = await list_sessions_for_user(db, current_user.user_id)
+    count = 0
+    for row in db_rows:
+        await delete_session_db(db, row.session_id, current_user.user_id)
+        session_store.delete_session(row.session_id)
+        count += 1
     return {"message": f"Deleted {count} session(s)"}
 
 
 @router.get("/{session_id}/laps", response_model=list[LapSummary])
-async def get_lap_summaries(session_id: str) -> list[LapSummary]:
+async def get_lap_summaries(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> list[LapSummary]:
     """Get lap summaries for a session."""
     sd = session_store.get_session(session_id)
     if sd is None:
@@ -160,7 +217,11 @@ async def get_lap_summaries(session_id: str) -> list[LapSummary]:
 
 
 @router.get("/{session_id}/laps/{lap_number}/data", response_model=LapData)
-async def get_lap_data(session_id: str, lap_number: int) -> LapData:
+async def get_lap_data(
+    session_id: str,
+    lap_number: int,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> LapData:
     """Get resampled telemetry data for a specific lap (columnar JSON)."""
     sd = session_store.get_session(session_id)
     if sd is None:
@@ -186,7 +247,11 @@ async def get_lap_data(session_id: str, lap_number: int) -> LapData:
 
 
 @router.get("/{session_id}/laps/{lap_number}/tags")
-async def get_lap_tags(session_id: str, lap_number: int) -> dict[str, object]:
+async def get_lap_tags(
+    session_id: str,
+    lap_number: int,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> dict[str, object]:
     """Get tags for a specific lap."""
     sd = session_store.get_session(session_id)
     if sd is None:
@@ -201,7 +266,12 @@ async def get_lap_tags(session_id: str, lap_number: int) -> dict[str, object]:
 
 
 @router.put("/{session_id}/laps/{lap_number}/tags")
-async def set_lap_tags(session_id: str, lap_number: int, tags: list[str]) -> dict[str, object]:
+async def set_lap_tags(
+    session_id: str,
+    lap_number: int,
+    tags: list[str],
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> dict[str, object]:
     """Set tags for a specific lap."""
     sd = session_store.get_session(session_id)
     if sd is None:

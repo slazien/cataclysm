@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from unittest.mock import patch
+from datetime import UTC, datetime, timedelta
 
 import pytest
-from fastapi import FastAPI, HTTPException
+from fastapi import HTTPException
 from jose import jwt
 
 from backend.api.config import Settings
@@ -28,12 +27,13 @@ def _make_token(
         "sub": sub,
         "email": email,
         "name": name,
-        "iat": datetime.now(timezone.utc),
-        "exp": datetime.now(timezone.utc) + timedelta(hours=exp_hours),
+        "iat": datetime.now(UTC),
+        "exp": datetime.now(UTC) + timedelta(hours=exp_hours),
     }
     if picture:
         payload["picture"] = picture
-    return jwt.encode(payload, secret, algorithm="HS256")
+    result: str = jwt.encode(payload, secret, algorithm="HS256")  # type: ignore[assignment]
+    return result
 
 
 def _settings(secret: str = _SECRET) -> Settings:
@@ -148,7 +148,7 @@ class TestGetCurrentUser:
         payload = {
             "email": "driver@example.com",
             "name": "Test",
-            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            "exp": datetime.now(UTC) + timedelta(hours=1),
         }
         token = jwt.encode(payload, _SECRET, algorithm="HS256")
         with pytest.raises(HTTPException) as exc_info:
@@ -165,7 +165,7 @@ class TestGetCurrentUser:
         payload = {
             "sub": "user-123",
             "name": "Test",
-            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+            "exp": datetime.now(UTC) + timedelta(hours=1),
         }
         token = jwt.encode(payload, _SECRET, algorithm="HS256")
         with pytest.raises(HTTPException) as exc_info:

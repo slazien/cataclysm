@@ -150,6 +150,22 @@ export async function getCoachingReport(sessionId: string) {
   return fetchApi<CoachingReport>(`/api/coaching/${sessionId}/report`);
 }
 
+export async function downloadPdfReport(sessionId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/coaching/${sessionId}/report/pdf`, {
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Failed to download PDF');
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `coaching-report-${sessionId.slice(0, 8)}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export async function getIdealLap(sessionId: string) {
   return fetchApi<IdealLapData>(`/api/sessions/${sessionId}/ideal-lap`);
 }

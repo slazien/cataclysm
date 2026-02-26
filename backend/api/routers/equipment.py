@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC
+from typing import Annotated
 
 from cataclysm.equipment import (
     BrakeSpec,
@@ -16,9 +17,10 @@ from cataclysm.equipment import (
     TireSpec,
     TrackCondition,
 )
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from backend.api.dependencies import AuthenticatedUser, get_current_user
 from backend.api.schemas.equipment import (
     BrakeSpecSchema,
     EquipmentProfileCreate,
@@ -41,7 +43,10 @@ router = APIRouter()
 
 
 @router.get("/tires/search")
-async def search_tires(q: str = "") -> list[TireSpecSchema]:
+async def search_tires(
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    q: str = "",
+) -> list[TireSpecSchema]:
     """Search curated tire database. Returns matching tires."""
     from cataclysm.tire_db import search_curated_tires
 
@@ -79,7 +84,10 @@ class WeatherLookupRequest(BaseModel):
 
 
 @router.post("/weather/lookup")
-async def weather_lookup(body: WeatherLookupRequest) -> dict[str, object]:
+async def weather_lookup(
+    body: WeatherLookupRequest,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> dict[str, object]:
     """Look up weather conditions for a track location and date."""
     from datetime import datetime
 
@@ -230,7 +238,10 @@ def _conditions_to_schema(c: SessionConditions) -> SessionConditionsSchema:
 
 
 @router.post("/profiles", response_model=EquipmentProfileResponse, status_code=201)
-async def create_profile(body: EquipmentProfileCreate) -> EquipmentProfileResponse:
+async def create_profile(
+    body: EquipmentProfileCreate,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> EquipmentProfileResponse:
     """Create a new equipment profile."""
     profile_id = f"eq_{uuid.uuid4().hex[:12]}"
     profile = EquipmentProfile(
@@ -246,7 +257,9 @@ async def create_profile(body: EquipmentProfileCreate) -> EquipmentProfileRespon
 
 
 @router.get("/profiles", response_model=EquipmentProfileList)
-async def list_profiles() -> EquipmentProfileList:
+async def list_profiles(
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> EquipmentProfileList:
     """List all equipment profiles."""
     profiles = equipment_store.list_profiles()
     items = [_profile_to_response(p) for p in profiles]
@@ -254,7 +267,10 @@ async def list_profiles() -> EquipmentProfileList:
 
 
 @router.get("/profiles/{profile_id}", response_model=EquipmentProfileResponse)
-async def get_profile(profile_id: str) -> EquipmentProfileResponse:
+async def get_profile(
+    profile_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> EquipmentProfileResponse:
     """Get a single equipment profile by ID."""
     profile = equipment_store.get_profile(profile_id)
     if profile is None:
@@ -263,7 +279,11 @@ async def get_profile(profile_id: str) -> EquipmentProfileResponse:
 
 
 @router.patch("/profiles/{profile_id}", response_model=EquipmentProfileResponse)
-async def update_profile(profile_id: str, body: EquipmentProfileCreate) -> EquipmentProfileResponse:
+async def update_profile(
+    profile_id: str,
+    body: EquipmentProfileCreate,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> EquipmentProfileResponse:
     """Update an existing equipment profile."""
     existing = equipment_store.get_profile(profile_id)
     if existing is None:
@@ -282,7 +302,10 @@ async def update_profile(profile_id: str, body: EquipmentProfileCreate) -> Equip
 
 
 @router.delete("/profiles/{profile_id}")
-async def delete_profile(profile_id: str) -> dict[str, str]:
+async def delete_profile(
+    profile_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> dict[str, str]:
     """Delete an equipment profile."""
     deleted = equipment_store.delete_profile(profile_id)
     if not deleted:
@@ -297,7 +320,9 @@ async def delete_profile(profile_id: str) -> dict[str, str]:
 
 @router.put("/{session_id}/equipment", response_model=SessionEquipmentResponse)
 async def set_session_equipment(
-    session_id: str, body: SessionEquipmentSet
+    session_id: str,
+    body: SessionEquipmentSet,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
 ) -> SessionEquipmentResponse:
     """Assign an equipment profile to a session."""
     # Validate session exists
@@ -345,7 +370,10 @@ async def set_session_equipment(
 
 
 @router.get("/{session_id}/equipment", response_model=SessionEquipmentResponse)
-async def get_session_equipment(session_id: str) -> SessionEquipmentResponse:
+async def get_session_equipment(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> SessionEquipmentResponse:
     """Get the effective equipment assignment for a session."""
     se = equipment_store.get_session_equipment(session_id)
     if se is None:

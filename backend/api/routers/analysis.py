@@ -5,8 +5,9 @@ from __future__ import annotations
 import asyncio
 from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from backend.api.dependencies import AuthenticatedUser, get_current_user
 from backend.api.schemas.analysis import (
     AllLapsCornerResponse,
     ConsistencyResponse,
@@ -56,7 +57,10 @@ def _get_session_or_404(session_id: str) -> Any:
 
 
 @router.get("/{session_id}/corners", response_model=CornerResponse)
-async def get_corners(session_id: str) -> CornerResponse:
+async def get_corners(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> CornerResponse:
     """Return corners detected on the best lap."""
     sd = _get_session_or_404(session_id)
     return CornerResponse(
@@ -70,7 +74,10 @@ async def get_corners(session_id: str) -> CornerResponse:
     "/{session_id}/corners/all-laps",
     response_model=AllLapsCornerResponse,
 )
-async def get_all_laps_corners(session_id: str) -> AllLapsCornerResponse:
+async def get_all_laps_corners(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> AllLapsCornerResponse:
     """Corner KPIs for every lap in the session."""
     sd = _get_session_or_404(session_id)
     laps: dict[str, list[CornerSchema]] = {
@@ -81,7 +88,10 @@ async def get_all_laps_corners(session_id: str) -> AllLapsCornerResponse:
 
 
 @router.get("/{session_id}/consistency", response_model=ConsistencyResponse)
-async def get_consistency(session_id: str) -> ConsistencyResponse:
+async def get_consistency(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> ConsistencyResponse:
     """Compute session consistency metrics."""
     sd = _get_session_or_404(session_id)
     if sd.consistency is None:
@@ -94,7 +104,10 @@ async def get_consistency(session_id: str) -> ConsistencyResponse:
 
 
 @router.get("/{session_id}/grip", response_model=GripResponse)
-async def get_grip(session_id: str) -> GripResponse:
+async def get_grip(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> GripResponse:
     """Estimate grip limits from multi-lap telemetry."""
     sd = _get_session_or_404(session_id)
     if sd.grip is None:
@@ -107,7 +120,10 @@ async def get_grip(session_id: str) -> GripResponse:
 
 
 @router.get("/{session_id}/gains", response_model=GainsResponse)
-async def get_gains(session_id: str) -> GainsResponse:
+async def get_gains(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> GainsResponse:
     """Compute three-tier gain estimates (consistency, composite, theoretical)."""
     sd = _get_session_or_404(session_id)
     if sd.gains is None:
@@ -120,7 +136,10 @@ async def get_gains(session_id: str) -> GainsResponse:
 
 
 @router.get("/{session_id}/ideal-lap", response_model=IdealLapResponse)
-async def get_ideal_lap(session_id: str) -> IdealLapResponse:
+async def get_ideal_lap(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> IdealLapResponse:
     """Reconstruct ideal lap from best segments across all clean laps."""
     sd = _get_session_or_404(session_id)
     if len(sd.coaching_laps) < 2:
@@ -138,7 +157,10 @@ async def get_ideal_lap(session_id: str) -> IdealLapResponse:
 
 
 @router.get("/{session_id}/optimal-profile", response_model=OptimalProfileResponse)
-async def get_optimal_profile(session_id: str) -> OptimalProfileResponse:
+async def get_optimal_profile(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> OptimalProfileResponse:
     """Compute the physics-optimal velocity profile for the track.
 
     Uses track curvature derived from the best lap and the friction-circle
@@ -167,6 +189,7 @@ async def get_delta(
     session_id: str,
     ref: Annotated[int, Query(description="Reference lap number")],
     comp: Annotated[int, Query(description="Comparison lap number")],
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
 ) -> DeltaResponse:
     """Compute delta-T between two laps at each distance point."""
     sd = _get_session_or_404(session_id)
@@ -203,6 +226,7 @@ async def get_linked_chart_data(
         list[int],
         Query(description="Lap numbers to include in linked charts"),
     ],
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
 ) -> LinkedChartResponse:
     """Bundle telemetry data for synchronized linked charts."""
     sd = _get_session_or_404(session_id)
@@ -242,7 +266,10 @@ async def get_linked_chart_data(
 
 
 @router.get("/{session_id}/sectors", response_model=SectorResponse)
-async def get_sectors(session_id: str) -> SectorResponse:
+async def get_sectors(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> SectorResponse:
     """Compute per-lap sector splits with personal bests and composite time."""
     sd = _get_session_or_404(session_id)
     if len(sd.coaching_laps) < 1:

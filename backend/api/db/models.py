@@ -23,9 +23,7 @@ class User(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     avatar_url: Mapped[str | None] = mapped_column(String, nullable=True)
     skill_level: Mapped[str] = mapped_column(String, default="intermediate")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     sessions: Mapped[list[Session]] = relationship(
@@ -52,9 +50,7 @@ class Session(Base):
     avg_lap_time_s: Mapped[float | None] = mapped_column(Float, nullable=True)
     consistency_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     snapshot_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     user: Mapped[User | None] = relationship(back_populates="sessions")
@@ -82,9 +78,7 @@ class CoachingReport(Base):
     )
     skill_level: Mapped[str | None] = mapped_column(Text, nullable=True)
     report_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Relationship
     session: Mapped[Session] = relationship(back_populates="coaching_reports")

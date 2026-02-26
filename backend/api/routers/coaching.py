@@ -1,18 +1,23 @@
-"""Coaching endpoints: report generation and WebSocket follow-up chat."""
+"""Coaching endpoints: report generation, PDF export, and WebSocket follow-up chat."""
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
 import logging
+from typing import Annotated
 
+from cataclysm.coaching import CoachingReport, CornerGrade
+from cataclysm.pdf_report import ReportContent, generate_pdf
 from cataclysm.topic_guardrail import (
     INPUT_TOO_LONG_RESPONSE,
     OFF_TOPIC_RESPONSE,
     classify_topic,
 )
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import Response
 
+from backend.api.dependencies import AuthenticatedUser, get_current_user
 from backend.api.schemas.coaching import (
     CoachingReportResponse,
     CornerGradeSchema,
@@ -58,6 +63,7 @@ def trigger_auto_coaching(session_id: str, sd: SessionData) -> None:
 async def generate_report(
     session_id: str,
     body: ReportRequest,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
 ) -> CoachingReportResponse:
     """Trigger AI coaching report generation for a session.
 
@@ -190,6 +196,7 @@ async def _run_generation(
 @router.get("/{session_id}/report", response_model=CoachingReportResponse)
 async def get_report(
     session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
 ) -> CoachingReportResponse:
     """Get the coaching report for a session.
 
@@ -206,6 +213,94 @@ async def get_report(
     raise HTTPException(
         status_code=404,
         detail=f"No coaching report found for session {session_id}",
+    )
+
+
+def _build_report_content(
+    sd: SessionData,
+    coaching_response: CoachingReportResponse,
+) -> ReportContent:
+    """Convert stored session data + coaching response into ReportContent for PDF generation."""
+    snapshot = sd.snapshot
+    track_name = snapshot.metadata.track_name
+    session_date = snapshot.metadata.session_date
+    best_lap_number = sd.processed.best_lap
+    best_lap_time_s = snapshot.best_lap_time_s
+    n_laps = snapshot.n_laps
+
+    # Convert schema objects back to domain dataclass instances
+    corner_grades = [
+        CornerGrade(
+            corner=g.corner,
+            braking=g.braking,
+            trail_braking=g.trail_braking,
+            min_speed=g.min_speed,
+            throttle=g.throttle,
+            notes=g.notes,
+        )
+        for g in coaching_response.corner_grades
+    ]
+
+    priority_corners: list[dict[str, object]] = [
+        {
+            "corner": pc.corner,
+            "time_cost_s": pc.time_cost_s,
+            "issue": pc.issue,
+            "tip": pc.tip,
+        }
+        for pc in coaching_response.priority_corners
+    ]
+
+    report = CoachingReport(
+        summary=coaching_response.summary or "",
+        priority_corners=priority_corners,
+        corner_grades=corner_grades,
+        patterns=coaching_response.patterns,
+        drills=coaching_response.drills,
+        raw_response="",
+        validation_failed=coaching_response.validation_failed,
+        validation_violations=coaching_response.validation_violations,
+    )
+
+    return ReportContent(
+        track_name=track_name,
+        session_date=session_date,
+        best_lap_number=best_lap_number,
+        best_lap_time_s=best_lap_time_s,
+        n_laps=n_laps,
+        summaries=sd.processed.lap_summaries,
+        report=report,
+    )
+
+
+@router.get("/{session_id}/report/pdf")
+async def download_pdf_report(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> Response:
+    """Download the coaching report as a PDF file.
+
+    Requires both a processed session and a completed coaching report.
+    """
+    sd = session_store.get_session(session_id)
+    if sd is None:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+    coaching_response = get_coaching_report(session_id)
+    if coaching_response is None or coaching_response.status != "ready":
+        raise HTTPException(
+            status_code=404,
+            detail=f"No completed coaching report found for session {session_id}",
+        )
+
+    content = _build_report_content(sd, coaching_response)
+    pdf_bytes = await asyncio.to_thread(generate_pdf, content)
+
+    short_id = session_id[:8]
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="coaching-report-{short_id}.pdf"'},
     )
 
 

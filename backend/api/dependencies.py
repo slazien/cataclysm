@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import lru_cache
+from typing import Annotated
 
 from fastapi import Cookie, Depends, Header, HTTPException
 from jose import JWTError, jwt
@@ -28,12 +29,10 @@ class AuthenticatedUser:
 
 
 def get_current_user(
+    settings: Annotated[Settings, Depends(get_settings)],
     authorization: str | None = Header(None),
     session_token: str | None = Cookie(None, alias="authjs.session-token"),
-    secure_session_token: str | None = Cookie(
-        None, alias="__Secure-authjs.session-token"
-    ),
-    settings: Settings = Depends(get_settings),
+    secure_session_token: str | None = Cookie(None, alias="__Secure-authjs.session-token"),
 ) -> AuthenticatedUser:
     """Extract and validate user from NextAuth.js JWT.
 
@@ -67,7 +66,7 @@ def get_current_user(
             options={"verify_aud": False},
         )
     except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise HTTPException(status_code=401, detail="Invalid token") from None
 
     # NextAuth.js JWT stores user info in ``sub``, ``email``, ``name``, ``picture``
     user_id = payload.get("sub")

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,8 +18,8 @@ router = APIRouter()
 
 @router.get("/me", response_model=UserSchema)
 async def get_me(
-    current_user: AuthenticatedUser = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> User:
     """Return the current user profile, creating it on first login (upsert)."""
     result = await db.execute(select(User).where(User.id == current_user.user_id))
