@@ -84,6 +84,21 @@ def _build_data_row(
     )
 
 
+@pytest.fixture(autouse=True)
+def _reset_coaching_validator() -> None:
+    """Reset the coaching validator singleton between tests.
+
+    The module-level ``_validator`` in coaching.py accumulates state across
+    tests.  If enough tests call ``generate_coaching_report``, the counter
+    can trip the validation interval and fire an extra API call that
+    confuses mock assertions (``call_args`` returns the validator's call
+    instead of the coaching call).
+    """
+    import cataclysm.coaching as _coaching_mod
+
+    _coaching_mod._validator = None
+
+
 @pytest.fixture
 def racechrono_csv_text() -> str:
     """Minimal valid RaceChrono CSV v3 text with 2 laps."""

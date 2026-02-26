@@ -329,7 +329,9 @@ class TestGenerateCoachingReport:
                 "Test",
             )
         assert report.summary == "AI says hi"
-        call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args
+        # Use call_args_list[0] to get the coaching call, not the validator's call
+        # (the validator may fire after enough outputs, and call_args returns the LAST call)
+        call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args_list[0]
         assert "system" in call_kwargs.kwargs
         assert "traction circle" in call_kwargs.kwargs["system"].lower()
 
@@ -366,7 +368,7 @@ class TestAskFollowup:
         assert ctx.messages[0]["role"] == "assistant"
         assert ctx.messages[1]["role"] == "user"
         assert ctx.messages[2]["role"] == "assistant"
-        call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args
+        call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args_list[0]
         assert "system" in call_kwargs.kwargs
         assert "traction circle" in call_kwargs.kwargs["system"].lower()
 
@@ -532,7 +534,8 @@ class TestGenerateCoachingReportWithGains:
 
         assert report.summary == "Good with gains"
         # Verify the prompt sent to the API includes gains data
-        call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args
+        # Use call_args_list[0] to get the coaching call, not the validator's call
+        call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args_list[0]
         prompt_text = call_kwargs.kwargs["messages"][0]["content"]
         assert "Gain Estimation" in prompt_text
 
@@ -1032,7 +1035,8 @@ class TestGenerateCoachingReportWithCornerAnalysis:
             )
 
         assert report.summary == "Good with analysis"
-        call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args
+        # Use call_args_list[0] to get the coaching call, not the validator's call
+        call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args_list[0]
         prompt_text = call_kwargs.kwargs["messages"][0]["content"]
         assert "Pre-Computed Corner Analysis" in prompt_text
         assert "DO NOT re-derive" in prompt_text
@@ -1266,7 +1270,8 @@ class TestGenerateCoachingReportWithEquipment:
             )
 
         assert report.summary == "Good with equipment"
-        call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args
+        # Use call_args_list[0] to get the coaching call, not the validator's call
+        call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args_list[0]
         prompt_text = call_kwargs.kwargs["messages"][0]["content"]
         assert "NT01" in prompt_text
         assert "damp" in prompt_text

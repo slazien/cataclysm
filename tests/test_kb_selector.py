@@ -421,7 +421,8 @@ class TestCoachingIntegration:
             )
 
         assert report.summary == "KB enriched"
-        call_kwargs = mock_client.messages.create.call_args
+        # Use call_args_list[0] to get the coaching call, not the validator's call
+        call_kwargs = mock_client.messages.create.call_args_list[0]
         system_prompt = call_kwargs.kwargs["system"]
         assert "Additional Coaching Knowledge" in system_prompt
         assert "8.4" in system_prompt  # novice snippet
@@ -456,7 +457,7 @@ class TestCoachingIntegration:
             )
 
         assert answer == "Great question about braking!"
-        call_kwargs = mock_client.messages.create.call_args
+        call_kwargs = mock_client.messages.create.call_args_list[0]
         system_prompt = call_kwargs.kwargs["system"]
         assert "Additional Coaching Knowledge" in system_prompt
         assert "5.4" in system_prompt  # advanced snippet
@@ -481,7 +482,7 @@ class TestCoachingIntegration:
         ):
             ask_followup(ctx, "Question?", report)
 
-        call_kwargs = mock_client.messages.create.call_args
+        call_kwargs = mock_client.messages.create.call_args_list[0]
         system_prompt = call_kwargs.kwargs["system"]
         assert "Additional Coaching Knowledge" not in system_prompt
 
