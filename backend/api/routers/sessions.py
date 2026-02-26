@@ -24,6 +24,7 @@ from backend.api.services import equipment_store, session_store
 from backend.api.services.comparison import compare_sessions as run_comparison
 from backend.api.services.db_session_store import (
     delete_session_db,
+    ensure_user_exists,
     list_sessions_for_user,
     store_session_db,
 )
@@ -63,6 +64,8 @@ async def upload_sessions(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> UploadResponse:
     """Upload one or more RaceChrono CSV files and create sessions."""
+    await ensure_user_exists(db, current_user)
+
     session_ids: list[str] = []
     errors: list[str] = []
 
