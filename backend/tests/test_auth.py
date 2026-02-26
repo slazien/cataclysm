@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import HTTPException
-from jose import jwt
+from jose import jwe
 
 from backend.api.config import Settings
-from backend.api.dependencies import AuthenticatedUser, get_current_user
+from backend.api.dependencies import (
+    AuthenticatedUser,
+    _derive_encryption_key,
+    get_current_user,
+)
 
 _SECRET = "test-nextauth-secret-key-for-unit-tests"
 
@@ -22,18 +27,21 @@ def _make_token(
     secret: str = _SECRET,
     exp_hours: int = 24,
 ) -> str:
-    """Create a signed JWT matching NextAuth.js format."""
+    """Create a JWE token matching NextAuth.js v5 format."""
     payload: dict[str, object] = {
         "sub": sub,
         "email": email,
         "name": name,
-        "iat": datetime.now(UTC),
-        "exp": datetime.now(UTC) + timedelta(hours=exp_hours),
+        "iat": int(datetime.now(UTC).timestamp()),
+        "exp": int((datetime.now(UTC) + timedelta(hours=exp_hours)).timestamp()),
     }
     if picture:
         payload["picture"] = picture
-    result: str = jwt.encode(payload, secret, algorithm="HS256")  # type: ignore[assignment]
-    return result
+    key = _derive_encryption_key(secret)
+    token_bytes: bytes = jwe.encrypt(
+        json.dumps(payload).encode(), key, algorithm="dir", encryption="A256GCM"
+    )
+    return token_bytes.decode()
 
 
 def _settings(secret: str = _SECRET) -> Settings:
@@ -148,9 +156,12 @@ class TestGetCurrentUser:
         payload = {
             "email": "driver@example.com",
             "name": "Test",
-            "exp": datetime.now(UTC) + timedelta(hours=1),
+            "exp": int((datetime.now(UTC) + timedelta(hours=1)).timestamp()),
         }
-        token = jwt.encode(payload, _SECRET, algorithm="HS256")
+        key = _derive_encryption_key(_SECRET)
+        token = jwe.encrypt(
+            json.dumps(payload).encode(), key, algorithm="dir", encryption="A256GCM"
+        ).decode()
         with pytest.raises(HTTPException) as exc_info:
             get_current_user(
                 authorization=f"Bearer {token}",
@@ -165,9 +176,12 @@ class TestGetCurrentUser:
         payload = {
             "sub": "user-123",
             "name": "Test",
-            "exp": datetime.now(UTC) + timedelta(hours=1),
+            "exp": int((datetime.now(UTC) + timedelta(hours=1)).timestamp()),
         }
-        token = jwt.encode(payload, _SECRET, algorithm="HS256")
+        key = _derive_encryption_key(_SECRET)
+        token = jwe.encrypt(
+            json.dumps(payload).encode(), key, algorithm="dir", encryption="A256GCM"
+        ).decode()
         with pytest.raises(HTTPException) as exc_info:
             get_current_user(
                 authorization=f"Bearer {token}",
