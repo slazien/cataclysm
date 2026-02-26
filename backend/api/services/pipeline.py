@@ -17,7 +17,9 @@ from typing import Any
 
 from cataclysm.consistency import compute_session_consistency
 from cataclysm.corners import Corner, detect_corners, extract_corner_kpis_for_lap
+from cataclysm.curvature import compute_curvature
 from cataclysm.engine import LapSummary, ProcessedSession, find_anomalous_laps, process_session
+from cataclysm.equipment import equipment_to_vehicle_params
 from cataclysm.gains import (
     GainEstimate,
     build_segments,
@@ -30,7 +32,9 @@ from cataclysm.parser import ParsedSession, parse_racechrono_csv
 from cataclysm.track_db import locate_official_corners
 from cataclysm.track_match import detect_track_or_lookup
 from cataclysm.trends import SessionSnapshot, build_session_snapshot
+from cataclysm.velocity_profile import VehicleParams, compute_optimal_profile
 
+from backend.api.services import equipment_store
 from backend.api.services.session_store import SessionData, store_session
 
 logger = logging.getLogger(__name__)
@@ -204,6 +208,71 @@ async def get_ideal_lap_data(session_data: SessionData) -> dict[str, object]:
             "distance_m": ideal.distance_m.tolist(),
             "speed_mph": (ideal.speed_mps * 2.23694).tolist(),
             "segment_sources": ideal.segment_sources,
+        }
+
+    return await asyncio.to_thread(_compute)
+
+
+def _resolve_vehicle_params(session_id: str) -> VehicleParams | None:
+    """Look up equipment for a session and convert to VehicleParams.
+
+    Returns *None* if the session has no equipment assigned, letting the
+    velocity solver fall back to its built-in defaults.
+    """
+    se = equipment_store.get_session_equipment(session_id)
+    if se is None:
+        return None
+    profile = equipment_store.get_profile(se.profile_id)
+    if profile is None:
+        return None
+    return equipment_to_vehicle_params(profile)
+
+
+async def get_optimal_profile_data(session_data: SessionData) -> dict[str, object]:
+    """Compute the physics-optimal velocity profile for a session.
+
+    Uses the best lap's GPS data to derive track curvature, then runs the
+    forward-backward velocity solver.  If the session has equipment assigned,
+    the equipment-derived VehicleParams are used; otherwise the solver's
+    built-in defaults apply.
+
+    Returns columnar data suitable for JSON serialisation.
+    """
+    session_id = session_data.session_id
+
+    def _compute() -> dict[str, object]:
+        processed = session_data.processed
+        best_lap_df = processed.resampled_laps[processed.best_lap]
+
+        # Derive curvature from GPS
+        curvature_result = compute_curvature(best_lap_df)
+
+        # Equipment-aware vehicle params
+        vehicle_params = _resolve_vehicle_params(session_id)
+
+        # Solve optimal velocity profile
+        optimal = compute_optimal_profile(curvature_result, params=vehicle_params)
+
+        # Look up equipment profile ID for the response metadata
+        se = equipment_store.get_session_equipment(session_id)
+        profile_id = se.profile_id if se is not None else None
+
+        mps_to_mph = 2.23694
+        return {
+            "distance_m": optimal.distance_m.tolist(),
+            "optimal_speed_mph": (optimal.optimal_speed_mps * mps_to_mph).tolist(),
+            "max_cornering_speed_mph": (optimal.max_cornering_speed_mps * mps_to_mph).tolist(),
+            "brake_points": optimal.optimal_brake_points,
+            "throttle_points": optimal.optimal_throttle_points,
+            "lap_time_s": optimal.lap_time_s,
+            "vehicle_params": {
+                "mu": optimal.vehicle_params.mu,
+                "max_accel_g": optimal.vehicle_params.max_accel_g,
+                "max_decel_g": optimal.vehicle_params.max_decel_g,
+                "max_lateral_g": optimal.vehicle_params.max_lateral_g,
+                "top_speed_mps": optimal.vehicle_params.top_speed_mps,
+            },
+            "equipment_profile_id": profile_id,
         }
 
     return await asyncio.to_thread(_compute)

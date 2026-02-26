@@ -18,11 +18,13 @@ from backend.api.schemas.analysis import (
     IdealLapResponse,
     LapSectorSplitsSchema,
     LinkedChartResponse,
+    OptimalProfileResponse,
     SectorResponse,
     SectorSplitSchema,
+    VehicleParamsSchema,
 )
 from backend.api.services import session_store
-from backend.api.services.pipeline import get_ideal_lap_data
+from backend.api.services.pipeline import get_ideal_lap_data, get_optimal_profile_data
 from backend.api.services.serializers import dataclass_to_dict
 
 router = APIRouter()
@@ -132,6 +134,31 @@ async def get_ideal_lap(session_id: str) -> IdealLapResponse:
         distance_m=result["distance_m"],  # type: ignore[arg-type]
         speed_mph=result["speed_mph"],  # type: ignore[arg-type]
         segment_sources=result["segment_sources"],  # type: ignore[arg-type]
+    )
+
+
+@router.get("/{session_id}/optimal-profile", response_model=OptimalProfileResponse)
+async def get_optimal_profile(session_id: str) -> OptimalProfileResponse:
+    """Compute the physics-optimal velocity profile for the track.
+
+    Uses track curvature derived from the best lap and the friction-circle
+    velocity solver.  If equipment is assigned to the session, the tire grip
+    parameters are used; otherwise default vehicle parameters apply.
+    """
+    sd = _get_session_or_404(session_id)
+    result = await get_optimal_profile_data(sd)
+    vp = result["vehicle_params"]
+    assert isinstance(vp, dict)
+    return OptimalProfileResponse(
+        session_id=session_id,
+        distance_m=result["distance_m"],  # type: ignore[arg-type]
+        optimal_speed_mph=result["optimal_speed_mph"],  # type: ignore[arg-type]
+        max_cornering_speed_mph=result["max_cornering_speed_mph"],  # type: ignore[arg-type]
+        brake_points=result["brake_points"],  # type: ignore[arg-type]
+        throttle_points=result["throttle_points"],  # type: ignore[arg-type]
+        lap_time_s=result["lap_time_s"],  # type: ignore[arg-type]
+        vehicle_params=VehicleParamsSchema(**vp),
+        equipment_profile_id=result.get("equipment_profile_id"),  # type: ignore[arg-type]
     )
 
 

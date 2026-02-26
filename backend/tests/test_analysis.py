@@ -3,8 +3,16 @@
 from __future__ import annotations
 
 import pytest
+from cataclysm.equipment import (
+    EquipmentProfile,
+    MuSource,
+    SessionEquipment,
+    TireCompoundCategory,
+    TireSpec,
+)
 from httpx import AsyncClient
 
+from backend.api.services import equipment_store
 from backend.tests.conftest import build_synthetic_csv
 
 
@@ -205,3 +213,92 @@ async def test_get_ideal_lap(client: AsyncClient) -> None:
         assert "segment_sources" in data
     else:
         assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# Optimal profile tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_optimal_profile_default_params(client: AsyncClient) -> None:
+    """GET /{id}/optimal-profile returns profile with default vehicle params."""
+    session_id = await _upload_session(client)
+
+    response = await client.get(f"/api/sessions/{session_id}/optimal-profile")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["session_id"] == session_id
+    assert isinstance(data["distance_m"], list)
+    assert isinstance(data["optimal_speed_mph"], list)
+    assert isinstance(data["max_cornering_speed_mph"], list)
+    assert isinstance(data["brake_points"], list)
+    assert isinstance(data["throttle_points"], list)
+    assert isinstance(data["lap_time_s"], float)
+    assert data["equipment_profile_id"] is None
+
+    # Default vehicle params (from default_vehicle_params)
+    vp = data["vehicle_params"]
+    assert vp["mu"] == 1.0
+    assert vp["max_accel_g"] == 0.5
+    assert vp["max_decel_g"] == 1.0
+    assert vp["max_lateral_g"] == 1.0
+    assert vp["top_speed_mps"] == 80.0
+
+
+@pytest.mark.asyncio
+async def test_get_optimal_profile_not_found(client: AsyncClient) -> None:
+    """GET /{id}/optimal-profile with bad session ID returns 404."""
+    response = await client.get("/api/sessions/nonexistent/optimal-profile")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_optimal_profile_with_equipment(client: AsyncClient) -> None:
+    """Assigning low-grip equipment should change optimal profile params."""
+    session_id = await _upload_session(client)
+
+    # Get baseline optimal profile (default params)
+    resp_default = await client.get(f"/api/sessions/{session_id}/optimal-profile")
+    assert resp_default.status_code == 200
+    default_data = resp_default.json()
+    default_lap_time = default_data["lap_time_s"]
+
+    # Create a low-grip street tire profile and assign to session
+    tire = TireSpec(
+        model="Budget Street",
+        compound_category=TireCompoundCategory.STREET,
+        size="225/45R17",
+        treadwear_rating=400,
+        estimated_mu=0.85,
+        mu_source=MuSource.FORMULA_ESTIMATE,
+        mu_confidence="medium",
+    )
+    profile = EquipmentProfile(id="low-grip", name="Budget Street", tires=tire)
+    equipment_store.store_profile(profile)
+    equipment_store.store_session_equipment(
+        SessionEquipment(session_id=session_id, profile_id="low-grip")
+    )
+
+    # Get optimal profile with equipment
+    resp_equip = await client.get(f"/api/sessions/{session_id}/optimal-profile")
+    assert resp_equip.status_code == 200
+    equip_data = resp_equip.json()
+
+    # Vehicle params should reflect the low-grip tire
+    vp = equip_data["vehicle_params"]
+    assert vp["mu"] == 0.85
+    assert vp["max_lateral_g"] == 0.85
+    assert vp["max_accel_g"] == 0.40  # STREET category
+    assert abs(vp["max_decel_g"] - 0.85 * 0.95) < 1e-6
+    assert equip_data["equipment_profile_id"] == "low-grip"
+
+    # Lower grip should produce a slower optimal lap time
+    equip_lap_time = equip_data["lap_time_s"]
+    assert equip_lap_time > default_lap_time, (
+        f"Low-grip tire should produce slower lap time: {equip_lap_time} vs {default_lap_time}"
+    )
+
+    # Clean up
+    equipment_store.delete_session_equipment(session_id)
+    equipment_store.delete_profile("low-grip")

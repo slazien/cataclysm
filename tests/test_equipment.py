@@ -5,6 +5,8 @@ from __future__ import annotations
 import pytest
 
 from cataclysm.equipment import (
+    _BRAKE_EFFICIENCY,
+    _CATEGORY_ACCEL_G,
     CATEGORY_MU_DEFAULTS,
     BrakeSpec,
     EquipmentProfile,
@@ -15,6 +17,7 @@ from cataclysm.equipment import (
     TireCompoundCategory,
     TireSpec,
     TrackCondition,
+    equipment_to_vehicle_params,
     estimate_mu_from_treadwear,
 )
 
@@ -367,3 +370,164 @@ class TestSessionEquipment:
         se2 = SessionEquipment(session_id="s2", profile_id="p1")
         se1.overrides["key"] = "value"
         assert "key" not in se2.overrides
+
+
+# ---------------------------------------------------------------------------
+# TestCategoryAccelG
+# ---------------------------------------------------------------------------
+
+
+class TestCategoryAccelG:
+    """Tests for the _CATEGORY_ACCEL_G lookup table."""
+
+    def test_all_categories_have_accel_values(self) -> None:
+        for cat in TireCompoundCategory:
+            assert cat in _CATEGORY_ACCEL_G, f"Missing accel G for {cat}"
+
+    def test_accel_values_increase_monotonically(self) -> None:
+        """Higher-grip categories should allow slightly more acceleration."""
+        ordered = [
+            TireCompoundCategory.STREET,
+            TireCompoundCategory.ENDURANCE_200TW,
+            TireCompoundCategory.SUPER_200TW,
+            TireCompoundCategory.TW_100,
+            TireCompoundCategory.R_COMPOUND,
+            TireCompoundCategory.SLICK,
+        ]
+        values = [_CATEGORY_ACCEL_G[c] for c in ordered]
+        for i in range(len(values) - 1):
+            assert values[i] < values[i + 1]
+
+    def test_no_extra_categories(self) -> None:
+        assert set(_CATEGORY_ACCEL_G.keys()) == set(TireCompoundCategory)
+
+
+# ---------------------------------------------------------------------------
+# TestEquipmentToVehicleParams
+# ---------------------------------------------------------------------------
+
+
+class TestEquipmentToVehicleParams:
+    """Tests for equipment_to_vehicle_params mapping."""
+
+    def test_basic_mapping(self) -> None:
+        """Tire mu maps correctly to VehicleParams."""
+        tire = TireSpec(
+            model="Test",
+            compound_category=TireCompoundCategory.SUPER_200TW,
+            size="255/40R17",
+            treadwear_rating=200,
+            estimated_mu=1.10,
+            mu_source=MuSource.CURATED_TABLE,
+            mu_confidence="test",
+        )
+        profile = EquipmentProfile(id="p1", name="Test", tires=tire)
+        params = equipment_to_vehicle_params(profile)
+        assert params.mu == 1.10
+        assert params.max_lateral_g == 1.10
+        assert params.max_accel_g == 0.55  # SUPER_200TW
+        assert abs(params.max_decel_g - 1.10 * _BRAKE_EFFICIENCY) < 1e-6
+
+    def test_street_tire(self) -> None:
+        """Street tire category maps to lowest accel G."""
+        tire = TireSpec(
+            model="Street",
+            compound_category=TireCompoundCategory.STREET,
+            size="225/45R17",
+            treadwear_rating=400,
+            estimated_mu=0.85,
+            mu_source=MuSource.FORMULA_ESTIMATE,
+            mu_confidence="test",
+        )
+        profile = EquipmentProfile(id="p2", name="Street", tires=tire)
+        params = equipment_to_vehicle_params(profile)
+        assert params.mu == 0.85
+        assert params.max_accel_g == 0.40  # STREET
+
+    def test_r_compound_higher_decel(self) -> None:
+        """R-compound with high mu should produce max_decel_g above 1.0."""
+        tire = TireSpec(
+            model="R7",
+            compound_category=TireCompoundCategory.R_COMPOUND,
+            size="275/35R18",
+            treadwear_rating=40,
+            estimated_mu=1.35,
+            mu_source=MuSource.CURATED_TABLE,
+            mu_confidence="test",
+        )
+        profile = EquipmentProfile(id="p3", name="Race", tires=tire)
+        params = equipment_to_vehicle_params(profile)
+        assert params.max_decel_g > 1.0
+        assert params.max_accel_g == 0.65  # R_COMPOUND
+
+    def test_slick_tire(self) -> None:
+        """Slick category should yield highest accel G."""
+        tire = TireSpec(
+            model="Slick",
+            compound_category=TireCompoundCategory.SLICK,
+            size="280/680R18",
+            treadwear_rating=None,
+            estimated_mu=1.50,
+            mu_source=MuSource.MANUFACTURER_SPEC,
+            mu_confidence="high",
+        )
+        profile = EquipmentProfile(id="p4", name="Full Race", tires=tire)
+        params = equipment_to_vehicle_params(profile)
+        assert params.mu == 1.50
+        assert params.max_lateral_g == 1.50
+        assert params.max_accel_g == 0.70  # SLICK
+        assert params.max_decel_g == pytest.approx(1.50 * _BRAKE_EFFICIENCY)
+        assert params.top_speed_mps == 80.0
+
+    def test_top_speed_always_80(self) -> None:
+        """top_speed_mps should always be 80 regardless of equipment."""
+        tire = TireSpec(
+            model="Any",
+            compound_category=TireCompoundCategory.ENDURANCE_200TW,
+            size="225/45R17",
+            treadwear_rating=200,
+            estimated_mu=1.00,
+            mu_source=MuSource.FORMULA_ESTIMATE,
+            mu_confidence="test",
+        )
+        profile = EquipmentProfile(id="p5", name="Any", tires=tire)
+        params = equipment_to_vehicle_params(profile)
+        assert params.top_speed_mps == 80.0
+
+    def test_all_categories_produce_valid_params(self) -> None:
+        """Every tire compound category should produce a valid VehicleParams."""
+        for cat in TireCompoundCategory:
+            mu = CATEGORY_MU_DEFAULTS[cat]
+            tire = TireSpec(
+                model="Test",
+                compound_category=cat,
+                size="255/40R17",
+                treadwear_rating=200,
+                estimated_mu=mu,
+                mu_source=MuSource.CURATED_TABLE,
+                mu_confidence="test",
+            )
+            profile = EquipmentProfile(id=f"p-{cat}", name=f"Test {cat}", tires=tire)
+            params = equipment_to_vehicle_params(profile)
+            assert params.mu == mu
+            assert params.max_lateral_g == mu
+            assert params.max_accel_g == _CATEGORY_ACCEL_G[cat]
+            assert params.max_decel_g == pytest.approx(mu * _BRAKE_EFFICIENCY)
+            assert params.top_speed_mps == 80.0
+
+    def test_returns_vehicle_params_type(self) -> None:
+        """Return type should be VehicleParams from velocity_profile module."""
+        from cataclysm.velocity_profile import VehicleParams
+
+        tire = TireSpec(
+            model="Test",
+            compound_category=TireCompoundCategory.TW_100,
+            size="255/40R17",
+            treadwear_rating=100,
+            estimated_mu=1.20,
+            mu_source=MuSource.CURATED_TABLE,
+            mu_confidence="test",
+        )
+        profile = EquipmentProfile(id="p6", name="Test", tires=tire)
+        params = equipment_to_vehicle_params(profile)
+        assert isinstance(params, VehicleParams)

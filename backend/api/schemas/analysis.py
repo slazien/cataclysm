@@ -119,3 +119,27 @@ class SectorResponse(BaseModel):
     best_sector_times: dict[str, float]
     best_sector_laps: dict[str, int]
     composite_time_s: float
+
+
+class VehicleParamsSchema(BaseModel):
+    """Vehicle parameters used by the velocity solver."""
+
+    mu: float
+    max_accel_g: float
+    max_decel_g: float
+    max_lateral_g: float
+    top_speed_mps: float
+
+
+class OptimalProfileResponse(BaseModel):
+    """Physics-optimal velocity profile for a track."""
+
+    session_id: str
+    distance_m: list[float]
+    optimal_speed_mph: list[float]
+    max_cornering_speed_mph: list[float]
+    brake_points: list[float]
+    throttle_points: list[float]
+    lap_time_s: float
+    vehicle_params: VehicleParamsSchema
+    equipment_profile_id: str | None = None
