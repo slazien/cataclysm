@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator, Generator
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import numpy as np
 import pytest
@@ -197,8 +197,19 @@ def _disable_auto_coaching() -> Generator[None, None, None]:
     """Disable auto-coaching on upload in all tests by default.
 
     Tests that specifically test auto-coaching should override this fixture.
+    Uses AsyncMock because trigger_auto_coaching is async.
     """
-    with patch("backend.api.routers.sessions.trigger_auto_coaching"):
+    with patch("backend.api.routers.sessions.trigger_auto_coaching", new_callable=AsyncMock):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def _patch_coaching_db_factory() -> Generator[None, None, None]:
+    """Route coaching_store DB writes to the test SQLite database."""
+    with patch(
+        "backend.api.services.coaching_store.async_session_factory",
+        _test_session_factory,
+    ):
         yield
 
 

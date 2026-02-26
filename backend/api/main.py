@@ -103,13 +103,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Manage application startup and shutdown lifecycle."""
     logging.basicConfig(level=logging.INFO)
 
-    # Startup: initialise coaching persistence and reload cached reports
-    from backend.api.services.coaching_store import init_coaching_dir, load_persisted_reports
-
-    init_coaching_dir(settings.coaching_data_dir)
-    n = load_persisted_reports()
-    if n:
-        logger.info("Loaded %d persisted coaching report(s)", n)
+    # Coaching reports are now persisted in PostgreSQL with lazy DB fallback —
+    # no startup loading needed.
 
     from backend.api.services.equipment_store import (
         init_equipment_dir,

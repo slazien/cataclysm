@@ -12,6 +12,7 @@ from backend.api.config import Settings
 from backend.api.db.database import get_db
 from backend.api.dependencies import AuthenticatedUser, get_current_user, get_settings
 from backend.api.routers.coaching import trigger_auto_coaching
+from backend.api.services.coaching_store import clear_coaching_data
 from backend.api.schemas.comparison import ComparisonResult
 from backend.api.schemas.session import (
     LapData,
@@ -84,7 +85,7 @@ async def upload_sessions(
             if sd is not None:
                 await store_session_db(db, current_user.user_id, sd)
                 # Auto-generate coaching report in the background
-                trigger_auto_coaching(sid, sd)
+                await trigger_auto_coaching(sid, sd)
         except Exception as exc:
             logger.warning("Failed to process %s: %s", f.filename, exc, exc_info=True)
             errors.append(f"{f.filename}: {exc}")
@@ -197,8 +198,9 @@ async def delete_session(
     db_deleted = await delete_session_db(db, session_id, current_user.user_id)
     if not db_deleted:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
-    # Also remove from in-memory store
+    # Also remove from in-memory store and clear coaching cache
     session_store.delete_session(session_id)
+    await clear_coaching_data(session_id)
     return {"message": f"Session {session_id} deleted"}
 
 
@@ -213,6 +215,7 @@ async def delete_all_sessions(
     for row in db_rows:
         await delete_session_db(db, row.session_id, current_user.user_id)
         session_store.delete_session(row.session_id)
+        await clear_coaching_data(row.session_id)
         count += 1
     return {"message": f"Deleted {count} session(s)"}
 
