@@ -119,15 +119,15 @@ export function CornerAnalysis() {
         /* Detail view: existing layout */
         <>
           {/* Top row: Track Map (60%) + Corner Detail Panel (40%) */}
-          <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
-            {/* Track Map -- 60% on desktop, full width on mobile */}
-            <div className="h-full min-h-[16rem] w-full overflow-hidden lg:min-h-0 lg:w-[60%]">
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-[60%_1fr]">
+            {/* Track Map */}
+            <div className="min-h-[16rem] overflow-hidden lg:min-h-0">
               <ChartErrorBoundary name="Track Map">
                 <TrackMapInteractive sessionId={sessionId} />
               </ChartErrorBoundary>
             </div>
-            {/* Corner Detail Panel -- 40% on desktop, full width on mobile */}
-            <div className="h-full w-full overflow-auto lg:w-[40%]">
+            {/* Corner Detail Panel — overflow-hidden so content never shifts the grid */}
+            <div className="min-h-0 overflow-hidden">
               <ChartErrorBoundary name="Corner Detail">
                 <CornerDetailPanel sessionId={sessionId} />
               </ChartErrorBoundary>
@@ -135,15 +135,15 @@ export function CornerAnalysis() {
           </div>
 
           {/* Bottom row: Corner Speed Overlay (50%) + Brake Consistency (50%) */}
-          <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
-            {/* Corner Speed Overlay -- 50% on desktop, full width on mobile */}
-            <div className="h-full min-h-[16rem] w-full lg:min-h-0 lg:w-[50%]">
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-2">
+            {/* Corner Speed Overlay */}
+            <div className="min-h-[16rem] overflow-hidden lg:min-h-0">
               <ChartErrorBoundary name="Corner Speed Overlay">
                 <CornerSpeedOverlay sessionId={sessionId} />
               </ChartErrorBoundary>
             </div>
-            {/* Brake Consistency Chart -- 50% on desktop, full width on mobile */}
-            <div className="h-full min-h-[16rem] w-full lg:min-h-0 lg:w-[50%]">
+            {/* Brake Consistency Chart */}
+            <div className="min-h-[16rem] overflow-hidden lg:min-h-0">
               <ChartErrorBoundary name="Brake Consistency">
                 <BrakeConsistency sessionId={sessionId} />
               </ChartErrorBoundary>
