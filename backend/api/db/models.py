@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, LargeBinary, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -60,6 +60,9 @@ class Session(Base):
     coaching_contexts: Mapped[list[CoachingContext]] = relationship(
         back_populates="session", cascade="all, delete-orphan"
     )
+    session_file: Mapped[SessionFile | None] = relationship(
+        back_populates="session", cascade="all, delete-orphan", uselist=False
+    )
 
     __table_args__ = (
         Index("ix_sessions_track_name", "track_name"),
@@ -100,3 +103,21 @@ class CoachingContext(Base):
 
     # Relationship
     session: Mapped[Session] = relationship(back_populates="coaching_contexts")
+
+
+class SessionFile(Base):
+    """Raw CSV file stored for session replay after restart."""
+
+    __tablename__ = "session_files"
+
+    session_id: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("sessions.session_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    filename: Mapped[str] = mapped_column(String, nullable=False)
+    csv_bytes: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationship
+    session: Mapped[Session] = relationship(back_populates="session_file")

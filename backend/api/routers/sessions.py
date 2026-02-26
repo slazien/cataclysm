@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.config import Settings
 from backend.api.db.database import get_db
+from backend.api.db.models import SessionFile as SessionFileModel
 from backend.api.dependencies import AuthenticatedUser, get_current_user, get_settings
 from backend.api.routers.coaching import trigger_auto_coaching
 from backend.api.schemas.comparison import ComparisonResult
@@ -83,6 +84,17 @@ async def upload_sessions(
             sd = session_store.get_session(sid)
             if sd is not None:
                 await store_session_db(db, current_user.user_id, sd)
+
+                # Persist raw CSV bytes so sessions survive redeployments
+                await db.merge(
+                    SessionFileModel(
+                        session_id=sid,
+                        filename=f.filename or "",
+                        csv_bytes=file_bytes,
+                    )
+                )
+                await db.commit()
+
                 # Auto-generate coaching report in the background
                 trigger_auto_coaching(sid, sd)
         except Exception as exc:

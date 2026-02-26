@@ -20,6 +20,42 @@ from backend.api.routers import analysis, auth, coaching, equipment, sessions, t
 logger = logging.getLogger(__name__)
 
 
+async def _reload_sessions_from_db() -> int:
+    """Re-process CSV files stored in the database into the in-memory store.
+
+    This ensures sessions survive Railway redeployments where ephemeral
+    disk is wiped.  Each ``SessionFile`` row contains the raw CSV bytes
+    that were originally uploaded.
+    """
+    from sqlalchemy import select
+
+    from backend.api.db.database import async_session_factory
+    from backend.api.db.models import SessionFile as SessionFileModel
+    from backend.api.services.pipeline import process_upload
+
+    loaded = 0
+    try:
+        async with async_session_factory() as db:
+            result = await db.execute(select(SessionFileModel))
+            rows = result.scalars().all()
+            logger.info("Found %d session file(s) in database", len(rows))
+
+            for row in rows:
+                try:
+                    await process_upload(row.csv_bytes, row.filename)
+                    loaded += 1
+                except Exception:
+                    logger.warning(
+                        "Failed to reload session %s from DB",
+                        row.session_id,
+                        exc_info=True,
+                    )
+    except Exception:
+        logger.warning("Database session reload failed", exc_info=True)
+
+    return loaded
+
+
 async def _reload_sessions_from_disk() -> int:
     """Re-process CSV files from the data directory into the in-memory store.
 
@@ -124,9 +160,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info("Loaded %d equipment profile(s), %d session assignment(s)", n_eq, n_se)
 
     # Reload CSV session data into memory so GET endpoints don't 404
-    n_sessions = await _reload_sessions_from_disk()
+    # Try database first (survives Railway redeployments), fall back to disk
+    n_sessions = await _reload_sessions_from_db()
     if n_sessions:
-        logger.info("Reloaded %d session(s) from disk", n_sessions)
+        logger.info("Reloaded %d session(s) from database", n_sessions)
+    else:
+        # Fallback to disk reload for local dev
+        n_sessions = await _reload_sessions_from_disk()
+        if n_sessions:
+            logger.info("Reloaded %d session(s) from disk", n_sessions)
 
     yield
 
