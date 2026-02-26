@@ -13,17 +13,23 @@ interface AnalysisState {
   selectCorner: (id: string | null) => void;
   setMode: (mode: DeepDiveMode) => void;
   setZoom: (range: [number, number] | null) => void;
+  reset: () => void;
 }
 
-export const useAnalysisStore = create<AnalysisState>()((set) => ({
+const initialState = {
   cursorDistance: null,
-  selectedLaps: [],
+  selectedLaps: [] as number[],
   selectedCorner: null,
-  deepDiveMode: 'speed',
+  deepDiveMode: 'speed' as DeepDiveMode,
   zoomRange: null,
+};
+
+export const useAnalysisStore = create<AnalysisState>()((set) => ({
+  ...initialState,
   setCursorDistance: (d) => set({ cursorDistance: d }),
   selectLaps: (laps) => set({ selectedLaps: laps }),
   selectCorner: (id) => set({ selectedCorner: id }),
   setMode: (mode) => set({ deepDiveMode: mode }),
   setZoom: (range) => set({ zoomRange: range }),
+  reset: () => set(initialState),
 }));
