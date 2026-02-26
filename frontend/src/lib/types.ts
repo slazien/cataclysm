@@ -8,6 +8,9 @@ export interface SessionSummary {
   top3_avg_time_s: number | null;
   avg_lap_time_s: number | null;
   consistency_score: number | null;
+  tire_model?: string | null;
+  compound_category?: string | null;
+  equipment_profile_name?: string | null;
 }
 
 export interface LapSummary {
@@ -220,4 +223,73 @@ export interface ComparisonResult {
   distance_m: number[];
   delta_time_s: number[];
   corner_deltas: ComparisonCornerDelta[];
+}
+
+// --- Equipment Types ---
+
+export interface TireSpec {
+  model: string;
+  compound_category: string;
+  size: string;
+  treadwear_rating: number | null;
+  estimated_mu: number;
+  mu_source: string;
+  mu_confidence: string;
+  pressure_psi: number | null;
+  brand: string | null;
+  age_sessions: number | null;
+}
+
+export interface EquipmentProfile {
+  id: string;
+  name: string;
+  tires: TireSpec;
+  brakes?: {
+    compound: string | null;
+    rotor_type: string | null;
+    pad_temp_range: string | null;
+    fluid_type: string | null;
+  } | null;
+  suspension?: Record<string, unknown> | null;
+  notes: string | null;
+}
+
+export interface EquipmentProfileCreate {
+  name: string;
+  tires: TireSpec;
+  brakes?: {
+    compound: string | null;
+    rotor_type: string | null;
+    pad_temp_range: string | null;
+    fluid_type: string | null;
+  } | null;
+  suspension?: Record<string, unknown> | null;
+  notes?: string | null;
+}
+
+export interface SessionEquipmentSet {
+  profile_id: string;
+  overrides?: Record<string, unknown>;
+  conditions?: {
+    track_condition?: string;
+    ambient_temp_c?: number | null;
+    track_temp_c?: number | null;
+    humidity_pct?: number | null;
+  } | null;
+}
+
+export interface SessionEquipmentResponse {
+  session_id: string;
+  profile_id: string;
+  profile_name: string;
+  overrides: Record<string, unknown>;
+  tires: TireSpec;
+  brakes?: {
+    compound: string | null;
+    rotor_type: string | null;
+    pad_temp_range: string | null;
+    fluid_type: string | null;
+  } | null;
+  suspension?: Record<string, unknown> | null;
+  conditions?: Record<string, unknown> | null;
 }

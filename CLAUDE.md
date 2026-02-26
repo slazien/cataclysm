@@ -68,7 +68,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Cataclysm is an AI-powered motorsport telemetry analysis and coaching platform for track day drivers. It ingests RaceChrono CSV v3 exports, processes them in the distance domain, detects corners, and generates AI coaching reports via the Claude API.
 
-Current state: Next.js + FastAPI on `nextjs-rewrite` branch (main branch only has CSV data files). Streamlit MVP was removed from this branch.
+Current state: Next.js + FastAPI on `nextjs-rewrite` branch (dev), merged to `main` for deployment. Streamlit MVP was removed.
 
 ## Virtual Environment
 
@@ -215,15 +215,29 @@ All of these must pass before committing:
   - File upload edge cases (large files, multiple files)
 - The frontend should be beautiful and provide great UX — not just "technically working"
 
+## Deployment (Railway)
+
+The app is deployed on Railway (3 services: PostgreSQL, backend, frontend).
+
+- **Railway auto-deploys from the `main` branch.** After committing to `nextjs-rewrite`, always merge to `main` and push for changes to go live.
+- Railway project: `cataclysm` on railway.com
+- Frontend URL: `https://frontend-production-edca.up.railway.app`
+- Backend URL: `https://backend-production-4c97.up.railway.app`
+- Backend `PORT=8000` is explicitly set (Railway assigns dynamic ports otherwise — must match `BACKEND_URL` in frontend)
+- Frontend connects to backend via Railway private network: `http://backend.railway.internal:8000`
+- `.railwayignore` controls what Railway CLI uploads (mirrors `.dockerignore`)
+- **CRLF warning**: Railway Docker builds fail on Windows CRLF line endings. Always ensure `.dockerignore`, `railway.json`, and Dockerfiles have LF endings.
+
 ## Workflow
 
 - Always ask all clarifying questions before making assumptions
 - Use agent teams wherever possible for parallel work
-- Always commit and push after making changes — the app is deployed on Streamlit Cloud and serves from the remote branch. Do not wait to be asked.
+- Always commit and push after making changes. Merge `nextjs-rewrite` → `main` for Railway deployment. Do not wait to be asked.
 
 ## Git & GitHub
 
 - When asked to push to GitHub, confirm the correct remote URL first. The personal repo is on github.com, NOT github.intuit.com.
+- Development branch: `nextjs-rewrite`. Production branch: `main`.
 
 ## File Operations
 
@@ -236,4 +250,8 @@ All of these must pass before committing:
 ## Environment
 
 - `ANTHROPIC_API_KEY` env var required for AI coaching features
-- Streamlit Cloud deployment config in `.streamlit/config.toml`
+- `NEXTAUTH_SECRET` shared between frontend and backend for JWT validation
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` for Google OAuth (NextAuth.js v5)
+- `DATABASE_URL` PostgreSQL connection string (backend, uses `postgresql+asyncpg://`)
+- `BACKEND_URL` set on frontend service (Railway private network URL)
+- `CORS_ORIGINS` on backend must be valid JSON array, e.g. `["https://frontend-production-edca.up.railway.app"]`

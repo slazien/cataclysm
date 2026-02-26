@@ -157,9 +157,16 @@ export function SessionDrawer() {
                 <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
                   {session.session_date}
                 </p>
-                <p className="mt-1 text-xs text-[var(--text-muted)]">
-                  {session.n_laps ?? 0} laps | Best: {formatLapTime(session.best_lap_time_s ?? 0)}
-                </p>
+                <div className="mt-1 flex items-center gap-1.5">
+                  <p className="text-xs text-[var(--text-muted)]">
+                    {session.n_laps ?? 0} laps | Best: {formatLapTime(session.best_lap_time_s ?? 0)}
+                  </p>
+                  {session.tire_model && (
+                    <span className="rounded bg-[var(--bg-elevated)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]">
+                      {session.tire_model}
+                    </span>
+                  )}
+                </div>
               </button>
             ))}
           </div>

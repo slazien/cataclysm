@@ -15,6 +15,7 @@ import { SessionScore } from './SessionScore';
 import { TopPriorities } from './TopPriorities';
 import { HeroTrackMap } from './HeroTrackMap';
 import { LapTimesBar } from './LapTimesBar';
+import { AssignEquipmentButton } from '@/components/equipment/AssignEquipmentButton';
 import { formatLapTime, formatSpeed, normalizeScore, parseSessionDate } from '@/lib/formatters';
 import { MPS_TO_MPH } from '@/lib/constants';
 import { cn } from '@/lib/utils';
@@ -150,8 +151,11 @@ export function SessionDashboard() {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 lg:p-6">
-      {/* Compare Action */}
-      <CompareButton sessionId={sessionId} />
+      {/* Action Row */}
+      <div className="flex items-center justify-between">
+        <AssignEquipmentButton sessionId={sessionId} />
+        <CompareButton sessionId={sessionId} />
+      </div>
 
       {/* Hero Metrics Row */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
