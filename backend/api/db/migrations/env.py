@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from logging.config import fileConfig
 
 from alembic import context
-from backend.api.config import Settings
 from backend.api.db.models import Base
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
@@ -19,9 +19,11 @@ if config.config_file_name is not None:
 # Use our models' metadata for autogenerate
 target_metadata = Base.metadata
 
-# Override sqlalchemy.url from our Settings
-settings = Settings()
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Read DATABASE_URL directly from the environment instead of instantiating
+# the full Settings object.  This avoids validation failures on unrelated
+# env vars (e.g. CORS_ORIGINS) that would block Alembic from running.
+_DEFAULT_URL = "postgresql+asyncpg://cataclysm:cataclysm@localhost:5432/cataclysm"
+config.set_main_option("sqlalchemy.url", os.environ.get("DATABASE_URL", _DEFAULT_URL))
 
 
 def run_migrations_offline() -> None:
