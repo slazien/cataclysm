@@ -17,7 +17,11 @@ from cataclysm.topic_guardrail import (
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response
 
-from backend.api.dependencies import AuthenticatedUser, get_current_user
+from backend.api.dependencies import (
+    AuthenticatedUser,
+    authenticate_websocket,
+    get_current_user,
+)
 from backend.api.schemas.coaching import (
     CoachingReportResponse,
     CornerGradeSchema,
@@ -314,7 +318,15 @@ async def coaching_chat(
     Protocol:
     - Client sends JSON: {"content": "question text"}
     - Server responds with JSON: {"role": "assistant", "content": "answer"}
+
+    Authentication is required via session cookies (same cookies that
+    NextAuth.js sets for HTTP requests).
     """
+    user = await authenticate_websocket(websocket)
+    if user is None:
+        await websocket.close(code=4001, reason="Not authenticated")
+        return
+
     await websocket.accept()
 
     sd = session_store.get_session(session_id)

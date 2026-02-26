@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Annotated
 
-from fastapi import Cookie, Depends, Header, HTTPException
+from fastapi import Cookie, Depends, Header, HTTPException, WebSocket
 from jose import JWTError, jwt
 
 from backend.api.config import Settings
@@ -80,5 +80,47 @@ def get_current_user(
         user_id=user_id,
         email=email,
         name=name,
+        picture=payload.get("picture"),
+    )
+
+
+async def authenticate_websocket(websocket: WebSocket) -> AuthenticatedUser | None:
+    """Validate a WebSocket connection using cookies.
+
+    Returns the authenticated user or ``None`` if authentication fails.
+    Unlike the HTTP dependency, this cannot use ``Header``/``Cookie``
+    extractors — we read directly from the WebSocket scope.
+    """
+    settings = get_settings()
+    if not settings.nextauth_secret:
+        return None
+
+    cookies = websocket.cookies
+    token: str | None = (
+        cookies.get("__Secure-authjs.session-token")
+        or cookies.get("authjs.session-token")
+    )
+    if not token:
+        return None
+
+    try:
+        payload = jwt.decode(
+            token,
+            settings.nextauth_secret,
+            algorithms=["HS256"],
+            options={"verify_aud": False},
+        )
+    except JWTError:
+        return None
+
+    user_id = payload.get("sub")
+    email = payload.get("email")
+    if not user_id or not email:
+        return None
+
+    return AuthenticatedUser(
+        user_id=user_id,
+        email=email,
+        name=payload.get("name", ""),
         picture=payload.get("picture"),
     )
