@@ -12,6 +12,7 @@ from backend.api.config import Settings
 from backend.api.db.database import get_db
 from backend.api.dependencies import AuthenticatedUser, get_current_user, get_settings
 from backend.api.routers.coaching import trigger_auto_coaching
+from backend.api.schemas.comparison import ComparisonResult
 from backend.api.schemas.session import (
     LapData,
     LapSummary,
@@ -20,6 +21,7 @@ from backend.api.schemas.session import (
     UploadResponse,
 )
 from backend.api.services import equipment_store, session_store
+from backend.api.services.comparison import compare_sessions as run_comparison
 from backend.api.services.db_session_store import (
     delete_session_db,
     list_sessions_for_user,
@@ -161,6 +163,25 @@ async def get_session(
         consistency_score=sd.snapshot.consistency_score,
         **_equipment_fields(sd.session_id),
     )
+
+
+@router.get("/{session_id}/compare/{other_id}", response_model=ComparisonResult)
+async def compare_sessions(
+    session_id: str,
+    other_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> ComparisonResult:
+    """Compare best laps of two sessions (multi-driver comparison)."""
+    sd_a = session_store.get_session(session_id)
+    if sd_a is None:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+    sd_b = session_store.get_session(other_id)
+    if sd_b is None:
+        raise HTTPException(status_code=404, detail=f"Session {other_id} not found")
+
+    result = await run_comparison(sd_a, sd_b)
+    return ComparisonResult(**result)
 
 
 @router.delete("/{session_id}")
