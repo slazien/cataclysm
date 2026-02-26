@@ -232,7 +232,20 @@ export function TrackMapInteractive({ sessionId }: TrackMapInteractiveProps) {
       report?.corner_grades ?? null,
     );
 
-    return { projected: proj, segments: segs, cornerLabels: labels };
+    // Compute S/F line angle (perpendicular to track at start)
+    const sfLine = (() => {
+      if (proj.x.length < 2) return null;
+      const look = Math.min(10, proj.x.length - 1);
+      const dx = proj.x[look] - proj.x[0];
+      const dy = proj.y[look] - proj.y[0];
+      return {
+        x: proj.x[0],
+        y: proj.y[0],
+        angle: Math.atan2(dy, dx) * (180 / Math.PI) + 90,
+      };
+    })();
+
+    return { projected: proj, segments: segs, cornerLabels: labels, sfLine };
   }, [lapData, corners, delta, report]);
 
   const cursorPos = useMemo(() => {
@@ -283,32 +296,8 @@ export function TrackMapInteractive({ sessionId }: TrackMapInteractiveProps) {
           />
         ))}
 
-        {/* Start/Finish marker */}
-        {projected.x.length > 0 && (
-          <g>
-            <rect
-              x={projected.x[0] - 12}
-              y={projected.y[0] - 6}
-              width={24}
-              height={12}
-              rx={3}
-              fill={colors.motorsport.pb}
-              opacity={0.9}
-            />
-            <text
-              x={projected.x[0]}
-              y={projected.y[0]}
-              textAnchor="middle"
-              dominantBaseline="central"
-              fill="#fff"
-              fontSize={7}
-              fontWeight="bold"
-              fontFamily="Inter, system-ui, sans-serif"
-            >
-              S/F
-            </text>
-          </g>
-        )}
+        {/* Start/Finish checkered line */}
+        {sfLine && <CheckeredSFLine x={sfLine.x} y={sfLine.y} angle={sfLine.angle} />}
 
         {/* Corner labels with grade chips */}
         {cornerLabels.map((label) => {
@@ -410,5 +399,33 @@ export function TrackMapInteractive({ sessionId }: TrackMapInteractiveProps) {
         )}
       </svg>
     </div>
+  );
+}
+
+const SF_LEN = 18;
+const SF_THICK = 6;
+const SF_COLS = 6;
+const SF_ROWS = 2;
+
+function CheckeredSFLine({ x, y, angle }: { x: number; y: number; angle: number }) {
+  const sqW = SF_LEN / SF_COLS;
+  const sqH = SF_THICK / SF_ROWS;
+  return (
+    <g transform={`translate(${x}, ${y}) rotate(${angle})`}>
+      {Array.from({ length: SF_COLS * SF_ROWS }, (_, i) => {
+        const col = i % SF_COLS;
+        const row = Math.floor(i / SF_COLS);
+        return (
+          <rect
+            key={i}
+            x={col * sqW - SF_LEN / 2}
+            y={row * sqH - SF_THICK / 2}
+            width={sqW + 0.3}
+            height={sqH + 0.3}
+            fill={(row + col) % 2 === 0 ? '#ffffff' : '#1a1a1a'}
+          />
+        );
+      })}
+    </g>
   );
 }

@@ -226,24 +226,36 @@ function CornerLabel3D({
   );
 }
 
-/** S/F marker in 3D space */
+/** S/F checkered marker in 3D space */
 function SFMarker3D({ position }: { position: [number, number, number] }) {
   return (
     <Html position={position} center>
       <div
         style={{
-          backgroundColor: colors.motorsport.pb,
-          color: '#fff',
-          fontSize: 8,
-          fontWeight: 'bold',
-          padding: '2px 6px',
-          borderRadius: 4,
-          fontFamily: 'Inter, system-ui, sans-serif',
-          opacity: 0.9,
+          width: 24,
+          height: 10,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(6, 1fr)',
+          gridTemplateRows: 'repeat(2, 1fr)',
+          borderRadius: 2,
+          overflow: 'hidden',
+          opacity: 0.95,
           transform: 'translate(0, -16px)',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.5)',
         }}
       >
-        S/F
+        {Array.from({ length: 12 }, (_, i) => {
+          const col = i % 6;
+          const row = Math.floor(i / 6);
+          return (
+            <div
+              key={i}
+              style={{
+                backgroundColor: (row + col) % 2 === 0 ? '#ffffff' : '#1a1a1a',
+              }}
+            />
+          );
+        })}
       </div>
     </Html>
   );
