@@ -1,14 +1,12 @@
-"""Tests for auto-coaching on upload and coaching report persistence."""
+"""Tests for auto-coaching on upload and coaching report DB persistence."""
 
 from __future__ import annotations
 
 import asyncio
-import json
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from cataclysm.coaching import CoachingReport, CornerGrade
+from cataclysm.coaching import CoachingContext, CoachingReport, CornerGrade
 from httpx import AsyncClient
 
 from backend.api.schemas.coaching import (
@@ -18,12 +16,16 @@ from backend.api.schemas.coaching import (
 )
 from backend.api.services.coaching_store import (
     clear_all_coaching,
+    clear_coaching_data,
     get_coaching_report,
-    init_coaching_dir,
-    load_persisted_reports,
+    store_coaching_context,
     store_coaching_report,
 )
-from backend.tests.conftest import build_synthetic_csv
+from backend.api.services.db_coaching_store import (
+    get_coaching_context_db,
+    get_coaching_report_db,
+)
+from backend.tests.conftest import _test_session_factory, build_synthetic_csv
 
 
 def _mock_coaching_report() -> CoachingReport:
@@ -114,20 +116,11 @@ class TestAutoCoachingOnUpload:
 
 
 class TestCoachingPersistence:
-    """Tests for JSON disk persistence of coaching reports."""
+    """Tests for PostgreSQL persistence of coaching reports."""
 
-    def test_init_coaching_dir_creates_directory(self, tmp_path: Path) -> None:
-        """init_coaching_dir should create the directory if missing."""
-        coaching_dir = tmp_path / "coaching"
-        assert not coaching_dir.exists()
-        init_coaching_dir(str(coaching_dir))
-        assert coaching_dir.exists()
-
-    def test_store_and_load_report(self, tmp_path: Path) -> None:
-        """Stored reports should be persisted to JSON and loadable."""
-        coaching_dir = tmp_path / "coaching"
-        init_coaching_dir(str(coaching_dir))
-
+    @pytest.mark.asyncio
+    async def test_store_and_load_report(self) -> None:
+        """Stored reports should be persisted to DB and retrievable."""
         report = CoachingReportResponse(
             session_id="test-session-1",
             status="ready",
@@ -151,61 +144,77 @@ class TestCoachingPersistence:
             drills=["Trail brake drill"],
         )
 
-        store_coaching_report("test-session-1", report)
+        await store_coaching_report("test-session-1", report)
 
-        # Verify JSON file was written
-        json_path = coaching_dir / "test-session-1.json"
-        assert json_path.exists()
-        data = json.loads(json_path.read_text())
-        assert data["session_id"] == "test-session-1"
-        assert data["status"] == "ready"
+        # Verify it's in DB
+        async with _test_session_factory() as db:
+            db_report = await get_coaching_report_db(db, "test-session-1")
+        assert db_report is not None
+        assert db_report.session_id == "test-session-1"
+        assert db_report.status == "ready"
+        assert db_report.summary == "Great driving session."
+        assert len(db_report.priority_corners) == 1
+        assert len(db_report.corner_grades) == 1
 
-        # Clear in-memory store, then reload from disk
-        clear_all_coaching()
-        assert get_coaching_report("test-session-1") is None
-
-        count = load_persisted_reports()
-        assert count == 1
-        loaded = get_coaching_report("test-session-1")
-        assert loaded is not None
-        assert loaded.summary == "Great driving session."
-        assert len(loaded.priority_corners) == 1
-        assert len(loaded.corner_grades) == 1
-
-    def test_error_reports_not_loaded(self, tmp_path: Path) -> None:
-        """Error reports should not be loaded from disk."""
-        coaching_dir = tmp_path / "coaching"
-        init_coaching_dir(str(coaching_dir))
-
+    @pytest.mark.asyncio
+    async def test_error_reports_not_cached_on_lazy_load(self) -> None:
+        """Error reports in DB should not be cached by lazy loader."""
         error_report = CoachingReportResponse(
             session_id="error-session",
             status="error",
             summary="AI coaching is temporarily unavailable.",
         )
-        store_coaching_report("error-session", error_report)
+        await store_coaching_report("error-session", error_report)
 
+        # Clear in-memory cache, then try lazy load
         clear_all_coaching()
-        count = load_persisted_reports()
-        assert count == 0
-        assert get_coaching_report("error-session") is None
+        loaded = await get_coaching_report("error-session")
+        # Lazy loader skips non-"ready" reports
+        assert loaded is None
 
-    def test_clear_coaching_data_removes_file(self, tmp_path: Path) -> None:
-        """Clearing coaching data should also delete the persisted JSON."""
-        from backend.api.services.coaching_store import clear_coaching_data
-
-        coaching_dir = tmp_path / "coaching"
-        init_coaching_dir(str(coaching_dir))
-
+    @pytest.mark.asyncio
+    async def test_clear_coaching_data_removes_db_rows(self) -> None:
+        """Clearing coaching data should remove from both memory and DB."""
         report = CoachingReportResponse(
             session_id="delete-me",
             status="ready",
             summary="Will be deleted.",
         )
-        store_coaching_report("delete-me", report)
+        await store_coaching_report("delete-me", report)
 
-        json_path = coaching_dir / "delete-me.json"
-        assert json_path.exists()
+        ctx = CoachingContext(messages=[{"role": "user", "content": "How can I brake later?"}])
+        await store_coaching_context("delete-me", ctx)
 
-        clear_coaching_data("delete-me")
-        assert not json_path.exists()
-        assert get_coaching_report("delete-me") is None
+        # Verify both exist in DB
+        async with _test_session_factory() as db:
+            assert await get_coaching_report_db(db, "delete-me") is not None
+            assert await get_coaching_context_db(db, "delete-me") is not None
+
+        # Clear
+        await clear_coaching_data("delete-me")
+
+        # Verify gone from DB
+        async with _test_session_factory() as db:
+            assert await get_coaching_report_db(db, "delete-me") is None
+            assert await get_coaching_context_db(db, "delete-me") is None
+
+        # And from memory
+        assert await get_coaching_report("delete-me") is None
+
+    @pytest.mark.asyncio
+    async def test_lazy_load_from_db(self) -> None:
+        """After clearing memory cache, get should lazy-load from DB."""
+        report = CoachingReportResponse(
+            session_id="lazy-session",
+            status="ready",
+            summary="Lazy loading test.",
+        )
+        await store_coaching_report("lazy-session", report)
+
+        # Clear memory only — DB still has the report
+        clear_all_coaching()
+        assert await get_coaching_report("lazy-session") is not None
+
+        loaded = await get_coaching_report("lazy-session")
+        assert loaded is not None
+        assert loaded.summary == "Lazy loading test."

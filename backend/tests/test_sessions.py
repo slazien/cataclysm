@@ -5,6 +5,11 @@ from __future__ import annotations
 import pytest
 from httpx import AsyncClient
 
+from backend.api.schemas.coaching import CoachingReportResponse
+from backend.api.services.coaching_store import get_coaching_report, store_coaching_report
+from backend.api.services.db_coaching_store import get_coaching_report_db
+from backend.tests.conftest import _test_session_factory
+
 
 @pytest.mark.asyncio
 async def test_upload_valid_csv(client: AsyncClient, synthetic_csv_bytes: bytes) -> None:
@@ -210,3 +215,39 @@ async def test_delete_all_sessions(client: AsyncClient, synthetic_csv_bytes: byt
 
     list_resp = await client.get("/api/sessions")
     assert list_resp.json()["total"] == 0
+
+
+@pytest.mark.asyncio
+async def test_delete_session_clears_coaching(
+    client: AsyncClient, synthetic_csv_bytes: bytes
+) -> None:
+    """DELETE /api/sessions/{id} should also clear coaching from memory and DB."""
+    upload_resp = await client.post(
+        "/api/sessions/upload",
+        files=[("files", ("test.csv", synthetic_csv_bytes, "text/csv"))],
+    )
+    session_id = upload_resp.json()["session_ids"][0]
+
+    # Manually store a coaching report for this session
+    report = CoachingReportResponse(
+        session_id=session_id,
+        status="ready",
+        summary="Test report for cascade delete.",
+    )
+    await store_coaching_report(session_id, report)
+
+    # Verify coaching is stored
+    assert await get_coaching_report(session_id) is not None
+
+    # Delete the session
+    del_resp = await client.delete(f"/api/sessions/{session_id}")
+    assert del_resp.status_code == 200
+
+    # Coaching should be gone from memory
+    from backend.api.services.coaching_store import _reports
+
+    assert session_id not in _reports
+
+    # Coaching should be gone from DB (CASCADE from session delete + explicit clear)
+    async with _test_session_factory() as db:
+        assert await get_coaching_report_db(db, session_id) is None
