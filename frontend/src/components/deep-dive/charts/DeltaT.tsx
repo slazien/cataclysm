@@ -153,7 +153,7 @@ export function DeltaT({ sessionId }: DeltaTProps) {
     ctx.translate(14, MARGINS.top + dimensions.innerHeight / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = 'center';
-    ctx.fillText('Delta (s)', 0, 0);
+    ctx.fillText('Delta (s) \u2014 ref vs compare', 0, 0);
     ctx.restore();
 
     // Total delta in top-right

@@ -125,12 +125,14 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
       drawCornerZones(ctx, corners, xScale, MARGINS.top, dimensions.innerHeight);
     }
 
-    // Speed lines per lap
+    // Speed lines per lap — role-based colors when comparing 2 laps
     for (let li = 0; li < lapDataArr.length; li++) {
       const lap = lapDataArr[li];
-      const color = colors.lap[li % colors.lap.length];
+      const color = lapDataArr.length === 2
+        ? (li === 0 ? colors.comparison.reference : colors.comparison.compare)
+        : colors.lap[li % colors.lap.length];
       ctx.strokeStyle = color;
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = lapDataArr.length === 2 ? (li === 0 ? 2 : 1.5) : 1.5;
       ctx.beginPath();
       for (let i = 0; i < lap.distance_m.length; i++) {
         const x = xScale(lap.distance_m[i]);
@@ -203,7 +205,9 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
         const idx = d3.bisectLeft(lap.distance_m, cursorDistance);
         const clampedIdx = Math.min(idx, lap.speed_mph.length - 1);
         const speed = lap.speed_mph[clampedIdx];
-        const color = colors.lap[li % colors.lap.length];
+        const color = lapDataArr.length === 2
+          ? (li === 0 ? colors.comparison.reference : colors.comparison.compare)
+          : colors.lap[li % colors.lap.length];
         const label = `L${lap.lap_number}: ${speed.toFixed(1)} mph`;
 
         const textWidth = ctx.measureText(label).width;

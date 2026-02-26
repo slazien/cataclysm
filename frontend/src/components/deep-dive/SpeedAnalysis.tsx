@@ -1,15 +1,18 @@
 'use client';
 
-import { useSessionStore } from '@/stores';
+import { useSessionStore, useAnalysisStore } from '@/stores';
 import { ChartErrorBoundary } from '@/components/shared/ChartErrorBoundary';
 import { SpeedTrace } from './charts/SpeedTrace';
 import { DeltaT } from './charts/DeltaT';
 import { BrakeThrottle } from './charts/BrakeThrottle';
 import { TrackMapInteractive } from './charts/TrackMapInteractive';
 import { CornerQuickCard } from './CornerQuickCard';
+import { ComparisonLegend } from './ComparisonLegend';
 
 export function SpeedAnalysis() {
   const sessionId = useSessionStore((s) => s.activeSessionId);
+  const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
+  const showLegend = selectedLaps.length === 2;
 
   if (!sessionId) {
     return (
@@ -20,7 +23,9 @@ export function SpeedAnalysis() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3 lg:flex-row">
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3">
+      {showLegend && <ComparisonLegend />}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
       {/* Left column -- 65% on desktop, full width on mobile -- three stacked charts */}
       <div className="flex w-full min-h-0 flex-col gap-3 lg:h-full lg:w-[65%]">
         {/* Speed Trace -- tallest */}
@@ -35,9 +40,16 @@ export function SpeedAnalysis() {
 
         {/* Delta-T */}
         <div className="relative min-h-[16rem] flex-1 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:min-h-0">
-          <h3 className="absolute left-3 top-2 z-10 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
-            Delta-T
-          </h3>
+          <div className="absolute left-3 top-2 z-10">
+            <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+              Delta-T
+            </h3>
+            {showLegend && (
+              <p className="text-[10px] text-[var(--text-muted)] opacity-60">
+                below zero = compare lap faster
+              </p>
+            )}
+          </div>
           <ChartErrorBoundary name="Delta-T">
             <DeltaT sessionId={sessionId} />
           </ChartErrorBoundary>
@@ -69,6 +81,7 @@ export function SpeedAnalysis() {
             <CornerQuickCard sessionId={sessionId} />
           </ChartErrorBoundary>
         </div>
+      </div>
       </div>
     </div>
   );

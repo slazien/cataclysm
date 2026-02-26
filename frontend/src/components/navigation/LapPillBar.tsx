@@ -33,17 +33,24 @@ export function LapPillBar() {
   return (
     <ScrollArea className="max-w-[50vw]">
       <div className="flex items-center gap-1.5 px-1 py-1">
-        {cleanLaps.map((lap, index) => (
-          <LapPill
-            key={lap.lap_number}
-            lapNumber={lap.lap_number}
-            time={formatLapTime(lap.lap_time_s)}
-            isPb={lap.lap_time_s === bestLapTime}
-            selected={selectedLaps.includes(lap.lap_number)}
-            colorIndex={index}
-            onClick={() => handleToggle(lap.lap_number)}
-          />
-        ))}
+        {cleanLaps.map((lap, index) => {
+          const selIdx = selectedLaps.indexOf(lap.lap_number);
+          const role = selIdx === 0 ? 'reference' as const
+            : selIdx === 1 ? 'compare' as const
+            : undefined;
+          return (
+            <LapPill
+              key={lap.lap_number}
+              lapNumber={lap.lap_number}
+              time={formatLapTime(lap.lap_time_s)}
+              isPb={lap.lap_time_s === bestLapTime}
+              selected={selIdx >= 0}
+              colorIndex={index}
+              role={role}
+              onClick={() => handleToggle(lap.lap_number)}
+            />
+          );
+        })}
       </div>
       <ScrollBar orientation="horizontal" />
     </ScrollArea>

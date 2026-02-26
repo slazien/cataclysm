@@ -102,10 +102,12 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
         ctx.fill();
       }
 
-      // Line trace
-      const lapColor = colors.lap[li % colors.lap.length];
+      // Line trace — role-based colors when comparing 2 laps
+      const lapColor = lapDataArr.length === 2
+        ? (li === 0 ? colors.comparison.reference : colors.comparison.compare)
+        : colors.lap[li % colors.lap.length];
       ctx.strokeStyle = lapColor;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = lapDataArr.length === 2 ? (li === 0 ? 2 : 1.5) : 1;
       ctx.beginPath();
       for (let i = 0; i < lap.distance_m.length; i++) {
         const x = xScale(lap.distance_m[i]);
@@ -228,7 +230,9 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
         const idx = d3.bisectLeft(lap.distance_m, cursorDistance);
         const clampedIdx = Math.min(idx, lap.longitudinal_g.length - 1);
         const gVal = lap.longitudinal_g[clampedIdx];
-        const color = colors.lap[li % colors.lap.length];
+        const color = lapDataArr.length === 2
+          ? (li === 0 ? colors.comparison.reference : colors.comparison.compare)
+          : colors.lap[li % colors.lap.length];
         const label = `L${lap.lap_number}: ${gVal >= 0 ? '+' : ''}${gVal.toFixed(2)}g`;
 
         const textWidth = ctx.measureText(label).width;

@@ -9,6 +9,7 @@ interface LapPillProps {
   isPb?: boolean;
   selected?: boolean;
   colorIndex?: number;
+  role?: 'reference' | 'compare';
   onClick?: () => void;
   className?: string;
 }
@@ -19,10 +20,13 @@ export function LapPill({
   isPb = false,
   selected = false,
   colorIndex,
+  role,
   onClick,
   className,
 }: LapPillProps) {
-  const lapColor = colors.lap[(colorIndex ?? lapNumber - 1) % colors.lap.length];
+  const roleColor = role
+    ? colors.comparison[role]
+    : colors.lap[(colorIndex ?? lapNumber - 1) % colors.lap.length];
 
   return (
     <button
@@ -37,11 +41,16 @@ export function LapPill({
       )}
       style={
         selected
-          ? { backgroundColor: lapColor, borderColor: lapColor }
+          ? { backgroundColor: roleColor, borderColor: roleColor }
           : undefined
       }
     >
       {isPb && <span className="text-[10px]" aria-label="Personal best">&#9733;</span>}
+      {selected && role && (
+        <span className="text-[9px] font-bold uppercase opacity-80">
+          {role === 'reference' ? 'REF' : 'CMP'}
+        </span>
+      )}
       <span>L{lapNumber}</span>
       <span className="tabular-nums">{time}</span>
     </button>
