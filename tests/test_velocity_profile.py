@@ -602,7 +602,9 @@ class TestComputeOptimalProfile:
 
         # Check speed partway through the straight (accel zone after corner)
         check_idx = 300  # well into the straight, during acceleration
-        assert profile_drag.optimal_speed_mps[check_idx] < profile_no_drag.optimal_speed_mps[check_idx]
+        drag_speed = profile_drag.optimal_speed_mps[check_idx]
+        no_drag_speed = profile_no_drag.optimal_speed_mps[check_idx]
+        assert drag_speed < no_drag_speed
 
     def test_zero_drag_identical_to_no_drag(self) -> None:
         """drag_coefficient=0.0 should produce identical results to old behavior."""
