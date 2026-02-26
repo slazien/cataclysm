@@ -142,9 +142,7 @@ async def _compute_session_score(sd: session_store.SessionData) -> float | None:
 
     # Consistency (40%)
     if sd.consistency and sd.consistency.lap_consistency:
-        components.append(
-            (_normalize_score(sd.consistency.lap_consistency.consistency_score), 0.4)
-        )
+        components.append((_normalize_score(sd.consistency.lap_consistency.consistency_score), 0.4))
 
     # Pace: best lap vs optimal (30%)
     snap = sd.snapshot
@@ -290,6 +288,9 @@ async def list_sessions(
         else:
             # Fallback to DB metadata (telemetry not in memory — needs re-upload)
             date_str = row.session_date.isoformat() if row.session_date else ""
+            snap = row.snapshot_json or {}
+            w_data = snap.get("weather")
+            gps_data = snap.get("gps_quality")
             items.append(
                 SessionSummary(
                     session_id=row.session_id,
@@ -301,6 +302,13 @@ async def list_sessions(
                     top3_avg_time_s=row.top3_avg_time_s,
                     avg_lap_time_s=row.avg_lap_time_s,
                     consistency_score=row.consistency_score,
+                    gps_quality_score=gps_data.get("overall_score") if gps_data else None,
+                    gps_quality_grade=gps_data.get("grade") if gps_data else None,
+                    weather_temp_c=w_data.get("ambient_temp_c") if w_data else None,
+                    weather_condition=w_data.get("track_condition") if w_data else None,
+                    weather_humidity_pct=w_data.get("humidity_pct") if w_data else None,
+                    weather_wind_kmh=w_data.get("wind_speed_kmh") if w_data else None,
+                    weather_precipitation_mm=w_data.get("precipitation_mm") if w_data else None,
                 )
             )
     return SessionList(items=items, total=len(items))
