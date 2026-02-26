@@ -22,6 +22,9 @@ class LapConsistency:
     mean_abs_consecutive_delta_s: float
     max_consecutive_delta_s: float
     consistency_score: float  # 0-100
+    choppiness_score: float  # 0-100 sub-component
+    spread_score: float  # 0-100 sub-component
+    jump_score: float  # 0-100 sub-component
     lap_numbers: list[int]
     lap_times_s: list[float]
     consecutive_deltas_s: list[float]
@@ -86,6 +89,9 @@ def compute_lap_consistency(
             mean_abs_consecutive_delta_s=0.0,
             max_consecutive_delta_s=0.0,
             consistency_score=100.0,
+            choppiness_score=100.0,
+            spread_score=100.0,
+            jump_score=100.0,
             lap_numbers=lap_numbers,
             lap_times_s=lap_times,
             consecutive_deltas_s=[],
@@ -117,6 +123,9 @@ def compute_lap_consistency(
         mean_abs_consecutive_delta_s=mean_abs_consecutive_delta_s,
         max_consecutive_delta_s=max_consecutive_delta_s,
         consistency_score=score,
+        choppiness_score=round(choppiness_score, 1),
+        spread_score=round(spread_score, 1),
+        jump_score=round(jump_score, 1),
         lap_numbers=lap_numbers,
         lap_times_s=lap_times,
         consecutive_deltas_s=consecutive_deltas,

@@ -65,24 +65,26 @@ export function SessionDashboard() {
   }, [idealLap, session]);
 
   // Compute composite session score: consistency (40%) + best/optimal (30%) + corner grades (30%)
-  const sessionScore = useMemo(() => {
-    const components: { value: number; weight: number }[] = [];
+  const sessionScoreData = useMemo(() => {
+    const components: { key: string; value: number; weight: number }[] = [];
 
     // Consistency component (0-100)
+    let consistencyValue: number | null = null;
     if (consistency?.lap_consistency) {
-      const consistencyScore = normalizeScore(consistency.lap_consistency.consistency_score);
-      components.push({ value: consistencyScore, weight: 0.4 });
+      consistencyValue = normalizeScore(consistency.lap_consistency.consistency_score);
+      components.push({ key: 'consistency', value: consistencyValue, weight: 0.4 });
     }
 
     // Best lap vs optimal component (0-100)
-    // More penalizing curve: 100 at perfect, 75 at 5% off, 50 at 10% off, 0 at 20%+ off
+    let optimalValue: number | null = null;
     if (idealLapInfo && session && session.best_lap_time_s) {
       const gapPct = 1 - (idealLapInfo.time / session.best_lap_time_s);
-      const optimalScore = Math.min(100, Math.max(0, 100 - gapPct * 500));
-      components.push({ value: optimalScore, weight: 0.3 });
+      optimalValue = Math.min(100, Math.max(0, 100 - gapPct * 500));
+      components.push({ key: 'optimal', value: optimalValue, weight: 0.3 });
     }
 
     // Corner grades component (0-100)
+    let gradesValue: number | null = null;
     if (coachingReport?.corner_grades && coachingReport.corner_grades.length > 0) {
       const gradeMap: Record<string, number> = { A: 100, B: 80, C: 60, D: 40, F: 20 };
       const gradeFields = ['braking', 'trail_braking', 'min_speed', 'throttle'] as const;
@@ -98,16 +100,25 @@ export function SessionDashboard() {
         }
       }
       if (count > 0) {
-        components.push({ value: total / count, weight: 0.3 });
+        gradesValue = total / count;
+        components.push({ key: 'grades', value: gradesValue, weight: 0.3 });
       }
     }
 
-    if (components.length === 0) return null;
+    if (components.length === 0) return { score: null, breakdown: null };
 
     // Normalize weights to sum to 1 if some components are missing
     const totalWeight = components.reduce((s, c) => s + c.weight, 0);
     const weighted = components.reduce((s, c) => s + c.value * (c.weight / totalWeight), 0);
-    return weighted;
+
+    return {
+      score: weighted,
+      breakdown: {
+        consistency: consistencyValue,
+        optimal: optimalValue,
+        grades: gradesValue,
+      },
+    };
   }, [consistency, idealLapInfo, session, coachingReport]);
 
   // No session selected
@@ -159,7 +170,7 @@ export function SessionDashboard() {
 
       {/* Hero Metrics Row */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-        <SessionScore score={sessionScore} isLoading={consistencyLoading} />
+        <SessionScore score={sessionScoreData.score} breakdown={sessionScoreData.breakdown} isLoading={consistencyLoading} />
 
         <MetricCard
           label="Best Lap"

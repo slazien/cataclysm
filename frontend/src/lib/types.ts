@@ -51,6 +51,9 @@ export interface LapConsistency {
   mean_abs_consecutive_delta_s: number;
   max_consecutive_delta_s: number;
   consistency_score: number;
+  choppiness_score?: number;
+  spread_score?: number;
+  jump_score?: number;
   lap_numbers: number[];
   lap_times_s: number[];
   consecutive_deltas_s: number[];

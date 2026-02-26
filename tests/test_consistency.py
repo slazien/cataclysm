@@ -59,6 +59,9 @@ class TestLapConsistencyBasic:
 
         assert isinstance(result, LapConsistency)
         assert 0.0 <= result.consistency_score <= 100.0
+        assert 0.0 <= result.choppiness_score <= 100.0
+        assert 0.0 <= result.spread_score <= 100.0
+        assert 0.0 <= result.jump_score <= 100.0
         assert len(result.lap_numbers) == len(summaries)
         assert len(result.consecutive_deltas_s) == len(result.lap_numbers) - 1
 
@@ -95,6 +98,17 @@ class TestLapConsistencyTemporalOrdering:
         # And therefore choppy scores LOWER (worse) than smooth
         assert choppy.consistency_score < smooth.consistency_score
 
+        # Sub-scores should also be valid 0-100 ranges
+        for result in (choppy, smooth):
+            assert 0.0 <= result.choppiness_score <= 100.0
+            assert 0.0 <= result.spread_score <= 100.0
+            assert 0.0 <= result.jump_score <= 100.0
+
+        # Choppiness sub-score specifically should be lower for the choppy sequence
+        assert choppy.choppiness_score < smooth.choppiness_score
+        # Spread sub-scores should be equal (same spread in both)
+        assert choppy.spread_score == pytest.approx(smooth.spread_score, abs=1e-9)
+
 
 class TestLapConsistencyEdgeCases:
     """Edge cases: single lap, anomalous filtering."""
@@ -104,6 +118,9 @@ class TestLapConsistencyEdgeCases:
         result = compute_lap_consistency(summaries, anomalous_laps=set())
 
         assert result.consistency_score == 100.0
+        assert result.choppiness_score == 100.0
+        assert result.spread_score == 100.0
+        assert result.jump_score == 100.0
         assert result.std_dev_s == 0.0
         assert result.spread_s == 0.0
         assert result.mean_abs_consecutive_delta_s == 0.0

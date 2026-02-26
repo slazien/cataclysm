@@ -1,9 +1,22 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+
+export interface ScoreBreakdown {
+  consistency: number | null;
+  optimal: number | null;
+  grades: number | null;
+}
 
 interface SessionScoreProps {
   score: number | null;
+  breakdown: ScoreBreakdown | null;
   isLoading: boolean;
 }
 
@@ -24,7 +37,27 @@ function getSubtitle(score: number): string {
   return 'Focus on fundamentals';
 }
 
-export function SessionScore({ score, isLoading }: SessionScoreProps) {
+const BREAKDOWN_ROWS: { key: keyof ScoreBreakdown; label: string; weight: string }[] = [
+  { key: 'consistency', label: 'Consistency', weight: '40%' },
+  { key: 'optimal', label: 'Pace', weight: '30%' },
+  { key: 'grades', label: 'Corner Grades', weight: '30%' },
+];
+
+function ScoreRow({ label, weight, value }: { label: string; weight: string; value: number }) {
+  const color = getScoreColor(value);
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-[var(--text-secondary)]">
+        {label} <span className="text-[var(--text-muted)]">({weight})</span>
+      </span>
+      <span className="font-semibold tabular-nums" style={{ color }}>
+        {Math.round(value)}
+      </span>
+    </div>
+  );
+}
+
+export function SessionScore({ score, breakdown, isLoading }: SessionScoreProps) {
   const [displayValue, setDisplayValue] = useState(0);
   const animatedRef = useRef(false);
 
@@ -77,7 +110,9 @@ export function SessionScore({ score, isLoading }: SessionScoreProps) {
   const dashOffset = CIRCUMFERENCE * (1 - fraction);
   const color = displayScore !== null ? getScoreColor(displayScore) : 'var(--text-muted)';
 
-  return (
+  const hasBreakdown = breakdown && Object.values(breakdown).some((v) => v !== null);
+
+  const ring = (
     <div className="flex flex-col items-center justify-center rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] px-4 py-3">
       <p className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
         Session Score
@@ -131,5 +166,31 @@ export function SessionScore({ score, isLoading }: SessionScoreProps) {
         </p>
       )}
     </div>
+  );
+
+  if (!hasBreakdown) return ring;
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="cursor-help">{ring}</div>
+        </TooltipTrigger>
+        <TooltipContent
+          side="bottom"
+          sideOffset={8}
+          className="w-56 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] px-3 py-2.5 text-xs shadow-xl"
+        >
+          <p className="mb-1.5 font-semibold text-[var(--text-primary)]">Score Breakdown</p>
+          <div className="flex flex-col gap-1">
+            {BREAKDOWN_ROWS.map(({ key, label, weight }) => {
+              const value = breakdown[key];
+              if (value === null) return null;
+              return <ScoreRow key={key} label={label} weight={weight} value={value} />;
+            })}
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
