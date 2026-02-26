@@ -7,6 +7,8 @@ import { ViewRouter } from '@/components/navigation/ViewRouter';
 import { MobileBottomTabs } from '@/components/navigation/MobileBottomTabs';
 import { CoachPanel } from '@/components/coach/CoachPanel';
 import { ProcessingOverlay } from '@/components/shared/ProcessingOverlay';
+import { SettingsPanel } from '@/components/shared/SettingsPanel';
+import { ToastContainer } from '@/components/shared/ToastContainer';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 export default function Home() {
@@ -25,6 +27,8 @@ export default function Home() {
       </div>
       <MobileBottomTabs />
       <ProcessingOverlay />
+      <SettingsPanel />
+      <ToastContainer />
     </div>
   );
 }

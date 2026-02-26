@@ -9,8 +9,12 @@ import {
   uploadSessions,
   deleteSession,
   deleteAllSessions,
+  getMilestones,
 } from "@/lib/api";
 import { useSessionStore } from "@/stores";
+import { useUiStore } from "@/stores/uiStore";
+import { fetchApi } from "@/lib/api";
+import type { SessionSummary } from "@/lib/types";
 
 export function useSessions() {
   return useQuery({
@@ -46,12 +50,13 @@ export function useLapData(sessionId: string | null, lapNumber: number | null) {
 export function useUploadSessions() {
   const queryClient = useQueryClient();
   const setUploadState = useSessionStore.getState().setUploadState;
+  const addToast = useUiStore.getState().addToast;
   return useMutation({
     mutationFn: (files: File[]) => {
       setUploadState('uploading');
       return uploadSessions(files);
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
       setUploadState('processing');
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       // Brief delay to show processing, then done, then auto-dismiss
@@ -59,6 +64,33 @@ export function useUploadSessions() {
         setUploadState('done');
         setTimeout(() => setUploadState('idle'), 1500);
       }, 800);
+
+      // Check for PB milestones after upload
+      try {
+        if (data.session_ids.length > 0) {
+          // Fetch the first uploaded session to get track name
+          const session = await fetchApi<SessionSummary>(
+            `/api/sessions/${data.session_ids[0]}`,
+          );
+          if (session.track_name) {
+            const milestoneResp = await getMilestones(session.track_name);
+            const uploadedIds = new Set(data.session_ids);
+            const hasPb = milestoneResp.milestones.some(
+              (m) => m.category === 'pb' && uploadedIds.has(m.session_id),
+            );
+            if (hasPb) {
+              addToast({ type: 'pb', message: 'New Personal Best!' });
+            } else {
+              addToast({ type: 'info', message: 'Session uploaded successfully' });
+            }
+          } else {
+            addToast({ type: 'info', message: 'Session uploaded successfully' });
+          }
+        }
+      } catch {
+        // Milestone check is non-critical; still show success toast
+        addToast({ type: 'info', message: 'Session uploaded successfully' });
+      }
     },
     onError: () => {
       setUploadState('error');
