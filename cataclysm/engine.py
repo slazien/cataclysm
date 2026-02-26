@@ -10,6 +10,7 @@ from scipy.interpolate import interp1d
 
 RESAMPLE_STEP_M = 0.7
 MIN_LAP_FRACTION = 0.80  # discard laps shorter than 80% of median
+MAX_LAP_TIME_RATIO = 1.5  # laps > 1.5× median time are anomalous (pit stops, red flags)
 
 
 @dataclass
@@ -133,25 +134,45 @@ def find_anomalous_laps(
     summaries: list[LapSummary],
     *,
     iqr_factor: float = 2.0,
+    max_ratio: float = MAX_LAP_TIME_RATIO,
 ) -> set[int]:
-    """Identify anomalous laps (cooldown, traffic, offs) by lap time.
+    """Identify anomalous laps (cooldown, traffic, red flags, pit stops).
 
-    A lap is anomalous if its time exceeds ``median + iqr_factor * IQR``.
-    The median and IQR are robust to outliers, so one terrible lap won't
-    shift the threshold.
+    Two complementary detection methods:
+
+    1. **Hard ratio**: any lap exceeding ``max_ratio × median`` time is
+       anomalous.  This catches extreme outliers (pit stops, red flags)
+       regardless of the session's variance.
+    2. **IQR-based** (≥ 3 laps): any lap exceeding ``median + iqr_factor × IQR``
+       is anomalous.  This catches moderate statistical outliers.
 
     Returns a set of anomalous lap numbers.
     """
-    if len(summaries) < 3:
+    if len(summaries) < 2:
         return set()
 
     times = np.array([s.lap_time_s for s in summaries])
-    q1 = float(np.percentile(times, 25))
-    q3 = float(np.percentile(times, 75))
-    iqr = q3 - q1
-    upper = float(np.median(times)) + iqr_factor * iqr
+    median_time = float(np.median(times))
 
-    return {s.lap_number for s in summaries if s.lap_time_s > upper}
+    anomalous: set[int] = set()
+
+    # Hard ratio cap — catches pit stops, red flags, cooldown laps
+    ratio_upper = median_time * max_ratio
+    for s in summaries:
+        if s.lap_time_s > ratio_upper:
+            anomalous.add(s.lap_number)
+
+    # IQR-based detection for moderate outliers (needs ≥ 3 laps)
+    if len(summaries) >= 3:
+        q1 = float(np.percentile(times, 25))
+        q3 = float(np.percentile(times, 75))
+        iqr = q3 - q1
+        iqr_upper = median_time + iqr_factor * iqr
+        for s in summaries:
+            if s.lap_time_s > iqr_upper:
+                anomalous.add(s.lap_number)
+
+    return anomalous
 
 
 def process_session(df: pd.DataFrame) -> ProcessedSession:

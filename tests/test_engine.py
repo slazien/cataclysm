@@ -225,9 +225,19 @@ class TestFindAnomalousLaps:
         ]
         assert find_anomalous_laps(sums) == set()
 
-    def test_fewer_than_three_laps_returns_empty(self) -> None:
+    def test_single_lap_returns_empty(self) -> None:
+        sums = [_make_summary(1, 110.0)]
+        assert find_anomalous_laps(sums) == set()
+
+    def test_two_laps_no_outlier(self) -> None:
+        # 200/155 median = 1.29x — below 1.5x ratio threshold
         sums = [_make_summary(1, 110.0), _make_summary(2, 200.0)]
         assert find_anomalous_laps(sums) == set()
+
+    def test_two_laps_extreme_outlier_flagged_by_ratio(self) -> None:
+        # median = 155, 350/155 = 2.26x — above 1.5x ratio threshold
+        sums = [_make_summary(1, 110.0), _make_summary(2, 350.0)]
+        assert find_anomalous_laps(sums) == {2}
 
     def test_multiple_outliers(self) -> None:
         sums = [
@@ -244,3 +254,36 @@ class TestFindAnomalousLaps:
         assert 7 in anomalous
         assert 8 in anomalous
         assert 1 not in anomalous
+
+    def test_ratio_catches_pit_stop_lap(self) -> None:
+        # Real scenario: 12-minute red flag lap among normal ~109-113s laps
+        sums = [
+            _make_summary(1, 112.5),
+            _make_summary(2, 109.3),
+            _make_summary(3, 110.0),
+            _make_summary(4, 111.6),
+            _make_summary(5, 108.4),
+            _make_summary(6, 110.6),
+            _make_summary(7, 108.5),
+            _make_summary(8, 113.3),
+            _make_summary(9, 718.4),  # 12-minute red flag
+        ]
+        anomalous = find_anomalous_laps(sums)
+        assert 9 in anomalous
+        # Normal laps within the cluster should not be flagged
+        for lap in [2, 3, 4, 5, 6, 7]:
+            assert lap not in anomalous
+
+    def test_high_variance_session_ratio_catches_extreme(self) -> None:
+        # Pathological case: lots of variance makes IQR wide, but ratio still catches
+        sums = [
+            _make_summary(1, 100.0),
+            _make_summary(2, 150.0),
+            _make_summary(3, 200.0),
+            _make_summary(4, 250.0),
+            _make_summary(5, 300.0),
+            _make_summary(6, 350.0),
+            _make_summary(7, 800.0),  # extreme outlier
+        ]
+        anomalous = find_anomalous_laps(sums)
+        assert 7 in anomalous
