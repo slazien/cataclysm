@@ -20,6 +20,7 @@ from cataclysm.corners import Corner, detect_corners, extract_corner_kpis_for_la
 from cataclysm.curvature import compute_curvature
 from cataclysm.engine import LapSummary, ProcessedSession, find_anomalous_laps, process_session
 from cataclysm.equipment import equipment_to_vehicle_params
+from cataclysm.gps_quality import GPSQualityReport, assess_gps_quality
 from cataclysm.gains import (
     GainEstimate,
     build_segments,
@@ -57,6 +58,13 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
     all_laps = sorted(processed.resampled_laps.keys())
     in_out: set[int] = {all_laps[0], all_laps[-1]} if len(all_laps) >= 2 else set()
     coaching_laps = [n for n in all_laps if n not in anomalous and n not in in_out]
+
+    # 3b. Assess GPS quality
+    gps_quality: GPSQualityReport | None = None
+    try:
+        gps_quality = assess_gps_quality(parsed.data, processed, anomalous)
+    except Exception:
+        logger.warning("Failed to assess GPS quality for %s", filename, exc_info=True)
 
     # 4. Detect corners (track_db lookup first, fallback to detect_corners)
     best_lap_df = processed.resampled_laps[processed.best_lap]
@@ -129,6 +137,8 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
         all_lap_corners=all_lap_corners,
         anomalous_laps=anomalous,
         file_key=filename,
+        gps_quality_score=gps_quality.overall_score if gps_quality else 100.0,
+        gps_quality_grade=gps_quality.grade if gps_quality else "A",
     )
 
     return SessionData(
@@ -141,6 +151,7 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
         consistency=consistency,
         gains=gains,
         grip=grip,
+        gps_quality=gps_quality,
         coaching_laps=coaching_laps,
         anomalous_laps=anomalous,
     )

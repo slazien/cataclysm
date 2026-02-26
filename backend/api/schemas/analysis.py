@@ -131,6 +131,13 @@ class VehicleParamsSchema(BaseModel):
     top_speed_mps: float
 
 
+class GPSQualityResponse(BaseModel):
+    """GPS quality assessment results."""
+
+    session_id: str
+    data: dict[str, Any]
+
+
 class OptimalProfileResponse(BaseModel):
     """Physics-optimal velocity profile for a track."""
 

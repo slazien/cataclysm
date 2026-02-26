@@ -14,6 +14,7 @@ from cataclysm.consistency import SessionConsistency
 from cataclysm.corners import Corner
 from cataclysm.engine import ProcessedSession
 from cataclysm.gains import GainEstimate
+from cataclysm.gps_quality import GPSQualityReport
 from cataclysm.grip import GripEstimate
 from cataclysm.lap_tags import LapTagStore
 from cataclysm.parser import ParsedSession
@@ -33,6 +34,7 @@ class SessionData:
     consistency: SessionConsistency | None = None
     gains: GainEstimate | None = None
     grip: GripEstimate | None = None
+    gps_quality: GPSQualityReport | None = None
     lap_tags: LapTagStore = field(default_factory=LapTagStore)
     coaching_laps: list[int] = field(default_factory=list)
     anomalous_laps: set[int] = field(default_factory=set)

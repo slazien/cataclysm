@@ -15,6 +15,7 @@ from backend.api.schemas.analysis import (
     CornerSchema,
     DeltaResponse,
     GainsResponse,
+    GPSQualityResponse,
     GripResponse,
     IdealLapResponse,
     LapSectorSplitsSchema,
@@ -117,6 +118,22 @@ async def get_grip(
         )
     data = dataclass_to_dict(sd.grip)
     return GripResponse(session_id=session_id, data=data)
+
+
+@router.get("/{session_id}/gps-quality", response_model=GPSQualityResponse)
+async def get_gps_quality(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> GPSQualityResponse:
+    """Return GPS quality assessment for a session."""
+    sd = _get_session_or_404(session_id)
+    if sd.gps_quality is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"GPS quality data not available for session {session_id}",
+        )
+    data = dataclass_to_dict(sd.gps_quality)
+    return GPSQualityResponse(session_id=session_id, data=data)
 
 
 @router.get("/{session_id}/gains", response_model=GainsResponse)

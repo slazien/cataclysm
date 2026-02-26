@@ -22,6 +22,8 @@ class SessionSummary(BaseModel):
     tire_model: str | None = None
     compound_category: str | None = None
     equipment_profile_name: str | None = None
+    gps_quality_score: float | None = None
+    gps_quality_grade: str | None = None
 
 
 class SessionList(BaseModel):

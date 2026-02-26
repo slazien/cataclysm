@@ -146,6 +146,8 @@ async def list_sessions(
                     top3_avg_time_s=sd.snapshot.top3_avg_time_s,
                     avg_lap_time_s=sd.snapshot.avg_lap_time_s,
                     consistency_score=sd.snapshot.consistency_score,
+                    gps_quality_score=sd.gps_quality.overall_score if sd.gps_quality else None,
+                    gps_quality_grade=sd.gps_quality.grade if sd.gps_quality else None,
                     **_equipment_fields(sd.session_id),
                 )
             )
@@ -188,6 +190,8 @@ async def get_session(
         top3_avg_time_s=sd.snapshot.top3_avg_time_s,
         avg_lap_time_s=sd.snapshot.avg_lap_time_s,
         consistency_score=sd.snapshot.consistency_score,
+        gps_quality_score=sd.gps_quality.overall_score if sd.gps_quality else None,
+        gps_quality_grade=sd.gps_quality.grade if sd.gps_quality else None,
         **_equipment_fields(sd.session_id),
     )
 

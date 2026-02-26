@@ -55,6 +55,8 @@ class SessionSnapshot:
     corner_metrics: list[CornerTrendEntry]
     lap_consistency: LapConsistency
     corner_consistency: list[CornerConsistencyEntry]
+    gps_quality_score: float = 100.0
+    gps_quality_grade: str = "A"
 
     @property
     def optimal_lap_time_s(self) -> float:
@@ -210,6 +212,9 @@ def build_session_snapshot(
     all_lap_corners: dict[int, list[Corner]],
     anomalous_laps: set[int],
     file_key: str,
+    *,
+    gps_quality_score: float = 100.0,
+    gps_quality_grade: str = "A",
 ) -> SessionSnapshot:
     """Extract a lightweight snapshot from single-session pipeline outputs.
 
@@ -255,6 +260,8 @@ def build_session_snapshot(
         corner_metrics=corner_entries,
         lap_consistency=lap_consistency,
         corner_consistency=corner_consistency,
+        gps_quality_score=gps_quality_score,
+        gps_quality_grade=gps_quality_grade,
     )
 
 
