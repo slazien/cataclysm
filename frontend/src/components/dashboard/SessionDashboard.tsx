@@ -10,6 +10,7 @@ import { useSessionStore } from '@/stores';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { SkeletonCard } from '@/components/shared/SkeletonCard';
+import { ChartErrorBoundary } from '@/components/shared/ChartErrorBoundary';
 import { SessionScore } from './SessionScore';
 import { TopPriorities } from './TopPriorities';
 import { HeroTrackMap } from './HeroTrackMap';
@@ -180,14 +181,20 @@ export function SessionDashboard() {
 
       {/* Two-column middle section */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
-        <TopPriorities sessionId={sessionId} />
+        <ChartErrorBoundary name="Top Priorities">
+          <TopPriorities sessionId={sessionId} />
+        </ChartErrorBoundary>
         {bestLapNumber !== null && (
-          <HeroTrackMap sessionId={sessionId} bestLapNumber={bestLapNumber} />
+          <ChartErrorBoundary name="Track Map">
+            <HeroTrackMap sessionId={sessionId} bestLapNumber={bestLapNumber} />
+          </ChartErrorBoundary>
         )}
       </div>
 
       {/* Lap Times Bar Chart */}
-      <LapTimesBar sessionId={sessionId} />
+      <ChartErrorBoundary name="Lap Times">
+        <LapTimesBar sessionId={sessionId} />
+      </ChartErrorBoundary>
 
       {/* Summary Metrics Row */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">

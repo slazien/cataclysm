@@ -1,6 +1,7 @@
 'use client';
 
 import { useSessionStore, useUiStore } from '@/stores';
+import { ViewErrorBoundary } from '@/components/shared/ViewErrorBoundary';
 import { WelcomeScreen } from '@/components/shared/WelcomeScreen';
 import { SessionDashboard } from '@/components/dashboard/SessionDashboard';
 import { DeepDive } from '@/components/deep-dive/DeepDive';
@@ -16,12 +17,28 @@ export function ViewRouter() {
 
   switch (activeView) {
     case 'dashboard':
-      return <SessionDashboard />;
+      return (
+        <ViewErrorBoundary>
+          <SessionDashboard />
+        </ViewErrorBoundary>
+      );
     case 'deep-dive':
-      return <DeepDive />;
+      return (
+        <ViewErrorBoundary>
+          <DeepDive />
+        </ViewErrorBoundary>
+      );
     case 'progress':
-      return <ProgressView />;
+      return (
+        <ViewErrorBoundary>
+          <ProgressView />
+        </ViewErrorBoundary>
+      );
     default:
-      return <SessionDashboard />;
+      return (
+        <ViewErrorBoundary>
+          <SessionDashboard />
+        </ViewErrorBoundary>
+      );
   }
 }

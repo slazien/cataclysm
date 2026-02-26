@@ -9,6 +9,7 @@ import { MetricCard } from '@/components/shared/MetricCard';
 import { AiInsight } from '@/components/shared/AiInsight';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { CircularProgress } from '@/components/shared/CircularProgress';
+import { ChartErrorBoundary } from '@/components/shared/ChartErrorBoundary';
 import { MilestoneTimeline } from './MilestoneTimeline';
 import { LapTimeTrend } from './LapTimeTrend';
 import { ConsistencyTrend } from './ConsistencyTrend';
@@ -177,7 +178,9 @@ export function ProgressView() {
       {/* 3. Milestone Timeline */}
       <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
         <h3 className="mb-2 text-sm font-medium text-[var(--text-secondary)]">Milestone Timeline</h3>
-        <MilestoneTimeline sessions={trendData.sessions} milestones={milestones} />
+        <ChartErrorBoundary name="Milestone Timeline">
+          <MilestoneTimeline sessions={trendData.sessions} milestones={milestones} />
+        </ChartErrorBoundary>
       </div>
 
       {/* 4. Two-column trend charts */}
@@ -185,12 +188,14 @@ export function ProgressView() {
         <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
           <h3 className="mb-2 text-sm font-medium text-[var(--text-secondary)]">Lap Time Trend</h3>
           <div className="h-[280px]">
-            <LapTimeTrend
-              sessions={trendData.sessions}
-              bestLapTrend={trendData.best_lap_trend}
-              top3AvgTrend={trendData.top3_avg_trend}
-              theoreticalTrend={trendData.theoretical_trend}
-            />
+            <ChartErrorBoundary name="Lap Time Trend">
+              <LapTimeTrend
+                sessions={trendData.sessions}
+                bestLapTrend={trendData.best_lap_trend}
+                top3AvgTrend={trendData.top3_avg_trend}
+                theoreticalTrend={trendData.theoretical_trend}
+              />
+            </ChartErrorBoundary>
           </div>
         </div>
         <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
@@ -198,10 +203,12 @@ export function ProgressView() {
             Consistency Trend
           </h3>
           <div className="h-[280px]">
-            <ConsistencyTrend
-              sessions={trendData.sessions}
-              consistencyTrend={trendData.consistency_trend}
-            />
+            <ChartErrorBoundary name="Consistency Trend">
+              <ConsistencyTrend
+                sessions={trendData.sessions}
+                consistencyTrend={trendData.consistency_trend}
+              />
+            </ChartErrorBoundary>
           </div>
         </div>
       </div>
@@ -210,12 +217,14 @@ export function ProgressView() {
       <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
         <h3 className="mb-2 text-sm font-medium text-[var(--text-secondary)]">Corner Heatmap</h3>
         <div className="h-[320px]">
-          <CornerHeatmap
-            sessions={trendData.sessions}
-            cornerMinSpeedTrends={trendData.corner_min_speed_trends}
-            cornerBrakeStdTrends={trendData.corner_brake_std_trends}
-            cornerConsistencyTrends={trendData.corner_consistency_trends}
-          />
+          <ChartErrorBoundary name="Corner Heatmap">
+            <CornerHeatmap
+              sessions={trendData.sessions}
+              cornerMinSpeedTrends={trendData.corner_min_speed_trends}
+              cornerBrakeStdTrends={trendData.corner_brake_std_trends}
+              cornerConsistencyTrends={trendData.corner_consistency_trends}
+            />
+          </ChartErrorBoundary>
         </div>
       </div>
 
@@ -225,7 +234,9 @@ export function ProgressView() {
           Session Lap Time Distribution
         </h3>
         <div className="h-[280px]">
-          <SessionBoxPlot sessions={trendData.sessions} />
+          <ChartErrorBoundary name="Session Box Plot">
+            <SessionBoxPlot sessions={trendData.sessions} />
+          </ChartErrorBoundary>
         </div>
       </div>
     </div>

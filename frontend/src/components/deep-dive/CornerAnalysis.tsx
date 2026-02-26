@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSessionStore, useAnalysisStore } from '@/stores';
 import { useCorners } from '@/hooks/useAnalysis';
 import { cn } from '@/lib/utils';
+import { ChartErrorBoundary } from '@/components/shared/ChartErrorBoundary';
 import { TrackMapInteractive } from './charts/TrackMapInteractive';
 import { CornerDetailPanel } from './CornerDetailPanel';
 import { CornerSpeedOverlay } from './charts/CornerSpeedOverlay';
@@ -110,32 +111,42 @@ export function CornerAnalysis() {
       {viewMode === 'grid' ? (
         /* Grid view: all corners as report cards */
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <CornerReportCardGrid onSelectCorner={() => setViewMode('detail')} />
+          <ChartErrorBoundary name="Corner Report Card Grid">
+            <CornerReportCardGrid onSelectCorner={() => setViewMode('detail')} />
+          </ChartErrorBoundary>
         </div>
       ) : (
         /* Detail view: existing layout */
         <>
           {/* Top row: Track Map (60%) + Corner Detail Panel (40%) */}
-          <div className="flex min-h-0 flex-1 gap-3">
-            {/* Track Map — 60%, bounded to row height so SVG doesn't overflow */}
-            <div className="h-full w-[60%] overflow-hidden">
-              <TrackMapInteractive sessionId={sessionId} />
+          <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
+            {/* Track Map -- 60% on desktop, full width on mobile */}
+            <div className="h-full min-h-[16rem] w-full overflow-hidden lg:min-h-0 lg:w-[60%]">
+              <ChartErrorBoundary name="Track Map">
+                <TrackMapInteractive sessionId={sessionId} />
+              </ChartErrorBoundary>
             </div>
-            {/* Corner Detail Panel — 40% */}
-            <div className="h-full w-[40%] overflow-auto">
-              <CornerDetailPanel sessionId={sessionId} />
+            {/* Corner Detail Panel -- 40% on desktop, full width on mobile */}
+            <div className="h-full w-full overflow-auto lg:w-[40%]">
+              <ChartErrorBoundary name="Corner Detail">
+                <CornerDetailPanel sessionId={sessionId} />
+              </ChartErrorBoundary>
             </div>
           </div>
 
           {/* Bottom row: Corner Speed Overlay (50%) + Brake Consistency (50%) */}
-          <div className="flex min-h-0 flex-1 gap-3">
-            {/* Corner Speed Overlay — 50% */}
-            <div className="h-full w-[50%]">
-              <CornerSpeedOverlay sessionId={sessionId} />
+          <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
+            {/* Corner Speed Overlay -- 50% on desktop, full width on mobile */}
+            <div className="h-full min-h-[16rem] w-full lg:min-h-0 lg:w-[50%]">
+              <ChartErrorBoundary name="Corner Speed Overlay">
+                <CornerSpeedOverlay sessionId={sessionId} />
+              </ChartErrorBoundary>
             </div>
-            {/* Brake Consistency Chart — 50% */}
-            <div className="h-full w-[50%]">
-              <BrakeConsistency sessionId={sessionId} />
+            {/* Brake Consistency Chart -- 50% on desktop, full width on mobile */}
+            <div className="h-full min-h-[16rem] w-full lg:min-h-0 lg:w-[50%]">
+              <ChartErrorBoundary name="Brake Consistency">
+                <BrakeConsistency sessionId={sessionId} />
+              </ChartErrorBoundary>
             </div>
           </div>
 
