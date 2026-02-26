@@ -149,8 +149,8 @@ export function SessionDrawer() {
                   session.session_id === activeSessionId
                     ? 'border-[var(--cata-accent)] bg-[var(--cata-accent)]/10'
                     : 'border-[var(--cata-border)] hover:border-[var(--text-muted)] hover:bg-[var(--bg-elevated)]',
-                  session.consistency_score != null &&
-                    Math.round(normalizeScore(session.consistency_score)) < 40 &&
+                  (session.session_score ?? session.consistency_score) != null &&
+                    Math.round(normalizeScore(session.session_score ?? session.consistency_score!)) < 40 &&
                     'opacity-60',
                 )}
               >
@@ -158,7 +158,7 @@ export function SessionDrawer() {
                   <p className="text-sm font-semibold text-[var(--text-primary)]">
                     {session.track_name}
                   </p>
-                  <SessionScoreBadge score={session.consistency_score} />
+                  <SessionScoreBadge score={session.session_score ?? session.consistency_score} />
                 </div>
                 <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
                   {session.session_date}
@@ -213,7 +213,7 @@ function SessionScoreBadge({ score }: { score: number | null }) {
         'inline-flex h-5 min-w-[28px] items-center justify-center rounded border px-1 text-[10px] font-bold',
         colors,
       )}
-      title={normalized != null ? `Consistency: ${normalized}%` : 'No score available'}
+      title={normalized != null ? `Session Score: ${normalized}` : 'No score available'}
     >
       {normalized != null ? normalized : '--'}
     </span>
