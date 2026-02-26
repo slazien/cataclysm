@@ -15,6 +15,8 @@ from backend.api.schemas.coaching import (
     PriorityCornerSchema,
     ReportRequest,
 )
+from cataclysm.topic_guardrail import OFF_TOPIC_RESPONSE, classify_topic
+
 from backend.api.services import session_store
 from backend.api.services.coaching_store import (
     clear_coaching_data,
@@ -259,6 +261,17 @@ async def coaching_chat(
                     FollowUpMessage(
                         role="assistant",
                         content="Please ask a question about your driving.",
+                    ).model_dump()
+                )
+                continue
+
+            # Layer 1: Off-topic pre-screen via Haiku classifier
+            classification = await asyncio.to_thread(classify_topic, question)
+            if not classification.on_topic:
+                await websocket.send_json(
+                    FollowUpMessage(
+                        role="assistant",
+                        content=OFF_TOPIC_RESPONSE,
                     ).model_dump()
                 )
                 continue

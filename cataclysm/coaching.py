@@ -18,6 +18,7 @@ from cataclysm.gains import GainEstimate
 from cataclysm.kb_selector import select_kb_snippets
 from cataclysm.landmarks import Landmark, format_corner_landmarks
 from cataclysm.optimal_comparison import OptimalComparisonResult
+from cataclysm.topic_guardrail import TOPIC_RESTRICTION_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +135,7 @@ _FOLLOWUP_SYSTEM = (
     + "\nThe driver is asking follow-up questions about their telemetry data and your "
     "coaching report. Be specific, practical, and encouraging. "
     "Reference corner numbers and speeds in mph."
+    + TOPIC_RESTRICTION_PROMPT
 )
 
 
