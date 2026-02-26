@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
 import { useUiStore, useSessionStore } from '@/stores';
 import { useSessions, useUploadSessions, useDeleteAllSessions } from '@/hooks/useSession';
-import { formatLapTime } from '@/lib/formatters';
+import { formatLapTime, normalizeScore } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import {
   Sheet,
@@ -149,16 +149,16 @@ export function SessionDrawer() {
                   session.session_id === activeSessionId
                     ? 'border-[var(--cata-accent)] bg-[var(--cata-accent)]/10'
                     : 'border-[var(--cata-border)] hover:border-[var(--text-muted)] hover:bg-[var(--bg-elevated)]',
-                  session.gps_quality_grade === 'F' && 'opacity-60',
+                  session.consistency_score != null &&
+                    Math.round(normalizeScore(session.consistency_score)) < 40 &&
+                    'opacity-60',
                 )}
               >
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-[var(--text-primary)]">
                     {session.track_name}
                   </p>
-                  {session.gps_quality_grade && (
-                    <GPSGradeBadge grade={session.gps_quality_grade} />
-                  )}
+                  <SessionScoreBadge score={session.consistency_score} />
                 </div>
                 <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
                   {session.session_date}
@@ -197,25 +197,25 @@ export function SessionDrawer() {
   );
 }
 
-const GRADE_COLORS: Record<string, string> = {
-  A: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  B: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  C: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  D: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-  F: 'bg-red-500/20 text-red-400 border-red-500/30',
-};
-
-function GPSGradeBadge({ grade }: { grade: string }) {
-  const colors = GRADE_COLORS[grade] ?? GRADE_COLORS.C;
+function SessionScoreBadge({ score }: { score: number | null }) {
+  const normalized = score != null ? Math.round(normalizeScore(score)) : null;
+  const colors =
+    normalized == null || normalized < 40
+      ? 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30'
+      : normalized >= 80
+        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+        : normalized >= 60
+          ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+          : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
   return (
     <span
       className={cn(
-        'inline-flex h-5 w-5 items-center justify-center rounded border text-[10px] font-bold',
+        'inline-flex h-5 min-w-[28px] items-center justify-center rounded border px-1 text-[10px] font-bold',
         colors,
       )}
-      title={`GPS Quality: Grade ${grade}`}
+      title={normalized != null ? `Consistency: ${normalized}%` : 'No score available'}
     >
-      {grade}
+      {normalized != null ? normalized : '--'}
     </span>
   );
 }
