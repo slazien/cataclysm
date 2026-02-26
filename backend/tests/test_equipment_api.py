@@ -261,6 +261,87 @@ async def test_session_without_equipment_has_null_fields(client: AsyncClient) ->
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Weather lookup
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_weather_lookup(client: AsyncClient) -> None:
+    """POST /weather/lookup with mocked weather client returns conditions."""
+    with patch("cataclysm.weather_client.lookup_weather") as mock_weather:
+        from cataclysm.equipment import SessionConditions, TrackCondition
+
+        mock_weather.return_value = SessionConditions(
+            track_condition=TrackCondition.DRY,
+            ambient_temp_c=25.0,
+            humidity_pct=60.0,
+            wind_speed_kmh=15.0,
+            wind_direction_deg=180.0,
+            precipitation_mm=0.0,
+            weather_source="open-meteo",
+        )
+        resp = await client.post(
+            "/api/equipment/weather/lookup",
+            json={"lat": 33.53, "lon": -86.62, "session_date": "2025-02-15"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["conditions"]["ambient_temp_c"] == 25.0
+        assert data["conditions"]["track_condition"] == "dry"
+        assert data["conditions"]["humidity_pct"] == 60.0
+        assert data["conditions"]["weather_source"] == "open-meteo"
+
+
+@pytest.mark.asyncio
+async def test_weather_lookup_unavailable(client: AsyncClient) -> None:
+    """POST /weather/lookup when API fails returns conditions=None."""
+    with patch("cataclysm.weather_client.lookup_weather") as mock_weather:
+        mock_weather.return_value = None
+        resp = await client.post(
+            "/api/equipment/weather/lookup",
+            json={"lat": 33.53, "lon": -86.62, "session_date": "2025-02-15"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["conditions"] is None
+        assert data["message"] == "Weather data unavailable"
+
+
+@pytest.mark.asyncio
+async def test_weather_lookup_custom_hour(client: AsyncClient) -> None:
+    """POST /weather/lookup with custom hour passes correct datetime."""
+    with patch("cataclysm.weather_client.lookup_weather") as mock_weather:
+        from cataclysm.equipment import SessionConditions, TrackCondition
+
+        mock_weather.return_value = SessionConditions(
+            track_condition=TrackCondition.WET,
+            ambient_temp_c=18.0,
+            humidity_pct=90.0,
+            wind_speed_kmh=25.0,
+            precipitation_mm=5.2,
+            weather_source="open-meteo",
+        )
+        resp = await client.post(
+            "/api/equipment/weather/lookup",
+            json={
+                "lat": 33.53,
+                "lon": -86.62,
+                "session_date": "2025-02-15",
+                "hour": 9,
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["conditions"]["track_condition"] == "wet"
+        assert data["conditions"]["precipitation_mm"] == 5.2
+
+        # Verify the datetime passed to lookup_weather had hour=9
+        call_args = mock_weather.call_args
+        passed_dt = call_args[0][2]  # third positional arg
+        assert passed_dt.hour == 9
+
+
 @pytest.mark.asyncio
 async def test_tire_search(client: AsyncClient) -> None:
     """Search for a known tire model returns matching results."""

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC
 
 from cataclysm.equipment import (
     BrakeSpec,
@@ -16,6 +17,7 @@ from cataclysm.equipment import (
     TrackCondition,
 )
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from backend.api.schemas.equipment import (
     BrakeSpecSchema,
@@ -60,6 +62,45 @@ async def search_tires(q: str = "") -> list[TireSpecSchema]:
         )
         for t in curated
     ]
+
+
+# ---------------------------------------------------------------------------
+# Weather lookup (must be defined before /{session_id} routes)
+# ---------------------------------------------------------------------------
+
+
+class WeatherLookupRequest(BaseModel):
+    """Request body for looking up weather conditions."""
+
+    lat: float
+    lon: float
+    session_date: str  # "YYYY-MM-DD"
+    hour: int = 12
+
+
+@router.post("/weather/lookup")
+async def weather_lookup(body: WeatherLookupRequest) -> dict[str, object]:
+    """Look up weather conditions for a track location and date."""
+    from datetime import datetime
+
+    from cataclysm.weather_client import lookup_weather
+
+    dt = datetime.strptime(body.session_date, "%Y-%m-%d").replace(hour=body.hour, tzinfo=UTC)
+    result = await lookup_weather(body.lat, body.lon, dt)
+    if result is None:
+        return {"conditions": None, "message": "Weather data unavailable"}
+
+    return {
+        "conditions": SessionConditionsSchema(
+            track_condition=result.track_condition.value,
+            ambient_temp_c=result.ambient_temp_c,
+            humidity_pct=result.humidity_pct,
+            wind_speed_kmh=result.wind_speed_kmh,
+            wind_direction_deg=result.wind_direction_deg,
+            precipitation_mm=result.precipitation_mm,
+            weather_source=result.weather_source,
+        ).model_dump(),
+    }
 
 
 # ---------------------------------------------------------------------------
