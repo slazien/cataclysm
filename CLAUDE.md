@@ -37,11 +37,16 @@ Use subagents liberally to keep main context window clean
 - If a fix feels hacky: "Knowing everything I know now, implement the elegant solution" Skip this for simple, obvious fixes - don't over-engineer
 - Challenge your own work before presenting it
 
-### 6. Autonomous Bug Fizing
+### 6. Autonomous Bug Fixing
 - When given a bug report: just fix it. Don't ask for hand-holding
 - Point at logs, errors, failing tests then resolve them
 - Zero context switching required from the user
 - Go fix failing CI tests without being told how
+
+### 7. Never Underestimate Your Own Speed
+- NEVER say "this is ambitious" or hedge about scope. You are Claude Code with parallel agents — you implement in hours, not weeks.
+- Implement everything requested. No sandbagging, no "stretch goals", no artificial prioritization of scope you were asked to deliver.
+- A human's 3-week deadline = massive runway for you. Just build it all.
 
 ## Task Management
 
