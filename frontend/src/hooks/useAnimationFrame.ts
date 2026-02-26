@@ -20,7 +20,12 @@ export function useAnimationFrame(callback: (timestamp: number) => void, active 
   }, []);
 
   useEffect(() => {
-    if (!active) return;
+    if (!active) {
+      // Run the callback once to clear any residual overlay (e.g. cursor
+      // line that was drawn before the RAF loop was stopped).
+      callbackRef.current(performance.now());
+      return;
+    }
     rafId.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafId.current);
   }, [active, loop]);

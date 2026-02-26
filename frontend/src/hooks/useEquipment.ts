@@ -54,12 +54,18 @@ export function useDeleteProfile() {
 export function useSessionEquipment(sessionId: string | null) {
   return useQuery({
     queryKey: ["session-equipment", sessionId],
-    queryFn: () =>
-      fetchApi<SessionEquipmentResponse>(
-        `/api/equipment/${sessionId}/equipment`,
-      ),
+    queryFn: async (): Promise<SessionEquipmentResponse | null> => {
+      try {
+        return await fetchApi<SessionEquipmentResponse>(
+          `/api/equipment/${sessionId}/equipment`,
+        );
+      } catch {
+        // 404 is expected when no equipment is assigned to the session
+        return null;
+      }
+    },
     enabled: !!sessionId,
-    retry: false, // 404 is expected when no equipment assigned
+    retry: false,
   });
 }
 

@@ -69,6 +69,11 @@ export function useUploadSessions() {
     onSuccess: async (data) => {
       store().setUploadProgress(100);
       store().setUploadState('done');
+      // Immediately activate the first uploaded session so the dashboard
+      // appears right away instead of waiting for the sessions refetch.
+      if (data.session_ids.length > 0) {
+        store().setActiveSession(data.session_ids[0]);
+      }
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       // Brief pause to show 100% check, then auto-dismiss
       setTimeout(() => {

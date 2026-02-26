@@ -22,7 +22,7 @@ export function SpeedAnalysis() {
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3 lg:flex-row">
       {/* Left column -- 65% on desktop, full width on mobile -- three stacked charts */}
-      <div className="flex w-full flex-col gap-3 lg:w-[65%]">
+      <div className="flex w-full min-h-0 flex-col gap-3 lg:h-full lg:w-[65%]">
         {/* Speed Trace -- tallest */}
         <div className="relative min-h-[16rem] flex-[2] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:min-h-0">
           <h3 className="absolute left-3 top-2 z-10 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
@@ -55,7 +55,7 @@ export function SpeedAnalysis() {
       </div>
 
       {/* Right column -- 35% on desktop, full width on mobile -- track map + corner quick card */}
-      <div className="flex w-full flex-col gap-3 lg:w-[35%]">
+      <div className="flex w-full min-h-0 flex-col gap-3 lg:h-full lg:w-[35%]">
         {/* Track Map -- takes available space */}
         <div className="min-h-[16rem] flex-1 lg:min-h-0">
           <ChartErrorBoundary name="Track Map">

@@ -1,9 +1,9 @@
 'use client';
 
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { Upload, FileSpreadsheet, ChevronDown } from 'lucide-react';
+import { Upload, FileSpreadsheet, ChevronDown, Clock } from 'lucide-react';
 import { useSessionStore } from '@/stores';
-import { useUploadSessions } from '@/hooks/useSession';
+import { useUploadSessions, useSessions } from '@/hooks/useSession';
 import { useTracks, useLoadTrackFolder } from '@/hooks/useTracks';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -82,6 +82,7 @@ export function WelcomeScreen() {
     [handleFiles],
   );
 
+  const { data: sessionsData } = useSessions();
   const { data: tracks } = useTracks();
   const loadTrackMutation = useLoadTrackFolder();
 
@@ -188,6 +189,35 @@ export function WelcomeScreen() {
         <p className="text-xs text-red-400">
           {error ?? 'Upload failed. Please check your CSV format.'}
         </p>
+      )}
+
+      {/* Recent Sessions — show existing sessions so user can pick one */}
+      {(sessionsData?.items?.length ?? 0) > 0 && (
+        <div className="w-full max-w-md rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            Recent Sessions
+          </h3>
+          <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
+            {sessionsData!.items.slice(0, 8).map((s) => (
+              <button
+                key={s.session_id}
+                type="button"
+                onClick={() => setActiveSession(s.session_id)}
+                className="flex items-center gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-[var(--bg-elevated)]"
+              >
+                <Clock className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-[var(--text-primary)]">
+                    {s.track_name}
+                  </p>
+                  <p className="text-xs text-[var(--text-muted)]">
+                    {s.session_date} &middot; {s.n_laps} laps &middot; Best {s.best_lap_time_s ? `${Math.floor(s.best_lap_time_s / 60)}:${(s.best_lap_time_s % 60).toFixed(1).padStart(4, '0')}` : 'N/A'}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* How to export from RaceChrono */}
