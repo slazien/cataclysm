@@ -34,13 +34,13 @@ async def _reload_sessions_from_disk() -> int:
 
     data_dir = Path(settings.session_data_dir)
     if not data_dir.is_dir():
+        logger.info("Session data dir %s does not exist, skipping reload", data_dir)
         return 0
 
     csv_files = sorted(data_dir.rglob("*.csv"))
+    logger.info("Found %d CSV file(s) in %s", len(csv_files), data_dir)
     loaded = 0
     for csv_path in csv_files:
-        # Derive session_id from filename to check if already loaded
-        # (avoids re-processing if something else already loaded it)
         try:
             result = await process_file_path(csv_path)
             sid = str(result["session_id"])
@@ -55,6 +55,8 @@ async def _reload_sessions_from_disk() -> int:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Manage application startup and shutdown lifecycle."""
+    logging.basicConfig(level=logging.INFO)
+
     # Startup: initialise coaching persistence and reload cached reports
     from backend.api.services.coaching_store import init_coaching_dir, load_persisted_reports
 
