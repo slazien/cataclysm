@@ -20,27 +20,33 @@ from backend.api.config import Settings
 logger = logging.getLogger(__name__)
 
 
-def _derive_encryption_key(secret: str) -> bytes:
-    """Derive a 32-byte AES key from a NextAuth secret using HKDF.
+_SECURE_COOKIE = "__Secure-authjs.session-token"
+_SESSION_COOKIE = "authjs.session-token"
 
-    Matches the key derivation in Auth.js v5:
-    ``HKDF(SHA-256, secret, info="Auth.js Generated Encryption Key")``
+
+def _derive_encryption_key(secret: str, salt: str) -> bytes:
+    """Derive a 64-byte key from a NextAuth secret using HKDF.
+
+    Matches ``getDerivedEncryptionKey`` in Auth.js v5 (``@auth/core/jwt.ts``):
+    ``A256CBC-HS512`` requires a 512-bit (64-byte) key.
+    The HKDF salt and info both use the cookie name.
     """
+    info = f"Auth.js Generated Encryption Key ({salt})".encode()
     hkdf = HKDF(
         algorithm=SHA256(),
-        length=32,
-        salt=b"",
-        info=b"Auth.js Generated Encryption Key",
+        length=64,
+        salt=salt.encode(),
+        info=info,
     )
     return hkdf.derive(secret.encode())
 
 
-def _decrypt_nextauth_token(token: str, secret: str) -> dict[str, Any]:
+def _decrypt_nextauth_token(token: str, secret: str, salt: str) -> dict[str, Any]:
     """Decrypt a NextAuth v5 JWE token and return its payload.
 
     Raises ``JWTError`` if the token is expired.
     """
-    key = _derive_encryption_key(secret)
+    key = _derive_encryption_key(secret, salt)
     decrypted = jwe.decrypt(token, key)
     payload: dict[str, Any] = json.loads(decrypted)
 
@@ -90,14 +96,18 @@ def get_current_user(
     dev_secret = "dev-secret-do-not-use-in-production"
     is_dev = settings.nextauth_secret == dev_secret
 
-    # Resolve token from header or cookies
+    # Resolve token from header or cookies, tracking which cookie name (salt)
     token: str | None = None
+    salt = _SECURE_COOKIE  # default salt for production
     if authorization and authorization.startswith("Bearer "):
         token = authorization[7:]
+        salt = _SECURE_COOKIE
     elif secure_session_token:
         token = secure_session_token
+        salt = _SECURE_COOKIE
     elif session_token:
         token = session_token
+        salt = _SESSION_COOKIE
 
     if not token:
         logger.warning("Auth: no token found (header=%s, secure=%s, session=%s)",
@@ -110,9 +120,9 @@ def get_current_user(
             )
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    logger.info("Auth: token found, length=%d, prefix=%s", len(token), token[:20])
+    logger.info("Auth: token found, length=%d, salt=%s", len(token), salt)
     try:
-        payload = _decrypt_nextauth_token(token, settings.nextauth_secret)
+        payload = _decrypt_nextauth_token(token, settings.nextauth_secret, salt)
         logger.info("Auth: decryption succeeded, keys=%s", list(payload.keys()))
     except (JWEError, JWTError, Exception) as exc:
         logger.warning("Auth: token decryption failed: %s: %s", type(exc).__name__, exc)
@@ -155,9 +165,14 @@ async def authenticate_websocket(websocket: WebSocket) -> AuthenticatedUser | No
     is_dev = settings.nextauth_secret == dev_secret
 
     cookies = websocket.cookies
-    token: str | None = cookies.get("__Secure-authjs.session-token") or cookies.get(
-        "authjs.session-token"
-    )
+    token: str | None = None
+    salt = _SECURE_COOKIE
+    if cookies.get(_SECURE_COOKIE):
+        token = cookies[_SECURE_COOKIE]
+        salt = _SECURE_COOKIE
+    elif cookies.get(_SESSION_COOKIE):
+        token = cookies[_SESSION_COOKIE]
+        salt = _SESSION_COOKIE
     if not token:
         if is_dev:
             return AuthenticatedUser(
@@ -168,7 +183,7 @@ async def authenticate_websocket(websocket: WebSocket) -> AuthenticatedUser | No
         return None
 
     try:
-        payload = _decrypt_nextauth_token(token, settings.nextauth_secret)
+        payload = _decrypt_nextauth_token(token, settings.nextauth_secret, salt)
     except (JWEError, JWTError, Exception):
         if is_dev:
             return AuthenticatedUser(
