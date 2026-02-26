@@ -46,6 +46,11 @@ def get_current_user(
     if not settings.nextauth_secret:
         raise HTTPException(status_code=503, detail="Auth not configured")
 
+    # Dev bypass: when using the default dev secret and no token is present,
+    # return a dev user so local Docker works without Google OAuth.
+    dev_secret = "dev-secret-do-not-use-in-production"
+    is_dev = settings.nextauth_secret == dev_secret
+
     # Resolve token from header or cookies
     token: str | None = None
     if authorization and authorization.startswith("Bearer "):
@@ -56,6 +61,12 @@ def get_current_user(
         token = session_token
 
     if not token:
+        if is_dev:
+            return AuthenticatedUser(
+                user_id="dev-user",
+                email="dev@localhost",
+                name="Dev User",
+            )
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     try:
@@ -66,6 +77,12 @@ def get_current_user(
             options={"verify_aud": False},
         )
     except JWTError:
+        if is_dev:
+            return AuthenticatedUser(
+                user_id="dev-user",
+                email="dev@localhost",
+                name="Dev User",
+            )
         raise HTTPException(status_code=401, detail="Invalid token") from None
 
     # NextAuth.js JWT stores user info in ``sub``, ``email``, ``name``, ``picture``
@@ -95,12 +112,20 @@ async def authenticate_websocket(websocket: WebSocket) -> AuthenticatedUser | No
     if not settings.nextauth_secret:
         return None
 
+    dev_secret = "dev-secret-do-not-use-in-production"
+    is_dev = settings.nextauth_secret == dev_secret
+
     cookies = websocket.cookies
-    token: str | None = (
-        cookies.get("__Secure-authjs.session-token")
-        or cookies.get("authjs.session-token")
+    token: str | None = cookies.get("__Secure-authjs.session-token") or cookies.get(
+        "authjs.session-token"
     )
     if not token:
+        if is_dev:
+            return AuthenticatedUser(
+                user_id="dev-user",
+                email="dev@localhost",
+                name="Dev User",
+            )
         return None
 
     try:
@@ -111,6 +136,12 @@ async def authenticate_websocket(websocket: WebSocket) -> AuthenticatedUser | No
             options={"verify_aud": False},
         )
     except JWTError:
+        if is_dev:
+            return AuthenticatedUser(
+                user_id="dev-user",
+                email="dev@localhost",
+                name="Dev User",
+            )
         return None
 
     user_id = payload.get("sub")

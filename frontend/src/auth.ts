@@ -1,17 +1,24 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 
+const hasOAuth = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+
+const providers = hasOAuth
+  ? [
+      Google({
+        clientId: process.env.GOOGLE_CLIENT_ID!,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      }),
+    ]
+  : [];
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
-  ],
+  providers,
   session: { strategy: "jwt" },
   callbacks: {
     authorized({ auth: session }) {
-      // Block unauthenticated users — middleware redirects them to /api/auth/signin
+      // In dev mode (no OAuth), allow all requests through
+      if (!hasOAuth) return true;
       return !!session?.user;
     },
     jwt({ token, user, profile }) {

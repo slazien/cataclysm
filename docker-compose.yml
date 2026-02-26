@@ -24,6 +24,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://cataclysm:cataclysm@postgres:5432/cataclysm
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-secret-do-not-use-in-production}
       SESSION_DATA_DIR: /app/data/session
     volumes:
       - ./data:/app/data
@@ -33,12 +34,15 @@ services:
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: ../Dockerfile.frontend
+      context: .
+      dockerfile: Dockerfile.frontend
       args:
         BACKEND_URL: http://backend:8000
     ports:
       - "3000:3000"
+    environment:
+      AUTH_SECRET: dev-secret-do-not-use-in-production
+      AUTH_TRUST_HOST: "true"
     depends_on:
       - backend
 
