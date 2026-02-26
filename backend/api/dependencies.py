@@ -2,14 +2,50 @@
 
 from __future__ import annotations
 
+import json
+import time
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Annotated
+from typing import Annotated, Any
 
+from cryptography.hazmat.primitives.hashes import SHA256
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from fastapi import Cookie, Depends, Header, HTTPException, WebSocket
-from jose import JWTError, jwt
+from jose import JWTError, jwe
+from jose.jwe import JWEError
 
 from backend.api.config import Settings
+
+
+def _derive_encryption_key(secret: str) -> bytes:
+    """Derive a 32-byte AES key from a NextAuth secret using HKDF.
+
+    Matches the key derivation in Auth.js v5:
+    ``HKDF(SHA-256, secret, info="Auth.js Generated Encryption Key")``
+    """
+    hkdf = HKDF(
+        algorithm=SHA256(),
+        length=32,
+        salt=b"",
+        info=b"Auth.js Generated Encryption Key",
+    )
+    return hkdf.derive(secret.encode())
+
+
+def _decrypt_nextauth_token(token: str, secret: str) -> dict[str, Any]:
+    """Decrypt a NextAuth v5 JWE token and return its payload.
+
+    Raises ``JWTError`` if the token is expired.
+    """
+    key = _derive_encryption_key(secret)
+    decrypted = jwe.decrypt(token, key)
+    payload: dict[str, Any] = json.loads(decrypted)
+
+    exp = payload.get("exp")
+    if isinstance(exp, (int, float)) and exp < time.time():
+        raise JWTError("Token has expired")
+
+    return payload
 
 
 @lru_cache(maxsize=1)
@@ -70,13 +106,8 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     try:
-        payload = jwt.decode(
-            token,
-            settings.nextauth_secret,
-            algorithms=["HS256"],
-            options={"verify_aud": False},
-        )
-    except JWTError:
+        payload = _decrypt_nextauth_token(token, settings.nextauth_secret)
+    except (JWEError, JWTError, Exception):
         if is_dev:
             return AuthenticatedUser(
                 user_id="dev-user",
@@ -129,13 +160,8 @@ async def authenticate_websocket(websocket: WebSocket) -> AuthenticatedUser | No
         return None
 
     try:
-        payload = jwt.decode(
-            token,
-            settings.nextauth_secret,
-            algorithms=["HS256"],
-            options={"verify_aud": False},
-        )
-    except JWTError:
+        payload = _decrypt_nextauth_token(token, settings.nextauth_secret)
+    except (JWEError, JWTError, Exception):
         if is_dev:
             return AuthenticatedUser(
                 user_id="dev-user",
