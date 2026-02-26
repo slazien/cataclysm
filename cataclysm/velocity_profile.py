@@ -33,7 +33,19 @@ MPS_TO_MPH = 2.23694
 
 @dataclass
 class VehicleParams:
-    """Vehicle grip and performance parameters for the velocity solver."""
+    """Vehicle grip and performance parameters for the velocity solver.
+
+    Known simplifications (potential future improvements):
+    - NOTE: No elevation/gradient model — assumes flat track.  Uphills reduce
+      effective accel, downhills increase it.  Significant for tracks with
+      elevation changes (e.g., Laguna Seca corkscrew).
+    - NOTE: No tire load sensitivity — mu is constant.  Real tires lose grip
+      per unit load as vertical load increases (aero downforce, weight transfer).
+    - NOTE: max_accel_g / max_decel_g are speed-independent.  Real cars have
+      gear-limited acceleration curves (torque × gear ratio / (tire radius × mass)).
+    - NOTE: No tire thermal model — grip doesn't degrade with sustained use or
+      change with tire temperature.
+    """
 
     mu: float  # overall friction coefficient (G)
     max_accel_g: float  # peak longitudinal accel (G)
@@ -41,6 +53,7 @@ class VehicleParams:
     max_lateral_g: float  # peak lateral accel (G)
     friction_circle_exponent: float = 2.0  # 2.0 = circle, >2 = diamond
     aero_coefficient: float = 0.0  # k in mu_effective = mu + k*v^2
+    drag_coefficient: float = 0.0  # k in drag_g = k * v^2 / G (absorbs Cd*A*rho/2m)
     top_speed_mps: float = 80.0  # absolute speed cap
 
 
@@ -96,6 +109,10 @@ def _compute_max_cornering_speed(
     n = len(abs_curvature)
     max_speed = np.full(n, params.top_speed_mps, dtype=np.float64)
 
+    # Use the tighter of overall mu and max_lateral_g as the effective lateral grip.
+    # mu is the overall friction budget; max_lateral_g caps lateral independently.
+    effective_mu = min(params.mu, params.max_lateral_g)
+
     # Only compute for points with meaningful curvature
     curved_mask = abs_curvature > 1e-6
 
@@ -107,9 +124,9 @@ def _compute_max_cornering_speed(
         curved_indices = np.where(curved_mask)[0]
         bounded_indices = curved_indices[bounded_mask]
         effective_k = effective_curvature[bounded_mask]
-        max_speed[bounded_indices] = np.sqrt(params.mu * G / effective_k)
+        max_speed[bounded_indices] = np.sqrt(effective_mu * G / effective_k)
     else:
-        max_speed[curved_mask] = np.sqrt(params.mu * G / abs_curvature[curved_mask])
+        max_speed[curved_mask] = np.sqrt(effective_mu * G / abs_curvature[curved_mask])
 
     # Replace any NaN or inf with top_speed
     bad_mask = ~np.isfinite(max_speed)
@@ -161,9 +178,14 @@ def _forward_pass(
 
     for i in range(1, n):
         v_prev = v[i - 1]
-        lateral_g = v_prev**2 * abs_curvature[i - 1] / G
+        # Average curvature across the interval for smoother transitions
+        avg_k = 0.5 * (abs_curvature[i - 1] + abs_curvature[i])
+        lateral_g = v_prev**2 * avg_k / G
         accel_g = _available_accel(v_prev, lateral_g, params, "accel")
-        v_next_sq = v_prev**2 + 2.0 * accel_g * G * step_m
+        # Aero drag opposes forward motion, reducing net acceleration
+        drag_g = params.drag_coefficient * v_prev**2 / G
+        net_accel_g = max(accel_g - drag_g, 0.0)
+        v_next_sq = v_prev**2 + 2.0 * net_accel_g * G * step_m
         v_next = np.sqrt(max(v_next_sq, 0.0))
         v[i] = min(v_next, max_speed[i])
 
@@ -183,9 +205,14 @@ def _backward_pass(
 
     for i in range(n - 2, -1, -1):
         v_next = v[i + 1]
-        lateral_g = v_next**2 * abs_curvature[i + 1] / G
+        # Average curvature across the interval for smoother transitions
+        avg_k = 0.5 * (abs_curvature[i + 1] + abs_curvature[i])
+        lateral_g = v_next**2 * avg_k / G
         decel_g = _available_accel(v_next, lateral_g, params, "decel")
-        v_prev_sq = v_next**2 + 2.0 * decel_g * G * step_m
+        # Aero drag assists braking (decelerates the car in forward time)
+        drag_g = params.drag_coefficient * v_next**2 / G
+        effective_decel_g = decel_g + drag_g
+        v_prev_sq = v_next**2 + 2.0 * effective_decel_g * G * step_m
         v_prev = np.sqrt(max(v_prev_sq, 0.0))
         v[i] = min(v_prev, max_speed[i])
 
@@ -267,6 +294,8 @@ def _find_transitions(
 def compute_optimal_profile(
     curvature_result: CurvatureResult,
     params: VehicleParams | None = None,
+    *,
+    closed_circuit: bool = True,
 ) -> OptimalProfile:
     """Compute the physics-optimal velocity profile for a track.
 
@@ -276,6 +305,12 @@ def compute_optimal_profile(
         Curvature data from :func:`cataclysm.curvature.compute_curvature`.
     params
         Vehicle parameters.  If *None*, :func:`default_vehicle_params` is used.
+    closed_circuit
+        If *True* (default), treat the track as a closed loop so the solver
+        accounts for braking into the start/finish from the end of the lap.
+        Uses track tripling: tiles curvature 3×, solves on the tripled
+        track, then extracts the middle copy.  If *False*, the track is
+        treated as an open circuit (no wrap-around).
 
     Returns
     -------
@@ -296,14 +331,26 @@ def compute_optimal_profile(
     # Step 1: cornering speed limit at every point
     max_corner_speed = _compute_max_cornering_speed(abs_k, params)
 
-    # Step 2: forward pass (acceleration-limited)
-    forward = _forward_pass(max_corner_speed, step_m, params, abs_k)
+    if closed_circuit and n >= 4:
+        # Track tripling: tile curvature and max_speed 3×, solve on the
+        # tripled track, then extract the middle copy.  This ensures both
+        # the forward pass (correct entry speed) and the backward pass
+        # (correct braking into the next lap's first corner) see the
+        # wrap-around boundary correctly.
+        abs_k_3x = np.tile(abs_k, 3)
+        max_speed_3x = np.tile(max_corner_speed, 3)
 
-    # Step 3: backward pass (deceleration-limited)
-    backward = _backward_pass(max_corner_speed, step_m, params, abs_k)
+        forward_3x = _forward_pass(max_speed_3x, step_m, params, abs_k_3x)
+        backward_3x = _backward_pass(max_speed_3x, step_m, params, abs_k_3x)
 
-    # Step 4: pointwise minimum of all three constraints
-    optimal = np.minimum(np.minimum(forward, backward), max_corner_speed)
+        optimal_3x = np.minimum(np.minimum(forward_3x, backward_3x), max_speed_3x)
+        # Extract the middle copy (fully warmed-up from both directions)
+        optimal = optimal_3x[n : 2 * n]
+    else:
+        # Open circuit or too short — no doubling
+        forward = _forward_pass(max_corner_speed, step_m, params, abs_k)
+        backward = _backward_pass(max_corner_speed, step_m, params, abs_k)
+        optimal = np.minimum(np.minimum(forward, backward), max_corner_speed)
 
     # Clamp final result
     np.clip(optimal, MIN_SPEED_MPS, params.top_speed_mps, out=optimal)
@@ -312,7 +359,8 @@ def compute_optimal_profile(
     brake_pts, throttle_pts = _find_transitions(optimal, distance)
 
     # Step 6: estimate lap time via trapezoidal integration of dt = ds / v
-    lap_time = float(np.sum(step_m / optimal[:-1])) if n >= 2 else 0.0
+    # Uses harmonic mean of endpoint speeds: dt_i = 2*ds / (v_i + v_{i+1})
+    lap_time = float(np.sum(2.0 * step_m / (optimal[:-1] + optimal[1:]))) if n >= 2 else 0.0
 
     return OptimalProfile(
         distance_m=distance,

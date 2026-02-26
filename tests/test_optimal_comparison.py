@@ -264,6 +264,38 @@ class TestComputeCornerOpportunities:
 
         assert result == []
 
+    def test_brake_gap_positive_when_driver_brakes_later(self) -> None:
+        """Driver braking closer to corner (later) than optimal → positive gap."""
+        optimal = _make_optimal_profile(speed=40.0)
+        lap_df = _make_lap_df(speed=35.0)
+        # Driver brakes at 210m, optimal brake at 200m → gap = 210 - 200 = +10
+        corner = _make_corner(
+            entry=200.0, exit_d=350.0, apex=275.0,
+            min_speed=25.0, brake_m=210.0,
+        )
+
+        result = compute_corner_opportunities([corner], lap_df, optimal)
+
+        assert len(result) == 1
+        assert result[0].brake_gap_m is not None
+        assert result[0].brake_gap_m > 0  # positive = later than optimal
+
+    def test_brake_gap_negative_when_driver_brakes_earlier(self) -> None:
+        """Driver braking further from corner (earlier) than optimal → negative gap."""
+        optimal = _make_optimal_profile(speed=40.0)
+        lap_df = _make_lap_df(speed=35.0)
+        # Driver brakes at 180m, optimal brake at 200m → gap = 180 - 200 = -20
+        corner = _make_corner(
+            entry=200.0, exit_d=350.0, apex=275.0,
+            min_speed=25.0, brake_m=180.0,
+        )
+
+        result = compute_corner_opportunities([corner], lap_df, optimal)
+
+        assert len(result) == 1
+        assert result[0].brake_gap_m is not None
+        assert result[0].brake_gap_m < 0  # negative = earlier than optimal
+
 
 # ---------------------------------------------------------------------------
 # TestCompareWithOptimal

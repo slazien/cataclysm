@@ -34,7 +34,7 @@ class CornerOpportunity:
     speed_gap_mph: float
     actual_brake_point_m: float | None
     optimal_brake_point_m: float | None
-    brake_gap_m: float | None  # positive = driver brakes earlier than optimal
+    brake_gap_m: float | None  # positive = driver brakes later (closer to corner) than optimal
     time_cost_s: float  # time lost vs optimal in this corner zone
 
 

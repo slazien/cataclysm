@@ -12,6 +12,16 @@ from scipy.signal import savgol_filter
 # When smoothing=None, use s = n_points * step_m * this factor.
 # A value of 1.0 gives a regression spline (not interpolating) that follows
 # the overall track shape without chasing GPS noise.
+#
+# Smoothing tuning guide:
+# - Lower values (0.1-0.5): tighter fit to GPS points, noisier curvature.
+#   Use for high-quality GPS (RTK/DGPS) or very short tracks.
+# - Default (1.0): good balance for 25Hz consumer GPS at 0.7m spacing.
+# - Higher values (2.0-5.0): smoother curvature, may round off tight corners.
+#   Use for noisy GPS or when only the overall track shape matters.
+# - The optional savgol_window parameter in compute_curvature() applies
+#   additional post-smoothing to the curvature array if spline smoothing
+#   alone isn't sufficient.
 DEFAULT_SMOOTHING_FACTOR_PER_POINT = 1.0
 
 

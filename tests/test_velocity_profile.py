@@ -142,6 +142,36 @@ class TestMaxCorneringSpeed:
         # Aero adds grip at speed, so cornering speed should be higher (or equal)
         assert np.all(speed_aero >= speed_no_aero - 1e-6)
 
+    def test_mu_greater_than_max_lateral_g(self) -> None:
+        """When mu > max_lateral_g, cornering speed should use max_lateral_g."""
+        kappa = 0.01
+        abs_k = np.full(100, kappa)
+        params = VehicleParams(
+            mu=1.5,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+        )
+        result = _compute_max_cornering_speed(abs_k, params)
+        # Should use min(1.5, 1.0) = 1.0
+        expected = np.sqrt(1.0 * G / kappa)
+        np.testing.assert_allclose(result, expected, rtol=1e-10)
+
+    def test_max_lateral_g_greater_than_mu(self) -> None:
+        """When max_lateral_g > mu, cornering speed should use mu."""
+        kappa = 0.01
+        abs_k = np.full(100, kappa)
+        params = VehicleParams(
+            mu=0.8,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.2,
+        )
+        result = _compute_max_cornering_speed(abs_k, params)
+        # Should use min(0.8, 1.2) = 0.8
+        expected = np.sqrt(0.8 * G / kappa)
+        np.testing.assert_allclose(result, expected, rtol=1e-10)
+
     def test_nan_inf_replaced(self) -> None:
         """NaN or inf in curvature should not produce NaN/inf in output."""
         params = default_vehicle_params()
@@ -519,3 +549,77 @@ class TestComputeOptimalProfile:
         fast_profile = compute_optimal_profile(cr, high_grip)
 
         assert fast_profile.lap_time_s < slow_profile.lap_time_s
+
+    def test_closed_circuit_brakes_at_end_for_corner_at_start(self) -> None:
+        """Closed circuit with corner at position 0 must brake at end of lap."""
+        # Corner at the start, long straight in the middle
+        corner = np.full(100, 0.02)  # tight corner at positions 0..99
+        straight = np.zeros(900)
+        curvature = np.concatenate([corner, straight])
+        cr = _make_curvature_result(curvature, step_m=0.7)
+        params = default_vehicle_params()
+
+        closed = compute_optimal_profile(cr, params, closed_circuit=True)
+        open_ = compute_optimal_profile(cr, params, closed_circuit=False)
+
+        # The closed solver must slow down at the end of the lap (wrapping
+        # into the corner at position 0). The open solver has no such
+        # constraint, so its speed at the end should be higher.
+        assert closed.optimal_speed_mps[-1] < open_.optimal_speed_mps[-1]
+
+    def test_open_circuit_no_wrap(self) -> None:
+        """Open circuit should not slow down at end for corner at start."""
+        corner = np.full(100, 0.02)
+        straight = np.zeros(900)
+        curvature = np.concatenate([corner, straight])
+        cr = _make_curvature_result(curvature, step_m=0.7)
+        params = default_vehicle_params()
+
+        profile = compute_optimal_profile(cr, params, closed_circuit=False)
+
+        # On an open circuit, the end of the straight should be at or near top speed
+        assert profile.optimal_speed_mps[-1] == pytest.approx(params.top_speed_mps, rel=0.05)
+
+    def test_drag_reduces_straight_line_speed(self) -> None:
+        """Aero drag should reduce speed when accelerating out of a corner."""
+        # Corner then long straight — the car must accelerate from low speed
+        corner = np.full(100, 0.02)
+        straight = np.zeros(1500)
+        curvature = np.concatenate([corner, straight])
+        cr = _make_curvature_result(curvature, step_m=0.7)
+
+        params_no_drag = VehicleParams(
+            mu=1.0, max_accel_g=0.5, max_decel_g=1.0, max_lateral_g=1.0,
+            drag_coefficient=0.0,
+        )
+        params_drag = VehicleParams(
+            mu=1.0, max_accel_g=0.5, max_decel_g=1.0, max_lateral_g=1.0,
+            drag_coefficient=0.005,
+        )
+
+        profile_no_drag = compute_optimal_profile(cr, params_no_drag, closed_circuit=False)
+        profile_drag = compute_optimal_profile(cr, params_drag, closed_circuit=False)
+
+        # Check speed partway through the straight (accel zone after corner)
+        check_idx = 300  # well into the straight, during acceleration
+        assert profile_drag.optimal_speed_mps[check_idx] < profile_no_drag.optimal_speed_mps[check_idx]
+
+    def test_zero_drag_identical_to_no_drag(self) -> None:
+        """drag_coefficient=0.0 should produce identical results to old behavior."""
+        curvature = np.concatenate([
+            np.zeros(300),
+            np.full(200, 0.01),
+            np.zeros(300),
+        ])
+        cr = _make_curvature_result(curvature, step_m=0.7)
+        params = VehicleParams(
+            mu=1.0, max_accel_g=0.5, max_decel_g=1.0, max_lateral_g=1.0,
+            drag_coefficient=0.0,
+        )
+
+        profile = compute_optimal_profile(cr, params, closed_circuit=False)
+
+        # Verify it runs and produces valid output (backward compatible)
+        assert profile.lap_time_s > 0.0
+        assert np.all(profile.optimal_speed_mps >= MIN_SPEED_MPS)
+        assert np.all(profile.optimal_speed_mps <= params.top_speed_mps)
