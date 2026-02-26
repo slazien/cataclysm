@@ -37,16 +37,35 @@ export async function fetchApi<T>(
 
 export async function uploadSessions(
   files: File[],
+  onUploadProgress?: (fraction: number) => void,
 ): Promise<{ session_ids: string[] }> {
   const formData = new FormData();
   files.forEach((f) => formData.append("files", f));
-  const res = await fetch(`${API_BASE}/api/sessions/upload`, {
-    method: "POST",
-    body: formData,
-    credentials: "include",
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_BASE}/api/sessions/upload`);
+    xhr.withCredentials = true;
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onUploadProgress) {
+        onUploadProgress(e.loaded / e.total);
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(JSON.parse(xhr.responseText));
+      } else if (xhr.status === 401) {
+        reject(new Error("Please sign in to upload sessions."));
+      } else {
+        reject(new Error(`Upload failed: ${xhr.status}`));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("Upload network error"));
+    xhr.send(formData);
   });
-  if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-  return res.json();
 }
 
 export async function listSessions() {

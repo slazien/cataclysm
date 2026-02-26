@@ -20,6 +20,38 @@ from backend.api.routers import analysis, auth, coaching, equipment, sessions, t
 logger = logging.getLogger(__name__)
 
 
+async def _reload_sessions_from_disk() -> int:
+    """Re-process CSV files from the data directory into the in-memory store.
+
+    This ensures sessions survive backend restarts.  The DB keeps metadata
+    (for the session list) but telemetry lives in memory only — this fills
+    the gap by re-processing the CSV files that are already on disk.
+    """
+    from pathlib import Path
+
+    from backend.api.services.pipeline import process_file_path
+    from backend.api.services.session_store import get_session
+
+    data_dir = Path(settings.session_data_dir)
+    if not data_dir.is_dir():
+        return 0
+
+    csv_files = sorted(data_dir.rglob("*.csv"))
+    loaded = 0
+    for csv_path in csv_files:
+        # Derive session_id from filename to check if already loaded
+        # (avoids re-processing if something else already loaded it)
+        try:
+            result = await process_file_path(csv_path)
+            sid = str(result["session_id"])
+            if get_session(sid) is not None:
+                loaded += 1
+        except Exception:
+            logger.warning("Failed to reload %s on startup", csv_path.name, exc_info=True)
+
+    return loaded
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Manage application startup and shutdown lifecycle."""
@@ -42,6 +74,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     n_se = load_persisted_session_equipment()
     if n_eq or n_se:
         logger.info("Loaded %d equipment profile(s), %d session assignment(s)", n_eq, n_se)
+
+    # Reload CSV session data into memory so GET endpoints don't 404
+    n_sessions = await _reload_sessions_from_disk()
+    if n_sessions:
+        logger.info("Reloaded %d session(s) from disk", n_sessions)
 
     yield
 

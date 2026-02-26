@@ -1,14 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSessionStore } from '@/stores';
 import { Check } from 'lucide-react';
 import { CircularProgress } from './CircularProgress';
 
 const STEPS = [
-  { key: 'uploading', label: 'Uploading CSV', target: 33 },
-  { key: 'processing', label: 'Detecting laps & corners', target: 66 },
-  { key: 'done', label: 'Ready to analyze', target: 100 },
+  { key: 'uploading', label: 'Uploading CSV' },
+  { key: 'processing', label: 'Detecting laps & corners' },
+  { key: 'done', label: 'Ready to analyze' },
 ] as const;
 
 function getStepStatus(
@@ -23,28 +23,55 @@ function getStepStatus(
   return 'pending';
 }
 
-export function ProcessingOverlay() {
-  const uploadState = useSessionStore((s) => s.uploadState);
-  const [progress, setProgress] = useState(0);
+/**
+ * Animates from `start` toward 95% with an ease-out curve while
+ * the server is processing (no real progress signal available).
+ */
+function useServerProcessingAnimation(active: boolean, start: number) {
+  const [pct, setPct] = useState(start);
+  const rafRef = useRef<number>(0);
 
-  // Smoothly advance progress within each step's range
   useEffect(() => {
-    if (uploadState === 'idle') {
-      setProgress(0);
-      return;
+    if (!active) return;
+
+    let t0: number | null = null;
+    const duration = 12000; // 12s to approach 95%
+
+    function tick(ts: number) {
+      if (t0 === null) t0 = ts;
+      const elapsed = ts - t0;
+      const t = Math.min(elapsed / duration, 1);
+      // Ease-out cubic: fast start, slow approach to 95%
+      const progress = start + (95 - start) * (1 - (1 - t) ** 3);
+      setPct(progress);
+      rafRef.current = requestAnimationFrame(tick);
     }
 
-    const step = STEPS.find((s) => s.key === uploadState);
-    if (!step) return;
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [active, start]);
 
-    const prevTarget = STEPS[STEPS.indexOf(step) - 1]?.target ?? 0;
-    const target = step.target;
+  return pct;
+}
 
-    // Jump to start of current range, then smoothly fill
-    setProgress(prevTarget);
-    const timer = setTimeout(() => setProgress(target), 100);
-    return () => clearTimeout(timer);
-  }, [uploadState]);
+export function ProcessingOverlay() {
+  const uploadState = useSessionStore((s) => s.uploadState);
+  const uploadProgress = useSessionStore((s) => s.uploadProgress);
+
+  // During 'processing' state, animate from wherever upload left off (60%) toward 95%
+  const isProcessing = uploadState === 'processing';
+  const serverPct = useServerProcessingAnimation(isProcessing, 60);
+
+  // Compute the displayed progress
+  let displayProgress: number;
+  if (uploadState === 'done') {
+    displayProgress = 100;
+  } else if (uploadState === 'processing') {
+    displayProgress = serverPct;
+  } else {
+    // 'uploading': real byte progress mapped to 0-60 range
+    displayProgress = uploadProgress;
+  }
 
   if (uploadState === 'idle') return null;
   if (uploadState === 'error') {
@@ -64,7 +91,7 @@ export function ProcessingOverlay() {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-xs rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-6 shadow-2xl">
         <div className="mb-4 flex flex-col items-center gap-2">
-          <CircularProgress size={48} strokeWidth={3.5} progress={progress} />
+          <CircularProgress size={48} strokeWidth={3.5} progress={displayProgress} />
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">
             Processing Session
           </h3>
