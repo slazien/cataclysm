@@ -158,7 +158,7 @@ export function SessionDrawer() {
                   {session.session_date}
                 </p>
                 <p className="mt-1 text-xs text-[var(--text-muted)]">
-                  {session.n_laps} laps | Best: {formatLapTime(session.best_lap_time_s)}
+                  {session.n_laps ?? 0} laps | Best: {formatLapTime(session.best_lap_time_s ?? 0)}
                 </p>
               </button>
             ))}

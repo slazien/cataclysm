@@ -59,7 +59,7 @@ export function SessionDashboard() {
       }
     }
 
-    const delta = session.best_lap_time_s - totalTime;
+    const delta = (session.best_lap_time_s ?? 0) - totalTime;
     return { time: totalTime, delta };
   }, [idealLap, session]);
 
@@ -75,7 +75,7 @@ export function SessionDashboard() {
 
     // Best lap vs optimal component (0-100)
     // More penalizing curve: 100 at perfect, 75 at 5% off, 50 at 10% off, 0 at 20%+ off
-    if (idealLapInfo && session) {
+    if (idealLapInfo && session && session.best_lap_time_s) {
       const gapPct = 1 - (idealLapInfo.time / session.best_lap_time_s);
       const optimalScore = Math.min(100, Math.max(0, 100 - gapPct * 500));
       components.push({ value: optimalScore, weight: 0.3 });
@@ -159,22 +159,22 @@ export function SessionDashboard() {
 
         <MetricCard
           label="Best Lap"
-          value={formatLapTime(session.best_lap_time_s)}
+          value={formatLapTime(session.best_lap_time_s ?? 0)}
           subtitle={`Lap ${bestLapNumber ?? '--'}`}
           highlight="pb"
         />
 
         <MetricCard
           label="Top 3 Average"
-          value={formatLapTime(session.top3_avg_time_s)}
-          delta={session.top3_avg_time_s - session.best_lap_time_s}
+          value={formatLapTime(session.top3_avg_time_s ?? 0)}
+          delta={(session.top3_avg_time_s ?? 0) - (session.best_lap_time_s ?? 0)}
           deltaLabel="vs best"
         />
 
         <MetricCard
           label="Session Average"
-          value={formatLapTime(session.avg_lap_time_s)}
-          delta={session.avg_lap_time_s - session.best_lap_time_s}
+          value={formatLapTime(session.avg_lap_time_s ?? 0)}
+          delta={(session.avg_lap_time_s ?? 0) - (session.best_lap_time_s ?? 0)}
           deltaLabel="vs best"
         />
       </div>
@@ -221,14 +221,14 @@ export function SessionDashboard() {
 
         <MetricCard
           label="Clean Laps"
-          value={`${session.n_clean_laps} / ${session.n_laps}`}
+          value={`${session.n_clean_laps ?? 0} / ${session.n_laps ?? 0}`}
           subtitle={
-            session.n_laps > 0
-              ? `${Math.round((session.n_clean_laps / session.n_laps) * 100)}% clean`
+            (session.n_laps ?? 0) > 0
+              ? `${Math.round(((session.n_clean_laps ?? 0) / (session.n_laps ?? 1)) * 100)}% clean`
               : undefined
           }
           highlight={
-            session.n_laps > 0 && session.n_clean_laps / session.n_laps >= 0.8
+            (session.n_laps ?? 0) > 0 && (session.n_clean_laps ?? 0) / (session.n_laps ?? 1) >= 0.8
               ? 'good'
               : 'none'
           }
@@ -320,7 +320,7 @@ function CompareButton({ sessionId }: { sessionId: string }) {
                   <p className="text-xs text-[var(--text-muted)]">{s.session_date}</p>
                 </div>
                 <span className="font-mono text-xs font-medium text-[var(--text-secondary)]">
-                  {formatLapTime(s.best_lap_time_s)}
+                  {formatLapTime(s.best_lap_time_s ?? 0)}
                 </span>
               </button>
             ))}

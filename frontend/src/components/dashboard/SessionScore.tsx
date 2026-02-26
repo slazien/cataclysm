@@ -1,5 +1,7 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
+
 interface SessionScoreProps {
   score: number | null;
   isLoading: boolean;
@@ -23,6 +25,45 @@ function getSubtitle(score: number): string {
 }
 
 export function SessionScore({ score, isLoading }: SessionScoreProps) {
+  const [displayValue, setDisplayValue] = useState(0);
+  const animatedRef = useRef(false);
+
+  useEffect(() => {
+    if (score === null || isLoading) {
+      setDisplayValue(0);
+      animatedRef.current = false;
+      return;
+    }
+
+    const target = Math.round(score);
+    if (animatedRef.current) {
+      setDisplayValue(target);
+      return;
+    }
+    animatedRef.current = true;
+
+    let start: number | null = null;
+    const duration = 800; // ms
+    let rafId: number;
+
+    function animate(ts: number) {
+      if (start === null) start = ts;
+      const progress = Math.min((ts - start) / duration, 1);
+      // Ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayValue(Math.round(eased * target));
+      if (progress < 1) {
+        rafId = requestAnimationFrame(animate);
+      }
+    }
+
+    rafId = requestAnimationFrame(animate);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+    };
+  }, [score, isLoading]);
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] px-4 py-3">
@@ -31,7 +72,7 @@ export function SessionScore({ score, isLoading }: SessionScoreProps) {
     );
   }
 
-  const displayScore = score !== null ? Math.round(score) : null;
+  const displayScore = score !== null ? displayValue : null;
   const fraction = displayScore !== null ? Math.min(Math.max(displayScore / 100, 0), 1) : 0;
   const dashOffset = CIRCUMFERENCE * (1 - fraction);
   const color = displayScore !== null ? getScoreColor(displayScore) : 'var(--text-muted)';
