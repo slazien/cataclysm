@@ -133,6 +133,34 @@ def _normalize_score(raw: float) -> float:
     return raw * 100 if raw <= 1 else raw
 
 
+async def _compute_ideal_lap_time(sd: session_store.SessionData) -> float | None:
+    """Integrate ideal-lap speed/distance arrays for the most accurate optimal time.
+
+    Returns None if the session has fewer than 2 clean laps (required for
+    ideal lap reconstruction) or if computation fails.
+    """
+    from backend.api.services.pipeline import get_ideal_lap_data
+
+    if len(sd.coaching_laps) < 2:
+        return None
+    try:
+        data = await get_ideal_lap_data(sd)
+        distance_m: list[float] = data["distance_m"]  # type: ignore[assignment]
+        speed_mph: list[float] = data["speed_mph"]  # type: ignore[assignment]
+        if len(distance_m) < 2:
+            return None
+        total = 0.0
+        for i in range(1, len(distance_m)):
+            ds = distance_m[i] - distance_m[i - 1]
+            avg_mps = ((speed_mph[i] + speed_mph[i - 1]) / 2) / MPS_TO_MPH
+            if avg_mps > 0:
+                total += ds / avg_mps
+        return total if total > 0 else None
+    except Exception:
+        logger.debug("Ideal lap integration failed for %s", sd.session_id)
+        return None
+
+
 async def _compute_session_score(sd: session_store.SessionData) -> float | None:
     """Compute composite session score matching the dashboard formula.
 
@@ -145,11 +173,15 @@ async def _compute_session_score(sd: session_store.SessionData) -> float | None:
     if sd.consistency and sd.consistency.lap_consistency:
         components.append((_normalize_score(sd.consistency.lap_consistency.consistency_score), 0.4))
 
-    # Pace: best lap vs optimal (30%)
+    # Pace: best lap vs ideal lap (30%)
+    # Use ideal-lap integration (best speed at every 0.7m point) for the
+    # most realistic optimal target. Falls back to snapshot composite best.
     snap = sd.snapshot
     if snap.best_lap_time_s > 0:
-        optimal = snap.optimal_lap_time_s
-        gap_pct = 1 - (optimal / snap.best_lap_time_s)
+        optimal_time = await _compute_ideal_lap_time(sd)
+        if optimal_time is None:
+            optimal_time = snap.optimal_lap_time_s
+        gap_pct = 1 - (optimal_time / snap.best_lap_time_s)
         pace_value = min(100.0, max(0.0, 100 - gap_pct * 500))
         components.append((pace_value, 0.3))
 
