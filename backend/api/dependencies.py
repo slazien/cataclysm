@@ -88,6 +88,14 @@ def get_current_user(
 
     Returns 401 if no valid token, 503 if ``nextauth_secret`` is not configured.
     """
+    # QA bypass: skip all auth when DEV_AUTH_BYPASS=true
+    if settings.dev_auth_bypass:
+        return AuthenticatedUser(
+            user_id="dev-user",
+            email="dev@localhost",
+            name="QA Test User",
+        )
+
     if not settings.nextauth_secret:
         raise HTTPException(status_code=503, detail="Auth not configured")
 
@@ -160,6 +168,15 @@ async def authenticate_websocket(websocket: WebSocket) -> AuthenticatedUser | No
     extractors — we read directly from the WebSocket scope.
     """
     settings = get_settings()
+
+    # QA bypass: skip all auth when DEV_AUTH_BYPASS=true
+    if settings.dev_auth_bypass:
+        return AuthenticatedUser(
+            user_id="dev-user",
+            email="dev@localhost",
+            name="QA Test User",
+        )
+
     if not settings.nextauth_secret:
         return None
 

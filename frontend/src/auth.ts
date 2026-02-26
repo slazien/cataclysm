@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 
+const devAuthBypass = process.env.DEV_AUTH_BYPASS === "true";
 const hasOAuth = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
 const providers = hasOAuth
@@ -17,6 +18,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   session: { strategy: "jwt" },
   callbacks: {
     authorized({ auth: session }) {
+      // QA bypass: skip auth when DEV_AUTH_BYPASS=true
+      if (devAuthBypass) return true;
       // In dev mode (no OAuth), allow all requests through
       if (!hasOAuth) return true;
       return !!session?.user;

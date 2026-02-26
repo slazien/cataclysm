@@ -40,3 +40,6 @@ class Settings(BaseSettings):
 
     # Debug mode
     debug: bool = False
+
+    # QA testing: bypass OAuth entirely, return a fake dev user for all requests
+    dev_auth_bypass: bool = False
