@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { useSessionLaps } from '@/hooks/useSession';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
@@ -23,10 +23,11 @@ function getBarColor(lap: LapSummary, bestTime: number): string {
 }
 
 export function LapTimesBar({ sessionId }: LapTimesBarProps) {
-  const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx } =
+  const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx } =
     useCanvasChart(MARGINS);
   const { data: laps, isLoading } = useSessionLaps(sessionId);
   const { data: report } = useCoachingReport(sessionId);
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
   const renderChart = useCallback(() => {
     const ctx = getDataCtx();
@@ -205,6 +206,109 @@ export function LapTimesBar({ sessionId }: LapTimesBarProps) {
   useEffect(() => {
     renderChart();
   }, [renderChart]);
+
+  // Mouse events for hover tooltip
+  useEffect(() => {
+    const overlay = overlayCanvasRef.current;
+    if (!overlay || !laps || laps.length === 0) return;
+
+    const sortedLaps = [...laps].sort((a, b) => a.lap_number - b.lap_number);
+    const barTotalWidth = dimensions.innerWidth / sortedLaps.length;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = overlay.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      if (mouseX < MARGINS.left || mouseX > MARGINS.left + dimensions.innerWidth) {
+        setHoveredIdx(null);
+        return;
+      }
+      const idx = Math.floor((mouseX - MARGINS.left) / barTotalWidth);
+      if (idx >= 0 && idx < sortedLaps.length) {
+        setHoveredIdx(idx);
+      } else {
+        setHoveredIdx(null);
+      }
+    };
+
+    const handleMouseLeave = () => setHoveredIdx(null);
+    overlay.addEventListener('mousemove', handleMouseMove);
+    overlay.addEventListener('mouseleave', handleMouseLeave);
+    return () => {
+      overlay.removeEventListener('mousemove', handleMouseMove);
+      overlay.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, [laps, dimensions.innerWidth, overlayCanvasRef]);
+
+  // Hover overlay rendering
+  useEffect(() => {
+    const ctx = getOverlayCtx();
+    if (!ctx) return;
+    ctx.clearRect(0, 0, dimensions.width, dimensions.height);
+
+    if (hoveredIdx === null || !laps || laps.length === 0) return;
+
+    const sortedLaps = [...laps].sort((a, b) => a.lap_number - b.lap_number);
+    if (hoveredIdx < 0 || hoveredIdx >= sortedLaps.length) return;
+
+    const lap = sortedLaps[hoveredIdx];
+    const bestTime = Math.min(...sortedLaps.map((l) => l.lap_time_s));
+    const barTotalWidth = dimensions.innerWidth / sortedLaps.length;
+    const barWidth = barTotalWidth * (1 - BAR_PADDING);
+    const barGap = barTotalWidth * BAR_PADDING;
+    const barX = MARGINS.left + hoveredIdx * barTotalWidth + barGap / 2;
+    const barCenterX = barX + barWidth / 2;
+
+    // Highlight bar outline
+    const yMin = Math.min(...sortedLaps.map((l) => l.lap_time_s)) - 2;
+    const yMax = Math.max(...sortedLaps.map((l) => l.lap_time_s)) + 1;
+    const yScale = (value: number) =>
+      MARGINS.top + ((yMax - value) / (yMax - yMin)) * dimensions.innerHeight;
+
+    const barY = yScale(lap.lap_time_s);
+    const barH = yScale(yMin) - barY;
+
+    ctx.strokeStyle = colors.text.primary;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(barX - 0.5, barY - 0.5, barWidth + 1, barH + 1);
+
+    // Tooltip
+    const delta = lap.lap_time_s - bestTime;
+    const lines = [
+      `L${lap.lap_number}: ${formatLapTime(lap.lap_time_s)}`,
+      delta > 0 ? `+${formatLapTime(delta)} vs PB` : 'Personal Best',
+    ];
+
+    ctx.font = `11px ${fonts.mono}`;
+    const lineHeight = 16;
+    const maxTextWidth = Math.max(...lines.map((l) => ctx.measureText(l).width));
+    const tooltipWidth = maxTextWidth + 16;
+    const tooltipHeight = lines.length * lineHeight + 8;
+    const tooltipX =
+      barCenterX + tooltipWidth + 8 > MARGINS.left + dimensions.innerWidth
+        ? barCenterX - tooltipWidth - 8
+        : barCenterX + 8;
+    const tooltipY = MARGINS.top + 4;
+
+    // Tooltip background
+    ctx.fillStyle = 'rgba(10, 12, 16, 0.92)';
+    const r = 4;
+    ctx.beginPath();
+    ctx.moveTo(tooltipX + r, tooltipY);
+    ctx.arcTo(tooltipX + tooltipWidth, tooltipY, tooltipX + tooltipWidth, tooltipY + tooltipHeight, r);
+    ctx.arcTo(tooltipX + tooltipWidth, tooltipY + tooltipHeight, tooltipX, tooltipY + tooltipHeight, r);
+    ctx.arcTo(tooltipX, tooltipY + tooltipHeight, tooltipX, tooltipY, r);
+    ctx.arcTo(tooltipX, tooltipY, tooltipX + tooltipWidth, tooltipY, r);
+    ctx.closePath();
+    ctx.fill();
+
+    // Tooltip text
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillStyle = i === 0 ? colors.text.primary : colors.text.secondary;
+      ctx.fillText(lines[i], tooltipX + 8, tooltipY + 4 + i * lineHeight);
+    }
+  }, [hoveredIdx, laps, dimensions, getOverlayCtx]);
 
   if (isLoading) {
     return (

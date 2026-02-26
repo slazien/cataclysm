@@ -15,7 +15,14 @@ export function DeepDive() {
       {/* Segmented control: Speed | Corner | Custom */}
       <div className="flex items-center gap-2 border-b border-[var(--cata-border)] px-4 py-2">
         <Tabs value={mode} onValueChange={(v) => setMode(v as DeepDiveMode)} activationMode="manual">
-          <TabsList>
+          <TabsList
+            onKeyDown={(e) => {
+              // Prevent Radix roving-focus from intercepting arrow keys used for corner cycling
+              if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                e.stopPropagation();
+              }
+            }}
+          >
             <TabsTrigger value="speed">Speed</TabsTrigger>
             <TabsTrigger value="corner">Corner</TabsTrigger>
             <TabsTrigger value="custom">Custom</TabsTrigger>
