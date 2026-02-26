@@ -205,8 +205,8 @@ function SessionScoreBadge({ score }: { score: number | null }) {
       : normalized >= 80
         ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
         : normalized >= 60
-          ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-          : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+          ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+          : 'bg-orange-500/20 text-orange-400 border-orange-500/30';
   return (
     <span
       className={cn(
