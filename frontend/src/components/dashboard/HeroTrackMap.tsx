@@ -185,9 +185,9 @@ export function HeroTrackMap({ sessionId, bestLapNumber }: HeroTrackMapProps) {
   const setActiveView = useUiStore((s) => s.setActiveView);
   const selectCorner = useAnalysisStore((s) => s.selectCorner);
 
-  const { segments, labels, projected } = useMemo(() => {
+  const { segments, labels, projected, sfLine } = useMemo(() => {
     if (!lapData || !corners) {
-      return { segments: [], labels: [], projected: null };
+      return { segments: [], labels: [], projected: null, sfLine: null };
     }
 
     const proj = projectCoords(lapData.lat, lapData.lon, SVG_WIDTH, SVG_HEIGHT, PADDING);

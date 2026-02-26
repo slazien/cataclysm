@@ -218,9 +218,9 @@ export function TrackMapInteractive({ sessionId }: TrackMapInteractiveProps) {
 
   const lapData = lapDataArr[0] ?? null;
 
-  const { projected, segments, cornerLabels } = useMemo(() => {
+  const { projected, segments, cornerLabels, sfLine } = useMemo(() => {
     if (!lapData || !corners) {
-      return { projected: null, segments: [], cornerLabels: [] };
+      return { projected: null, segments: [], cornerLabels: [], sfLine: null };
     }
 
     const proj = projectCoords(lapData.lat, lapData.lon, SVG_WIDTH, SVG_HEIGHT, PADDING);
