@@ -385,3 +385,76 @@ async def test_tire_search_by_brand(client: AsyncClient) -> None:
     data = resp.json()
     assert len(data) >= 1
     assert data[0]["brand"] == "Michelin"
+
+
+# ---------------------------------------------------------------------------
+# Brake pad search
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_brake_pad_search(client: AsyncClient) -> None:
+    """Search for a known brake pad model returns matching results."""
+    resp = await client.get("/api/equipment/brakes/search", params={"q": "Hawk"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) >= 1
+    assert data[0]["brand"] == "Hawk"
+    assert "model" in data[0]
+    assert "category" in data[0]
+    assert "temp_range" in data[0]
+    assert "initial_bite" in data[0]
+
+
+@pytest.mark.asyncio
+async def test_brake_pad_search_short_query(client: AsyncClient) -> None:
+    """Query shorter than 2 characters returns empty list."""
+    resp = await client.get("/api/equipment/brakes/search", params={"q": "H"})
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+@pytest.mark.asyncio
+async def test_brake_pad_search_empty(client: AsyncClient) -> None:
+    """Empty query returns empty list."""
+    resp = await client.get("/api/equipment/brakes/search", params={"q": ""})
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+@pytest.mark.asyncio
+async def test_brake_pad_search_no_match(client: AsyncClient) -> None:
+    """Query with no matches returns empty."""
+    resp = await client.get("/api/equipment/brakes/search", params={"q": "ZZZnonexistent"})
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+# ---------------------------------------------------------------------------
+# Reference data
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_reference_tire_sizes(client: AsyncClient) -> None:
+    """GET /reference/tire-sizes returns a list with known sizes."""
+    resp = await client.get("/api/equipment/reference/tire-sizes")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    assert len(data) >= 10
+    assert "255/40R17" in data
+    assert "245/40R18" in data
+
+
+@pytest.mark.asyncio
+async def test_reference_brake_fluids(client: AsyncClient) -> None:
+    """GET /reference/brake-fluids returns a list with known fluids."""
+    resp = await client.get("/api/equipment/reference/brake-fluids")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    assert len(data) >= 5
+    assert "DOT 4" in data
+    assert "Motul RBF 600" in data
+    assert "Castrol SRF" in data
