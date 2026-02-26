@@ -11,6 +11,8 @@ from jose import jwe
 
 from backend.api.config import Settings
 from backend.api.dependencies import (
+    _SECURE_COOKIE,
+    _SESSION_COOKIE,
     AuthenticatedUser,
     _derive_encryption_key,
     get_current_user,
@@ -25,9 +27,10 @@ def _make_token(
     name: str = "Test Driver",
     picture: str | None = "https://example.com/avatar.jpg",
     secret: str = _SECRET,
+    salt: str = _SECURE_COOKIE,
     exp_hours: int = 24,
 ) -> str:
-    """Create a JWE token matching NextAuth.js v5 format."""
+    """Create a JWE token matching NextAuth.js v5 format (A256CBC-HS512)."""
     payload: dict[str, object] = {
         "sub": sub,
         "email": email,
@@ -37,9 +40,9 @@ def _make_token(
     }
     if picture:
         payload["picture"] = picture
-    key = _derive_encryption_key(secret)
+    key = _derive_encryption_key(secret, salt)
     token_bytes: bytes = jwe.encrypt(
-        json.dumps(payload).encode(), key, algorithm="dir", encryption="A256GCM"
+        json.dumps(payload).encode(), key, algorithm="dir", encryption="A256CBC-HS512"
     )
     return token_bytes.decode()
 
@@ -67,7 +70,7 @@ class TestGetCurrentUser:
         assert user.picture == "https://example.com/avatar.jpg"
 
     def test_valid_session_cookie(self) -> None:
-        token = _make_token()
+        token = _make_token(salt=_SESSION_COOKIE)
         user = get_current_user(
             authorization=None,
             session_token=token,
@@ -87,8 +90,8 @@ class TestGetCurrentUser:
         assert user.user_id == "user-123"
 
     def test_secure_cookie_takes_priority_over_session_cookie(self) -> None:
-        token_secure = _make_token(sub="secure-user")
-        token_session = _make_token(sub="session-user")
+        token_secure = _make_token(sub="secure-user", salt=_SECURE_COOKIE)
+        token_session = _make_token(sub="session-user", salt=_SESSION_COOKIE)
         user = get_current_user(
             authorization=None,
             session_token=token_session,
@@ -98,8 +101,8 @@ class TestGetCurrentUser:
         assert user.user_id == "secure-user"
 
     def test_bearer_takes_priority_over_cookies(self) -> None:
-        token_bearer = _make_token(sub="bearer-user")
-        token_cookie = _make_token(sub="cookie-user")
+        token_bearer = _make_token(sub="bearer-user", salt=_SECURE_COOKIE)
+        token_cookie = _make_token(sub="cookie-user", salt=_SESSION_COOKIE)
         user = get_current_user(
             authorization=f"Bearer {token_bearer}",
             session_token=token_cookie,
@@ -158,9 +161,9 @@ class TestGetCurrentUser:
             "name": "Test",
             "exp": int((datetime.now(UTC) + timedelta(hours=1)).timestamp()),
         }
-        key = _derive_encryption_key(_SECRET)
+        key = _derive_encryption_key(_SECRET, _SECURE_COOKIE)
         token = jwe.encrypt(
-            json.dumps(payload).encode(), key, algorithm="dir", encryption="A256GCM"
+            json.dumps(payload).encode(), key, algorithm="dir", encryption="A256CBC-HS512"
         ).decode()
         with pytest.raises(HTTPException) as exc_info:
             get_current_user(
@@ -178,9 +181,9 @@ class TestGetCurrentUser:
             "name": "Test",
             "exp": int((datetime.now(UTC) + timedelta(hours=1)).timestamp()),
         }
-        key = _derive_encryption_key(_SECRET)
+        key = _derive_encryption_key(_SECRET, _SECURE_COOKIE)
         token = jwe.encrypt(
-            json.dumps(payload).encode(), key, algorithm="dir", encryption="A256GCM"
+            json.dumps(payload).encode(), key, algorithm="dir", encryption="A256CBC-HS512"
         ).decode()
         with pytest.raises(HTTPException) as exc_info:
             get_current_user(
