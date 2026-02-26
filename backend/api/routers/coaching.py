@@ -91,6 +91,7 @@ async def _run_generation(
     """Background task that generates the coaching report."""
     try:
         from cataclysm.coaching import generate_coaching_report
+        from cataclysm.corner_analysis import compute_corner_analysis
         from cataclysm.track_match import detect_track_or_lookup
 
         layout = detect_track_or_lookup(sd.parsed.data, sd.parsed.metadata.track_name)
@@ -100,6 +101,16 @@ async def _run_generation(
             s for s in sd.processed.lap_summaries if s.lap_number in sd.coaching_laps
         ]
 
+        # Pre-compute corner analysis so the LLM gets stats, not raw numbers
+        corner_analysis = await asyncio.to_thread(
+            compute_corner_analysis,
+            sd.all_lap_corners,
+            sd.gains,
+            sd.consistency.corner_consistency if sd.consistency else None,
+            landmarks or None,
+            sd.processed.best_lap,
+        )
+
         report = await asyncio.to_thread(
             generate_coaching_report,
             coaching_summaries,
@@ -108,6 +119,7 @@ async def _run_generation(
             gains=sd.gains,
             skill_level=skill_level,
             landmarks=landmarks or None,
+            corner_analysis=corner_analysis,
         )
 
         priority_corners = [
