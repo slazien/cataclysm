@@ -5,6 +5,7 @@ import type { DeepDiveMode } from '@/stores/analysisStore';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SpeedAnalysis } from './SpeedAnalysis';
 import { CornerAnalysis } from './CornerAnalysis';
+import { MiniSectorMap } from './charts/MiniSectorMap';
 
 export function DeepDive() {
   const mode = useAnalysisStore((s) => s.deepDiveMode);
@@ -25,6 +26,7 @@ export function DeepDive() {
           >
             <TabsTrigger value="speed">Speed</TabsTrigger>
             <TabsTrigger value="corner">Corner</TabsTrigger>
+            <TabsTrigger value="sectors">Sectors</TabsTrigger>
             <TabsTrigger value="custom">Custom</TabsTrigger>
           </TabsList>
         </Tabs>
@@ -34,6 +36,7 @@ export function DeepDive() {
       <div className="min-h-0 flex-1">
         {mode === 'speed' && <SpeedAnalysis />}
         {mode === 'corner' && <CornerAnalysis />}
+        {mode === 'sectors' && <MiniSectorMap />}
         {mode === 'custom' && (
           <div className="flex h-full items-center justify-center">
             <p className="text-sm text-[var(--text-secondary)]">Custom (Future)</p>

@@ -60,16 +60,22 @@ def compute_mini_sectors(
     """
     if not clean_laps or best_lap not in resampled_laps:
         return MiniSectorAnalysis(
-            sectors=[], best_sector_times_s=[], best_sector_laps=[],
-            lap_data={}, n_sectors=n_sectors,
+            sectors=[],
+            best_sector_times_s=[],
+            best_sector_laps=[],
+            lap_data={},
+            n_sectors=n_sectors,
         )
 
     ref_df = resampled_laps[best_lap]
     track_length = float(ref_df["distance_m"].iloc[-1])
     if track_length <= 0:
         return MiniSectorAnalysis(
-            sectors=[], best_sector_times_s=[], best_sector_laps=[],
-            lap_data={}, n_sectors=n_sectors,
+            sectors=[],
+            best_sector_times_s=[],
+            best_sector_laps=[],
+            lap_data={},
+            n_sectors=n_sectors,
         )
 
     # Sector boundaries at equal distance intervals
@@ -84,13 +90,17 @@ def compute_mini_sectors(
         sector_df = ref_df[mask]
         gps_points: list[tuple[float, float]] = []
         if "lat" in sector_df.columns and "lon" in sector_df.columns:
-            gps_points = list(zip(
-                sector_df["lat"].tolist(), sector_df["lon"].tolist(), strict=False
-            ))
-        sectors.append(MiniSector(
-            index=i, entry_distance_m=float(entry),
-            exit_distance_m=float(exit_), gps_points=gps_points,
-        ))
+            gps_points = list(
+                zip(sector_df["lat"].tolist(), sector_df["lon"].tolist(), strict=False)
+            )
+        sectors.append(
+            MiniSector(
+                index=i,
+                entry_distance_m=float(entry),
+                exit_distance_m=float(exit_),
+                gps_points=gps_points,
+            )
+        )
 
     # Compute sector times per lap using interpolation
     best_sector_times: list[float] = [float("inf")] * n_sectors
@@ -106,10 +116,7 @@ def compute_mini_sectors(
 
         # Interpolate time at each boundary
         boundary_times = np.interp(boundaries, dist, time)
-        sector_times = [
-            float(boundary_times[i + 1] - boundary_times[i])
-            for i in range(n_sectors)
-        ]
+        sector_times = [float(boundary_times[i + 1] - boundary_times[i]) for i in range(n_sectors)]
         lap_sector_times[lap_num] = sector_times
 
         # Track best per sector
@@ -121,14 +128,10 @@ def compute_mini_sectors(
     # Build per-lap data with deltas and classifications
     lap_data: dict[int, MiniSectorLapData] = {}
     for lap_num, sector_times in lap_sector_times.items():
-        deltas = [
-            sector_times[i] - best_sector_times[i]
-            for i in range(n_sectors)
-        ]
+        deltas = [sector_times[i] - best_sector_times[i] for i in range(n_sectors)]
         # Classify: pb if this lap has the best time, faster if below avg, else slower
         avg_sector = [
-            np.mean([lap_sector_times[ln][i] for ln in lap_sector_times])
-            for i in range(n_sectors)
+            np.mean([lap_sector_times[ln][i] for ln in lap_sector_times]) for i in range(n_sectors)
         ]
         classifications: list[str] = []
         for i in range(n_sectors):

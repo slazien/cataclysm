@@ -12,6 +12,7 @@ import type {
   MilestoneResponse,
   ComparisonResult,
   GPSQualityReport,
+  MiniSectorData,
 } from "./types";
 
 const API_BASE = "";
@@ -189,6 +190,16 @@ export async function downloadPdfReport(sessionId: string): Promise<void> {
 
 export async function getIdealLap(sessionId: string) {
   return fetchApi<IdealLapData>(`/api/sessions/${sessionId}/ideal-lap`);
+}
+
+// --- Mini-Sectors API ---
+
+export async function getMiniSectors(sessionId: string, nSectors: number = 20, lap?: number) {
+  const params = new URLSearchParams({ n_sectors: nSectors.toString() });
+  if (lap !== undefined) params.set('lap', lap.toString());
+  return fetchApi<MiniSectorData>(
+    `/api/sessions/${sessionId}/mini-sectors?${params}`,
+  );
 }
 
 // --- GPS Quality API ---

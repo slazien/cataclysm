@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery, useQueries } from "@tanstack/react-query";
-import { getCorners, getAllLapCorners, getConsistency, getGains, getGrip, getDelta, getLapData, getGPSQuality } from "@/lib/api";
-import type { Corner, SessionConsistency, DeltaData, LapData, GPSQualityReport } from "@/lib/types";
+import { getCorners, getAllLapCorners, getConsistency, getGains, getGrip, getDelta, getLapData, getGPSQuality, getMiniSectors } from "@/lib/api";
+import type { Corner, SessionConsistency, DeltaData, LapData, GPSQualityReport, MiniSectorData } from "@/lib/types";
 
 export function useCorners(sessionId: string | null) {
   return useQuery<Corner[]>({
@@ -82,4 +82,16 @@ export function useMultiLapData(
     .filter((d): d is LapData => d !== undefined);
 
   return { data, isLoading };
+}
+
+export function useMiniSectors(
+  sessionId: string | null,
+  nSectors: number = 20,
+  lap?: number,
+) {
+  return useQuery<MiniSectorData>({
+    queryKey: ["mini-sectors", sessionId, nSectors, lap],
+    queryFn: () => getMiniSectors(sessionId!, nSectors, lap),
+    enabled: !!sessionId,
+  });
 }

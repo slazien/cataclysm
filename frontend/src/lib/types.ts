@@ -342,6 +342,31 @@ export interface GPSQualityReport {
   metric_weights: Record<string, number>;
 }
 
+// --- Mini-Sector Types ---
+
+export interface MiniSector {
+  index: number;
+  entry_distance_m: number;
+  exit_distance_m: number;
+  gps_points: [number, number][]; // (lat, lon) pairs
+}
+
+export interface MiniSectorLapData {
+  lap_number: number;
+  sector_times_s: number[];
+  deltas_s: number[];
+  classifications: string[]; // "pb" | "faster" | "slower"
+}
+
+export interface MiniSectorData {
+  session_id: string;
+  n_sectors: number;
+  sectors: MiniSector[];
+  best_sector_times_s: number[];
+  best_sector_laps: number[];
+  lap_data: Record<string, MiniSectorLapData>;
+}
+
 export interface SessionEquipmentResponse {
   session_id: string;
   profile_id: string;
