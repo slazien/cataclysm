@@ -23,6 +23,7 @@ from backend.api.routers import (
     equipment,
     instructor,
     leaderboards,
+    organizations,
     sessions,
     sharing,
     tracks,
@@ -328,6 +329,7 @@ app.include_router(achievements.router, prefix="/api/achievements", tags=["achie
 app.include_router(leaderboards.router, prefix="/api/leaderboards", tags=["leaderboards"])
 app.include_router(sharing.router, prefix="/api/sharing", tags=["sharing"])
 app.include_router(instructor.router, prefix="/api/instructor", tags=["instructor"])
+app.include_router(organizations.router, prefix="/api/orgs", tags=["organizations"])
 
 
 # -- Health ------------------------------------------------------------------
