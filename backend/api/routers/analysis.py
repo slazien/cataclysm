@@ -13,6 +13,8 @@ from backend.api.schemas.analysis import (
     ConsistencyResponse,
     CornerResponse,
     CornerSchema,
+    DegradationEventSchema,
+    DegradationResponse,
     DeltaResponse,
     GainsResponse,
     GPSQualityResponse,
@@ -338,4 +340,91 @@ async def get_sectors(
         best_sector_times=analysis.best_sector_times,
         best_sector_laps=analysis.best_sector_laps,
         composite_time_s=analysis.composite_time_s,
+    )
+
+
+@router.get("/{session_id}/mini-sectors")
+async def get_mini_sectors(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    n_sectors: int = Query(default=20, ge=3, le=100),
+    lap: int | None = Query(default=None),
+) -> dict[str, Any]:
+    """Return equal-distance mini-sector analysis with per-lap timing."""
+    from cataclysm.mini_sectors import compute_mini_sectors
+
+    sd = _get_session_or_404(session_id)
+    resampled_laps = sd.processed.resampled_laps
+    clean_laps = sd.processed.clean_lap_numbers
+    best_lap = sd.processed.best_lap
+
+    analysis = await asyncio.to_thread(
+        compute_mini_sectors,
+        resampled_laps,
+        clean_laps,
+        best_lap,
+        n_sectors,
+    )
+
+    # If a specific lap is requested, return only that lap's data
+    lap_filter = [lap] if lap is not None else list(analysis.lap_data.keys())
+
+    return {
+        "session_id": session_id,
+        "n_sectors": analysis.n_sectors,
+        "sectors": [
+            {
+                "index": s.index,
+                "entry_distance_m": s.entry_distance_m,
+                "exit_distance_m": s.exit_distance_m,
+                "gps_points": s.gps_points,
+            }
+            for s in analysis.sectors
+        ],
+        "best_sector_times_s": analysis.best_sector_times_s,
+        "best_sector_laps": analysis.best_sector_laps,
+        "lap_data": {
+            str(ln): {
+                "lap_number": ld.lap_number,
+                "sector_times_s": ld.sector_times_s,
+                "deltas_s": ld.deltas_s,
+                "classifications": ld.classifications,
+            }
+            for ln, ld in analysis.lap_data.items()
+            if ln in lap_filter
+        },
+    }
+
+
+@router.get("/{session_id}/degradation", response_model=DegradationResponse)
+async def get_degradation(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> DegradationResponse:
+    """Detect brake fade and tire degradation across the session."""
+    sd = _get_session_or_404(session_id)
+
+    from cataclysm.degradation import detect_degradation
+
+    analysis = await asyncio.to_thread(detect_degradation, sd.all_lap_corners, sd.anomalous_laps)
+
+    return DegradationResponse(
+        session_id=session_id,
+        events=[
+            DegradationEventSchema(
+                corner_number=e.corner_number,
+                metric=e.metric,
+                start_lap=e.start_lap,
+                end_lap=e.end_lap,
+                slope=e.slope,
+                r_squared=e.r_squared,
+                severity=e.severity,
+                description=e.description,
+                values=e.values,
+                lap_numbers=e.lap_numbers,
+            )
+            for e in analysis.events
+        ],
+        has_brake_fade=analysis.has_brake_fade,
+        has_tire_degradation=analysis.has_tire_degradation,
     )

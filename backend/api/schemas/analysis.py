@@ -150,3 +150,27 @@ class OptimalProfileResponse(BaseModel):
     lap_time_s: float
     vehicle_params: VehicleParamsSchema
     equipment_profile_id: str | None = None
+
+
+class DegradationEventSchema(BaseModel):
+    """A detected degradation event for a specific corner."""
+
+    corner_number: int
+    metric: str
+    start_lap: int
+    end_lap: int
+    slope: float
+    r_squared: float
+    severity: str
+    description: str
+    values: list[float]
+    lap_numbers: list[int]
+
+
+class DegradationResponse(BaseModel):
+    """Brake fade and tire degradation analysis results."""
+
+    session_id: str
+    events: list[DegradationEventSchema]
+    has_brake_fade: bool
+    has_tire_degradation: bool

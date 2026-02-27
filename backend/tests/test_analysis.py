@@ -302,3 +302,32 @@ async def test_optimal_profile_with_equipment(client: AsyncClient) -> None:
     # Clean up
     equipment_store.delete_session_equipment(session_id)
     equipment_store.delete_profile("low-grip")
+
+
+# ---------------------------------------------------------------------------
+# Degradation tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_degradation(client: AsyncClient) -> None:
+    """GET /api/sessions/{id}/degradation returns degradation analysis."""
+    session_id = await _upload_session(client)
+
+    response = await client.get(f"/api/sessions/{session_id}/degradation")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["session_id"] == session_id
+    assert "events" in data
+    assert isinstance(data["events"], list)
+    assert "has_brake_fade" in data
+    assert "has_tire_degradation" in data
+    assert isinstance(data["has_brake_fade"], bool)
+    assert isinstance(data["has_tire_degradation"], bool)
+
+
+@pytest.mark.asyncio
+async def test_get_degradation_not_found(client: AsyncClient) -> None:
+    """GET /api/sessions/{id}/degradation with bad ID returns 404."""
+    response = await client.get("/api/sessions/nonexistent/degradation")
+    assert response.status_code == 404
