@@ -102,7 +102,7 @@ export default function SharePage() {
 
   // Comparison result view
   if (comparison) {
-    const aFaster = comparison.delta_s < 0;
+    const aFaster = comparison.delta_s > 0;
     const deltaAbs = Math.abs(comparison.delta_s);
 
     return (
