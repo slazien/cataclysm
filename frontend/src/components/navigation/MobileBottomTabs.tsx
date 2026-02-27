@@ -1,15 +1,16 @@
 'use client';
 
-import { LayoutDashboard, Search, TrendingUp, Bot } from 'lucide-react';
+import { LayoutDashboard, Search, TrendingUp, Bot, Timer } from 'lucide-react';
 import { useUiStore, useCoachStore } from '@/stores';
 import { cn } from '@/lib/utils';
 
-type ActiveView = 'dashboard' | 'deep-dive' | 'progress';
+type ActiveView = 'dashboard' | 'deep-dive' | 'progress' | 'debrief';
 
 const NAV_ITEMS: { icon: typeof LayoutDashboard; label: string; view: ActiveView }[] = [
   { icon: LayoutDashboard, label: 'Dashboard', view: 'dashboard' },
   { icon: Search, label: 'Dive', view: 'deep-dive' },
   { icon: TrendingUp, label: 'Progress', view: 'progress' },
+  { icon: Timer, label: 'Debrief', view: 'debrief' },
 ];
 
 export function MobileBottomTabs() {

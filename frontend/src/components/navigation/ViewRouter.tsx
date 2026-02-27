@@ -7,6 +7,7 @@ import { WelcomeScreen } from '@/components/shared/WelcomeScreen';
 import { SessionDashboard } from '@/components/dashboard/SessionDashboard';
 import { DeepDive } from '@/components/deep-dive/DeepDive';
 import { ProgressView } from '@/components/progress/ProgressView';
+import { PitLaneDebrief } from '@/components/debrief/PitLaneDebrief';
 
 export function ViewRouter() {
   const activeView = useUiStore((s) => s.activeView);
@@ -45,6 +46,12 @@ export function ViewRouter() {
       return (
         <ViewErrorBoundary key={activeSessionId}>
           <ProgressView />
+        </ViewErrorBoundary>
+      );
+    case 'debrief':
+      return (
+        <ViewErrorBoundary key={activeSessionId}>
+          <PitLaneDebrief />
         </ViewErrorBoundary>
       );
     default:

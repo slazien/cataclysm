@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 type SkillLevel = 'novice' | 'intermediate' | 'advanced';
 type UnitPreference = 'imperial' | 'metric';
-type ActiveView = 'dashboard' | 'deep-dive' | 'progress';
+type ActiveView = 'dashboard' | 'deep-dive' | 'progress' | 'debrief';
 
 export interface Toast {
   id: string;

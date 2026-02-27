@@ -10,12 +10,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { LapPillBar } from '@/components/navigation/LapPillBar';
 
-type ActiveView = 'dashboard' | 'deep-dive' | 'progress';
+type ActiveView = 'dashboard' | 'deep-dive' | 'progress' | 'debrief';
 
 const VIEW_TABS: { value: ActiveView; label: string }[] = [
   { value: 'dashboard', label: 'Dashboard' },
   { value: 'deep-dive', label: 'Deep Dive' },
   { value: 'progress', label: 'Progress' },
+  { value: 'debrief', label: 'Debrief' },
 ];
 
 export function TopBar() {
