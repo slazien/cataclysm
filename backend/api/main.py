@@ -15,7 +15,16 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.responses import Response
 
 from backend.api.config import Settings
-from backend.api.routers import analysis, auth, coaching, equipment, sessions, tracks, trends
+from backend.api.routers import (
+    analysis,
+    auth,
+    coaching,
+    equipment,
+    sessions,
+    tracks,
+    trends,
+    wrapped,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -308,6 +317,7 @@ app.include_router(coaching.router, prefix="/api/coaching", tags=["coaching"])
 app.include_router(equipment.router, prefix="/api/equipment", tags=["equipment"])
 app.include_router(trends.router, prefix="/api/trends", tags=["trends"])
 app.include_router(tracks.router, prefix="/api/tracks", tags=["tracks"])
+app.include_router(wrapped.router, prefix="/api/wrapped", tags=["wrapped"])
 
 
 # -- Health ------------------------------------------------------------------
