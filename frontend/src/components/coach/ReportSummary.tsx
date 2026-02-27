@@ -1,17 +1,60 @@
 'use client';
 
-import { useState } from 'react';
-import { AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, ChevronDown, ChevronRight, Volume2, VolumeX } from 'lucide-react';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { GradeChip } from '@/components/shared/GradeChip';
 import { AiInsight } from '@/components/shared/AiInsight';
+import { Button } from '@/components/ui/button';
 import { useSessionStore } from '@/stores';
 import { useAutoReport } from '@/hooks/useAutoReport';
+import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
+import type { CoachingReport } from '@/lib/types';
+
+function buildSpeechText(report: CoachingReport): string {
+  const parts: string[] = [];
+
+  if (report.summary) {
+    parts.push(report.summary);
+  }
+
+  if (report.priority_corners.length > 0) {
+    parts.push('Here are your top priorities.');
+    report.priority_corners.slice(0, 3).forEach((pc, i) => {
+      const ordinal = ['First', 'Second', 'Third'][i];
+      parts.push(
+        `${ordinal}: Turn ${pc.corner}. ${pc.issue}. ${pc.tip}. This costs you ${pc.time_cost_s.toFixed(2)} seconds per lap.`,
+      );
+    });
+  }
+
+  if (report.patterns.length > 0) {
+    parts.push('Key patterns I noticed: ' + report.patterns.join('. ') + '.');
+  }
+
+  return parts.join(' ');
+}
 
 export function ReportSummary() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const { report, isLoading, isGenerating, isError, retry } = useAutoReport(activeSessionId);
   const [gradesExpanded, setGradesExpanded] = useState(false);
+  const speech = useSpeechSynthesis();
+
+  const speechText = useMemo(
+    () => (report?.status === 'ready' ? buildSpeechText(report) : ''),
+    [report],
+  );
+
+  const handleToggleSpeech = useCallback(() => {
+    speech.toggle(speechText);
+  }, [speech, speechText]);
+
+  // Stop speech when session changes
+  useEffect(() => {
+    speech.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSessionId]);
 
   if (!activeSessionId) {
     return (
@@ -58,6 +101,28 @@ export function ReportSummary() {
           <AiInsight mode="compact">
             <span className="text-xs leading-relaxed">{report.summary}</span>
           </AiInsight>
+          {speech.isSupported && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleToggleSpeech}
+              className="mt-2 h-7 gap-1.5 text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            >
+              {speech.state === 'idle' ? (
+                <>
+                  <Volume2 className="h-3.5 w-3.5" />
+                  Listen
+                </>
+              ) : (
+                <>
+                  <VolumeX
+                    className={`h-3.5 w-3.5 ${speech.state === 'speaking' ? 'animate-pulse' : ''}`}
+                  />
+                  {speech.state === 'speaking' ? 'Pause' : 'Resume'}
+                </>
+              )}
+            </Button>
+          )}
         </div>
       )}
 

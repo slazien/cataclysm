@@ -102,6 +102,13 @@ export function CoachPanel() {
   const togglePanel = useCoachStore((s) => s.togglePanel);
   const isMobile = useIsMobile();
 
+  // Stop speech when panel closes
+  useEffect(() => {
+    if (!panelOpen && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+  }, [panelOpen]);
+
   if (isMobile) {
     return (
       <Sheet open={panelOpen} onOpenChange={togglePanel}>
