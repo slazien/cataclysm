@@ -120,7 +120,7 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
   }
 
   return (
-    <div className="flex h-full flex-col gap-3 overflow-y-auto rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
+    <div className="flex flex-col gap-3 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
