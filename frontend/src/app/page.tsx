@@ -1,22 +1,23 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useCoachStore, useSessionStore, useUiStore } from '@/stores';
+import { useSessionStore, useUiStore } from '@/stores';
 import { useSessions } from '@/hooks/useSession';
 import { cn } from '@/lib/utils';
 import { TopBar } from '@/components/navigation/TopBar';
 import { SessionDrawer } from '@/components/navigation/SessionDrawer';
 import { ViewRouter } from '@/components/navigation/ViewRouter';
 import { MobileBottomTabs } from '@/components/navigation/MobileBottomTabs';
-import { CoachPanel } from '@/components/coach/CoachPanel';
+import { FloatingChatButton } from '@/components/coach/FloatingChatButton';
+import { ChatDrawer } from '@/components/coach/ChatDrawer';
 import { ProcessingOverlay } from '@/components/shared/ProcessingOverlay';
 import { SettingsPanel } from '@/components/shared/SettingsPanel';
 import { ToastContainer } from '@/components/shared/ToastContainer';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 export default function Home() {
-  const panelOpen = useCoachStore((s) => s.panelOpen);
   const settingsPanelOpen = useUiStore((s) => s.settingsPanelOpen);
+  const setActiveView = useUiStore((s) => s.setActiveView);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const { data: sessionsData } = useSessions();
@@ -30,6 +31,13 @@ export default function Home() {
     }
   }, [activeSessionId, sessionsData, setActiveSession]);
 
+  // Navigate to session-report view when a new session becomes active
+  useEffect(() => {
+    if (activeSessionId) {
+      setActiveView('session-report');
+    }
+  }, [activeSessionId, setActiveView]);
+
   return (
     <div className="flex h-screen flex-col overflow-hidden">
       <TopBar />
@@ -38,9 +46,10 @@ export default function Home() {
         <main className={cn("flex-1 overflow-y-auto", settingsPanelOpen && "pointer-events-none")}>
           <ViewRouter />
         </main>
-        {panelOpen && <CoachPanel />}
       </div>
       <MobileBottomTabs />
+      <FloatingChatButton />
+      <ChatDrawer />
       <ProcessingOverlay />
       <SettingsPanel />
       <ToastContainer />
