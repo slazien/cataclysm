@@ -106,24 +106,26 @@ export function TopBar() {
             className="hidden"
             onChange={handleFileChange}
           />
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setWrappedOpen(true)}
-            title="Year in Review"
-            className="hidden text-[var(--text-secondary)] hover:text-[var(--text-primary)] sm:flex"
-          >
-            <Sparkles className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setBadgesOpen(true)}
-            title="Achievements"
-            className="hidden text-[var(--text-secondary)] hover:text-[var(--text-primary)] sm:flex"
-          >
-            <Award className="h-4 w-4" />
-          </Button>
+          <div className="hidden sm:flex sm:items-center sm:gap-1">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setWrappedOpen(true)}
+              title="Year in Review"
+              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            >
+              <Sparkles className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setBadgesOpen(true)}
+              title="Achievements"
+              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            >
+              <Award className="h-4 w-4" />
+            </Button>
+          </div>
           <Button
             variant="ghost"
             size="icon-sm"
