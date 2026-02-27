@@ -14,6 +14,8 @@ interface CornerGain {
   pct_of_total: number;
 }
 
+const MARGINS = { top: 4, right: 16, bottom: 4, left: 50 };
+
 interface TimeGainedChartProps {
   sessionId: string;
 }
@@ -59,12 +61,7 @@ export function TimeGainedChart({ sessionId }: TimeGainedChartProps) {
     );
   }, [gainsData]);
 
-  const { containerRef, dataCanvasRef, dimensions } = useCanvasChart({
-    top: 4,
-    right: 16,
-    bottom: 4,
-    left: 50,
-  });
+  const { containerRef, dataCanvasRef, dimensions } = useCanvasChart(MARGINS);
 
   // Draw bars
   useEffect(() => {
