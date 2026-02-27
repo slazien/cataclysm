@@ -23,6 +23,11 @@ import type {
   ShareCreateResponse,
   ShareMetadata,
   ShareComparisonResult,
+  StudentListData,
+  InviteData,
+  FlagListData,
+  StudentSessionsData,
+  StudentFlag,
 } from "./types";
 
 const API_BASE = "";
@@ -320,4 +325,54 @@ export async function uploadToShare(token: string, files: File[]) {
 
 export async function getShareComparison(token: string) {
   return fetchApi<ShareComparisonResult>(`/api/sharing/${token}/comparison`);
+}
+
+// --- Instructor API ---
+
+export async function getStudents() {
+  return fetchApi<StudentListData>("/api/instructor/students");
+}
+
+export async function createInvite() {
+  return fetchApi<InviteData>("/api/instructor/invite", { method: "POST" });
+}
+
+export async function acceptInvite(code: string) {
+  return fetchApi<{ status: string }>(`/api/instructor/accept/${encodeURIComponent(code)}`, {
+    method: "POST",
+  });
+}
+
+export async function removeStudent(studentId: string) {
+  return fetchApi<{ status: string }>(`/api/instructor/students/${studentId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function getStudentSessions(studentId: string) {
+  return fetchApi<StudentSessionsData>(
+    `/api/instructor/students/${studentId}/sessions`,
+  );
+}
+
+export async function getStudentFlags(studentId: string) {
+  return fetchApi<FlagListData>(
+    `/api/instructor/students/${studentId}/flags`,
+  );
+}
+
+export async function createStudentFlag(
+  studentId: string,
+  flagType: string,
+  description: string,
+  sessionId?: string,
+) {
+  return fetchApi<StudentFlag>(`/api/instructor/students/${studentId}/flags`, {
+    method: "POST",
+    body: JSON.stringify({
+      flag_type: flagType,
+      description,
+      session_id: sessionId ?? null,
+    }),
+  });
 }
