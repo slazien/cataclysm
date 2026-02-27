@@ -5,6 +5,7 @@ import { useSessionStore } from '@/stores';
 import { useSession } from '@/hooks/useSession';
 import { useTrends, useMilestones } from '@/hooks/useTrends';
 import { formatTimeShort } from '@/lib/formatters';
+import { useSkillLevel } from '@/hooks/useSkillLevel';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { AiInsight } from '@/components/shared/AiInsight';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -19,6 +20,7 @@ import { SessionBoxPlot } from './SessionBoxPlot';
 export function ProgressView() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const { data: session, isLoading: sessionLoading } = useSession(activeSessionId);
+  const { showFeature } = useSkillLevel();
 
   const trackName = session?.track_name ?? null;
 
@@ -213,32 +215,36 @@ export function ProgressView() {
         </div>
       </div>
 
-      {/* 5. Corner Heatmap */}
-      <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-        <h3 className="mb-2 text-sm font-medium text-[var(--text-secondary)]">Corner Heatmap</h3>
-        <div className="h-[320px]">
-          <ChartErrorBoundary name="Corner Heatmap">
-            <CornerHeatmap
-              sessions={trendData.sessions}
-              cornerMinSpeedTrends={trendData.corner_min_speed_trends}
-              cornerBrakeStdTrends={trendData.corner_brake_std_trends}
-              cornerConsistencyTrends={trendData.corner_consistency_trends}
-            />
-          </ChartErrorBoundary>
+      {/* 5. Corner Heatmap (hidden for novice) */}
+      {showFeature('heatmap') && (
+        <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
+          <h3 className="mb-2 text-sm font-medium text-[var(--text-secondary)]">Corner Heatmap</h3>
+          <div className="h-[320px]">
+            <ChartErrorBoundary name="Corner Heatmap">
+              <CornerHeatmap
+                sessions={trendData.sessions}
+                cornerMinSpeedTrends={trendData.corner_min_speed_trends}
+                cornerBrakeStdTrends={trendData.corner_brake_std_trends}
+                cornerConsistencyTrends={trendData.corner_consistency_trends}
+              />
+            </ChartErrorBoundary>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* 6. Session Box Plot */}
-      <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-        <h3 className="mb-2 text-sm font-medium text-[var(--text-secondary)]">
-          Session Lap Time Distribution
-        </h3>
-        <div className="h-[280px]">
-          <ChartErrorBoundary name="Session Box Plot">
-            <SessionBoxPlot sessions={trendData.sessions} />
-          </ChartErrorBoundary>
+      {/* 6. Session Box Plot (hidden for novice) */}
+      {showFeature('boxplot') && (
+        <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
+          <h3 className="mb-2 text-sm font-medium text-[var(--text-secondary)]">
+            Session Lap Time Distribution
+          </h3>
+          <div className="h-[280px]">
+            <ChartErrorBoundary name="Session Box Plot">
+              <SessionBoxPlot sessions={trendData.sessions} />
+            </ChartErrorBoundary>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -10,6 +10,8 @@ import { colors } from '@/lib/design-tokens';
 import { worstGrade } from '@/lib/gradeUtils';
 import { parseCornerNumber } from '@/lib/cornerUtils';
 import { useUnits } from '@/hooks/useUnits';
+import { useSkillLevel } from '@/hooks/useSkillLevel';
+import { gradeExplanation } from '@/lib/skill-content';
 import type { Corner, CornerGrade, PriorityCorner } from '@/lib/types';
 
 interface CornerDetailPanelProps {
@@ -76,13 +78,21 @@ function KpiRow({ label, value, unit = '', delta, deltaUnit, invertDelta }: KpiR
 interface GradeRowProps {
   label: React.ReactNode;
   grade: string;
+  explanation?: string | null;
 }
 
-function GradeRow({ label, grade }: GradeRowProps) {
+function GradeRow({ label, grade, explanation }: GradeRowProps) {
   return (
-    <div className="flex items-center justify-between py-1">
-      <span className="text-xs text-[var(--text-muted)]">{label}</span>
-      <GradeChip grade={grade} />
+    <div className="py-1">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-[var(--text-muted)]">{label}</span>
+        <GradeChip grade={grade} />
+      </div>
+      {explanation && (
+        <p className="mt-0.5 text-[11px] leading-snug text-[var(--text-secondary)]">
+          {explanation}
+        </p>
+      )}
     </div>
   );
 }
@@ -93,6 +103,8 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
   const { data: allLapCorners } = useAllLapCorners(sessionId);
   const { data: report } = useCoachingReport(sessionId);
   const { convertSpeed, speedUnit } = useUnits();
+  const { skillLevel, showFeature } = useSkillLevel();
+  const showExplanations = showFeature('grade_explanations');
 
   if (!selectedCorner) {
     return (
@@ -231,12 +243,34 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
           <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
             Grades
           </h4>
-          {cornerGrade.braking && <GradeRow label="Braking" grade={cornerGrade.braking} />}
-          {cornerGrade.trail_braking && (
-            <GradeRow label={<GlossaryTerm term="Trail Braking">Trail Braking</GlossaryTerm>} grade={cornerGrade.trail_braking} />
+          {cornerGrade.braking && (
+            <GradeRow
+              label="Braking"
+              grade={cornerGrade.braking}
+              explanation={showExplanations ? gradeExplanation(cornerGrade.braking, 'braking', skillLevel) : null}
+            />
           )}
-          {cornerGrade.min_speed && <GradeRow label={<GlossaryTerm term="Min Speed">Min Speed</GlossaryTerm>} grade={cornerGrade.min_speed} />}
-          {cornerGrade.throttle && <GradeRow label="Throttle" grade={cornerGrade.throttle} />}
+          {cornerGrade.trail_braking && (
+            <GradeRow
+              label={<GlossaryTerm term="Trail Braking">Trail Braking</GlossaryTerm>}
+              grade={cornerGrade.trail_braking}
+              explanation={showExplanations ? gradeExplanation(cornerGrade.trail_braking, 'trail_braking', skillLevel) : null}
+            />
+          )}
+          {cornerGrade.min_speed && (
+            <GradeRow
+              label={<GlossaryTerm term="Min Speed">Min Speed</GlossaryTerm>}
+              grade={cornerGrade.min_speed}
+              explanation={showExplanations ? gradeExplanation(cornerGrade.min_speed, 'min_speed', skillLevel) : null}
+            />
+          )}
+          {cornerGrade.throttle && (
+            <GradeRow
+              label="Throttle"
+              grade={cornerGrade.throttle}
+              explanation={showExplanations ? gradeExplanation(cornerGrade.throttle, 'throttle', skillLevel) : null}
+            />
+          )}
         </div>
       )}
 

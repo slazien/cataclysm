@@ -5,6 +5,7 @@ import { useSessionStore, useUiStore, useAnalysisStore } from '@/stores';
 import { ViewErrorBoundary } from '@/components/shared/ViewErrorBoundary';
 import { WelcomeScreen } from '@/components/shared/WelcomeScreen';
 import { SessionDashboard } from '@/components/dashboard/SessionDashboard';
+import { SessionReport } from '@/components/session-report';
 import { DeepDive } from '@/components/deep-dive/DeepDive';
 import { ProgressView } from '@/components/progress/ProgressView';
 import { PitLaneDebrief } from '@/components/debrief/PitLaneDebrief';
@@ -31,10 +32,9 @@ export function ViewRouter() {
   // clearing any caught error state and giving components fresh renders
   switch (activeView) {
     case 'session-report':
-      // SessionReport component will replace SessionDashboard in Phase 2B
       return (
         <ViewErrorBoundary key={activeSessionId}>
-          <SessionDashboard />
+          <SessionReport />
         </ViewErrorBoundary>
       );
     case 'deep-dive':

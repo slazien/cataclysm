@@ -226,7 +226,7 @@ export function SessionDrawer() {
                                   {session.session_date}
                                 </p>
                                 {isPB && (
-                                  <Star className="h-3 w-3 fill-purple-400 text-purple-400" title="Personal best at this track" />
+                                  <span title="Personal best at this track"><Star className="h-3 w-3 fill-purple-400 text-purple-400" /></span>
                                 )}
                                 <CoachingStatusIcon sessionId={session.session_id} />
                               </div>
