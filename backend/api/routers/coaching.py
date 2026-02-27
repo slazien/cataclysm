@@ -23,6 +23,7 @@ from backend.api.dependencies import (
     get_current_user,
 )
 from backend.api.schemas.coaching import (
+    ChatRequest,
     CoachingReportResponse,
     CornerGradeSchema,
     FollowUpMessage,
@@ -309,6 +310,80 @@ async def download_pdf_report(
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="coaching-report-{short_id}.pdf"'},
     )
+
+
+@router.post("/{session_id}/chat", response_model=FollowUpMessage)
+async def coaching_chat_http(
+    session_id: str,
+    body: ChatRequest,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> FollowUpMessage:
+    """HTTP POST endpoint for follow-up coaching conversation.
+
+    This replaces the WebSocket endpoint for environments where WebSocket
+    proxying is not available (e.g. Next.js rewrites).
+    """
+    sd = session_store.get_session(session_id)
+    if sd is None:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+    report_response = await get_coaching_report(session_id)
+    if report_response is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No coaching report found. Generate a report first.",
+        )
+
+    question = body.content.strip()
+    if not question:
+        return FollowUpMessage(
+            role="assistant",
+            content="Please ask a question about your driving.",
+        )
+
+    from cataclysm.coaching import CoachingContext, ask_followup
+    from cataclysm.coaching import CoachingReport as DomainReport
+    from cataclysm.topic_guardrail import classify_topic
+
+    # Layer 1: Off-topic pre-screen
+    classification = await asyncio.to_thread(classify_topic, question)
+    if not classification.on_topic:
+        content = (
+            INPUT_TOO_LONG_RESPONSE if classification.source == "too_long" else OFF_TOPIC_RESPONSE
+        )
+        return FollowUpMessage(role="assistant", content=content)
+
+    # Retrieve or create conversation context
+    ctx = await get_coaching_context(session_id)
+    if ctx is None:
+        ctx = CoachingContext()
+        await store_coaching_context(session_id, ctx)
+
+    coaching_report = DomainReport(
+        summary=report_response.summary or "",
+        priority_corners=[
+            {"corner": pc.corner, "time_cost_s": pc.time_cost_s, "issue": pc.issue, "tip": pc.tip}
+            for pc in report_response.priority_corners
+        ],
+        corner_grades=[],
+        patterns=report_response.patterns,
+        drills=report_response.drills,
+        raw_response=report_response.summary or "",
+    )
+
+    answer = await asyncio.to_thread(
+        ask_followup,
+        ctx,
+        question,
+        coaching_report,
+        all_lap_corners=sd.all_lap_corners,
+        skill_level="intermediate",
+        gains=sd.gains,
+        weather=sd.weather,
+    )
+
+    await store_coaching_context(session_id, ctx)
+    return FollowUpMessage(role="assistant", content=answer)
 
 
 @router.websocket("/{session_id}/chat")

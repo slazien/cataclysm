@@ -1,17 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Send, WifiOff } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AiInsight } from '@/components/shared/AiInsight';
 import { useCoachStore, useSessionStore } from '@/stores';
 import { useCoachingReport } from '@/hooks/useCoaching';
-import { API_BASE } from '@/lib/constants';
 import type { ChatMessage } from '@/lib/types';
-
-type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
 
 export function ChatInterface() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
@@ -19,24 +16,16 @@ export function ChatInterface() {
   const contextChips = useCoachStore((s) => s.contextChips);
   const addMessage = useCoachStore((s) => s.addMessage);
   const clearChat = useCoachStore((s) => s.clearChat);
-  const panelOpen = useCoachStore((s) => s.panelOpen);
   const pendingQuestion = useCoachStore((s) => s.pendingQuestion);
   const setPendingQuestion = useCoachStore((s) => s.setPendingQuestion);
 
-  // Only connect WebSocket after the coaching report is ready
   const { data: reportData } = useCoachingReport(activeSessionId);
   const reportReady = reportData?.status === 'ready';
 
   const [input, setInput] = useState('');
   const [isWaiting, setIsWaiting] = useState(false);
-  const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
 
-  const wsRef = useRef<WebSocket | null>(null);
   const scrollEndRef = useRef<HTMLDivElement>(null);
-
-  // Keep addMessage in a ref to avoid rebuilding the WebSocket on store changes
-  const addMessageRef = useRef(addMessage);
-  useEffect(() => { addMessageRef.current = addMessage; });
 
   // Clear chat history when session changes
   useEffect(() => {
@@ -48,81 +37,19 @@ export function ChatInterface() {
     scrollEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory, isWaiting]);
 
-  // WebSocket connection lifecycle — only connect once the coaching report is ready
-  useEffect(() => {
-    if (!panelOpen || !activeSessionId || !reportReady) {
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-        setConnectionState('disconnected');
-      }
-      return;
-    }
-
-    // Derive WebSocket URL from the API base constant
-    // Handle empty API_BASE (proxied setup) and https → wss
-    const wsBase = API_BASE
-      ? API_BASE.replace(/^https/, 'wss').replace(/^http/, 'ws')
-      : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`;
-    const url = `${wsBase}/api/coaching/${activeSessionId}/chat`;
-
-    setConnectionState('connecting');
-    const ws = new WebSocket(url);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      // Guard: only update state if this is still the active WebSocket
-      // (React strict mode double-invokes effects, so stale sockets may fire)
-      if (wsRef.current === ws) setConnectionState('connected');
-    };
-
-    ws.onmessage = (event) => {
-      if (wsRef.current !== ws) return;
-      try {
-        const data = JSON.parse(event.data) as { role: string; content: string };
-        const msg: ChatMessage = {
-          role: data.role as 'assistant',
-          content: data.content,
-        };
-        addMessageRef.current(msg);
-        setIsWaiting(false);
-      } catch {
-        // Ignore malformed messages
-      }
-    };
-
-    ws.onerror = () => {
-      if (wsRef.current === ws) {
-        setConnectionState('error');
-        setIsWaiting(false);
-      }
-    };
-
-    ws.onclose = () => {
-      if (wsRef.current === ws) {
-        setConnectionState('disconnected');
-        wsRef.current = null;
-        setIsWaiting(false);
-      }
-    };
-
-    return () => {
-      ws.close();
-      wsRef.current = null;
-    };
-  }, [panelOpen, activeSessionId, reportReady]);
-
   const sendMessage = useCallback(
-    (text: string) => {
+    async (text: string) => {
       const trimmed = text.trim();
-      if (!trimmed || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+      if (!trimmed || !activeSessionId || !reportReady) return;
 
       // Add user message to history
       addMessage({ role: 'user', content: trimmed });
+      setInput('');
+      setIsWaiting(true);
 
       // Build context from chips
       const context: Record<string, unknown> = {};
-      if (activeSessionId) context.session_id = activeSessionId;
+      context.session_id = activeSessionId;
       for (const chip of contextChips) {
         if (chip.label === 'Laps') {
           context.laps = chip.value.split(', ').map(Number);
@@ -133,21 +60,47 @@ export function ChatInterface() {
         }
       }
 
-      // Send via WebSocket -- backend expects { content: string }
-      wsRef.current.send(JSON.stringify({ content: trimmed, context }));
-      setIsWaiting(true);
-      setInput('');
+      try {
+        const resp = await fetch(`/api/coaching/${activeSessionId}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: trimmed, context }),
+        });
+
+        if (!resp.ok) {
+          const errText = await resp.text();
+          addMessage({
+            role: 'assistant',
+            content: `Sorry, something went wrong. ${resp.status === 401 ? 'Please sign in.' : errText}`,
+          });
+          return;
+        }
+
+        const data = (await resp.json()) as { role: string; content: string };
+        const msg: ChatMessage = {
+          role: data.role as 'assistant',
+          content: data.content,
+        };
+        addMessage(msg);
+      } catch {
+        addMessage({
+          role: 'assistant',
+          content: 'Failed to reach the AI coach. Please try again.',
+        });
+      } finally {
+        setIsWaiting(false);
+      }
     },
-    [addMessage, activeSessionId, contextChips],
+    [addMessage, activeSessionId, contextChips, reportReady],
   );
 
   // Consume pending questions from SuggestedQuestions
   useEffect(() => {
-    if (pendingQuestion && connectionState === 'connected' && !isWaiting) {
+    if (pendingQuestion && reportReady && !isWaiting) {
       sendMessage(pendingQuestion);
       setPendingQuestion(null);
     }
-  }, [pendingQuestion, connectionState, isWaiting, sendMessage, setPendingQuestion]);
+  }, [pendingQuestion, reportReady, isWaiting, sendMessage, setPendingQuestion]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,16 +124,10 @@ export function ChatInterface() {
     );
   }
 
+  const inputDisabled = !reportReady || isWaiting;
+
   return (
     <div className="flex flex-1 flex-col min-h-0">
-      {/* Connection status indicator */}
-      {connectionState === 'error' && (
-        <div className="flex items-center gap-1.5 px-4 py-1.5 bg-[var(--grade-f)]/10 text-[var(--grade-f)]">
-          <WifiOff className="h-3 w-3" />
-          <span className="text-[10px]">Connection lost. Messages may not send.</span>
-        </div>
-      )}
-
       {/* Messages area */}
       <ScrollArea className="flex-1 min-h-0">
         <div className="flex flex-col gap-3 px-4 py-3">
@@ -225,21 +172,18 @@ export function ChatInterface() {
             placeholder="Ask about your driving..."
             rows={1}
             className="flex-1 resize-none rounded-lg border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--cata-accent)] focus:outline-none"
-            disabled={connectionState !== 'connected'}
+            disabled={inputDisabled}
           />
           <Button
             type="submit"
             size="icon"
             variant="ghost"
-            disabled={!input.trim() || isWaiting || connectionState !== 'connected'}
+            disabled={!input.trim() || isWaiting || !reportReady}
             className="h-8 w-8 shrink-0 text-[var(--cata-accent)] hover:bg-[var(--cata-accent)]/10 disabled:opacity-30"
           >
             <Send className="h-4 w-4" />
           </Button>
         </div>
-        {connectionState === 'connecting' && (
-          <p className="mt-1 text-[10px] text-[var(--text-tertiary)]">Connecting...</p>
-        )}
       </form>
     </div>
   );

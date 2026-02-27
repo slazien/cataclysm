@@ -50,3 +50,10 @@ class FollowUpMessage(BaseModel):
 
     role: str  # "user" or "assistant"
     content: str
+
+
+class ChatRequest(BaseModel):
+    """Request body for the HTTP chat endpoint."""
+
+    content: str
+    context: dict[str, object] = {}

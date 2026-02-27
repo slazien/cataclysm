@@ -71,14 +71,17 @@ function CoachPanelContent({ onClose }: { onClose: () => void }) {
       {/* Context Chips */}
       <ContextChips />
 
-      {/* Report Summary */}
-      <ReportSummary />
+      {/* Scrollable report + questions area */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+        {/* Report Summary */}
+        <ReportSummary />
 
-      {/* Suggested Questions */}
-      <SuggestedQuestions onAsk={handleAsk} />
+        {/* Suggested Questions */}
+        <SuggestedQuestions onAsk={handleAsk} />
 
-      {/* Chat Interface -- fills remaining space */}
-      <ChatInterface />
+        {/* Chat Interface -- fills remaining space */}
+        <ChatInterface />
+      </div>
     </div>
   );
 }
