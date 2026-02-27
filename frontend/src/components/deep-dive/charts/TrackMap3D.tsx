@@ -143,22 +143,31 @@ function buildVertexColors(
   return vertexColors;
 }
 
-/** Pulsing cursor sphere */
+/** Pulsing cursor sphere — matches 2D dot: blue fill, white stroke, 1s cycle, 0.8–1.2× scale */
 function CursorSphere({ position }: { position: [number, number, number] }) {
-  const meshRef = useRef<THREE.Mesh>(null);
+  const groupRef = useRef<THREE.Group>(null);
 
   useFrame(({ clock }) => {
-    if (meshRef.current) {
-      const s = 0.08 + 0.03 * Math.sin(clock.getElapsedTime() * 4);
-      meshRef.current.scale.setScalar(s / 0.08);
+    if (groupRef.current) {
+      // 1s period matching 2D SVG animate dur="1s", scale 0.8→1.2→0.8
+      const s = 1.0 + 0.2 * Math.sin(clock.getElapsedTime() * 2 * Math.PI);
+      groupRef.current.scale.setScalar(s);
     }
   });
 
   return (
-    <mesh ref={meshRef} position={position}>
-      <sphereGeometry args={[0.08, 16, 16]} />
-      <meshBasicMaterial color={colors.motorsport.optimal} />
-    </mesh>
+    <group ref={groupRef} position={position}>
+      {/* White outline sphere (equivalent to stroke="#fff" strokeWidth={1.5} in 2D) */}
+      <mesh>
+        <sphereGeometry args={[0.10, 16, 16]} />
+        <meshBasicMaterial color="#ffffff" />
+      </mesh>
+      {/* Blue inner sphere */}
+      <mesh>
+        <sphereGeometry args={[0.08, 16, 16]} />
+        <meshBasicMaterial color={colors.motorsport.optimal} />
+      </mesh>
+    </group>
   );
 }
 

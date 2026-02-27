@@ -17,7 +17,7 @@ interface TrackMapInteractiveProps {
 
 const SVG_WIDTH = 400;
 const SVG_HEIGHT = 400;
-const PADDING = 14;
+const PADDING = 12;
 
 function projectCoords(
   lat: number[],
