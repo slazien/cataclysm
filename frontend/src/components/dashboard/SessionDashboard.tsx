@@ -22,6 +22,7 @@ import { GPSQualityPanel } from './GPSQualityPanel';
 import { WeatherPanel } from './WeatherPanel';
 import { TimeGainedChart } from './TimeGainedChart';
 import { SkillRadar } from './SkillRadar';
+import { ShareButton } from './ShareButton';
 import { useUnits } from '@/hooks/useUnits';
 import { useSessionWeather } from '@/hooks/useEquipment';
 import { cn } from '@/lib/utils';
@@ -175,6 +176,7 @@ export function SessionDashboard() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <AssignEquipmentButton sessionId={sessionId} />
+          <ShareButton sessionId={sessionId} />
           {session.gps_quality_grade && (
             <GPSQualityBadge grade={session.gps_quality_grade} score={session.gps_quality_score} />
           )}
