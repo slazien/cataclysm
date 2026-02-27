@@ -132,7 +132,7 @@ RaceChrono CSV v3 → parser.py → engine.py → corners.py / delta.py → coac
 - **engine.py** — Splits parsed data into laps by `lap_number` transitions, resamples each to 0.7m distance steps via linear interpolation, computes `LapSummary` stats. Filters short laps (<80% of median distance) and anomalous laps (median ± 2*IQR on lap time).
 - **corners.py** — Detects corners from heading rate (threshold ~1.0 deg/m, smoothed over 20m window). Merges corners within 30m, discards segments <15m. Extracts per-corner KPIs: apex type (early/mid/late), min speed, brake point, peak brake g, throttle commit point.
 - **delta.py** — Computes delta-T between two resampled laps at each distance point.
-- **coaching.py** — Sends structured telemetry context to Claude API (claude-sonnet-4-6) and parses JSON coaching reports with per-corner grades and improvement suggestions.
+- **coaching.py** — Sends structured telemetry context to Claude API (claude-haiku-4-5-20251001) and parses JSON coaching reports with per-corner grades and improvement suggestions.
 - **track_db.py** — Database of known tracks with official corner positions stored as % of lap distance. Currently has Barber Motorsports Park.
 - **track_match.py** — GPS-based track auto-detection using session centroid vs known track coordinates.
 - **sectors.py** — Sector time analysis reusing gains.py segment infrastructure.
