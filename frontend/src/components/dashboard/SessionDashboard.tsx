@@ -23,6 +23,7 @@ import { WeatherPanel } from './WeatherPanel';
 import { TimeGainedChart } from './TimeGainedChart';
 import { SkillRadar } from './SkillRadar';
 import { ShareButton } from './ShareButton';
+import { ShareSessionDialog } from '@/components/comparison/ShareSessionDialog';
 import { DegradationAlerts } from './DegradationAlerts';
 import { useUnits } from '@/hooks/useUnits';
 import { useSessionWeather } from '@/hooks/useEquipment';
@@ -178,6 +179,7 @@ export function SessionDashboard() {
         <div className="flex items-center gap-3">
           <AssignEquipmentButton sessionId={sessionId} />
           <ShareButton sessionId={sessionId} />
+          <ShareSessionDialog sessionId={sessionId} />
           {session.gps_quality_grade && (
             <GPSQualityBadge grade={session.gps_quality_grade} score={session.gps_quality_score} />
           )}
