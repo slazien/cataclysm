@@ -20,8 +20,8 @@ def _make_lap(lap_num: int, speed_factor: float = 1.0) -> pd.DataFrame:
     lon = -86.6 + np.sin(distance / 500) * 0.005
     return pd.DataFrame(
         {
-            "distance_m": distance,
-            "elapsed_s": elapsed,
+            "lap_distance_m": distance,
+            "lap_time_s": elapsed,
             "speed_mps": speed,
             "lat": lat,
             "lon": lon,
