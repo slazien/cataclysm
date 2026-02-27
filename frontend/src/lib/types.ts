@@ -519,3 +519,90 @@ export interface ShareComparisonResult {
     b_min_speed_mph: number;
   }[];
 }
+
+// --- Instructor Types ---
+
+export interface StudentSummary {
+  student_id: string;
+  name: string;
+  email: string;
+  avatar_url: string | null;
+  linked_at: string | null;
+  recent_flags: string[];
+}
+
+export interface StudentListData {
+  students: StudentSummary[];
+}
+
+export interface InviteData {
+  invite_code: string;
+}
+
+export interface StudentFlag {
+  id: number;
+  flag_type: string;
+  description: string;
+  session_id: string | null;
+  auto_generated: boolean;
+  created_at: string | null;
+}
+
+export interface FlagListData {
+  flags: StudentFlag[];
+}
+
+export interface StudentSessionWithFlags {
+  session_id: string;
+  track_name: string;
+  session_date: string | null;
+  best_lap_time_s: number | null;
+  consistency_score: number | null;
+  n_laps: number | null;
+  flags: StudentFlag[];
+}
+
+export interface StudentSessionsData {
+  sessions: StudentSessionWithFlags[];
+}
+
+// --- Organization (HPDE Club) types ---
+
+export interface OrgSummary {
+  id: string;
+  name: string;
+  slug: string;
+  logo_url: string | null;
+  brand_color: string | null;
+  member_count: number;
+}
+
+export interface OrgListData {
+  organizations: OrgSummary[];
+}
+
+export interface OrgMember {
+  user_id: string;
+  name: string;
+  email: string;
+  role: string;
+  run_group: string | null;
+  joined_at: string | null;
+}
+
+export interface OrgMemberListData {
+  members: OrgMember[];
+}
+
+export interface OrgEvent {
+  id: string;
+  org_id: string;
+  name: string;
+  track_name: string;
+  event_date: string;
+  run_groups: string[] | null;
+}
+
+export interface OrgEventListData {
+  events: OrgEvent[];
+}
