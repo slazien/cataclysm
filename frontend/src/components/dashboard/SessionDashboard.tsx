@@ -21,6 +21,7 @@ import { MPS_TO_MPH } from '@/lib/constants';
 import { GPSQualityPanel } from './GPSQualityPanel';
 import { WeatherPanel } from './WeatherPanel';
 import { TimeGainedChart } from './TimeGainedChart';
+import { SkillRadar } from './SkillRadar';
 import { useUnits } from '@/hooks/useUnits';
 import { useSessionWeather } from '@/hooks/useEquipment';
 import { cn } from '@/lib/utils';
@@ -243,10 +244,15 @@ export function SessionDashboard() {
         )}
       </div>
 
-      {/* Time Gained per Corner */}
-      <ChartErrorBoundary name="Time Gained">
-        <TimeGainedChart sessionId={sessionId} />
-      </ChartErrorBoundary>
+      {/* Time Gained + Skill Radar side by side */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
+        <ChartErrorBoundary name="Time Gained">
+          <TimeGainedChart sessionId={sessionId} />
+        </ChartErrorBoundary>
+        <ChartErrorBoundary name="Skill Radar">
+          <SkillRadar sessionId={sessionId} />
+        </ChartErrorBoundary>
+      </div>
 
       {/* Lap Times Bar Chart */}
       <ChartErrorBoundary name="Lap Times">
