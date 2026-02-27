@@ -214,6 +214,7 @@ All of these must pass before committing:
   - Charts rendering with empty or undefined data
   - File upload edge cases (large files, multiple files)
 - The frontend should be beautiful and provide great UX — not just "technically working"
+- **Mobile/responsive testing**: When testing responsive layouts, use real device emulation profiles (Playwright device descriptors like `Pixel 7`, `iPhone 14`, etc.) that include proper viewport size, deviceScaleFactor, user agent, and touch event support — not just a resized desktop viewport. Test at minimum on one Android and one iOS profile. Check for: text clipping, horizontal overflow, touch target sizes (44x44px min), bottom nav overlap with content, and chart/SVG scaling.
 
 ## Deployment (Railway)
 

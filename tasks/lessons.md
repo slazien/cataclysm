@@ -50,6 +50,13 @@
 - **Anti-pattern**: "That's ambitious", "we might run out of time", "let's prioritize in case we can't finish", "stretch goal". These phrases signal a human pace mindset. Delete them from your vocabulary.
 - **Why**: User called this out directly. Claude Code with subagents can parallelize massively. A 6-feature scope that would take a human team weeks is hours of agent work.
 
+## Use Real Device Emulators for Mobile Testing
+- **When**: Testing responsive/mobile layouts with Playwright MCP or any browser automation
+- **Rule**: Use real device emulation profiles (e.g. Playwright's `devices['Pixel 7']`, `devices['iPhone 14']`) that set viewport, deviceScaleFactor, userAgent, and hasTouch — not just `page.setViewportSize()`. A resized desktop viewport misses touch events, device pixel ratio differences, and mobile browser chrome behavior.
+- **Minimum coverage**: Test on at least one Android profile and one iOS profile.
+- **Check for**: text clipping/overflow, horizontal scroll, touch targets < 44x44px, bottom nav overlapping content, chart/SVG scaling, fixed positioning issues.
+- **Why**: User explicitly requested this. A plain viewport resize misses real mobile rendering differences.
+
 ## False Brake Attribution from Overlapping Search Windows
 - **When**: Working on brake point detection or corner KPI extraction
 - **Rule**: When searching for a brake point before a corner, the search window must not extend into the previous corner's zone. Use `prev_exit_idx` parameter in `_find_brake_point` to clamp the search start. Without this, closely-spaced corners (e.g. T9→T10 at Barber, ~350m apart) will attribute the previous corner's trail braking to the next corner.
