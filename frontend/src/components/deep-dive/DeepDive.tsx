@@ -53,7 +53,7 @@ export function DeepDive() {
       </div>
 
       {/* Content */}
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {mode === 'speed' && <SpeedAnalysis />}
         {mode === 'corner' && <CornerAnalysis />}
         {mode === 'sectors' && showSectors && <MiniSectorMap />}

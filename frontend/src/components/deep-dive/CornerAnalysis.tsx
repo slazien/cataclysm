@@ -79,7 +79,7 @@ export function CornerAnalysis() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 p-3">
+    <div className="flex min-h-0 flex-col gap-3 overflow-y-auto p-3 lg:h-full lg:overflow-visible">
       {/* View mode toggle */}
       <div className="flex items-center justify-end gap-1">
         <button
@@ -120,7 +120,7 @@ export function CornerAnalysis() {
         <>
           {/* Top row: Track Map (60%) + Corner Detail Panel (40%) — grid-rows-[1fr] locks the row
               height so variable-length AI advice text doesn't cause layout shift */}
-          <div className="flex min-h-0 flex-1 flex-col gap-3 lg:grid lg:grid-cols-[60%_1fr] lg:grid-rows-[1fr]">
+          <div className="flex min-h-0 flex-col gap-3 lg:flex-1 lg:grid lg:grid-cols-[60%_1fr] lg:grid-rows-[1fr]">
             {/* Track Map */}
             <div className="min-h-[14rem] max-h-[40vh] overflow-hidden lg:min-h-0 lg:max-h-none">
               <ChartErrorBoundary name="Track Map">
@@ -136,7 +136,7 @@ export function CornerAnalysis() {
           </div>
 
           {/* Bottom row: Corner Speed Overlay (50%) + Brake Consistency (50%) */}
-          <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[1fr] gap-3 lg:grid-cols-2">
+          <div className="grid min-h-0 grid-cols-1 gap-3 lg:flex-1 lg:grid-cols-2 lg:grid-rows-[1fr]">
             {/* Corner Speed Overlay */}
             <div className="min-h-[16rem] overflow-hidden lg:min-h-0">
               <ChartErrorBoundary name="Corner Speed Overlay">

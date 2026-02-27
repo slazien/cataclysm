@@ -23,13 +23,13 @@ export function SpeedAnalysis() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3">
+    <div className="flex min-h-0 flex-col gap-3 overflow-y-auto p-3 lg:h-full">
       {showLegend && <ComparisonLegend />}
-      <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
+      <div className="flex min-h-0 flex-col gap-3 lg:flex-1 lg:flex-row">
       {/* Left column -- 65% on desktop, full width on mobile -- three stacked charts */}
-      <div className="flex w-full min-h-0 flex-col gap-3 lg:h-full lg:w-[65%]">
+      <div className="flex w-full flex-col gap-3 lg:min-h-0 lg:h-full lg:w-[65%]">
         {/* Speed Trace -- tallest */}
-        <div className="relative min-h-[16rem] flex-[2] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:min-h-0">
+        <div className="relative min-h-[16rem] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:min-h-0 lg:flex-[2]">
           <h3 className="pointer-events-none absolute left-3 top-1.5 z-10 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
             Speed Trace
           </h3>
@@ -39,7 +39,7 @@ export function SpeedAnalysis() {
         </div>
 
         {/* Delta-T */}
-        <div className="relative min-h-[16rem] flex-1 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:min-h-0">
+        <div className="relative min-h-[16rem] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:min-h-0 lg:flex-1">
           <div className="pointer-events-none absolute left-3 top-1.5 z-10">
             <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
               Delta-T
@@ -56,7 +56,7 @@ export function SpeedAnalysis() {
         </div>
 
         {/* Brake/Throttle */}
-        <div className="relative min-h-[16rem] flex-1 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:min-h-0">
+        <div className="relative min-h-[16rem] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:min-h-0 lg:flex-1">
           <h3 className="pointer-events-none absolute left-3 top-1.5 z-10 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
             Brake / Throttle
           </h3>
