@@ -28,6 +28,11 @@ import type {
   FlagListData,
   StudentSessionsData,
   StudentFlag,
+  OrgSummary,
+  OrgListData,
+  OrgMemberListData,
+  OrgEventListData,
+  OrgEvent,
 } from "./types";
 
 const API_BASE = "";
@@ -375,4 +380,97 @@ export async function createStudentFlag(
       session_id: sessionId ?? null,
     }),
   });
+}
+
+// --- Organization (HPDE Club) API ---
+
+export async function getUserOrgs() {
+  return fetchApi<OrgListData>("/api/orgs");
+}
+
+export async function getOrgBySlug(slug: string) {
+  return fetchApi<OrgSummary>(`/api/orgs/${encodeURIComponent(slug)}`);
+}
+
+export async function createOrg(
+  name: string,
+  slug: string,
+  logoUrl?: string,
+  brandColor?: string,
+) {
+  return fetchApi<OrgSummary>("/api/orgs", {
+    method: "POST",
+    body: JSON.stringify({
+      name,
+      slug,
+      logo_url: logoUrl ?? null,
+      brand_color: brandColor ?? null,
+    }),
+  });
+}
+
+export async function getOrgMembers(slug: string) {
+  return fetchApi<OrgMemberListData>(
+    `/api/orgs/${encodeURIComponent(slug)}/members`,
+  );
+}
+
+export async function addOrgMember(
+  slug: string,
+  userId: string,
+  role: string,
+  runGroup?: string,
+) {
+  return fetchApi<{ status: string }>(
+    `/api/orgs/${encodeURIComponent(slug)}/members`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        user_id: userId,
+        role,
+        run_group: runGroup ?? null,
+      }),
+    },
+  );
+}
+
+export async function removeOrgMember(slug: string, userId: string) {
+  return fetchApi<{ status: string }>(
+    `/api/orgs/${encodeURIComponent(slug)}/members/${userId}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function getOrgEvents(slug: string) {
+  return fetchApi<OrgEventListData>(
+    `/api/orgs/${encodeURIComponent(slug)}/events`,
+  );
+}
+
+export async function createOrgEvent(
+  slug: string,
+  name: string,
+  trackName: string,
+  eventDate: string,
+  runGroups?: string[],
+) {
+  return fetchApi<OrgEvent>(
+    `/api/orgs/${encodeURIComponent(slug)}/events`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        name,
+        track_name: trackName,
+        event_date: eventDate,
+        run_groups: runGroups ?? null,
+      }),
+    },
+  );
+}
+
+export async function deleteOrgEvent(slug: string, eventId: string) {
+  return fetchApi<{ status: string }>(
+    `/api/orgs/${encodeURIComponent(slug)}/events/${eventId}`,
+    { method: "DELETE" },
+  );
 }

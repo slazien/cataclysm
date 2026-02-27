@@ -565,3 +565,44 @@ export interface StudentSessionWithFlags {
 export interface StudentSessionsData {
   sessions: StudentSessionWithFlags[];
 }
+
+// --- Organization (HPDE Club) types ---
+
+export interface OrgSummary {
+  id: string;
+  name: string;
+  slug: string;
+  logo_url: string | null;
+  brand_color: string | null;
+  member_count: number;
+}
+
+export interface OrgListData {
+  organizations: OrgSummary[];
+}
+
+export interface OrgMember {
+  user_id: string;
+  name: string;
+  email: string;
+  role: string;
+  run_group: string | null;
+  joined_at: string | null;
+}
+
+export interface OrgMemberListData {
+  members: OrgMember[];
+}
+
+export interface OrgEvent {
+  id: string;
+  org_id: string;
+  name: string;
+  track_name: string;
+  event_date: string;
+  run_groups: string[] | null;
+}
+
+export interface OrgEventListData {
+  events: OrgEvent[];
+}
