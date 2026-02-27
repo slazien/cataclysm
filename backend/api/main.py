@@ -21,8 +21,10 @@ from backend.api.routers import (
     auth,
     coaching,
     equipment,
+    instructor,
     leaderboards,
     sessions,
+    sharing,
     tracks,
     trends,
     wrapped,
@@ -324,6 +326,8 @@ app.include_router(tracks.router, prefix="/api/tracks", tags=["tracks"])
 app.include_router(wrapped.router, prefix="/api/wrapped", tags=["wrapped"])
 app.include_router(achievements.router, prefix="/api/achievements", tags=["achievements"])
 app.include_router(leaderboards.router, prefix="/api/leaderboards", tags=["leaderboards"])
+app.include_router(sharing.router, prefix="/api/sharing", tags=["sharing"])
+app.include_router(instructor.router, prefix="/api/instructor", tags=["instructor"])
 
 
 # -- Health ------------------------------------------------------------------
