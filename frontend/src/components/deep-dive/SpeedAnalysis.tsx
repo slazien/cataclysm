@@ -30,7 +30,7 @@ export function SpeedAnalysis() {
       <div className="flex w-full min-h-0 flex-col gap-3 lg:h-full lg:w-[65%]">
         {/* Speed Trace -- tallest */}
         <div className="relative min-h-[16rem] flex-[2] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:min-h-0">
-          <h3 className="absolute left-3 top-2 z-10 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+          <h3 className="pointer-events-none absolute left-3 top-1.5 z-10 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
             Speed Trace
           </h3>
           <ChartErrorBoundary name="Speed Trace">
@@ -40,7 +40,7 @@ export function SpeedAnalysis() {
 
         {/* Delta-T */}
         <div className="relative min-h-[16rem] flex-1 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:min-h-0">
-          <div className="absolute left-3 top-2 z-10">
+          <div className="pointer-events-none absolute left-3 top-1.5 z-10">
             <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
               Delta-T
             </h3>
@@ -57,7 +57,7 @@ export function SpeedAnalysis() {
 
         {/* Brake/Throttle */}
         <div className="relative min-h-[16rem] flex-1 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:min-h-0">
-          <h3 className="absolute left-3 top-2 z-10 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+          <h3 className="pointer-events-none absolute left-3 top-1.5 z-10 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
             Brake / Throttle
           </h3>
           <ChartErrorBoundary name="Brake / Throttle">

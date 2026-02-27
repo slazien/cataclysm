@@ -1,7 +1,7 @@
 import type * as d3 from 'd3';
 import type { Corner } from '@/lib/types';
 
-export const CHART_MARGINS = { top: 16, right: 16, bottom: 36, left: 56 };
+export const CHART_MARGINS = { top: 28, right: 16, bottom: 40, left: 56 };
 
 /** Draw semi-transparent corner zone rectangles on a canvas context. */
 export function drawCornerZones(

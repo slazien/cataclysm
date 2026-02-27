@@ -6,7 +6,7 @@ export const colors = {
   ai: { bg: 'rgba(99, 102, 241, 0.06)', icon: '#818cf8', borderFrom: '#6366f1', borderTo: '#a855f7' },
   lap: ['#58a6ff', '#f97316', '#22c55e', '#e879f9', '#facc15', '#06b6d4', '#f87171', '#a3e635'],
   comparison: { reference: '#58a6ff', compare: '#f97316' },
-  cursor: 'rgba(255, 255, 255, 0.25)',
+  cursor: 'rgba(255, 255, 255, 0.6)',
   grid: '#1c1f27',
   axis: '#555b67',
 } as const;

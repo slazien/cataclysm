@@ -212,7 +212,7 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
 
     // Vertical cursor line
     ctx.strokeStyle = colors.cursor;
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(x, MARGINS.top);
     ctx.lineTo(x, MARGINS.top + dimensions.innerHeight);
