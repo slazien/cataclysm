@@ -70,8 +70,14 @@ function buildSectorPaths(
 ): SectorPath[] {
   if (sectors.length === 0) return [];
 
-  return sectors.map((sector) => {
-    const { x, y } = projectGps(sector.gps_points, sectors, SVG_WIDTH, SVG_HEIGHT, PADDING);
+  return sectors.map((sector, idx) => {
+    // For the last sector, append the first point of sector 0 to close the loop
+    let gpsPoints = sector.gps_points;
+    if (idx === sectors.length - 1 && sectors[0].gps_points.length > 0) {
+      gpsPoints = [...gpsPoints, sectors[0].gps_points[0]];
+    }
+
+    const { x, y } = projectGps(gpsPoints, sectors, SVG_WIDTH, SVG_HEIGHT, PADDING);
     if (x.length < 2) return { d: '', color: colors.text.muted, sectorIndex: sector.index };
 
     const points = x.map((xi, i) => `${xi},${y[i]}`);
@@ -180,6 +186,21 @@ export function MiniSectorMap() {
           preserveAspectRatio="xMidYMid meet"
           onMouseLeave={() => setTooltip(null)}
         >
+          {/* Dark outlines behind each sector for separation */}
+          {sectorPaths.map((seg) =>
+            seg.d ? (
+              <path
+                key={`outline-${seg.sectorIndex}`}
+                d={seg.d}
+                fill="none"
+                stroke="var(--bg-base, #0a0a0f)"
+                strokeWidth={7}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            ) : null,
+          )}
+          {/* Colored sector paths */}
           {sectorPaths.map((seg) =>
             seg.d ? (
               <path
