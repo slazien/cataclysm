@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useCoachStore, useSessionStore } from '@/stores';
+import { useCoachStore, useSessionStore, useUiStore } from '@/stores';
 import { useSessions } from '@/hooks/useSession';
+import { cn } from '@/lib/utils';
 import { TopBar } from '@/components/navigation/TopBar';
 import { SessionDrawer } from '@/components/navigation/SessionDrawer';
 import { ViewRouter } from '@/components/navigation/ViewRouter';
@@ -15,6 +16,7 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 export default function Home() {
   const panelOpen = useCoachStore((s) => s.panelOpen);
+  const settingsPanelOpen = useUiStore((s) => s.settingsPanelOpen);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const { data: sessionsData } = useSessions();
@@ -33,7 +35,7 @@ export default function Home() {
       <TopBar />
       <div className="flex flex-1 overflow-hidden">
         <SessionDrawer />
-        <main className="flex-1 overflow-y-auto">
+        <main className={cn("flex-1 overflow-y-auto", settingsPanelOpen && "pointer-events-none")}>
           <ViewRouter />
         </main>
         {panelOpen && <CoachPanel />}

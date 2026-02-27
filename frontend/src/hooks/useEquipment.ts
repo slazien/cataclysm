@@ -131,7 +131,7 @@ export function useTireSearch(query: string) {
       fetchApi<TireSpec[]>(
         `/api/equipment/tires/search?q=${encodeURIComponent(query)}`,
       ),
-    enabled: query.length >= 2,
+    enabled: true,
     staleTime: 60_000,
   });
 }
@@ -145,7 +145,7 @@ export function useBrakePadSearch(query: string) {
       fetchApi<BrakePadSearchResult[]>(
         `/api/equipment/brakes/search?q=${encodeURIComponent(query)}`,
       ),
-    enabled: query.length >= 2,
+    enabled: true,
     staleTime: 60_000,
   });
 }

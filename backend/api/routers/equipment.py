@@ -49,12 +49,12 @@ async def search_tires(
     q: str = "",
 ) -> list[TireSpecSchema]:
     """Search curated tire database. Returns matching tires."""
-    from cataclysm.tire_db import search_curated_tires
+    from cataclysm.tire_db import list_all_curated_tires, search_curated_tires
 
-    if not q or len(q) < 2:
-        return []
-
-    curated = search_curated_tires(q)
+    if not q:
+        curated = list_all_curated_tires()
+    else:
+        curated = search_curated_tires(q)
     return [
         TireSpecSchema(
             model=t.model,
@@ -81,12 +81,12 @@ async def search_brake_pads(
     q: str = "",
 ) -> list[BrakePadSearchResult]:
     """Search curated brake pad database. Returns matching pads."""
-    from cataclysm.brake_pad_db import search_curated_brake_pads
+    from cataclysm.brake_pad_db import list_all_curated_brake_pads, search_curated_brake_pads
 
-    if not q or len(q) < 2:
-        return []
-
-    curated = search_curated_brake_pads(q)
+    if not q:
+        curated = list_all_curated_brake_pads()
+    else:
+        curated = search_curated_brake_pads(q)
     return [
         BrakePadSearchResult(
             model=p.model,

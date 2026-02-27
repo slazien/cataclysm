@@ -355,18 +355,20 @@ async def test_tire_search(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_tire_search_short_query(client: AsyncClient) -> None:
-    """Query shorter than 2 characters returns empty list."""
+    """Single-character query still searches (no minimum length)."""
     resp = await client.get("/api/equipment/tires/search", params={"q": "R"})
     assert resp.status_code == 200
-    assert resp.json() == []
+    data = resp.json()
+    assert len(data) >= 1
 
 
 @pytest.mark.asyncio
 async def test_tire_search_empty_query(client: AsyncClient) -> None:
-    """Empty query returns empty list."""
+    """Empty query returns all curated tires."""
     resp = await client.get("/api/equipment/tires/search", params={"q": ""})
     assert resp.status_code == 200
-    assert resp.json() == []
+    data = resp.json()
+    assert len(data) >= 1
 
 
 @pytest.mark.asyncio
@@ -408,18 +410,20 @@ async def test_brake_pad_search(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_brake_pad_search_short_query(client: AsyncClient) -> None:
-    """Query shorter than 2 characters returns empty list."""
+    """Single-character query still searches (no minimum length)."""
     resp = await client.get("/api/equipment/brakes/search", params={"q": "H"})
     assert resp.status_code == 200
-    assert resp.json() == []
+    data = resp.json()
+    assert len(data) >= 1
 
 
 @pytest.mark.asyncio
 async def test_brake_pad_search_empty(client: AsyncClient) -> None:
-    """Empty query returns empty list."""
+    """Empty query returns all curated brake pads."""
     resp = await client.get("/api/equipment/brakes/search", params={"q": ""})
     assert resp.status_code == 200
-    assert resp.json() == []
+    data = resp.json()
+    assert len(data) >= 1
 
 
 @pytest.mark.asyncio
