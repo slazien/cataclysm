@@ -30,6 +30,7 @@ class CoachingReportResponse(BaseModel):
 
     session_id: str
     status: str  # "ready", "generating", "error"
+    skill_level: str = "intermediate"
     summary: str | None = None
     priority_corners: list[PriorityCornerSchema] = []
     corner_grades: list[CornerGradeSchema] = []

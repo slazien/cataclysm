@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import { useUiStore } from '@/stores';
 import { cn } from '@/lib/utils';
 import { EquipmentProfileList } from '@/components/equipment/EquipmentProfileList';
+import { updateUserProfile } from '@/lib/api';
 
 const SKILL_LEVELS = [
   { value: 'novice' as const, label: 'Novice', description: 'New to track days' },
@@ -91,7 +92,10 @@ export function SettingsPanel() {
                     name="skillLevel"
                     value={level.value}
                     checked={skillLevel === level.value}
-                    onChange={() => setSkillLevel(level.value)}
+                    onChange={() => {
+                      setSkillLevel(level.value);
+                      updateUserProfile({ skill_level: level.value }).catch(() => {});
+                    }}
                     className="sr-only"
                   />
                   <div

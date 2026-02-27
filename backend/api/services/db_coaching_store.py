@@ -54,7 +54,11 @@ async def get_coaching_report_db(
     row = result.scalar_one_or_none()
     if row is None or row.report_json is None:
         return None
-    return CoachingReportResponse.model_validate(row.report_json)
+    report = CoachingReportResponse.model_validate(row.report_json)
+    # Merge skill_level from the DB row (stored separately from report_json)
+    if row.skill_level:
+        report.skill_level = row.skill_level
+    return report
 
 
 async def upsert_coaching_context_db(

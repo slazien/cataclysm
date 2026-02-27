@@ -1,8 +1,9 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
-type SkillLevel = 'novice' | 'intermediate' | 'advanced';
-type UnitPreference = 'imperial' | 'metric';
-type ActiveView = 'dashboard' | 'deep-dive' | 'progress' | 'debrief';
+export type SkillLevel = 'novice' | 'intermediate' | 'advanced';
+export type UnitPreference = 'imperial' | 'metric';
+type ActiveView = 'session-report' | 'deep-dive' | 'progress' | 'debrief';
 
 export interface Toast {
   id: string;
@@ -29,8 +30,10 @@ interface UiState {
 
 let toastCounter = 0;
 
-export const useUiStore = create<UiState>()((set) => ({
-  activeView: 'dashboard',
+export const useUiStore = create<UiState>()(
+  persist(
+    (set) => ({
+  activeView: 'session-report',
   skillLevel: 'intermediate',
   sessionDrawerOpen: false,
   settingsPanelOpen: false,
@@ -46,4 +49,13 @@ export const useUiStore = create<UiState>()((set) => ({
     set((s) => ({ toasts: [...s.toasts, { ...toast, id }] }));
   },
   removeToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
-}));
+}),
+    {
+      name: 'cataclysm-prefs',
+      partialize: (state) => ({
+        skillLevel: state.skillLevel,
+        unitPreference: state.unitPreference,
+      }),
+    },
+  ),
+);

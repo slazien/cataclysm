@@ -176,6 +176,15 @@ export async function loadTrackFolder(folder: string, limit?: number) {
   );
 }
 
+// --- User Profile API ---
+
+export async function updateUserProfile(updates: { skill_level?: string }) {
+  return fetchApi<{ id: string; skill_level: string }>("/api/auth/me", {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
+
 // --- Coaching API ---
 
 export async function generateCoachingReport(

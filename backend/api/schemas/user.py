@@ -18,3 +18,9 @@ class UserSchema(BaseModel):
     created_at: datetime | None = None
 
     model_config = {"from_attributes": True}
+
+
+class UserUpdateSchema(BaseModel):
+    """Partial update payload for PATCH /api/auth/me."""
+
+    skill_level: str | None = None

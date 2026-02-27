@@ -217,6 +217,16 @@ async def upload_sessions(
     """Upload one or more RaceChrono CSV files and create sessions."""
     await ensure_user_exists(db, current_user)
 
+    # Look up user's skill_level for coaching generation
+    from sqlalchemy import select as sa_select
+
+    from backend.api.db.models import User as UserModel
+
+    user_row = (
+        await db.execute(sa_select(UserModel).where(UserModel.id == current_user.user_id))
+    ).scalar_one_or_none()
+    user_skill_level = user_row.skill_level if user_row else "intermediate"
+
     session_ids: list[str] = []
     errors: list[str] = []
 
@@ -266,7 +276,7 @@ async def upload_sessions(
 
                 # Auto-generate coaching report in the background
                 try:
-                    await trigger_auto_coaching(sid, sd)
+                    await trigger_auto_coaching(sid, sd, skill_level=user_skill_level)
                 except Exception:
                     logger.warning("Auto-coaching failed for %s", sid, exc_info=True)
         except Exception as exc:

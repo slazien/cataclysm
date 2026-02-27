@@ -66,7 +66,9 @@ def _track_task(task: asyncio.Task[None]) -> None:
     task.add_done_callback(_on_done)
 
 
-async def trigger_auto_coaching(session_id: str, sd: SessionData) -> None:
+async def trigger_auto_coaching(
+    session_id: str, sd: SessionData, skill_level: str = "intermediate"
+) -> None:
     """Fire-and-forget coaching generation for a newly uploaded session.
 
     Silently skips if a report already exists or is currently generating.
@@ -79,7 +81,7 @@ async def trigger_auto_coaching(session_id: str, sd: SessionData) -> None:
         return
 
     mark_generating(session_id)
-    _track_task(asyncio.create_task(_run_generation(session_id, sd, "intermediate")))
+    _track_task(asyncio.create_task(_run_generation(session_id, sd, skill_level)))
 
 
 @router.post("/{session_id}/report", response_model=CoachingReportResponse)
@@ -195,6 +197,7 @@ async def _run_generation(
         response = CoachingReportResponse(
             session_id=session_id,
             status="ready",
+            skill_level=skill_level,
             summary=report.summary,
             priority_corners=priority_corners,
             corner_grades=corner_grades,
@@ -400,7 +403,7 @@ async def coaching_chat_http(
         question,
         coaching_report,
         all_lap_corners=sd.all_lap_corners,
-        skill_level="intermediate",
+        skill_level=report_response.skill_level,
         gains=sd.gains,
         weather=sd.weather,
     )
@@ -506,7 +509,7 @@ async def coaching_chat(
                 question,
                 coaching_report,
                 all_lap_corners=sd.all_lap_corners,
-                skill_level="intermediate",
+                skill_level=report_response.skill_level,
                 gains=sd.gains,
                 weather=sd.weather,
             )
