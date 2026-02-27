@@ -16,6 +16,7 @@ from starlette.responses import Response
 
 from backend.api.config import Settings
 from backend.api.routers import (
+    achievements,
     analysis,
     auth,
     coaching,
@@ -318,6 +319,7 @@ app.include_router(equipment.router, prefix="/api/equipment", tags=["equipment"]
 app.include_router(trends.router, prefix="/api/trends", tags=["trends"])
 app.include_router(tracks.router, prefix="/api/tracks", tags=["tracks"])
 app.include_router(wrapped.router, prefix="/api/wrapped", tags=["wrapped"])
+app.include_router(achievements.router, prefix="/api/achievements", tags=["achievements"])
 
 
 # -- Health ------------------------------------------------------------------

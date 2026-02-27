@@ -15,6 +15,8 @@ import type {
   MiniSectorData,
   DegradationData,
   WrappedData,
+  AchievementListData,
+  NewAchievementsData,
 } from "./types";
 
 const API_BASE = "";
@@ -247,4 +249,14 @@ export async function getComparison(sessionId: string, otherId: string) {
 
 export async function getWrapped(year: number) {
   return fetchApi<WrappedData>(`/api/wrapped/${year}`);
+}
+
+// --- Achievements API ---
+
+export async function getAchievements() {
+  return fetchApi<AchievementListData>("/api/achievements");
+}
+
+export async function getRecentAchievements() {
+  return fetchApi<NewAchievementsData>("/api/achievements/recent");
 }

@@ -4,7 +4,19 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, LargeBinary, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -170,3 +182,38 @@ class SessionEquipmentDB(Base):
     # Relationships
     session: Mapped[Session] = relationship()
     profile: Mapped[EquipmentProfileDB] = relationship(back_populates="session_assignments")
+
+
+class AchievementDefinition(Base):
+    """A badge/achievement that can be unlocked."""
+
+    __tablename__ = "achievement_definitions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str] = mapped_column(String, nullable=False)
+    criteria_type: Mapped[str] = mapped_column(String, nullable=False)
+    criteria_value: Mapped[float] = mapped_column(Float, nullable=False)
+    tier: Mapped[str] = mapped_column(String, nullable=False)  # bronze / silver / gold
+    icon: Mapped[str] = mapped_column(String, nullable=False)
+
+
+class UserAchievement(Base):
+    """Tracks which achievements a user has unlocked."""
+
+    __tablename__ = "user_achievements"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    achievement_id: Mapped[str] = mapped_column(
+        String, ForeignKey("achievement_definitions.id", ondelete="CASCADE"), nullable=False
+    )
+    session_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    unlocked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    is_new: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    __table_args__ = (UniqueConstraint("user_id", "achievement_id"),)

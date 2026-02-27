@@ -411,6 +411,29 @@ export interface WrappedData {
   highlights: WrappedHighlight[];
 }
 
+// --- Achievement Types ---
+
+export interface Achievement {
+  id: string;
+  name: string;
+  description: string;
+  criteria_type: string;
+  criteria_value: number;
+  tier: string;
+  icon: string;
+  unlocked: boolean;
+  session_id: string | null;
+  unlocked_at: string | null;
+}
+
+export interface AchievementListData {
+  achievements: Achievement[];
+}
+
+export interface NewAchievementsData {
+  newly_unlocked: Achievement[];
+}
+
 export interface SessionEquipmentResponse {
   session_id: string;
   profile_id: string;
