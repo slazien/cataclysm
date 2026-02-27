@@ -17,7 +17,7 @@ interface TrackMapInteractiveProps {
 
 const SVG_WIDTH = 400;
 const SVG_HEIGHT = 400;
-const PADDING = 28;
+const PADDING = 14;
 
 function projectCoords(
   lat: number[],
@@ -277,7 +277,7 @@ export function TrackMapInteractive({ sessionId }: TrackMapInteractiveProps) {
   }
 
   return (
-    <div className="h-full rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-2">
+    <div className="h-full rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-1">
       <svg
         viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
         className="h-full max-h-full w-full"

@@ -15,7 +15,7 @@ interface HeroTrackMapProps {
   bestLapNumber: number;
 }
 
-const PADDING = 20;
+const PADDING = 12;
 const SVG_WIDTH = 500;
 const SVG_HEIGHT = 360;
 
@@ -259,7 +259,7 @@ export function HeroTrackMap({ sessionId, bestLapNumber }: HeroTrackMapProps) {
       <h2 className="text-sm font-medium uppercase tracking-wider text-[var(--text-muted)]">
         Track Map
       </h2>
-      <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-2">
+      <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-1">
         <svg
           viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
           className="h-auto w-full"
