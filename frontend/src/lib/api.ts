@@ -14,6 +14,7 @@ import type {
   GPSQualityReport,
   MiniSectorData,
   DegradationData,
+  WrappedData,
 } from "./types";
 
 const API_BASE = "";
@@ -240,4 +241,10 @@ export async function getComparison(sessionId: string, otherId: string) {
   return fetchApi<ComparisonResult>(
     `/api/sessions/${sessionId}/compare/${otherId}`,
   );
+}
+
+// --- Wrapped API ---
+
+export async function getWrapped(year: number) {
+  return fetchApi<WrappedData>(`/api/wrapped/${year}`);
 }

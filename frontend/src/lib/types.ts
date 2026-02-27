@@ -389,6 +389,28 @@ export interface MiniSectorData {
   lap_data: Record<string, MiniSectorLapData>;
 }
 
+export interface WrappedHighlight {
+  label: string;
+  value: string;
+  category: string;
+}
+
+export interface WrappedData {
+  year: number;
+  total_sessions: number;
+  total_laps: number;
+  total_distance_km: number;
+  tracks_visited: string[];
+  total_track_time_hours: number;
+  biggest_improvement_track: string | null;
+  biggest_improvement_s: number | null;
+  best_consistency_score: number;
+  personality: string;
+  personality_description: string;
+  top_corner_grade: string | null;
+  highlights: WrappedHighlight[];
+}
+
 export interface SessionEquipmentResponse {
   session_id: string;
   profile_id: string;

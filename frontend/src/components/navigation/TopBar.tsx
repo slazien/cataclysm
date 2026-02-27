@@ -2,13 +2,14 @@
 
 import { useRef, useState } from 'react';
 import { useSession as useAuthSession, signOut } from 'next-auth/react';
-import { Bot, Plus, Settings, ChevronRight, LogOut } from 'lucide-react';
+import { Bot, Plus, Settings, ChevronRight, LogOut, Sparkles } from 'lucide-react';
 import { useUiStore, useSessionStore, useCoachStore } from '@/stores';
 import { useSession, useUploadSessions } from '@/hooks/useSession';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { LapPillBar } from '@/components/navigation/LapPillBar';
+import { SeasonWrapped } from '@/components/wrapped/SeasonWrapped';
 
 type ActiveView = 'dashboard' | 'deep-dive' | 'progress' | 'debrief';
 
@@ -29,6 +30,7 @@ export function TopBar() {
   const togglePanel = useCoachStore((s) => s.togglePanel);
   const toggleSettingsPanel = useUiStore((s) => s.toggleSettingsPanel);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [wrappedOpen, setWrappedOpen] = useState(false);
 
   const { data: authSession } = useAuthSession();
   const { data: session } = useSession(activeSessionId);
@@ -119,6 +121,15 @@ export function TopBar() {
           <Button
             variant="ghost"
             size="icon-sm"
+            onClick={() => setWrappedOpen(true)}
+            title="Year in Review"
+            className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          >
+            <Sparkles className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={toggleSettingsPanel}
             title="Settings"
             className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -188,6 +199,7 @@ export function TopBar() {
           )}
         </div>
       )}
+      <SeasonWrapped open={wrappedOpen} onClose={() => setWrappedOpen(false)} />
     </div>
   );
 }
