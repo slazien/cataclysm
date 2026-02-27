@@ -37,7 +37,7 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
     }
   }, [data.session_a_id, data.session_b_id]);
 
-  const aFaster = data.delta_s < 0;
+  const aFaster = data.delta_s > 0;
   const deltaAbs = Math.abs(data.delta_s);
 
   return (

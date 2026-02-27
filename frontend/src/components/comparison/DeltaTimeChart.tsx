@@ -61,8 +61,8 @@ export function DeltaTimeChart({ distance_m, delta_time_s, totalDelta }: DeltaTi
 
       ctx.fillStyle =
         deltaVal > 0
-          ? 'rgba(239, 68, 68, 0.35)' // red -- session A slower
-          : 'rgba(34, 197, 94, 0.35)'; // green -- session A faster
+          ? 'rgba(34, 197, 94, 0.35)' // green -- session A gaining (B slower)
+          : 'rgba(239, 68, 68, 0.35)'; // red -- session A losing (B faster)
 
       ctx.beginPath();
       ctx.moveTo(x0, zeroY);
@@ -144,7 +144,7 @@ export function DeltaTimeChart({ distance_m, delta_time_s, totalDelta }: DeltaTi
     ctx.textAlign = 'right';
     ctx.textBaseline = 'top';
     ctx.fillStyle =
-      totalDelta > 0 ? colors.motorsport.brake : colors.motorsport.throttle;
+      totalDelta > 0 ? colors.motorsport.throttle : colors.motorsport.brake;
     ctx.fillText(totalStr, MARGINS.left + dimensions.innerWidth - 4, MARGINS.top + 4);
   }, [distance_m, delta_time_s, totalDelta, xScale, yScale, dimensions, getDataCtx]);
 
