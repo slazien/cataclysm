@@ -75,8 +75,8 @@ export function SpeedAnalysis() {
           </ChartErrorBoundary>
         </div>
 
-        {/* Corner Quick Card -- fixed size */}
-        <div className="shrink-0">
+        {/* Corner Quick Card -- fixed height to prevent track map resize on content change */}
+        <div className="h-[280px] shrink-0">
           <ChartErrorBoundary name="Corner Quick Card">
             <CornerQuickCard sessionId={sessionId} />
           </ChartErrorBoundary>

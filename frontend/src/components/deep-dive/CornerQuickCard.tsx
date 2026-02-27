@@ -120,7 +120,7 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
+    <div className="flex h-full flex-col gap-3 overflow-y-auto rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -140,27 +140,21 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
           unit={speedUnit}
           delta={minSpeedDelta}
         />
-        {corner.brake_point_m !== null && (
-          <KpiRow
-            label={<GlossaryTerm term="Brake Point">Brake Point</GlossaryTerm>}
-            value={corner.brake_point_m.toFixed(0)}
-            unit="m"
-          />
-        )}
-        {corner.peak_brake_g !== null && (
-          <KpiRow
-            label={<GlossaryTerm term="Peak Brake G">Peak Brake G</GlossaryTerm>}
-            value={corner.peak_brake_g.toFixed(2)}
-            unit="g"
-          />
-        )}
-        {corner.throttle_commit_m !== null && (
-          <KpiRow
-            label={<GlossaryTerm term="Throttle Commit">Throttle Commit</GlossaryTerm>}
-            value={corner.throttle_commit_m.toFixed(0)}
-            unit="m"
-          />
-        )}
+        <KpiRow
+          label={<GlossaryTerm term="Brake Point">Brake Point</GlossaryTerm>}
+          value={corner.brake_point_m !== null ? corner.brake_point_m.toFixed(0) : '--'}
+          unit={corner.brake_point_m !== null ? 'm' : ''}
+        />
+        <KpiRow
+          label={<GlossaryTerm term="Peak Brake G">Peak Brake G</GlossaryTerm>}
+          value={corner.peak_brake_g !== null ? corner.peak_brake_g.toFixed(2) : '--'}
+          unit={corner.peak_brake_g !== null ? 'g' : ''}
+        />
+        <KpiRow
+          label={<GlossaryTerm term="Throttle Commit">Throttle Commit</GlossaryTerm>}
+          value={corner.throttle_commit_m !== null ? corner.throttle_commit_m.toFixed(0) : '--'}
+          unit={corner.throttle_commit_m !== null ? 'm' : ''}
+        />
         <KpiRow
           label="Entry"
           value={corner.entry_distance_m.toFixed(0)}
