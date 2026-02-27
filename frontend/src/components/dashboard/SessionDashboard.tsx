@@ -23,6 +23,7 @@ import { WeatherPanel } from './WeatherPanel';
 import { TimeGainedChart } from './TimeGainedChart';
 import { SkillRadar } from './SkillRadar';
 import { ShareButton } from './ShareButton';
+import { DegradationAlerts } from './DegradationAlerts';
 import { useUnits } from '@/hooks/useUnits';
 import { useSessionWeather } from '@/hooks/useEquipment';
 import { cn } from '@/lib/utils';
@@ -233,6 +234,9 @@ export function SessionDashboard() {
           deltaLabel="vs best"
         />
       </div>
+
+      {/* Degradation alerts (conditionally rendered) */}
+      <DegradationAlerts sessionId={sessionId} />
 
       {/* Two-column middle section */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">

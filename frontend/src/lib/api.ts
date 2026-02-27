@@ -13,6 +13,7 @@ import type {
   ComparisonResult,
   GPSQualityReport,
   MiniSectorData,
+  DegradationData,
 } from "./types";
 
 const API_BASE = "";
@@ -199,6 +200,14 @@ export async function getMiniSectors(sessionId: string, nSectors: number = 20, l
   if (lap !== undefined) params.set('lap', lap.toString());
   return fetchApi<MiniSectorData>(
     `/api/sessions/${sessionId}/mini-sectors?${params}`,
+  );
+}
+
+// --- Degradation API ---
+
+export async function getDegradation(sessionId: string) {
+  return fetchApi<DegradationData>(
+    `/api/sessions/${sessionId}/degradation`,
   );
 }
 

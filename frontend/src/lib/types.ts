@@ -342,6 +342,28 @@ export interface GPSQualityReport {
   metric_weights: Record<string, number>;
 }
 
+// --- Degradation Types ---
+
+export interface DegradationEvent {
+  corner_number: number;
+  metric: string; // "brake_fade" | "tire_degradation"
+  start_lap: number;
+  end_lap: number;
+  slope: number;
+  r_squared: number;
+  severity: string; // "mild" | "moderate" | "severe"
+  description: string;
+  values: number[];
+  lap_numbers: number[];
+}
+
+export interface DegradationData {
+  session_id: string;
+  events: DegradationEvent[];
+  has_brake_fade: boolean;
+  has_tire_degradation: boolean;
+}
+
 // --- Mini-Sector Types ---
 
 export interface MiniSector {
