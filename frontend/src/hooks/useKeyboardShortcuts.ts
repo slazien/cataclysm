@@ -38,7 +38,7 @@ export function useKeyboardShortcuts() {
       switch (e.key) {
         case '1':
           e.preventDefault();
-          setActiveView('dashboard');
+          setActiveView('session-report');
           break;
         case '2':
           e.preventDefault();

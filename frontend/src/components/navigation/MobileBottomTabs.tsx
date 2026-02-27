@@ -1,13 +1,13 @@
 'use client';
 
-import { LayoutDashboard, Search, TrendingUp, Bot, Timer } from 'lucide-react';
-import { useUiStore, useCoachStore } from '@/stores';
+import { FileText, Search, TrendingUp, Timer } from 'lucide-react';
+import { useUiStore } from '@/stores';
 import { cn } from '@/lib/utils';
 
-type ActiveView = 'dashboard' | 'deep-dive' | 'progress' | 'debrief';
+type ActiveView = 'session-report' | 'deep-dive' | 'progress' | 'debrief';
 
-const NAV_ITEMS: { icon: typeof LayoutDashboard; label: string; view: ActiveView }[] = [
-  { icon: LayoutDashboard, label: 'Dashboard', view: 'dashboard' },
+const NAV_ITEMS: { icon: typeof FileText; label: string; view: ActiveView }[] = [
+  { icon: FileText, label: 'Report', view: 'session-report' },
   { icon: Search, label: 'Dive', view: 'deep-dive' },
   { icon: TrendingUp, label: 'Progress', view: 'progress' },
   { icon: Timer, label: 'Debrief', view: 'debrief' },
@@ -16,8 +16,6 @@ const NAV_ITEMS: { icon: typeof LayoutDashboard; label: string; view: ActiveView
 export function MobileBottomTabs() {
   const activeView = useUiStore((s) => s.activeView);
   const setActiveView = useUiStore((s) => s.setActiveView);
-  const panelOpen = useCoachStore((s) => s.panelOpen);
-  const togglePanel = useCoachStore((s) => s.togglePanel);
 
   return (
     <div className="flex h-14 shrink-0 items-center border-t border-[var(--cata-border)] bg-[var(--bg-surface)] lg:hidden">
@@ -41,19 +39,6 @@ export function MobileBottomTabs() {
           </button>
         );
       })}
-      <button
-        type="button"
-        onClick={togglePanel}
-        className={cn(
-          'flex flex-1 flex-col items-center justify-center gap-0.5 transition-colors',
-          panelOpen
-            ? 'text-[var(--cata-accent)]'
-            : 'text-[var(--text-muted)] active:text-[var(--text-secondary)]',
-        )}
-      >
-        <Bot className="h-5 w-5" />
-        <span className="text-[10px] font-medium">Coach</span>
-      </button>
     </div>
   );
 }

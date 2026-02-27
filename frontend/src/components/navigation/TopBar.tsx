@@ -2,8 +2,8 @@
 
 import { useRef, useState } from 'react';
 import { useSession as useAuthSession, signOut } from 'next-auth/react';
-import { Bot, Plus, Settings, ChevronRight, LogOut, Sparkles, Award } from 'lucide-react';
-import { useUiStore, useSessionStore, useCoachStore } from '@/stores';
+import { FileText, Plus, Settings, ChevronRight, LogOut, Sparkles, Award } from 'lucide-react';
+import { useUiStore, useSessionStore } from '@/stores';
 import { useSession, useUploadSessions } from '@/hooks/useSession';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -12,10 +12,10 @@ import { LapPillBar } from '@/components/navigation/LapPillBar';
 import { SeasonWrapped } from '@/components/wrapped/SeasonWrapped';
 import { BadgeGrid } from '@/components/achievements/BadgeGrid';
 
-type ActiveView = 'dashboard' | 'deep-dive' | 'progress' | 'debrief';
+type ActiveView = 'session-report' | 'deep-dive' | 'progress' | 'debrief';
 
 const VIEW_TABS: { value: ActiveView; label: string }[] = [
-  { value: 'dashboard', label: 'Dashboard' },
+  { value: 'session-report', label: 'Report' },
   { value: 'deep-dive', label: 'Deep Dive' },
   { value: 'progress', label: 'Progress' },
   { value: 'debrief', label: 'Debrief' },
@@ -27,8 +27,6 @@ export function TopBar() {
   const toggleSessionDrawer = useUiStore((s) => s.toggleSessionDrawer);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
-  const panelOpen = useCoachStore((s) => s.panelOpen);
-  const togglePanel = useCoachStore((s) => s.togglePanel);
   const toggleSettingsPanel = useUiStore((s) => s.toggleSettingsPanel);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [wrappedOpen, setWrappedOpen] = useState(false);
@@ -108,18 +106,6 @@ export function TopBar() {
             className="hidden"
             onChange={handleFileChange}
           />
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={togglePanel}
-            title="Toggle AI Coach"
-            className={cn(
-              'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-              panelOpen && 'bg-[var(--cata-accent)]/15 text-[var(--cata-accent)]',
-            )}
-          >
-            <Bot className="h-4 w-4" />
-          </Button>
           <Button
             variant="ghost"
             size="icon-sm"
@@ -203,7 +189,7 @@ export function TopBar() {
           </button>
 
           {/* Right: Lap pills (deep-dive only) */}
-          {activeView === 'deep-dive' && (
+          {(activeView === 'session-report' || activeView === 'deep-dive') && (
             <div className="ml-auto">
               <LapPillBar />
             </div>

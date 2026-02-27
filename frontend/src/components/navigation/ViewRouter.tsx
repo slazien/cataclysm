@@ -30,7 +30,8 @@ export function ViewRouter() {
   // key={activeSessionId} forces remount of ErrorBoundary + children on session switch,
   // clearing any caught error state and giving components fresh renders
   switch (activeView) {
-    case 'dashboard':
+    case 'session-report':
+      // SessionReport component will replace SessionDashboard in Phase 2B
       return (
         <ViewErrorBoundary key={activeSessionId}>
           <SessionDashboard />
