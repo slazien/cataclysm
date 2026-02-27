@@ -65,7 +65,8 @@ async def update_me(
         if body.skill_level not in _VALID_SKILL_LEVELS:
             raise HTTPException(
                 status_code=422,
-                detail=f"Invalid skill_level. Must be one of: {', '.join(sorted(_VALID_SKILL_LEVELS))}",
+                detail="Invalid skill_level. Must be one of: "
+                f"{', '.join(sorted(_VALID_SKILL_LEVELS))}",
             )
         user.skill_level = body.skill_level
 
