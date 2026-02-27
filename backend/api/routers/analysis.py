@@ -355,7 +355,7 @@ async def get_mini_sectors(
 
     sd = _get_session_or_404(session_id)
     resampled_laps = sd.processed.resampled_laps
-    clean_laps = sd.processed.clean_lap_numbers
+    clean_laps = sd.coaching_laps
     best_lap = sd.processed.best_lap
 
     analysis = await asyncio.to_thread(
