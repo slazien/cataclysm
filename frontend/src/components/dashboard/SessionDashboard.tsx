@@ -20,6 +20,7 @@ import { formatLapTime, normalizeScore, parseSessionDate } from '@/lib/formatter
 import { MPS_TO_MPH } from '@/lib/constants';
 import { GPSQualityPanel } from './GPSQualityPanel';
 import { WeatherPanel } from './WeatherPanel';
+import { TimeGainedChart } from './TimeGainedChart';
 import { useUnits } from '@/hooks/useUnits';
 import { useSessionWeather } from '@/hooks/useEquipment';
 import { cn } from '@/lib/utils';
@@ -241,6 +242,11 @@ export function SessionDashboard() {
           </ChartErrorBoundary>
         )}
       </div>
+
+      {/* Time Gained per Corner */}
+      <ChartErrorBoundary name="Time Gained">
+        <TimeGainedChart sessionId={sessionId} />
+      </ChartErrorBoundary>
 
       {/* Lap Times Bar Chart */}
       <ChartErrorBoundary name="Lap Times">
