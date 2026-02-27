@@ -49,7 +49,7 @@ def compute_mini_sectors(
 
     Parameters
     ----------
-    resampled_laps : dict mapping lap_number → DataFrame with distance_m, elapsed_s, lat, lon
+    resampled_laps : dict mapping lap_number → DataFrame with lap_distance_m, lap_time_s, lat, lon
     clean_laps : list of valid lap numbers to analyze
     best_lap : overall best lap number (for GPS extraction)
     n_sectors : number of equal sectors
@@ -68,7 +68,7 @@ def compute_mini_sectors(
         )
 
     ref_df = resampled_laps[best_lap]
-    track_length = float(ref_df["distance_m"].iloc[-1])
+    track_length = float(ref_df["lap_distance_m"].iloc[-1])
     if track_length <= 0:
         return MiniSectorAnalysis(
             sectors=[],
@@ -86,7 +86,7 @@ def compute_mini_sectors(
     for i in range(n_sectors):
         entry = boundaries[i]
         exit_ = boundaries[i + 1]
-        mask = (ref_df["distance_m"] >= entry) & (ref_df["distance_m"] <= exit_)
+        mask = (ref_df["lap_distance_m"] >= entry) & (ref_df["lap_distance_m"] <= exit_)
         sector_df = ref_df[mask]
         gps_points: list[tuple[float, float]] = []
         if "lat" in sector_df.columns and "lon" in sector_df.columns:
@@ -111,8 +111,8 @@ def compute_mini_sectors(
         if lap_num not in resampled_laps:
             continue
         df = resampled_laps[lap_num]
-        dist = df["distance_m"].to_numpy()
-        time = df["elapsed_s"].to_numpy()
+        dist = df["lap_distance_m"].to_numpy()
+        time = df["lap_time_s"].to_numpy()
 
         # Interpolate time at each boundary
         boundary_times = np.interp(boundaries, dist, time)
