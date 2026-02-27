@@ -218,9 +218,7 @@ async def get_user_achievements(db: AsyncSession, user_id: str) -> list[dict[str
     defn_result = await db.execute(select(AchievementDefinition))
     definitions: list[AchievementDefinition] = list(defn_result.scalars().all())
 
-    ua_result = await db.execute(
-        select(UserAchievement).where(UserAchievement.user_id == user_id)
-    )
+    ua_result = await db.execute(select(UserAchievement).where(UserAchievement.user_id == user_id))
     unlocked_map: dict[str, UserAchievement] = {
         ua.achievement_id: ua for ua in ua_result.scalars().all()
     }
