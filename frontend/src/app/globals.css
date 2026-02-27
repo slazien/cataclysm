@@ -155,3 +155,47 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* --- Replay scrubber slider --- */
+.replay-scrubber {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(
+    to right,
+    var(--cata-accent, #3b82f6) 0%,
+    var(--cata-accent, #3b82f6) var(--progress, 0%),
+    var(--bg-elevated, #1c1f27) var(--progress, 0%),
+    var(--bg-elevated, #1c1f27) 100%
+  );
+  outline: none;
+}
+
+.replay-scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid var(--cata-accent, #3b82f6);
+  cursor: pointer;
+  box-shadow: 0 0 4px rgba(59, 130, 246, 0.4);
+}
+
+.replay-scrubber::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid var(--cata-accent, #3b82f6);
+  cursor: pointer;
+  box-shadow: 0 0 4px rgba(59, 130, 246, 0.4);
+}
+
+.replay-scrubber::-moz-range-progress {
+  background: var(--cata-accent, #3b82f6);
+  border-radius: 3px;
+  height: 6px;
+}
