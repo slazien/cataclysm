@@ -36,15 +36,15 @@ export function MetricCard({
   return (
     <div
       className={cn(
-        'rounded-lg border px-3 py-2 transition-colors',
+        'overflow-hidden rounded-lg border px-3 py-2 transition-colors',
         highlightStyles[highlight],
         className,
       )}
     >
-      <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+      <p className="truncate text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
         {label}
       </p>
-      <p className="mt-0.5 text-lg font-semibold tabular-nums text-[var(--text-primary)]">
+      <p className="mt-0.5 truncate text-base font-semibold tabular-nums text-[var(--text-primary)] sm:text-lg">
         {value}
       </p>
       {(delta !== undefined || subtitle || deltaLabel) && (

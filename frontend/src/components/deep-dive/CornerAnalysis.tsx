@@ -120,15 +120,15 @@ export function CornerAnalysis() {
         <>
           {/* Top row: Track Map (60%) + Corner Detail Panel (40%) — grid-rows-[1fr] locks the row
               height so variable-length AI advice text doesn't cause layout shift */}
-          <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[1fr] gap-3 lg:grid-cols-[60%_1fr]">
+          <div className="flex min-h-0 flex-1 flex-col gap-3 lg:grid lg:grid-cols-[60%_1fr] lg:grid-rows-[1fr]">
             {/* Track Map */}
-            <div className="min-h-[16rem] overflow-hidden lg:min-h-0">
+            <div className="min-h-[14rem] max-h-[40vh] overflow-hidden lg:min-h-0 lg:max-h-none">
               <ChartErrorBoundary name="Track Map">
                 <TrackMapContainer sessionId={sessionId} />
               </ChartErrorBoundary>
             </div>
             {/* Corner Detail Panel — overflow-hidden so content never shifts the grid */}
-            <div className="min-h-0 overflow-hidden">
+            <div className="min-h-[12rem] flex-1 overflow-y-auto lg:min-h-0 lg:overflow-hidden">
               <ChartErrorBoundary name="Corner Detail">
                 <CornerDetailPanel sessionId={sessionId} />
               </ChartErrorBoundary>

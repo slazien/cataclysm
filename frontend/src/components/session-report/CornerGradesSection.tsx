@@ -27,13 +27,13 @@ export function CornerGradesSection({ grades, isNovice }: CornerGradesSectionPro
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--cata-border)] bg-[var(--bg-surface)]">
-              <th className="px-3 py-2 text-left font-medium text-[var(--text-muted)]">Corner</th>
-              <th className="px-3 py-2 text-center font-medium text-[var(--text-muted)]">Braking</th>
-              <th className="px-3 py-2 text-center font-medium text-[var(--text-muted)]">Trail Braking</th>
-              <th className="px-3 py-2 text-center font-medium text-[var(--text-muted)]">Min Speed</th>
-              <th className="px-3 py-2 text-center font-medium text-[var(--text-muted)]">Throttle</th>
+              <th className="px-2 py-1.5 text-left font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">Corner</th>
+              <th className="px-2 py-1.5 text-center font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">Braking</th>
+              <th className="px-2 py-1.5 text-center font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">Trail Braking</th>
+              <th className="px-2 py-1.5 text-center font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">Min Speed</th>
+              <th className="px-2 py-1.5 text-center font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">Throttle</th>
               {!isNovice && (
-                <th className="px-3 py-2 text-left font-medium text-[var(--text-muted)]">Notes</th>
+                <th className="hidden px-2 py-1.5 text-left font-medium text-[var(--text-muted)] lg:table-cell lg:px-3 lg:py-2">Notes</th>
               )}
             </tr>
           </thead>
@@ -44,13 +44,13 @@ export function CornerGradesSection({ grades, isNovice }: CornerGradesSectionPro
                 onClick={() => handleCornerClick(g.corner)}
                 className="cursor-pointer border-b border-[var(--cata-border)] transition-colors last:border-0 hover:bg-[var(--bg-elevated)]"
               >
-                <td className="px-3 py-2 font-medium text-[var(--text-primary)]">T{g.corner}</td>
-                <td className="px-3 py-2 text-center"><GradeChip grade={g.braking} /></td>
-                <td className="px-3 py-2 text-center"><GradeChip grade={g.trail_braking} /></td>
-                <td className="px-3 py-2 text-center"><GradeChip grade={g.min_speed} /></td>
-                <td className="px-3 py-2 text-center"><GradeChip grade={g.throttle} /></td>
+                <td className="px-2 py-1.5 font-medium text-[var(--text-primary)] lg:px-3 lg:py-2">T{g.corner}</td>
+                <td className="px-2 py-1.5 text-center lg:px-3 lg:py-2"><GradeChip grade={g.braking} /></td>
+                <td className="px-2 py-1.5 text-center lg:px-3 lg:py-2"><GradeChip grade={g.trail_braking} /></td>
+                <td className="px-2 py-1.5 text-center lg:px-3 lg:py-2"><GradeChip grade={g.min_speed} /></td>
+                <td className="px-2 py-1.5 text-center lg:px-3 lg:py-2"><GradeChip grade={g.throttle} /></td>
                 {!isNovice && (
-                  <td className="px-3 py-2 text-xs text-[var(--text-muted)]">{g.notes}</td>
+                  <td className="hidden px-2 py-1.5 text-xs text-[var(--text-muted)] lg:table-cell lg:px-3 lg:py-2">{g.notes}</td>
                 )}
               </tr>
             ))}

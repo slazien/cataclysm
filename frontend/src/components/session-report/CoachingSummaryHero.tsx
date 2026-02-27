@@ -11,7 +11,7 @@ export function CoachingSummaryHero({ report }: CoachingSummaryHeroProps) {
   const summary = report?.summary;
 
   return (
-    <div className="rounded-xl border border-[var(--cata-accent)]/30 bg-gradient-to-r from-[var(--cata-accent)]/5 to-transparent p-5">
+    <div className="overflow-hidden rounded-xl border border-[var(--cata-accent)]/30 bg-gradient-to-r from-[var(--cata-accent)]/5 to-transparent p-5">
       <div className="mb-2 flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-[var(--cata-accent)]" />
         <span className="text-xs font-semibold uppercase tracking-wider text-[var(--cata-accent)]">

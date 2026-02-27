@@ -111,7 +111,7 @@ export function TopBar() {
             size="icon-sm"
             onClick={() => setWrappedOpen(true)}
             title="Year in Review"
-            className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            className="hidden text-[var(--text-secondary)] hover:text-[var(--text-primary)] sm:flex"
           >
             <Sparkles className="h-4 w-4" />
           </Button>
@@ -120,7 +120,7 @@ export function TopBar() {
             size="icon-sm"
             onClick={() => setBadgesOpen(true)}
             title="Achievements"
-            className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            className="hidden text-[var(--text-secondary)] hover:text-[var(--text-primary)] sm:flex"
           >
             <Award className="h-4 w-4" />
           </Button>
@@ -183,9 +183,9 @@ export function TopBar() {
             onClick={toggleSessionDrawer}
             className="flex items-center gap-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
           >
-            <span className="font-medium">{session?.track_name ?? 'Loading...'}</span>
+            <span className="max-w-[120px] truncate font-medium sm:max-w-none">{session?.track_name ?? 'Loading...'}</span>
             <ChevronRight className="h-3 w-3 text-[var(--text-muted)]" />
-            <span className="text-[var(--text-muted)]">{session?.session_date ?? ''}</span>
+            <span className="hidden text-[var(--text-muted)] sm:inline">{session?.session_date ?? ''}</span>
           </button>
 
           {/* Right: Lap pills (deep-dive only) */}

@@ -44,7 +44,7 @@ export default function Home() {
       <TopBar />
       <div className="flex flex-1 overflow-hidden">
         <SessionDrawer />
-        <main className={cn("flex-1 overflow-y-auto", settingsPanelOpen && "pointer-events-none")}>
+        <main className={cn("flex-1 overflow-x-hidden overflow-y-auto", settingsPanelOpen && "pointer-events-none")}>
           <ViewRouter />
         </main>
       </div>

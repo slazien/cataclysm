@@ -20,7 +20,7 @@ export function FloatingChatButton() {
       type="button"
       onClick={togglePanel}
       className={cn(
-        'fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all hover:scale-105 active:scale-95',
+        'fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all hover:scale-105 active:scale-95',
         'bg-gradient-to-br from-[var(--cata-accent)] to-[var(--cata-accent)]/80 text-white',
         'lg:bottom-8 lg:right-8',
       )}

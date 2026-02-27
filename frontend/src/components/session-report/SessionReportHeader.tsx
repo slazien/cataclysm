@@ -15,7 +15,7 @@ export function SessionReportHeader({ session, gpsQuality }: SessionReportHeader
     : 'text-[var(--text-muted)]';
 
   return (
-    <div className="flex items-center gap-5">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
       {/* Score circle */}
       <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-4 border-[var(--cata-border)] bg-[var(--bg-elevated)]">
         <span className={`text-2xl font-bold ${scoreColor}`}>
@@ -35,7 +35,7 @@ export function SessionReportHeader({ session, gpsQuality }: SessionReportHeader
       </div>
 
       {/* Badges */}
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
         {gpsQuality && (
           <span className="rounded-full bg-[var(--bg-elevated)] px-2.5 py-0.5 text-xs font-medium text-[var(--text-secondary)]">
             GPS {gpsQuality.grade}
