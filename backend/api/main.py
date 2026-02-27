@@ -68,9 +68,11 @@ async def _reload_sessions_from_db() -> int:
 
                     # Restore immutable data (weather, GPS centroid, etc.) from DB
                     sess_meta = sess_rows.get(sid) or sess_rows.get(row.session_id)
-                    if sess_meta and sess_meta.snapshot_json:
-                        sd = get_session(sid)
-                        if sd is not None:
+                    sd = get_session(sid)
+                    if sd is not None and sess_meta:
+                        # Tag session with owner for access control
+                        sd.user_id = sess_meta.user_id
+                        if sess_meta.snapshot_json:
                             weather = restore_weather_from_snapshot(sess_meta.snapshot_json)
                             if weather is not None:
                                 sd.weather = weather
@@ -136,6 +138,7 @@ async def _reload_sessions_from_disk() -> int:
                 sid = str(result["session_id"])
                 sd = get_session(sid)
                 if sd is not None:
+                    sd.user_id = dev_user_id
                     snap = sd.snapshot
                     date_val = (
                         _parse_session_date(snap.metadata.session_date)

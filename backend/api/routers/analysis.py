@@ -51,9 +51,9 @@ def _corner_to_schema(c: Any) -> CornerSchema:
     )
 
 
-def _get_session_or_404(session_id: str) -> Any:
-    """Retrieve session data or raise 404."""
-    sd = session_store.get_session(session_id)
+def _get_session_or_404(session_id: str, user_id: str) -> Any:
+    """Retrieve session data or raise 404. Enforces ownership."""
+    sd = session_store.get_session_for_user(session_id, user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
     return sd
@@ -65,7 +65,7 @@ async def get_corners(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
 ) -> CornerResponse:
     """Return corners detected on the best lap."""
-    sd = _get_session_or_404(session_id)
+    sd = _get_session_or_404(session_id, current_user.user_id)
     return CornerResponse(
         session_id=session_id,
         lap_number=sd.processed.best_lap,
@@ -82,7 +82,7 @@ async def get_all_laps_corners(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
 ) -> AllLapsCornerResponse:
     """Corner KPIs for every lap in the session."""
-    sd = _get_session_or_404(session_id)
+    sd = _get_session_or_404(session_id, current_user.user_id)
     laps: dict[str, list[CornerSchema]] = {
         str(lap_num): [_corner_to_schema(c) for c in corners]
         for lap_num, corners in sd.all_lap_corners.items()
@@ -96,7 +96,7 @@ async def get_consistency(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
 ) -> ConsistencyResponse:
     """Compute session consistency metrics."""
-    sd = _get_session_or_404(session_id)
+    sd = _get_session_or_404(session_id, current_user.user_id)
     if sd.consistency is None:
         raise HTTPException(
             status_code=404,
@@ -112,7 +112,7 @@ async def get_grip(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
 ) -> GripResponse:
     """Estimate grip limits from multi-lap telemetry."""
-    sd = _get_session_or_404(session_id)
+    sd = _get_session_or_404(session_id, current_user.user_id)
     if sd.grip is None:
         raise HTTPException(
             status_code=404,
@@ -128,7 +128,7 @@ async def get_gps_quality(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
 ) -> GPSQualityResponse:
     """Return GPS quality assessment for a session."""
-    sd = _get_session_or_404(session_id)
+    sd = _get_session_or_404(session_id, current_user.user_id)
     if sd.gps_quality is None:
         raise HTTPException(
             status_code=404,
@@ -144,7 +144,7 @@ async def get_gains(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
 ) -> GainsResponse:
     """Compute three-tier gain estimates (consistency, composite, theoretical)."""
-    sd = _get_session_or_404(session_id)
+    sd = _get_session_or_404(session_id, current_user.user_id)
     if sd.gains is None:
         raise HTTPException(
             status_code=404,
@@ -160,7 +160,7 @@ async def get_ideal_lap(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
 ) -> IdealLapResponse:
     """Reconstruct ideal lap from best segments across all clean laps."""
-    sd = _get_session_or_404(session_id)
+    sd = _get_session_or_404(session_id, current_user.user_id)
     if len(sd.coaching_laps) < 2:
         raise HTTPException(
             status_code=422,
@@ -186,7 +186,7 @@ async def get_optimal_profile(
     velocity solver.  If equipment is assigned to the session, the tire grip
     parameters are used; otherwise default vehicle parameters apply.
     """
-    sd = _get_session_or_404(session_id)
+    sd = _get_session_or_404(session_id, current_user.user_id)
     result = await get_optimal_profile_data(sd)
     vp = result["vehicle_params"]
     assert isinstance(vp, dict)
@@ -211,7 +211,7 @@ async def get_delta(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
 ) -> DeltaResponse:
     """Compute delta-T between two laps at each distance point."""
-    sd = _get_session_or_404(session_id)
+    sd = _get_session_or_404(session_id, current_user.user_id)
 
     resampled = sd.processed.resampled_laps
     if ref not in resampled:
@@ -248,7 +248,7 @@ async def get_linked_chart_data(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
 ) -> LinkedChartResponse:
     """Bundle telemetry data for synchronized linked charts."""
-    sd = _get_session_or_404(session_id)
+    sd = _get_session_or_404(session_id, current_user.user_id)
     resampled = sd.processed.resampled_laps
 
     # Validate requested laps exist
@@ -290,7 +290,7 @@ async def get_sectors(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
 ) -> SectorResponse:
     """Compute per-lap sector splits with personal bests and composite time."""
-    sd = _get_session_or_404(session_id)
+    sd = _get_session_or_404(session_id, current_user.user_id)
     if len(sd.coaching_laps) < 1:
         raise HTTPException(
             status_code=422,
@@ -353,7 +353,7 @@ async def get_mini_sectors(
     """Return equal-distance mini-sector analysis with per-lap timing."""
     from cataclysm.mini_sectors import compute_mini_sectors
 
-    sd = _get_session_or_404(session_id)
+    sd = _get_session_or_404(session_id, current_user.user_id)
     resampled_laps = sd.processed.resampled_laps
     clean_laps = sd.coaching_laps
     best_lap = sd.processed.best_lap
@@ -402,7 +402,7 @@ async def get_degradation(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
 ) -> DegradationResponse:
     """Detect brake fade and tire degradation across the session."""
-    sd = _get_session_or_404(session_id)
+    sd = _get_session_or_404(session_id, current_user.user_id)
 
     from cataclysm.degradation import detect_degradation
 

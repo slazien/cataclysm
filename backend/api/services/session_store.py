@@ -43,6 +43,7 @@ class SessionData:
     weather: SessionConditions | None = None
     coaching_laps: list[int] = field(default_factory=list)
     anomalous_laps: set[int] = field(default_factory=set)
+    user_id: str | None = None
 
 
 # Module-level in-memory store
@@ -72,6 +73,23 @@ def get_session(session_id: str) -> SessionData | None:
             len(_store),
         )
     return result
+
+
+def get_session_for_user(session_id: str, user_id: str) -> SessionData | None:
+    """Retrieve a session by ID, returning None if not found or not owned by user.
+
+    During dev-auth-bypass (user_id="dev-user"), ownership is not enforced
+    so that QA testing works without real users.
+    """
+    sd = _store.get(session_id)
+    if sd is None:
+        return None
+    # Skip ownership check for dev users or sessions without user_id set
+    if user_id == "dev-user" or sd.user_id is None:
+        return sd
+    if sd.user_id != user_id:
+        return None
+    return sd
 
 
 def delete_session(session_id: str) -> bool:

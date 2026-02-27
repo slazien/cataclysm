@@ -47,6 +47,24 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Track background coaching tasks to prevent GC collection and enable error logging
+_background_tasks: set[asyncio.Task[None]] = set()
+
+
+def _track_task(task: asyncio.Task[None]) -> None:
+    """Add a background task to the tracked set with a done callback for cleanup."""
+    _background_tasks.add(task)
+
+    def _on_done(t: asyncio.Task[None]) -> None:
+        _background_tasks.discard(t)
+        if t.cancelled():
+            return
+        exc = t.exception()
+        if exc is not None:
+            logger.error("Background coaching task failed: %s", exc, exc_info=exc)
+
+    task.add_done_callback(_on_done)
+
 
 async def trigger_auto_coaching(session_id: str, sd: SessionData) -> None:
     """Fire-and-forget coaching generation for a newly uploaded session.
@@ -61,7 +79,7 @@ async def trigger_auto_coaching(session_id: str, sd: SessionData) -> None:
         return
 
     mark_generating(session_id)
-    asyncio.create_task(_run_generation(session_id, sd, "intermediate"))
+    _track_task(asyncio.create_task(_run_generation(session_id, sd, "intermediate")))
 
 
 @router.post("/{session_id}/report", response_model=CoachingReportResponse)
@@ -75,7 +93,7 @@ async def generate_report(
     Returns immediately with status="generating". The report is built in a
     background task; poll GET /{session_id}/report until status is "ready".
     """
-    sd = session_store.get_session(session_id)
+    sd = session_store.get_session_for_user(session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
@@ -93,8 +111,8 @@ async def generate_report(
 
     mark_generating(session_id)
 
-    # Fire-and-forget background task
-    asyncio.create_task(_run_generation(session_id, sd, body.skill_level))
+    # Background task with tracking to prevent GC collection
+    _track_task(asyncio.create_task(_run_generation(session_id, sd, body.skill_level)))
 
     return CoachingReportResponse(session_id=session_id, status="generating")
 
@@ -211,6 +229,11 @@ async def get_report(
     Returns the stored report, a "generating" status if in progress,
     or 404 if no report has been generated or requested.
     """
+    # Verify session ownership before returning coaching data
+    sd = session_store.get_session_for_user(session_id, current_user.user_id)
+    if sd is None:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
     report = await get_coaching_report(session_id)
     if report is not None:
         return report
@@ -290,7 +313,7 @@ async def download_pdf_report(
 
     Requires both a processed session and a completed coaching report.
     """
-    sd = session_store.get_session(session_id)
+    sd = session_store.get_session_for_user(session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
@@ -323,7 +346,7 @@ async def coaching_chat_http(
     This replaces the WebSocket endpoint for environments where WebSocket
     proxying is not available (e.g. Next.js rewrites).
     """
-    sd = session_store.get_session(session_id)
+    sd = session_store.get_session_for_user(session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 

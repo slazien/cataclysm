@@ -378,8 +378,8 @@ async def set_session_equipment(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
 ) -> SessionEquipmentResponse:
     """Assign an equipment profile to a session."""
-    # Validate session exists
-    sd = session_store.get_session(session_id)
+    # Validate session exists and ownership
+    sd = session_store.get_session_for_user(session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 

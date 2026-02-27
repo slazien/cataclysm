@@ -216,3 +216,6 @@ __marimo__/
 
 # Coaching report cache (auto-generated on upload)
 data/coaching/
+
+# OAuth credentials (NEVER commit these)
+client_secret*.json
