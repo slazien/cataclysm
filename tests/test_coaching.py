@@ -290,6 +290,7 @@ class TestBuildCoachingPrompt:
 
 
 class TestGenerateCoachingReport:
+    @pytest.mark.slow
     def test_no_api_key_returns_message(
         self,
         sample_summaries: list[LapSummary],

@@ -181,6 +181,7 @@ class TestClassifySegments:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 class TestSegmentPelt:
     """Tests for PELT-based segmentation."""
 

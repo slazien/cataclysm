@@ -9,6 +9,8 @@ from cataclysm.coaching import CoachingReport, CornerGrade
 from cataclysm.engine import LapSummary
 from cataclysm.pdf_report import ReportContent, _fig_to_png_bytes, generate_pdf
 
+pytestmark = pytest.mark.slow
+
 
 @pytest.fixture
 def sample_report() -> CoachingReport:

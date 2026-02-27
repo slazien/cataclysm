@@ -80,6 +80,9 @@ disable_error_code = ["import-untyped"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--tb=short"
+markers = [
+    "slow: marks tests as slow (PDF gen, PELT segmentation, API timeouts)",
+]
 
 [tool.coverage.run]
 source = ["cataclysm"]

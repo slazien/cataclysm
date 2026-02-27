@@ -225,6 +225,99 @@ def processed_session(parsed_session: ParsedSession) -> ProcessedSession:
     return process_session(parsed_session.data)
 
 
+# ---------------------------------------------------------------------------
+# Session-scoped cached fixtures (avoid re-parsing identical CSV each test)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session")
+def _cached_csv_text() -> str:
+    """Session-scoped CSV text (deterministic, safe to cache)."""
+    return _build_header() + "\n".join(_build_synthetic_laps()) + "\n"
+
+
+def _build_synthetic_laps() -> list[str]:
+    """Build synthetic lap data rows (extracted for session-scoped reuse)."""
+    lines: list[str] = []
+    base_ts = 1700000000.0
+    rng = np.random.default_rng(42)
+
+    # Out-lap: 20 points
+    for i in range(20):
+        t = base_ts + i * 0.04
+        lines.append(
+            _build_data_row(
+                t,
+                i * 0.04,
+                i * 0.5,
+                33.53 + i * 0.00001,
+                -86.62 + i * 0.00001,
+                i * 0.5,
+                45.0,
+                acc=0.5,
+                sats=10,
+                lap_num="",
+            )
+        )
+
+    # Lap 1 & Lap 2 (identical logic to racechrono_csv_text fixture)
+    base_elapsed = 20 * 0.04
+    base_dist = 20 * 0.5
+    for lap, time_scale in [(1, 0.04), (2, 0.042)]:
+        for i in range(200):
+            t = base_ts + base_elapsed + i * time_scale
+            elapsed = base_elapsed + i * time_scale
+            dist = base_dist + i * 2.5
+            lat = 33.53 + 0.0002 * np.sin(2 * np.pi * i / 200)
+            lon = -86.62 + 0.0004 * np.cos(2 * np.pi * i / 200)
+            speed = (30.0 if lap == 1 else 29.0) + 10.0 * np.sin(2 * np.pi * i / 50)
+            heading = (i * 360 / 200) % 360
+            lat_g = 0.5 * np.sin(2 * np.pi * i / 50)
+            lon_g = -0.3 * np.cos(2 * np.pi * i / 50) + rng.normal(0, 0.02)
+            yaw = 10.0 * np.sin(2 * np.pi * i / 50)
+            lines.append(
+                _build_data_row(
+                    t,
+                    elapsed,
+                    dist,
+                    lat,
+                    lon,
+                    speed,
+                    heading,
+                    acc=0.3,
+                    sats=12,
+                    lap_num=str(lap),
+                    lat_g=lat_g,
+                    lon_g=lon_g,
+                    yaw=yaw,
+                )
+            )
+        base_elapsed += 200 * time_scale
+        base_dist += 200 * 2.5
+
+    return lines
+
+
+@pytest.fixture(scope="session")
+def cached_parsed_session(
+    _cached_csv_text: str, tmp_path_factory: pytest.TempPathFactory
+) -> ParsedSession:
+    """Session-scoped parsed session (computed once per test run)."""
+    from cataclysm.parser import parse_racechrono_csv
+
+    p = tmp_path_factory.mktemp("data") / "cached_session.csv"
+    p.write_text(_cached_csv_text)
+    return parse_racechrono_csv(str(p))
+
+
+@pytest.fixture(scope="session")
+def cached_processed_session(cached_parsed_session: ParsedSession) -> ProcessedSession:
+    """Session-scoped processed session (computed once per test run)."""
+    from cataclysm.engine import process_session
+
+    return process_session(cached_parsed_session.data)
+
+
 @pytest.fixture
 def sample_resampled_lap() -> pd.DataFrame:
     """Create a synthetic resampled lap DataFrame for testing."""
