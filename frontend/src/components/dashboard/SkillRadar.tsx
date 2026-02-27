@@ -27,7 +27,7 @@ export function SkillRadar({ sessionId }: SkillRadarProps) {
   const avgScore = Math.round(values.reduce((a, b) => a + b, 0) / values.length);
 
   return (
-    <div className="rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
+    <div className="self-start rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-[var(--text-primary)]">Skill Profile</h3>
         <span className="text-xs text-[var(--text-tertiary)]">Avg: {avgScore}/100</span>
