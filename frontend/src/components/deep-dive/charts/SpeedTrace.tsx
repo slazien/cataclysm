@@ -72,7 +72,6 @@ function drawAxes(
 
 export function SpeedTrace({ sessionId }: SpeedTraceProps) {
   const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
-  const cursorDistance = useAnalysisStore((s) => s.cursorDistance);
   const { convertSpeed, speedUnit } = useUnits();
 
   const { data: lapDataArr, isLoading } = useMultiLapData(sessionId, selectedLaps);
@@ -113,9 +112,11 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
     };
   }, [lapDataArr, dimensions.innerWidth, dimensions.innerHeight, convertSpeed]);
 
-  // Stable ref for xScale to use in mouse events
+  // Stable refs for RAF callback and mouse events (avoids stale closures)
   const xScaleRef = useRef(xScale);
   xScaleRef.current = xScale;
+  const dimsRef = useRef(dimensions);
+  dimsRef.current = dimensions;
 
   // Draw data layer
   useEffect(() => {
@@ -163,7 +164,8 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
       const rect = overlay.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const scale = xScaleRef.current;
-      if (x >= MARGINS.left && x <= MARGINS.left + dimensions.innerWidth) {
+      const [xMin, xMax] = scale.range();
+      if (x >= xMin && x <= xMax) {
         setCursorDistance(scale.invert(x));
       }
     };
@@ -178,24 +180,26 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
     };
   }, [dimensions.innerWidth]);
 
-  // Cursor overlay
+  // Cursor overlay — always-active RAF reads store directly to avoid
+  // timing issues where React re-renders haven't propagated cursorDistance yet
   useAnimationFrame(() => {
     const ctx = getOverlayCtx();
     if (!ctx) return;
-    const { width, height } = dimensions;
-    ctx.clearRect(0, 0, width, height);
+    const dims = dimsRef.current;
+    ctx.clearRect(0, 0, dims.width, dims.height);
 
-    if (cursorDistance === null) return;
+    const cursorDist = useAnalysisStore.getState().cursorDistance;
+    if (cursorDist === null) return;
 
-    const x = xScale(cursorDistance);
-    if (x < MARGINS.left || x > MARGINS.left + dimensions.innerWidth) return;
+    const x = xScaleRef.current(cursorDist);
+    if (x < MARGINS.left || x > MARGINS.left + dims.innerWidth) return;
 
     // Vertical cursor line
     ctx.strokeStyle = colors.cursor;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(x, MARGINS.top);
-    ctx.lineTo(x, MARGINS.top + dimensions.innerHeight);
+    ctx.lineTo(x, MARGINS.top + dims.innerHeight);
     ctx.stroke();
 
     // Tooltip: show speed values at cursor
@@ -207,7 +211,7 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
 
       for (let li = 0; li < lapDataArr.length; li++) {
         const lap = lapDataArr[li];
-        const idx = d3.bisectLeft(lap.distance_m, cursorDistance);
+        const idx = d3.bisectLeft(lap.distance_m, cursorDist);
         const clampedIdx = Math.min(idx, lap.speed_mph.length - 1);
         const speed = convertSpeed(lap.speed_mph[clampedIdx]);
         const color = lapDataArr.length === 2
@@ -216,7 +220,7 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
         const label = `L${lap.lap_number}: ${speed.toFixed(1)} ${speedUnit}`;
 
         const textWidth = ctx.measureText(label).width;
-        const rightEdge = MARGINS.left + dimensions.innerWidth;
+        const rightEdge = MARGINS.left + dims.innerWidth;
         const tooltipX = x + textWidth + 20 > rightEdge ? x - textWidth - 16 : x + 10;
 
         ctx.fillStyle = 'rgba(10, 12, 16, 0.85)';
@@ -226,7 +230,7 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
         ctx.fillText(label, tooltipX + 2, tooltipY + li * 18);
       }
     }
-  }, cursorDistance !== null);
+  });
 
   if (isLoading) {
     return (

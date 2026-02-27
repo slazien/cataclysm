@@ -16,7 +16,6 @@ interface DeltaTProps {
 
 export function DeltaT({ sessionId }: DeltaTProps) {
   const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
-  const cursorDistance = useAnalysisStore((s) => s.cursorDistance);
 
   const refLap = selectedLaps.length >= 2 ? selectedLaps[0] : null;
   const compLap = selectedLaps.length >= 2 ? selectedLaps[1] : null;
@@ -53,6 +52,8 @@ export function DeltaT({ sessionId }: DeltaTProps) {
 
   const xScaleRef = useRef(xScale);
   xScaleRef.current = xScale;
+  const dimsRef = useRef(dimensions);
+  dimsRef.current = dimensions;
 
   // Data layer
   useEffect(() => {
@@ -179,7 +180,8 @@ export function DeltaT({ sessionId }: DeltaTProps) {
       const rect = overlay.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const scale = xScaleRef.current;
-      if (x >= MARGINS.left && x <= MARGINS.left + dimensions.innerWidth) {
+      const [xMin, xMax] = scale.range();
+      if (x >= xMin && x <= xMax) {
         setCursorDistance(scale.invert(x));
       }
     };
@@ -194,28 +196,29 @@ export function DeltaT({ sessionId }: DeltaTProps) {
     };
   }, [dimensions.innerWidth]);
 
-  // Cursor overlay
+  // Cursor overlay — always-active RAF reads store directly
   useAnimationFrame(() => {
     const ctx = getOverlayCtx();
     if (!ctx) return;
-    const { width, height } = dimensions;
-    ctx.clearRect(0, 0, width, height);
+    const dims = dimsRef.current;
+    ctx.clearRect(0, 0, dims.width, dims.height);
 
-    if (cursorDistance === null || !delta) return;
+    const cursorDist = useAnalysisStore.getState().cursorDistance;
+    if (cursorDist === null || !delta) return;
 
-    const x = xScale(cursorDistance);
-    if (x < MARGINS.left || x > MARGINS.left + dimensions.innerWidth) return;
+    const x = xScaleRef.current(cursorDist);
+    if (x < MARGINS.left || x > MARGINS.left + dims.innerWidth) return;
 
     // Vertical cursor line
     ctx.strokeStyle = colors.cursor;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(x, MARGINS.top);
-    ctx.lineTo(x, MARGINS.top + dimensions.innerHeight);
+    ctx.lineTo(x, MARGINS.top + dims.innerHeight);
     ctx.stroke();
 
     // Tooltip with delta value
-    const idx = d3.bisectLeft(delta.distance_m, cursorDistance);
+    const idx = d3.bisectLeft(delta.distance_m, cursorDist);
     const clampedIdx = Math.min(idx, delta.delta_s.length - 1);
     const dVal = delta.delta_s[clampedIdx];
     const label = `${dVal >= 0 ? '+' : ''}${dVal.toFixed(3)}s`;
@@ -223,7 +226,7 @@ export function DeltaT({ sessionId }: DeltaTProps) {
     ctx.font = `11px ${fonts.mono}`;
     const tooltipY = MARGINS.top + 8;
     const textWidth = ctx.measureText(label).width;
-    const rightEdge = MARGINS.left + dimensions.innerWidth;
+    const rightEdge = MARGINS.left + dims.innerWidth;
     const tooltipX = x + textWidth + 20 > rightEdge ? x - textWidth - 16 : x + 10;
     ctx.fillStyle = 'rgba(10, 12, 16, 0.85)';
     ctx.fillRect(tooltipX - 2, tooltipY - 2, textWidth + 8, 16);
@@ -231,7 +234,7 @@ export function DeltaT({ sessionId }: DeltaTProps) {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.fillText(label, tooltipX + 2, tooltipY);
-  }, cursorDistance !== null);
+  });
 
   if (selectedLaps.length < 2) {
     return (

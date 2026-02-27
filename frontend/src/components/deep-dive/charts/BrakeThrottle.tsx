@@ -16,7 +16,6 @@ interface BrakeThrottleProps {
 
 export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
   const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
-  const cursorDistance = useAnalysisStore((s) => s.cursorDistance);
 
   const { data: lapDataArr, isLoading } = useMultiLapData(sessionId, selectedLaps);
   const { data: corners } = useCorners(sessionId);
@@ -59,6 +58,8 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
 
   const xScaleRef = useRef(xScale);
   xScaleRef.current = xScale;
+  const dimsRef = useRef(dimensions);
+  dimsRef.current = dimensions;
 
   // Data layer
   useEffect(() => {
@@ -183,7 +184,8 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
       const rect = overlay.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const scale = xScaleRef.current;
-      if (x >= MARGINS.left && x <= MARGINS.left + dimensions.innerWidth) {
+      const [xMin, xMax] = scale.range();
+      if (x >= xMin && x <= xMax) {
         setCursorDistance(scale.invert(x));
       }
     };
@@ -198,24 +200,25 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
     };
   }, [dimensions.innerWidth]);
 
-  // Cursor overlay
+  // Cursor overlay — always-active RAF reads store directly
   useAnimationFrame(() => {
     const ctx = getOverlayCtx();
     if (!ctx) return;
-    const { width, height } = dimensions;
-    ctx.clearRect(0, 0, width, height);
+    const dims = dimsRef.current;
+    ctx.clearRect(0, 0, dims.width, dims.height);
 
-    if (cursorDistance === null) return;
+    const cursorDist = useAnalysisStore.getState().cursorDistance;
+    if (cursorDist === null) return;
 
-    const x = xScale(cursorDistance);
-    if (x < MARGINS.left || x > MARGINS.left + dimensions.innerWidth) return;
+    const x = xScaleRef.current(cursorDist);
+    if (x < MARGINS.left || x > MARGINS.left + dims.innerWidth) return;
 
     // Vertical cursor line
     ctx.strokeStyle = colors.cursor;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(x, MARGINS.top);
-    ctx.lineTo(x, MARGINS.top + dimensions.innerHeight);
+    ctx.lineTo(x, MARGINS.top + dims.innerHeight);
     ctx.stroke();
 
     // Tooltip: g-values
@@ -227,7 +230,7 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
 
       for (let li = 0; li < lapDataArr.length; li++) {
         const lap = lapDataArr[li];
-        const idx = d3.bisectLeft(lap.distance_m, cursorDistance);
+        const idx = d3.bisectLeft(lap.distance_m, cursorDist);
         const clampedIdx = Math.min(idx, lap.longitudinal_g.length - 1);
         const gVal = lap.longitudinal_g[clampedIdx];
         const color = lapDataArr.length === 2
@@ -236,7 +239,7 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
         const label = `L${lap.lap_number}: ${gVal >= 0 ? '+' : ''}${gVal.toFixed(2)}g`;
 
         const textWidth = ctx.measureText(label).width;
-        const rightEdge = MARGINS.left + dimensions.innerWidth;
+        const rightEdge = MARGINS.left + dims.innerWidth;
         const tooltipX = x + textWidth + 20 > rightEdge ? x - textWidth - 16 : x + 10;
 
         ctx.fillStyle = 'rgba(10, 12, 16, 0.85)';
@@ -245,7 +248,7 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
         ctx.fillText(label, tooltipX + 2, tooltipY + li * 18);
       }
     }
-  }, cursorDistance !== null);
+  });
 
   if (isLoading) {
     return (
