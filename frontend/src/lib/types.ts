@@ -434,6 +434,38 @@ export interface NewAchievementsData {
   newly_unlocked: Achievement[];
 }
 
+// --- Leaderboard Types ---
+
+export interface CornerRecordEntry {
+  rank: number;
+  user_name: string;
+  sector_time_s: number;
+  min_speed_mps: number;
+  session_date: string;
+  is_king: boolean;
+}
+
+export interface CornerKingEntry {
+  corner_number: number;
+  user_name: string;
+  best_time_s: number;
+}
+
+export interface LeaderboardData {
+  track_name: string;
+  corner_number: number;
+  entries: CornerRecordEntry[];
+}
+
+export interface KingsData {
+  track_name: string;
+  kings: CornerKingEntry[];
+}
+
+export interface OptInResponse {
+  leaderboard_opt_in: boolean;
+}
+
 export interface SessionEquipmentResponse {
   session_id: string;
   profile_id: string;
@@ -448,4 +480,42 @@ export interface SessionEquipmentResponse {
   } | null;
   suspension?: Record<string, unknown> | null;
   conditions?: Record<string, unknown> | null;
+}
+
+// --- Sharing Types ---
+
+export interface ShareCreateResponse {
+  token: string;
+  share_url: string;
+  track_name: string;
+  expires_at: string;
+}
+
+export interface ShareMetadata {
+  token: string;
+  track_name: string;
+  inviter_name: string;
+  best_lap_time_s: number | null;
+  created_at: string;
+  expires_at: string;
+  is_expired: boolean;
+}
+
+export interface ShareComparisonResult {
+  token: string;
+  session_a_id: string;
+  session_b_id: string;
+  session_a_track: string;
+  session_b_track: string;
+  session_a_best_lap: number | null;
+  session_b_best_lap: number | null;
+  delta_s: number;
+  distance_m: number[];
+  delta_time_s: number[];
+  corner_deltas: {
+    corner_number: number;
+    speed_diff_mph: number;
+    a_min_speed_mph: number;
+    b_min_speed_mph: number;
+  }[];
 }

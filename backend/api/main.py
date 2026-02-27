@@ -21,6 +21,7 @@ from backend.api.routers import (
     auth,
     coaching,
     equipment,
+    leaderboards,
     sessions,
     tracks,
     trends,
@@ -231,6 +232,8 @@ _CACHE_RULES: list[tuple[str, str]] = [
     ("/api/coaching", "no-cache"),
     # Equipment endpoints: mutable (CRUD)
     ("/api/equipment", "no-cache"),
+    # Leaderboard endpoints: mutable (changes on new records)
+    ("/api/leaderboards", "no-cache"),
     # Session list: mutable (changes on upload/delete)
     ("/api/sessions/upload", "no-cache"),
     # Analysis sub-routes: immutable once computed for a session
@@ -320,6 +323,7 @@ app.include_router(trends.router, prefix="/api/trends", tags=["trends"])
 app.include_router(tracks.router, prefix="/api/tracks", tags=["tracks"])
 app.include_router(wrapped.router, prefix="/api/wrapped", tags=["wrapped"])
 app.include_router(achievements.router, prefix="/api/achievements", tags=["achievements"])
+app.include_router(leaderboards.router, prefix="/api/leaderboards", tags=["leaderboards"])
 
 
 # -- Health ------------------------------------------------------------------

@@ -17,6 +17,12 @@ import type {
   WrappedData,
   AchievementListData,
   NewAchievementsData,
+  LeaderboardData,
+  KingsData,
+  OptInResponse,
+  ShareCreateResponse,
+  ShareMetadata,
+  ShareComparisonResult,
 } from "./types";
 
 const API_BASE = "";
@@ -259,4 +265,59 @@ export async function getAchievements() {
 
 export async function getRecentAchievements() {
   return fetchApi<NewAchievementsData>("/api/achievements/recent");
+}
+
+// --- Leaderboard API ---
+
+export async function getCornerLeaderboard(
+  trackName: string,
+  cornerNumber: number,
+  limit: number = 10,
+) {
+  const params = new URLSearchParams({
+    corner: cornerNumber.toString(),
+    limit: limit.toString(),
+  });
+  return fetchApi<LeaderboardData>(
+    `/api/leaderboards/${encodeURIComponent(trackName)}/corners?${params}`,
+  );
+}
+
+export async function getCornerKings(trackName: string) {
+  return fetchApi<KingsData>(
+    `/api/leaderboards/${encodeURIComponent(trackName)}/kings`,
+  );
+}
+
+export async function toggleLeaderboardOptIn(optIn: boolean) {
+  return fetchApi<OptInResponse>("/api/leaderboards/opt-in", {
+    method: "POST",
+    body: JSON.stringify({ opt_in: optIn }),
+  });
+}
+
+// --- Sharing API ---
+
+export async function createShareLink(sessionId: string) {
+  return fetchApi<ShareCreateResponse>("/api/sharing/create", {
+    method: "POST",
+    body: JSON.stringify({ session_id: sessionId }),
+  });
+}
+
+export async function getShareMetadata(token: string) {
+  return fetchApi<ShareMetadata>(`/api/sharing/${token}`);
+}
+
+export async function uploadToShare(token: string, files: File[]) {
+  const formData = new FormData();
+  files.forEach((f) => formData.append("files", f));
+  return fetchApi<ShareComparisonResult>(`/api/sharing/${token}/upload`, {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export async function getShareComparison(token: string) {
+  return fetchApi<ShareComparisonResult>(`/api/sharing/${token}/comparison`);
 }

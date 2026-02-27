@@ -35,6 +35,8 @@ class User(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     avatar_url: Mapped[str | None] = mapped_column(String, nullable=True)
     skill_level: Mapped[str] = mapped_column(String, default="intermediate")
+    role: Mapped[str] = mapped_column(String, default="driver")  # driver | instructor
+    leaderboard_opt_in: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
@@ -217,3 +219,129 @@ class UserAchievement(Base):
     is_new: Mapped[bool] = mapped_column(Boolean, default=True)
 
     __table_args__ = (UniqueConstraint("user_id", "achievement_id"),)
+
+
+class CornerRecord(Base):
+    """A user's recorded time through a specific corner."""
+
+    __tablename__ = "corner_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    session_id: Mapped[str] = mapped_column(
+        String, ForeignKey("sessions.session_id", ondelete="CASCADE"), nullable=False
+    )
+    track_name: Mapped[str] = mapped_column(String, nullable=False)
+    corner_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    min_speed_mps: Mapped[float] = mapped_column(Float, nullable=False)
+    sector_time_s: Mapped[float] = mapped_column(Float, nullable=False)
+    lap_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_corner_records_track_corner", "track_name", "corner_number"),
+        Index("ix_corner_records_user", "user_id"),
+    )
+
+
+class CornerKing(Base):
+    """Current 'King of the Corner' for each corner on a track."""
+
+    __tablename__ = "corner_kings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    track_name: Mapped[str] = mapped_column(String, nullable=False)
+    corner_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    best_time_s: Mapped[float] = mapped_column(Float, nullable=False)
+    session_id: Mapped[str] = mapped_column(String, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (UniqueConstraint("track_name", "corner_number"),)
+
+
+class SharedSession(Base):
+    """A share token allowing a friend to upload their session for comparison."""
+
+    __tablename__ = "shared_sessions"
+
+    token: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    session_id: Mapped[str] = mapped_column(
+        String, ForeignKey("sessions.session_id", ondelete="CASCADE"), nullable=False
+    )
+    track_name: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    # Relationships
+    user: Mapped[User] = relationship()
+    session: Mapped[Session] = relationship()
+    comparison_reports: Mapped[list[ShareComparisonReport]] = relationship(
+        back_populates="shared_session", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (Index("ix_shared_sessions_user_id", "user_id"),)
+
+
+class ShareComparisonReport(Base):
+    """Comparison result generated when a friend uploads to a share link."""
+
+    __tablename__ = "share_comparison_reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    share_token: Mapped[str] = mapped_column(
+        String,
+        ForeignKey("shared_sessions.token", ondelete="CASCADE"),
+        nullable=False,
+    )
+    challenger_session_id: Mapped[str] = mapped_column(String, nullable=False)
+    report_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationship
+    shared_session: Mapped[SharedSession] = relationship(back_populates="comparison_reports")
+
+
+class InstructorStudent(Base):
+    """Instructor-student link with invite code support."""
+
+    __tablename__ = "instructor_students"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    instructor_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    student_id: Mapped[str] = mapped_column(String, nullable=False)
+    invite_code: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
+    status: Mapped[str] = mapped_column(String, default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("instructor_id", "student_id"),
+        Index("ix_instructor_students_instructor", "instructor_id"),
+    )
+
+
+class StudentFlag(Base):
+    """A flag (auto or manual) for a student's session."""
+
+    __tablename__ = "student_flags"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    student_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    session_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    flag_type: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str] = mapped_column(String, nullable=False)
+    auto_generated: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
