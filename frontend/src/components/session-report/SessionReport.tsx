@@ -14,6 +14,7 @@ import { CornerGradesSection } from './CornerGradesSection';
 import { PatternsAndDrillsSection } from './PatternsAndDrillsSection';
 import { MetricsGrid } from './MetricsGrid';
 import { LapTimesBar } from '@/components/dashboard/LapTimesBar';
+import { RawDataTable } from './RawDataTable';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 export function SessionReport() {
@@ -87,6 +88,8 @@ export function SessionReport() {
             <LapTimesBar sessionId={activeSessionId} />
           </div>
         )}
+
+        <RawDataTable />
       </div>
     </ScrollArea>
   );

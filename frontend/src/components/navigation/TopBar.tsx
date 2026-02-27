@@ -8,7 +8,7 @@ import { useSession, useUploadSessions } from '@/hooks/useSession';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { LapPillBar } from '@/components/navigation/LapPillBar';
+import { LapGridSelector } from '@/components/deep-dive/LapGridSelector';
 import { SeasonWrapped } from '@/components/wrapped/SeasonWrapped';
 import { BadgeGrid } from '@/components/achievements/BadgeGrid';
 
@@ -191,7 +191,7 @@ export function TopBar() {
           {/* Right: Lap pills (deep-dive only) */}
           {(activeView === 'session-report' || activeView === 'deep-dive') && (
             <div className="ml-auto">
-              <LapPillBar />
+              <LapGridSelector />
             </div>
           )}
         </div>
