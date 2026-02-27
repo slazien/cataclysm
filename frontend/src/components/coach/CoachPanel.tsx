@@ -10,7 +10,7 @@ import { downloadPdfReport } from '@/lib/api';
 import { ContextChips } from './ContextChips';
 import { ReportSummary } from './ReportSummary';
 import { SuggestedQuestions } from './SuggestedQuestions';
-import { ChatInterface } from './ChatInterface';
+import { ChatMessages, ChatInput } from './ChatInterface';
 
 function CoachPanelContent({ onClose }: { onClose: () => void }) {
   const setPendingQuestion = useCoachStore((s) => s.setPendingQuestion);
@@ -71,17 +71,15 @@ function CoachPanelContent({ onClose }: { onClose: () => void }) {
       {/* Context Chips */}
       <ContextChips />
 
-      {/* Scrollable report + questions area */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
-        {/* Report Summary */}
+      {/* Scrollable report + questions + messages */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
         <ReportSummary />
-
-        {/* Suggested Questions */}
         <SuggestedQuestions onAsk={handleAsk} />
-
-        {/* Chat Interface -- fills remaining space */}
-        <ChatInterface />
+        <ChatMessages />
       </div>
+
+      {/* Chat input — always pinned at bottom */}
+      <ChatInput />
     </div>
   );
 }
