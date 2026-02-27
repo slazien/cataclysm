@@ -48,10 +48,12 @@ export function drawTrendAxes({
     ctx.fillText(formatYTick(tick), margins.left - 6, y);
   }
 
-  // X-axis labels
+  // X-axis labels — thin labels so they don't overlap on narrow screens
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  for (let i = 0; i < sessions.length; i++) {
+  const maxXLabels = Math.max(1, Math.floor(innerWidth / 60));
+  const xStep = Math.max(1, Math.ceil(sessions.length / maxXLabels));
+  for (let i = 0; i < sessions.length; i += xStep) {
     const x = xScale(i);
     ctx.fillStyle = colors.axis;
     const dateLabel = parseSessionDate(sessions[i].session_date).toLocaleDateString('en-US', {

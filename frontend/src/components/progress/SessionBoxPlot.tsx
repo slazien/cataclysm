@@ -111,10 +111,12 @@ export function SessionBoxPlot({ sessions, className }: SessionBoxPlotProps) {
       ctx.fillText(formatTimeShort(tick), MARGINS.left - 6, y);
     }
 
-    // X-axis labels
+    // X-axis labels — thin labels so they don't overlap on narrow screens
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    for (let i = 0; i < n; i++) {
+    const maxXLabels = Math.max(1, Math.floor(dimensions.innerWidth / 60));
+    const xStep = Math.max(1, Math.ceil(n / maxXLabels));
+    for (let i = 0; i < n; i += xStep) {
       const x = xScale(i);
       ctx.fillStyle = colors.axis;
       ctx.font = `10px ${fonts.mono}`;
