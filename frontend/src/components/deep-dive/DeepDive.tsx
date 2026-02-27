@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SpeedAnalysis } from './SpeedAnalysis';
 import { CornerAnalysis } from './CornerAnalysis';
 import { MiniSectorMap } from './charts/MiniSectorMap';
+import { LapReplay } from '@/components/replay/LapReplay';
 
 export function DeepDive() {
   const mode = useAnalysisStore((s) => s.deepDiveMode);
@@ -28,6 +29,7 @@ export function DeepDive() {
             <TabsTrigger value="corner">Corner</TabsTrigger>
             <TabsTrigger value="sectors">Sectors</TabsTrigger>
             <TabsTrigger value="custom">Custom</TabsTrigger>
+            <TabsTrigger value="replay">Replay</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
@@ -42,6 +44,7 @@ export function DeepDive() {
             <p className="text-sm text-[var(--text-secondary)]">Custom (Future)</p>
           </div>
         )}
+        {mode === 'replay' && <LapReplay />}
       </div>
     </div>
   );
