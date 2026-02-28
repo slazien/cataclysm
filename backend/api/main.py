@@ -11,6 +11,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
 
@@ -78,13 +79,14 @@ async def _reload_sessions_from_db() -> int:
                                 sd.weather = weather
 
                     loaded += 1
-                except Exception:
+                except (ValueError, KeyError, IndexError, OSError) as exc:
                     logger.warning(
-                        "Failed to reload session %s from DB",
+                        "Failed to reload session %s from DB: %s",
                         row.session_id,
+                        exc,
                         exc_info=True,
                     )
-    except Exception:
+    except (SQLAlchemyError, OSError):
         logger.warning("Database session reload failed", exc_info=True)
 
     return loaded
@@ -162,7 +164,7 @@ async def _reload_sessions_from_disk() -> int:
                         )
                     )
                     loaded += 1
-            except Exception:
+            except (ValueError, KeyError, IndexError, OSError):
                 logger.warning("Failed to reload %s on startup", csv_path.name, exc_info=True)
         await db.commit()
 
@@ -230,6 +232,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 load_dotenv()  # Populate os.environ from .env before reading settings
 settings = Settings()
+
+if settings.dev_auth_bypass:
+    logger.warning(
+        "DEV_AUTH_BYPASS is ENABLED — all authentication is disabled! "
+        "All requests authenticate as 'dev-user'. "
+        "Do NOT use this in production with real user data."
+    )
 
 app = FastAPI(
     title="Cataclysm API",
@@ -312,7 +321,7 @@ async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse
     logger.warning("ValueError on %s %s: %s", request.method, request.url.path, exc)
     return JSONResponse(
         status_code=422,
-        content={"detail": str(exc)},
+        content={"detail": "Invalid input data"},
     )
 
 

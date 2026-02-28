@@ -7,6 +7,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from cataclysm.constants import MPS_TO_MPH
+
 
 @dataclass
 class Corner:
@@ -70,7 +72,7 @@ def classify_corner_type(corner: Corner) -> CornerType:
     - Medium: 40-80 mph apex
     - Fast: > 80 mph apex
     """
-    speed_mph = corner.min_speed_mps * 2.23694
+    speed_mph = corner.min_speed_mps * MPS_TO_MPH
     if speed_mph < SLOW_CORNER_MPH:
         return "slow"
     if speed_mph < MEDIUM_CORNER_MPH:

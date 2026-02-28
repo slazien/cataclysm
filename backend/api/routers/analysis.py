@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import Annotated, Any
 
+from cataclysm.constants import MPS_TO_MPH
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from backend.api.dependencies import AuthenticatedUser, get_current_user
@@ -32,8 +33,6 @@ from backend.api.services.pipeline import get_ideal_lap_data, get_optimal_profil
 from backend.api.services.serializers import dataclass_to_dict
 
 router = APIRouter()
-
-MPS_TO_MPH = 2.23694
 
 
 def _corner_to_schema(c: Any) -> CornerSchema:

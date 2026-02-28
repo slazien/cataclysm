@@ -208,7 +208,7 @@ async def _run_generation(
         )
 
         await store_coaching_report(session_id, response, skill_level)
-    except Exception:
+    except Exception:  # noqa: BLE001 — intentionally broad for background task resilience
         logger.exception("Failed to generate coaching report for %s", session_id)
         await store_coaching_report(
             session_id,
@@ -520,7 +520,7 @@ async def coaching_chat(
             await websocket.send_json(response.model_dump())
     except WebSocketDisconnect:
         pass
-    except Exception:
+    except Exception:  # noqa: BLE001 — intentionally broad for WebSocket error boundary
         logger.exception("Error in coaching chat for session %s", session_id)
-        with contextlib.suppress(Exception):
+        with contextlib.suppress(Exception):  # noqa: BLE001
             await websocket.close(code=1011, reason="Internal server error")

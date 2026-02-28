@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from cataclysm.consistency import compute_session_consistency
+from cataclysm.constants import MPS_TO_MPH
 from cataclysm.corners import Corner, detect_corners, extract_corner_kpis_for_lap
 from cataclysm.curvature import compute_curvature
 from cataclysm.elevation import compute_corner_elevation, enrich_corners_with_elevation
@@ -64,7 +65,7 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
     gps_quality: GPSQualityReport | None = None
     try:
         gps_quality = assess_gps_quality(parsed.data, processed, anomalous)
-    except Exception:
+    except (ValueError, KeyError, IndexError):
         logger.warning("Failed to assess GPS quality for %s", filename, exc_info=True)
 
     # 4. Detect corners (track_db lookup first, fallback to detect_corners)
@@ -90,7 +91,7 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
         elev = compute_corner_elevation(best_lap_df, corners)
         if elev:
             enrich_corners_with_elevation(all_lap_corners, elev)
-    except Exception:
+    except (ValueError, KeyError, IndexError):
         logger.warning("Failed to compute elevation for %s", filename, exc_info=True)
 
     # 6. Compute consistency
@@ -104,7 +105,7 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
                 processed.best_lap,
                 anomalous,
             )
-        except Exception:
+        except (ValueError, KeyError, IndexError):
             logger.warning("Failed to compute consistency for %s", filename, exc_info=True)
 
     # 7. Estimate gains
@@ -118,7 +119,7 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
                 coaching_laps,
                 processed.best_lap,
             )
-        except Exception:
+        except (ValueError, KeyError, IndexError):
             logger.warning("Failed to estimate gains for %s", filename, exc_info=True)
 
     # 8. Estimate grip
@@ -126,7 +127,7 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
     if coaching_laps:
         try:
             grip = estimate_grip_limit(processed.resampled_laps, coaching_laps)
-        except Exception:
+        except (ValueError, KeyError, IndexError):
             logger.warning("Failed to estimate grip for %s", filename, exc_info=True)
 
     # 9. Build session snapshot
@@ -226,7 +227,7 @@ async def get_ideal_lap_data(session_data: SessionData) -> dict[str, object]:
 
         return {
             "distance_m": ideal.distance_m.tolist(),
-            "speed_mph": (ideal.speed_mps * 2.23694).tolist(),
+            "speed_mph": (ideal.speed_mps * MPS_TO_MPH).tolist(),
             "segment_sources": ideal.segment_sources,
         }
 
@@ -277,11 +278,10 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
         se = equipment_store.get_session_equipment(session_id)
         profile_id = se.profile_id if se is not None else None
 
-        mps_to_mph = 2.23694
         return {
             "distance_m": optimal.distance_m.tolist(),
-            "optimal_speed_mph": (optimal.optimal_speed_mps * mps_to_mph).tolist(),
-            "max_cornering_speed_mph": (optimal.max_cornering_speed_mps * mps_to_mph).tolist(),
+            "optimal_speed_mph": (optimal.optimal_speed_mps * MPS_TO_MPH).tolist(),
+            "max_cornering_speed_mph": (optimal.max_cornering_speed_mps * MPS_TO_MPH).tolist(),
             "brake_points": optimal.optimal_brake_points,
             "throttle_points": optimal.optimal_throttle_points,
             "lap_time_s": optimal.lap_time_s,

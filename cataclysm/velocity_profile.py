@@ -23,7 +23,6 @@ from cataclysm.curvature import CurvatureResult
 
 G = 9.81  # m/s^2
 MIN_SPEED_MPS = 5.0  # floor speed to avoid singularities
-MPS_TO_MPH = 2.23694
 
 
 # ---------------------------------------------------------------------------

@@ -12,8 +12,6 @@ from fpdf import FPDF
 from cataclysm.coaching import CoachingReport, CornerGrade
 from cataclysm.engine import LapSummary
 
-MPS_TO_MPH = 2.23694
-
 
 def _sanitize_text(text: str) -> str:
     """Replace Unicode characters unsupported by Helvetica with ASCII equivalents.

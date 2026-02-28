@@ -12,6 +12,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from cataclysm.constants import MPS_TO_MPH
 
 
 def dataframe_to_columnar(df: pd.DataFrame, columns: list[str]) -> dict[str, list[float]]:
@@ -69,4 +70,4 @@ def dataclass_to_dict(obj: Any) -> dict[str, Any]:
 
 def mps_to_mph(speed_mps: float) -> float:
     """Convert meters per second to miles per hour."""
-    return speed_mps * 2.23694
+    return speed_mps * MPS_TO_MPH

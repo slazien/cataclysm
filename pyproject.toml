@@ -16,7 +16,7 @@ dependencies = [
     "ruptures>=1.1",
     "fpdf2>=2.7",
     "kaleido>=0.2",
-    "python-jose[cryptography]>=3.3",
+    "joserfc>=1.0",
 ]
 
 [project.optional-dependencies]
@@ -68,8 +68,8 @@ module = [
     "fpdf.*",
     "kaleido",
     "kaleido.*",
-    "jose",
-    "jose.*",
+    "joserfc",
+    "joserfc.*",
     "aiosqlite",
     "alembic",
     "alembic.*",

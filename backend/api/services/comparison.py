@@ -5,12 +5,11 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from cataclysm.constants import MPS_TO_MPH
 from cataclysm.corners import Corner
 from cataclysm.delta import compute_delta
 
 from backend.api.services.session_store import SessionData
-
-MPS_TO_MPH = 2.23694
 
 
 async def compare_sessions(sd_a: SessionData, sd_b: SessionData) -> dict[str, Any]:

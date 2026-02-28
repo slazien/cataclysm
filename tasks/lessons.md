@@ -57,6 +57,12 @@
 - **Check for**: text clipping/overflow, horizontal scroll, touch targets < 44x44px, bottom nav overlapping content, chart/SVG scaling, fixed positioning issues.
 - **Why**: User explicitly requested this. A plain viewport resize misses real mobile rendering differences.
 
+## Canvas Charts Need Explicit Height, Not min-height
+- **When**: Changing mobile layout for D3 canvas chart containers (SpeedTrace, DeltaT, BrakeThrottle, CornerSpeedOverlay, BrakeConsistency)
+- **Rule**: Canvas charts use `h-full` which resolves against the parent's `height` property, NOT `min-height`. If you remove `flex-1` from a chart container on mobile, you MUST replace `min-h-[16rem]` with `h-[16rem]` (explicit height). On desktop, use `lg:h-auto` so `lg:flex-1` can take over.
+- **Why**: `min-height` does not establish a computable height for `height: 100%` children. The `useCanvasChart` hook's `ResizeObserver` sees 0 height → canvas never initializes → charts disappear entirely. This caused a regression where Speed Trace and Delta-T went completely missing on mobile.
+- **Pattern**: `h-[16rem] lg:h-auto lg:flex-1` (mobile: fixed height, desktop: flex-proportional)
+
 ## False Brake Attribution from Overlapping Search Windows
 - **When**: Working on brake point detection or corner KPI extraction
 - **Rule**: When searching for a brake point before a corner, the search window must not extend into the previous corner's zone. Use `prev_exit_idx` parameter in `_find_brake_point` to clamp the search start. Without this, closely-spaced corners (e.g. T9→T10 at Barber, ~350m apart) will attribute the previous corner's trail braking to the next corner.

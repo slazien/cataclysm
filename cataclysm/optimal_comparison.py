@@ -11,10 +11,9 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from cataclysm.constants import MPS_TO_MPH
 from cataclysm.corners import Corner
 from cataclysm.velocity_profile import OptimalProfile
-
-MPS_TO_MPH = 2.23694
 
 # Search window before a corner entry for matching optimal brake points
 _BRAKE_SEARCH_BEFORE_M = 200.0

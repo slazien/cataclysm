@@ -23,6 +23,7 @@ from cataclysm.equipment import (
     TireSpec,
     TrackCondition,
 )
+from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +66,7 @@ def _persist_profile(profile: EquipmentProfile) -> None:
     try:
         out = _equipment_dir / "profiles" / f"{profile.id}.json"
         out.write_text(json.dumps(asdict(profile), indent=2), encoding="utf-8")
-    except Exception:
+    except OSError:
         logger.warning("Failed to persist equipment profile %s", profile.id, exc_info=True)
 
 
@@ -84,7 +85,7 @@ def _persist_session_equipment(se: SessionEquipment) -> None:
     try:
         out = _equipment_dir / "sessions" / f"{se.session_id}.json"
         out.write_text(json.dumps(asdict(se), indent=2), encoding="utf-8")
-    except Exception:
+    except OSError:
         logger.warning(
             "Failed to persist session equipment for %s",
             se.session_id,
@@ -304,7 +305,7 @@ def load_persisted_profiles() -> int:
             profile = _profile_from_dict(data)
             _profiles[profile.id] = profile
             count += 1
-        except Exception:
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError, OSError):
             logger.warning("Failed to load equipment profile from %s", path, exc_info=True)
     return count
 
@@ -324,7 +325,7 @@ def load_persisted_session_equipment() -> int:
             se = _session_equipment_from_dict(data)
             _session_equipment[se.session_id] = se
             count += 1
-        except Exception:
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError, OSError):
             logger.warning("Failed to load session equipment from %s", path, exc_info=True)
     return count
 
@@ -364,7 +365,7 @@ async def db_persist_profile(profile: EquipmentProfile, user_id: str | None = No
                 )
             )
             await db.commit()
-    except Exception:
+    except SQLAlchemyError:
         logger.warning("Failed to persist equipment profile %s to DB", profile.id, exc_info=True)
 
 
@@ -379,7 +380,7 @@ async def db_delete_profile(profile_id: str) -> None:
         async with async_session_factory() as db:
             await db.execute(delete(EquipmentProfileDB).where(EquipmentProfileDB.id == profile_id))
             await db.commit()
-    except Exception:
+    except SQLAlchemyError:
         logger.warning("Failed to delete equipment profile %s from DB", profile_id, exc_info=True)
 
 
@@ -398,7 +399,7 @@ async def db_persist_session_equipment(se: SessionEquipment) -> None:
                 )
             )
             await db.commit()
-    except Exception:
+    except SQLAlchemyError:
         logger.warning(
             "Failed to persist session equipment for %s to DB",
             se.session_id,
@@ -419,7 +420,7 @@ async def db_delete_session_equipment(session_id: str) -> None:
                 delete(SessionEquipmentDB).where(SessionEquipmentDB.session_id == session_id)
             )
             await db.commit()
-    except Exception:
+    except SQLAlchemyError:
         logger.warning(
             "Failed to delete session equipment for %s from DB",
             session_id,
@@ -451,7 +452,7 @@ async def load_equipment_from_db() -> tuple[int, int]:
                         profile = _profile_from_dict(p_row.profile_json)
                         _profiles[profile.id] = profile
                         n_profiles += 1
-                except Exception:
+                except (KeyError, TypeError, ValueError):
                     logger.warning(
                         "Failed to deserialize equipment profile %s from DB",
                         p_row.id,
@@ -467,13 +468,13 @@ async def load_equipment_from_db() -> tuple[int, int]:
                         se = _session_equipment_from_dict(se_row.assignment_json)
                         _session_equipment[se.session_id] = se
                         n_assignments += 1
-                except Exception:
+                except (KeyError, TypeError, ValueError):
                     logger.warning(
                         "Failed to deserialize session equipment for %s from DB",
                         se_row.session_id,
                         exc_info=True,
                     )
-    except Exception:
+    except SQLAlchemyError:
         logger.warning("Database equipment load failed", exc_info=True)
 
     return n_profiles, n_assignments

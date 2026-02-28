@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from cataclysm.consistency import CornerConsistencyEntry
+from cataclysm.constants import MPS_TO_MPH
 from cataclysm.corners import Corner, classify_corner_type
 from cataclysm.gains import GainEstimate
 from cataclysm.landmarks import (
@@ -20,8 +21,6 @@ from cataclysm.landmarks import (
     LandmarkReference,
     find_nearest_landmark,
 )
-
-MPS_TO_MPH = 2.23694
 
 
 @dataclass

@@ -7,7 +7,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import HTTPException
-from jose import jwe
+from joserfc import jwe
+from joserfc.jwk import OctKey
 
 from backend.api.config import Settings
 from backend.api.dependencies import (
@@ -40,11 +41,10 @@ def _make_token(
     }
     if picture:
         payload["picture"] = picture
-    key = _derive_encryption_key(secret, salt)
-    token_bytes: bytes = jwe.encrypt(
-        json.dumps(payload).encode(), key, algorithm="dir", encryption="A256CBC-HS512"
-    )
-    return token_bytes.decode()
+    raw_key = _derive_encryption_key(secret, salt)
+    key = OctKey.import_key(raw_key)
+    protected = {"alg": "dir", "enc": "A256CBC-HS512"}
+    return jwe.encrypt_compact(protected, json.dumps(payload).encode(), key)
 
 
 def _settings(secret: str = _SECRET) -> Settings:
@@ -161,10 +161,10 @@ class TestGetCurrentUser:
             "name": "Test",
             "exp": int((datetime.now(UTC) + timedelta(hours=1)).timestamp()),
         }
-        key = _derive_encryption_key(_SECRET, _SECURE_COOKIE)
-        token = jwe.encrypt(
-            json.dumps(payload).encode(), key, algorithm="dir", encryption="A256CBC-HS512"
-        ).decode()
+        raw_key = _derive_encryption_key(_SECRET, _SECURE_COOKIE)
+        key = OctKey.import_key(raw_key)
+        protected = {"alg": "dir", "enc": "A256CBC-HS512"}
+        token = jwe.encrypt_compact(protected, json.dumps(payload).encode(), key)
         with pytest.raises(HTTPException) as exc_info:
             get_current_user(
                 authorization=f"Bearer {token}",
@@ -181,10 +181,10 @@ class TestGetCurrentUser:
             "name": "Test",
             "exp": int((datetime.now(UTC) + timedelta(hours=1)).timestamp()),
         }
-        key = _derive_encryption_key(_SECRET, _SECURE_COOKIE)
-        token = jwe.encrypt(
-            json.dumps(payload).encode(), key, algorithm="dir", encryption="A256CBC-HS512"
-        ).decode()
+        raw_key = _derive_encryption_key(_SECRET, _SECURE_COOKIE)
+        key = OctKey.import_key(raw_key)
+        protected = {"alg": "dir", "enc": "A256CBC-HS512"}
+        token = jwe.encrypt_compact(protected, json.dumps(payload).encode(), key)
         with pytest.raises(HTTPException) as exc_info:
             get_current_user(
                 authorization=f"Bearer {token}",
@@ -225,5 +225,55 @@ class TestGetCurrentUser:
                 session_token=None,
                 secure_session_token=None,
                 settings=_settings(),
+            )
+        assert exc_info.value.status_code == 401
+
+    def test_dev_auth_bypass_returns_dev_user_without_token(self) -> None:
+        """When ``dev_auth_bypass=True``, a dev user is returned with no token at all."""
+        settings = Settings(
+            nextauth_secret=_SECRET,
+            anthropic_api_key="fake",
+            dev_auth_bypass=True,
+        )
+        user = get_current_user(
+            authorization=None,
+            session_token=None,
+            secure_session_token=None,
+            settings=settings,
+        )
+        assert isinstance(user, AuthenticatedUser)
+        assert user.user_id == "dev-user"
+        assert user.email == "dev@localhost"
+        assert user.name == "QA Test User"
+
+    def test_dev_auth_bypass_ignores_provided_token(self) -> None:
+        """When ``dev_auth_bypass=True``, even a valid token is ignored — dev user returned."""
+        token = _make_token()
+        settings = Settings(
+            nextauth_secret=_SECRET,
+            anthropic_api_key="fake",
+            dev_auth_bypass=True,
+        )
+        user = get_current_user(
+            authorization=f"Bearer {token}",
+            session_token=None,
+            secure_session_token=None,
+            settings=settings,
+        )
+        assert user.user_id == "dev-user"
+
+    def test_dev_auth_bypass_false_enforces_normal_auth(self) -> None:
+        """When ``dev_auth_bypass=False`` (default), missing tokens raise 401."""
+        settings = Settings(
+            nextauth_secret=_SECRET,
+            anthropic_api_key="fake",
+            dev_auth_bypass=False,
+        )
+        with pytest.raises(HTTPException) as exc_info:
+            get_current_user(
+                authorization=None,
+                session_token=None,
+                secure_session_token=None,
+                settings=settings,
             )
         assert exc_info.value.status_code == 401

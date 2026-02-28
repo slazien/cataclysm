@@ -84,7 +84,7 @@ async def _seed_leaderboard_data(client: AsyncClient) -> None:
             )
         )
         await db.commit()
-    except Exception:
+    except Exception:  # noqa: BLE001 — must rollback on any error before re-raising
         await db.rollback()
         raise
 

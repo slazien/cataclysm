@@ -12,8 +12,9 @@ from typing import Annotated, Any
 from cryptography.hazmat.primitives.hashes import SHA256
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from fastapi import Cookie, Depends, Header, HTTPException, WebSocket
-from jose import JWTError, jwe
-from jose.jwe import JWEError
+from joserfc import jwe
+from joserfc.errors import DecodeError
+from joserfc.jwk import OctKey
 
 from backend.api.config import Settings
 
@@ -44,15 +45,20 @@ def _derive_encryption_key(secret: str, salt: str) -> bytes:
 def _decrypt_nextauth_token(token: str, secret: str, salt: str) -> dict[str, Any]:
     """Decrypt a NextAuth v5 JWE token and return its payload.
 
-    Raises ``JWTError`` if the token is expired.
+    Raises ``DecodeError`` if the token cannot be decrypted.
+    Raises ``ValueError`` if the token is expired.
     """
-    key = _derive_encryption_key(secret, salt)
-    decrypted = jwe.decrypt(token, key)
-    payload: dict[str, Any] = json.loads(decrypted)
+    raw_key = _derive_encryption_key(secret, salt)
+    key = OctKey.import_key(raw_key)
+    result = jwe.decrypt_compact(token, key)
+    plaintext = result.plaintext
+    if plaintext is None:
+        raise DecodeError("JWE decryption produced no plaintext")
+    payload: dict[str, Any] = json.loads(plaintext)
 
     exp = payload.get("exp")
     if isinstance(exp, (int, float)) and exp < time.time():
-        raise JWTError("Token has expired")
+        raise ValueError("Token has expired")
 
     return payload
 
@@ -134,7 +140,7 @@ def get_current_user(
 
     try:
         payload = _decrypt_nextauth_token(token, settings.nextauth_secret, salt)
-    except (JWEError, JWTError, Exception) as exc:
+    except (DecodeError, ValueError, Exception) as exc:
         logger.warning("Auth: token decryption failed: %s: %s", type(exc).__name__, exc)
         if is_dev:
             return AuthenticatedUser(
@@ -203,7 +209,7 @@ async def authenticate_websocket(websocket: WebSocket) -> AuthenticatedUser | No
 
     try:
         payload = _decrypt_nextauth_token(token, settings.nextauth_secret, salt)
-    except (JWEError, JWTError, Exception):
+    except (DecodeError, ValueError, Exception):
         if is_dev:
             return AuthenticatedUser(
                 user_id="dev-user",

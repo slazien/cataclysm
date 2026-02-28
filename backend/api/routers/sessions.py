@@ -5,7 +5,9 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
+from cataclysm.constants import MPS_TO_MPH
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.config import Settings
@@ -36,8 +38,6 @@ from backend.api.services.pipeline import process_upload
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-MPS_TO_MPH = 2.23694
 
 
 async def _auto_fetch_weather(sd: session_store.SessionData) -> None:
@@ -156,7 +156,7 @@ async def _compute_ideal_lap_time(sd: session_store.SessionData) -> float | None
             if avg_mps > 0:
                 total += ds / avg_mps
         return total if total > 0 else None
-    except Exception:
+    except (ValueError, KeyError, IndexError):
         logger.debug("Ideal lap integration failed for %s", sd.session_id)
         return None
 
@@ -249,7 +249,7 @@ async def upload_sessions(
             if sd is not None and sd.weather is None:
                 try:
                     await _auto_fetch_weather(sd)
-                except Exception:
+                except (ValueError, TypeError, OSError):
                     logger.warning("Auto weather fetch failed for %s", sid, exc_info=True)
 
             # Persist session metadata to DB for user scoping.
@@ -270,16 +270,16 @@ async def upload_sessions(
                         )
                     )
                     await db.commit()
-                except Exception:
+                except SQLAlchemyError:
                     logger.warning("Failed to persist CSV bytes for %s", sid, exc_info=True)
                     await db.rollback()
 
                 # Auto-generate coaching report in the background
                 try:
                     await trigger_auto_coaching(sid, sd, skill_level=user_skill_level)
-                except Exception:
+                except (ValueError, TypeError, KeyError):
                     logger.warning("Auto-coaching failed for %s", sid, exc_info=True)
-        except Exception as exc:
+        except (ValueError, KeyError, IndexError, OSError) as exc:
             logger.warning("Failed to process %s: %s", f.filename, exc, exc_info=True)
             errors.append(f"{f.filename}: {exc}")
 
@@ -490,7 +490,7 @@ async def get_session_weather(
     # Try live fetch if not cached
     try:
         await _auto_fetch_weather(sd)
-    except Exception:
+    except (ValueError, TypeError, OSError):
         logger.warning("On-demand weather fetch failed for %s", session_id, exc_info=True)
 
     if sd.weather is not None:
@@ -568,7 +568,7 @@ async def backfill_weather(
                         await db.flush()
                         backfilled += 1
                         continue
-                except Exception:
+                except (ValueError, TypeError, OSError):
                     logger.warning("Backfill via memory failed for %s", row.session_id)
             skipped += 1
             continue
@@ -625,7 +625,7 @@ async def backfill_weather(
                 else str(w.track_condition),
                 w.ambient_temp_c or 0,
             )
-        except Exception:
+        except (ValueError, TypeError, OSError):
             logger.warning("Weather backfill failed for %s", row.session_id, exc_info=True)
             failed += 1
 

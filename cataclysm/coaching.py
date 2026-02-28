@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from cataclysm.coaching_validator import CoachingValidator
+from cataclysm.constants import MPS_TO_MPH
 from cataclysm.corner_analysis import SessionCornerAnalysis
 from cataclysm.corners import Corner
 from cataclysm.driving_physics import COACHING_SYSTEM_PROMPT
@@ -22,8 +23,6 @@ from cataclysm.optimal_comparison import OptimalComparisonResult
 from cataclysm.topic_guardrail import TOPIC_RESTRICTION_PROMPT
 
 logger = logging.getLogger(__name__)
-
-MPS_TO_MPH = 2.23694
 
 _validator: CoachingValidator | None = None
 

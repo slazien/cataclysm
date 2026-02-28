@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import statistics
 
+from cataclysm.constants import MPS_TO_MPH
 from cataclysm.corners import Corner
 from cataclysm.gains import GainEstimate
-
-MPS_TO_MPH = 2.23694
 
 # Maximum tokens of KB context to inject into the prompt.
 MAX_INJECTION_TOKENS = 2000

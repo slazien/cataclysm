@@ -1,9 +1,12 @@
-"""In-memory session data store.
+"""In-memory session data store with LRU eviction.
 
 Provides a dict-based store for session data. Each session holds all
 pipeline outputs (parsed, processed, corners, consistency, gains, grip)
-keyed by session_id. This will be replaced by database persistence in a
-later phase.
+keyed by session_id. PostgreSQL persists metadata and raw CSV bytes;
+this in-memory store provides fast access to the processed telemetry.
+
+Eviction: when the store exceeds ``MAX_SESSIONS``, the oldest sessions
+(by insertion order) are evicted to prevent unbounded memory growth.
 """
 
 from __future__ import annotations
@@ -46,6 +49,10 @@ class SessionData:
     user_id: str | None = None
 
 
+# Maximum sessions to keep in memory before evicting oldest.
+# Each session uses ~5-20MB; 200 sessions ≈ 1-4GB RAM.
+MAX_SESSIONS: int = 200
+
 # Module-level in-memory store
 _store: dict[str, SessionData] = {}
 
@@ -57,10 +64,24 @@ def set_session_weather(session_id: str, weather: SessionConditions) -> None:
         sd.weather = weather
 
 
+def _evict_oldest() -> None:
+    """Evict the oldest session(s) when the store exceeds MAX_SESSIONS."""
+    while len(_store) > MAX_SESSIONS:
+        oldest_id = next(iter(_store))
+        _store.pop(oldest_id)
+        logger.info(
+            "Evicted oldest session %s (store at %d/%d)",
+            oldest_id,
+            len(_store),
+            MAX_SESSIONS,
+        )
+
+
 def store_session(session_id: str, data: SessionData) -> None:
-    """Persist a session in the in-memory store."""
-    logger.info("Storing session %s (total: %d)", session_id, len(_store) + 1)
+    """Persist a session in the in-memory store, evicting oldest if full."""
     _store[session_id] = data
+    _evict_oldest()
+    logger.info("Storing session %s (total: %d)", session_id, len(_store))
 
 
 def get_session(session_id: str) -> SessionData | None:

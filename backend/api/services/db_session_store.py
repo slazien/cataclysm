@@ -9,9 +9,8 @@ This module persists lightweight metadata to PostgreSQL for:
 
 from __future__ import annotations
 
-from datetime import datetime
-
 from cataclysm.equipment import SessionConditions, TrackCondition
+from cataclysm.trends import _parse_session_date  # noqa: F401 — re-exported for callers
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,30 +18,6 @@ from backend.api.db.models import Session as SessionModel
 from backend.api.db.models import User as UserModel
 from backend.api.dependencies import AuthenticatedUser
 from backend.api.services.session_store import SessionData
-
-# RaceChrono date formats — mirrors cataclysm.trends._DATE_FORMATS
-_DATE_FORMATS = [
-    "%d/%m/%Y %H:%M",  # RaceChrono EU format
-    "%d/%m/%Y,%H:%M",  # RaceChrono comma-separated
-    "%m/%d/%Y %H:%M",  # US format
-    "%Y-%m-%d %H:%M:%S",  # ISO
-    "%Y-%m-%d %H:%M",  # ISO short
-    "%Y-%m-%dT%H:%M:%S",  # ISO 8601
-    "%Y-%m-%dT%H:%M",  # ISO 8601 short
-    "%d/%m/%Y",  # Date only EU
-    "%Y-%m-%d",  # Date only ISO
-]
-
-
-def _parse_session_date(date_str: str) -> datetime:
-    """Parse a session date string into a datetime, trying multiple formats."""
-    cleaned = date_str.strip()
-    for fmt in _DATE_FORMATS:
-        try:
-            return datetime.strptime(cleaned, fmt)  # noqa: DTZ007
-        except ValueError:
-            continue
-    return datetime.min  # noqa: DTZ001
 
 
 async def ensure_user_exists(db: AsyncSession, user: AuthenticatedUser) -> None:
@@ -98,7 +73,7 @@ async def store_session_db(
                 "lat": round(float(df["lat"].mean()), 6),
                 "lon": round(float(df["lon"].mean()), 6),
             }
-    except Exception:
+    except (ValueError, KeyError, AttributeError):
         pass  # Non-critical, skip if data is unavailable
 
     # GPS quality assessment (computed from telemetry)

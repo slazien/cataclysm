@@ -9,12 +9,11 @@ from datetime import datetime
 import numpy as np
 
 from cataclysm.consistency import CornerConsistencyEntry, LapConsistency
+from cataclysm.constants import MPS_TO_MPH
 from cataclysm.corners import Corner
 from cataclysm.engine import LapSummary
 from cataclysm.gains import GainEstimate
 from cataclysm.parser import SessionMetadata
-
-MPS_TO_MPH = 2.23694
 
 
 @dataclass

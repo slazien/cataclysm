@@ -7,10 +7,9 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from cataclysm.constants import MPS_TO_MPH
 from cataclysm.corners import Corner
 from cataclysm.engine import LapSummary
-
-MPS_TO_MPH = 2.23694
 
 
 @dataclass

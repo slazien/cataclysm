@@ -76,7 +76,7 @@ async def load_track_folder(
         try:
             result = await process_file_path(csv_path)
             session_ids.append(str(result["session_id"]))
-        except Exception as exc:
+        except (ValueError, KeyError, IndexError, OSError) as exc:
             logger.warning("Failed to process %s: %s", csv_path.name, exc, exc_info=True)
             errors.append(f"{csv_path.name}: {exc}")
 

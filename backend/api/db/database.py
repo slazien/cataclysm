@@ -35,6 +35,6 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         try:
             yield session
             await session.commit()
-        except Exception:
+        except Exception:  # noqa: BLE001 — must rollback on any error before re-raising
             await session.rollback()
             raise

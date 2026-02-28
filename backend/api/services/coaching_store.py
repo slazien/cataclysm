@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 
 from cataclysm.coaching import CoachingContext
+from sqlalchemy.exc import SQLAlchemyError
 
 from backend.api.db.database import async_session_factory
 from backend.api.schemas.coaching import CoachingReportResponse
@@ -24,10 +25,27 @@ from backend.api.services.db_coaching_store import (
 
 logger = logging.getLogger(__name__)
 
+# Maximum coaching items to keep in memory before evicting oldest.
+MAX_COACHING_CACHE: int = 300
+
 # Module-level in-memory caches
 _reports: dict[str, CoachingReportResponse] = {}
 _contexts: dict[str, CoachingContext] = {}
 _generating: set[str] = set()  # session IDs currently generating
+
+
+def _evict_oldest_reports() -> None:
+    """Evict oldest coaching report(s) when cache exceeds MAX_COACHING_CACHE."""
+    while len(_reports) > MAX_COACHING_CACHE:
+        oldest_id = next(iter(_reports))
+        _reports.pop(oldest_id)
+        _contexts.pop(oldest_id, None)
+        logger.info(
+            "Evicted coaching cache for %s (at %d/%d)",
+            oldest_id,
+            len(_reports),
+            MAX_COACHING_CACHE,
+        )
 
 
 async def store_coaching_report(
@@ -37,11 +55,12 @@ async def store_coaching_report(
 ) -> None:
     """Persist a coaching report in-memory and to the database."""
     _reports[session_id] = report
+    _evict_oldest_reports()
     try:
         async with async_session_factory() as db:
             await upsert_coaching_report_db(db, session_id, report, skill_level)
             await db.commit()
-    except Exception:
+    except SQLAlchemyError:
         logger.warning("Failed to persist coaching report to DB for %s", session_id, exc_info=True)
 
 
@@ -58,7 +77,7 @@ async def get_coaching_report(session_id: str) -> CoachingReportResponse | None:
         if report is not None and report.status == "ready":
             _reports[session_id] = report
             return report
-    except Exception:
+    except SQLAlchemyError:
         logger.warning("Failed to load coaching report from DB for %s", session_id, exc_info=True)
     return None
 
@@ -70,7 +89,7 @@ async def store_coaching_context(session_id: str, context: CoachingContext) -> N
         async with async_session_factory() as db:
             await upsert_coaching_context_db(db, session_id, context.messages)
             await db.commit()
-    except Exception:
+    except SQLAlchemyError:
         logger.warning("Failed to persist coaching context to DB for %s", session_id, exc_info=True)
 
 
@@ -88,7 +107,7 @@ async def get_coaching_context(session_id: str) -> CoachingContext | None:
             ctx = CoachingContext(messages=messages)
             _contexts[session_id] = ctx
             return ctx
-    except Exception:
+    except SQLAlchemyError:
         logger.warning("Failed to load coaching context from DB for %s", session_id, exc_info=True)
     return None
 
@@ -101,7 +120,7 @@ async def clear_coaching_data(session_id: str) -> None:
         async with async_session_factory() as db:
             await delete_coaching_data_db(db, session_id)
             await db.commit()
-    except Exception:
+    except SQLAlchemyError:
         logger.warning("Failed to delete coaching data from DB for %s", session_id, exc_info=True)
 
 

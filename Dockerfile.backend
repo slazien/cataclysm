@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev &
 COPY pyproject.toml .
 COPY cataclysm/ cataclysm/
 RUN pip install --no-cache-dir . && \
-    pip install --no-cache-dir fastapi "uvicorn[standard]" pydantic-settings sqlalchemy asyncpg alembic python-multipart "python-jose[cryptography]"
+    pip install --no-cache-dir fastapi "uvicorn[standard]" pydantic-settings sqlalchemy asyncpg alembic python-multipart "joserfc"
 
 # Runtime stage
 FROM python:3.12-slim
@@ -22,6 +22,11 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy backend source (not installed as a package, runs from source)
 COPY backend/ backend/
+
+# Run as non-root user for security
+RUN adduser --disabled-password --gecos "" appuser && \
+    mkdir -p /app/data && chown -R appuser:appuser /app
+USER appuser
 
 EXPOSE 8000
 COPY alembic.ini .
