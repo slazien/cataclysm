@@ -629,7 +629,7 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
             0.334,
             lat=32.168765,
             lon=-81.325403,
-            character="lift",
+            character="flat",
             direction="left",
             corner_type="sweeper",
             elevation_trend="flat",
@@ -649,6 +649,7 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
             direction="right",
             corner_type="sweeper",
             elevation_trend="flat",
+            camber="off-camber",
             coaching_notes=(
                 "Slippery entry worsens the deeper you penetrate. "
                 "Turn in earlier than instinct says. Sets up the T5 braking zone."
@@ -678,6 +679,7 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
             direction="right",
             corner_type="sweeper",
             elevation_trend="downhill",
+            camber="off-camber",
             coaching_notes=(
                 "Downhill entry makes the surface slippery. Don't turn in too early — "
                 "mid-corner washout is common. Patience through the arc."
