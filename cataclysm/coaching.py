@@ -38,10 +38,13 @@ def resolve_speed_markers(text: str, *, metric: bool = False) -> str:
 
     def _replace(m: re.Match[str]) -> str:
         val = m.group(1)
+        try:
+            mph = float(val)
+        except ValueError:
+            return val
         if metric:
-            kmh = float(val) * 1.60934
             dec = len(val.split(".")[1]) if "." in val else 0
-            return f"{kmh:.{dec}f} km/h"
+            return f"{mph * 1.60934:.{dec}f} km/h"
         return f"{val} mph"
 
     return _SPEED_MARKER_RE.sub(_replace, text)

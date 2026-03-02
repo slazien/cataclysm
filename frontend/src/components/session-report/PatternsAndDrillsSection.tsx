@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { TrendingUp, Target, ChevronDown, ChevronUp } from 'lucide-react';
 import { extractActionTitle } from '@/lib/textUtils';
+import { useUnits } from '@/hooks/useUnits';
 
 const DEFAULT_VISIBLE = 3;
 
@@ -43,8 +44,11 @@ function ExpandableItem({ text, bullet }: { text: string; bullet: string }) {
 
 export function PatternsAndDrillsSection({ patterns, drills }: PatternsAndDrillsSectionProps) {
   const [showAllPatterns, setShowAllPatterns] = useState(false);
-  const visiblePatterns = showAllPatterns ? patterns : patterns.slice(0, DEFAULT_VISIBLE);
-  const hiddenCount = patterns.length - DEFAULT_VISIBLE;
+  const { resolveSpeed } = useUnits();
+  const resolvedPatterns = patterns.map(resolveSpeed);
+  const resolvedDrills = drills.map(resolveSpeed);
+  const visiblePatterns = showAllPatterns ? resolvedPatterns : resolvedPatterns.slice(0, DEFAULT_VISIBLE);
+  const hiddenCount = resolvedPatterns.length - DEFAULT_VISIBLE;
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -81,7 +85,7 @@ export function PatternsAndDrillsSection({ patterns, drills }: PatternsAndDrills
             <h4 className="font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-primary)]">Recommended Drills</h4>
           </div>
           <ul className="space-y-1.5">
-            {drills.map((d, i) => (
+            {resolvedDrills.map((d, i) => (
               <ExpandableItem key={i} text={d} bullet={`${i + 1}.`} />
             ))}
           </ul>

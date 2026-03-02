@@ -69,7 +69,7 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
   const { data: corners } = useCorners(sessionId);
   const { data: report } = useCoachingReport(sessionId);
   const { data: allLapCorners } = useAllLapCorners(sessionId);
-  const { convertSpeed, speedUnit } = useUnits();
+  const { convertSpeed, speedUnit, resolveSpeed } = useUnits();
 
   if (!selectedCorner) {
     return (
@@ -216,7 +216,7 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
               />
             </svg>
             <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-              {priorityCorner?.tip ?? cornerGrade?.notes}
+              {resolveSpeed(priorityCorner?.tip ?? cornerGrade?.notes ?? '')}
             </p>
           </div>
         </div>

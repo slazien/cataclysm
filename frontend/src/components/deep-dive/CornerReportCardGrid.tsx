@@ -8,6 +8,7 @@ import { useCoachingReport } from '@/hooks/useCoaching';
 import { GradeChip } from '@/components/shared/GradeChip';
 import { cn } from '@/lib/utils';
 import { worstGrade } from '@/lib/gradeUtils';
+import { useUnits } from '@/hooks/useUnits';
 import { motion as motionTokens } from '@/lib/design-tokens';
 import type { Corner, CornerGrade, PriorityCorner } from '@/lib/types';
 
@@ -78,6 +79,7 @@ function CornerCard({
   onClick: () => void;
 }) {
   const { cornerNumber, corner, overallGrade, cornerGrade, priorityCorner } = card;
+  const { resolveSpeed } = useUnits();
 
   return (
     <button
@@ -153,7 +155,7 @@ function CornerCard({
               &#x1F916;
             </span>
             <p className="line-clamp-2 text-[10px] leading-relaxed text-[var(--text-secondary)]">
-              {priorityCorner.tip}
+              {resolveSpeed(priorityCorner.tip)}
             </p>
           </div>
         </div>

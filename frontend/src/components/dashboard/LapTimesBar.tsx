@@ -6,6 +6,7 @@ import { useCoachingReport } from '@/hooks/useCoaching';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
 import { formatLapTime } from '@/lib/formatters';
 import { colors, fonts } from '@/lib/design-tokens';
+import { useUnits } from '@/hooks/useUnits';
 import type { LapSummary } from '@/lib/types';
 
 interface LapTimesBarProps {
@@ -27,6 +28,7 @@ export function LapTimesBar({ sessionId }: LapTimesBarProps) {
     useCanvasChart(MARGINS);
   const { data: laps, isLoading } = useSessionLaps(sessionId);
   const { data: report } = useCoachingReport(sessionId);
+  const { resolveSpeed } = useUnits();
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
   const renderChart = useCallback(() => {
@@ -63,10 +65,11 @@ export function LapTimesBar({ sessionId }: LapTimesBarProps) {
       ctx.fillStyle = colors.ai.icon;
       ctx.globalAlpha = 0.8;
       const maxWidth = innerWidth;
+      const resolved = resolveSpeed(report.summary);
       const truncated =
-        report.summary.length > 120
-          ? report.summary.slice(0, 117) + '...'
-          : report.summary;
+        resolved.length > 120
+          ? resolved.slice(0, 117) + '...'
+          : resolved;
       ctx.fillText(truncated, margins.left, margins.top - 10, maxWidth);
       ctx.restore();
     }
@@ -201,7 +204,7 @@ export function LapTimesBar({ sessionId }: LapTimesBarProps) {
       ctx.stroke();
     }
     ctx.restore();
-  }, [laps, dimensions, getDataCtx, report]);
+  }, [laps, dimensions, getDataCtx, report, resolveSpeed]);
 
   useEffect(() => {
     renderChart();
