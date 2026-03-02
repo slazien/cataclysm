@@ -341,9 +341,7 @@ class TestAMPEnrichedData:
 
     def test_has_character_annotations(self) -> None:
         """At least some fast corners should have character annotations."""
-        char_count = sum(
-            1 for c in ATLANTA_MOTORSPORTS_PARK.corners if c.character is not None
-        )
+        char_count = sum(1 for c in ATLANTA_MOTORSPORTS_PARK.corners if c.character is not None)
         assert char_count >= 4, "Need character annotations on fast kinks/esses"
 
     def test_landmarks_have_brake_boards(self) -> None:
