@@ -4,7 +4,7 @@ import { useSession } from '@/hooks/useSession';
 import { useConsistency } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useSessionStore } from '@/stores';
-import { formatLapTime, normalizeScore } from '@/lib/formatters';
+import { normalizeScore } from '@/lib/formatters';
 import { DebriefHeroCard } from './DebriefHeroCard';
 import { TimeLossCorners } from './TimeLossCorners';
 import { QuickTip } from './QuickTip';
@@ -23,8 +23,8 @@ export function PitLaneDebrief() {
 
   if (sessionLoading) {
     return (
-      <div className="mx-auto flex max-w-lg flex-col gap-4 p-4">
-        <SkeletonCard height="h-32" />
+      <div className="mx-auto flex max-w-5xl flex-col gap-4 p-4">
+        <SkeletonCard height="h-48" />
         <SkeletonCard height="h-40" />
         <SkeletonCard height="h-20" />
       </div>
@@ -40,8 +40,8 @@ export function PitLaneDebrief() {
     : null;
 
   return (
-    <div className="mx-auto flex max-w-lg flex-col gap-4 p-4 pb-24">
-      {/* Hero */}
+    <div className="mx-auto flex max-w-5xl flex-col gap-5 p-4 pb-24">
+      {/* Hero — pit board style */}
       <DebriefHeroCard
         bestLapTime={session.best_lap_time_s ?? 0}
         consistencyScore={consistencyScore}
@@ -62,7 +62,7 @@ export function PitLaneDebrief() {
 
       {/* Summary */}
       {report?.summary && (
-        <div className="rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
+        <div className="rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-5">
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
             Session Summary
           </h3>

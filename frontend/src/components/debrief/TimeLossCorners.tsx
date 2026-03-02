@@ -8,28 +8,33 @@ interface TimeLossCornersProps {
 
 export function TimeLossCorners({ corners }: TimeLossCornersProps) {
   return (
-    <div className="rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
-        Focus Areas
+    <div className="rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-5">
+      {/* Section header with amber left-border accent */}
+      <h3 className="mb-4 border-l-[3px] border-[var(--cata-accent)] pl-3 font-[family-name:var(--font-display)] text-sm font-bold uppercase tracking-widest text-[var(--cata-accent)]">
+        Top 3 Focus
       </h3>
-      <div className="space-y-3">
-        {corners.map((pc, i) => (
+
+      {/* Clean scannable list — one line per corner */}
+      <div className="space-y-2">
+        {corners.map((pc) => (
           <div
             key={pc.corner}
-            className="flex items-start gap-3 rounded-lg bg-[var(--bg-base)] p-3"
+            className="flex items-center gap-3 rounded-lg bg-[var(--bg-base)] px-4 py-3"
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-500/15 text-sm font-bold text-red-400">
+            {/* Corner number — display font, bold */}
+            <span className="w-10 shrink-0 font-[family-name:var(--font-display)] text-lg font-bold text-[var(--text-primary)]">
               T{pc.corner}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-[var(--text-primary)]">{pc.issue}</p>
-                <span className="shrink-0 text-xs font-mono text-red-400">
-                  -{pc.time_cost_s.toFixed(2)}s
-                </span>
-              </div>
-              <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">{pc.tip}</p>
-            </div>
+            </span>
+
+            {/* Tip — single line, truncated if needed */}
+            <span className="min-w-0 flex-1 truncate text-sm text-[var(--text-secondary)]">
+              {pc.tip}
+            </span>
+
+            {/* Time delta — right-aligned, display font, green for gain */}
+            <span className="shrink-0 font-[family-name:var(--font-display)] text-lg font-bold tracking-tight text-[var(--color-throttle)]">
+              -{pc.time_cost_s.toFixed(2)}s
+            </span>
           </div>
         ))}
       </div>
