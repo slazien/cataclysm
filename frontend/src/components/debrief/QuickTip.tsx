@@ -1,6 +1,7 @@
 'use client';
 
 import { Brain } from 'lucide-react';
+import { MarkdownText } from '@/components/shared/MarkdownText';
 import { useUnits } from '@/hooks/useUnits';
 
 interface QuickTipProps {
@@ -21,7 +22,7 @@ export function QuickTip({ drill }: QuickTipProps) {
           <h3 className="mb-1 font-[family-name:var(--font-display)] text-xs font-bold uppercase tracking-widest text-[var(--cata-accent)]">
             Coach&apos;s Tip
           </h3>
-          <p className="text-sm leading-relaxed text-[var(--text-secondary)]">{resolveSpeed(drill)}</p>
+          <p className="text-sm leading-relaxed text-[var(--text-secondary)]"><MarkdownText>{resolveSpeed(drill)}</MarkdownText></p>
         </div>
       </div>
     </div>

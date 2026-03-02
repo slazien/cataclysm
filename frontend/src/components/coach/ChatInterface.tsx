@@ -5,6 +5,7 @@ import { Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { AiInsight } from '@/components/shared/AiInsight';
+import { MarkdownText } from '@/components/shared/MarkdownText';
 import { useCoachStore, useSessionStore } from '@/stores';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useUnits } from '@/hooks/useUnits';
@@ -222,7 +223,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
     <div className="flex justify-start">
       <div className="max-w-[95%]">
         <AiInsight>
-          <span className="text-xs leading-relaxed whitespace-pre-wrap">{resolveSpeed(message.content)}</span>
+          <span className="text-xs leading-relaxed whitespace-pre-wrap"><MarkdownText>{resolveSpeed(message.content)}</MarkdownText></span>
         </AiInsight>
       </div>
     </div>

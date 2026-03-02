@@ -4,6 +4,7 @@ import { useSession } from '@/hooks/useSession';
 import { useConsistency } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useSessionStore } from '@/stores';
+import { MarkdownText } from '@/components/shared/MarkdownText';
 import { useUnits } from '@/hooks/useUnits';
 import { normalizeScore } from '@/lib/formatters';
 import { DebriefHeroCard } from './DebriefHeroCard';
@@ -73,7 +74,7 @@ export function PitLaneDebrief() {
             Session Summary
           </h3>
           <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
-            {resolveSpeed(report.summary)}
+            <MarkdownText>{resolveSpeed(report.summary)}</MarkdownText>
           </p>
         </div>
       )}

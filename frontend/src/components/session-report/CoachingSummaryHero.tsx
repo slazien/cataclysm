@@ -1,6 +1,7 @@
 'use client';
 
 import { Sparkles } from 'lucide-react';
+import { MarkdownText } from '@/components/shared/MarkdownText';
 import { useUnits } from '@/hooks/useUnits';
 
 interface CoachingSummaryHeroProps {
@@ -47,11 +48,11 @@ export function CoachingSummaryHero({ report }: CoachingSummaryHeroProps) {
             return (
               <>
                 <p className="font-[family-name:var(--font-display)] text-base font-semibold leading-snug text-[var(--text-primary)]">
-                  {lead}
+                  <MarkdownText>{lead}</MarkdownText>
                 </p>
                 {rest && (
                   <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
-                    {rest}
+                    <MarkdownText>{rest}</MarkdownText>
                   </p>
                 )}
               </>

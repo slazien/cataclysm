@@ -5,6 +5,7 @@ import { useCoachingReport } from '@/hooks/useCoaching';
 import { useAnalysisStore } from '@/stores';
 import { GlossaryTerm } from '@/components/shared/GlossaryTerm';
 import { GradeChip } from '@/components/shared/GradeChip';
+import { MarkdownText } from '@/components/shared/MarkdownText';
 import { colors } from '@/lib/design-tokens';
 import { worstGrade } from '@/lib/gradeUtils';
 import { parseCornerNumber } from '@/lib/cornerUtils';
@@ -216,7 +217,7 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
               />
             </svg>
             <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-              {resolveSpeed(priorityCorner?.tip ?? cornerGrade?.notes ?? '')}
+              <MarkdownText>{resolveSpeed(priorityCorner?.tip ?? cornerGrade?.notes ?? '')}</MarkdownText>
             </p>
           </div>
         </div>

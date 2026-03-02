@@ -1,5 +1,6 @@
 'use client';
 
+import { MarkdownText } from '@/components/shared/MarkdownText';
 import { useUnits } from '@/hooks/useUnits';
 import type { PriorityCorner } from '@/lib/types';
 
@@ -30,7 +31,7 @@ export function TimeLossCorners({ corners }: TimeLossCornersProps) {
 
             {/* Tip — single line, truncated if needed */}
             <span className="min-w-0 flex-1 truncate text-sm text-[var(--text-secondary)]">
-              {resolveSpeed(pc.tip)}
+              <MarkdownText>{resolveSpeed(pc.tip)}</MarkdownText>
             </span>
 
             {/* Time delta — right-aligned, display font, green for gain */}

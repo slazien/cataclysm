@@ -6,6 +6,7 @@ import { useAnalysisStore } from '@/stores';
 import { GlossaryTerm } from '@/components/shared/GlossaryTerm';
 import { GradeChip } from '@/components/shared/GradeChip';
 import { AiInsight } from '@/components/shared/AiInsight';
+import { MarkdownText } from '@/components/shared/MarkdownText';
 import { colors } from '@/lib/design-tokens';
 import { worstGrade } from '@/lib/gradeUtils';
 import { parseCornerNumber } from '@/lib/cornerUtils';
@@ -277,7 +278,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
       {/* AI coaching tip */}
       {(priorityCorner?.tip || cornerGrade?.notes) && (
         <AiInsight mode="card">
-          <p className="text-xs leading-relaxed">{resolveSpeed(priorityCorner?.tip ?? cornerGrade?.notes ?? '')}</p>
+          <p className="text-xs leading-relaxed"><MarkdownText>{resolveSpeed(priorityCorner?.tip ?? cornerGrade?.notes ?? '')}</MarkdownText></p>
         </AiInsight>
       )}
     </div>

@@ -2,6 +2,7 @@
 
 import { AiInsight } from '@/components/shared/AiInsight';
 import { CircularProgress } from '@/components/shared/CircularProgress';
+import { MarkdownText } from '@/components/shared/MarkdownText';
 import { useAutoReport } from '@/hooks/useAutoReport';
 import { useUiStore, useAnalysisStore } from '@/stores';
 import { useUnits } from '@/hooks/useUnits';
@@ -48,9 +49,9 @@ function PriorityCard({
           </span>
         </div>
         <p className="mt-1 text-sm font-medium text-[var(--text-primary)]">
-          Turn {priority.corner} — {resolveSpeed(priority.issue)}
+          Turn {priority.corner} — <MarkdownText>{resolveSpeed(priority.issue)}</MarkdownText>
         </p>
-        <p className="mt-1 text-xs text-[var(--text-secondary)]">{resolveSpeed(priority.tip)}</p>
+        <p className="mt-1 text-xs text-[var(--text-secondary)]"><MarkdownText>{resolveSpeed(priority.tip)}</MarkdownText></p>
         <button
           type="button"
           onClick={handleDeepDive}

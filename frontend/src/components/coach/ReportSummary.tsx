@@ -6,6 +6,7 @@ import { AlertTriangle, ChevronDown, ChevronRight, Volume2, VolumeX } from 'luci
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { GradeChip } from '@/components/shared/GradeChip';
 import { AiInsight } from '@/components/shared/AiInsight';
+import { MarkdownText } from '@/components/shared/MarkdownText';
 import { Button } from '@/components/ui/button';
 import { useSessionStore } from '@/stores';
 import { useAutoReport } from '@/hooks/useAutoReport';
@@ -123,7 +124,7 @@ export function ReportSummary() {
       {report.summary && (
         <div className="px-4 py-3">
           <AiInsight mode="compact">
-            <span className="text-xs leading-relaxed">{resolveSpeed(report.summary)}</span>
+            <span className="text-xs leading-relaxed"><MarkdownText>{resolveSpeed(report.summary)}</MarkdownText></span>
           </AiInsight>
           {speech.isSupported && (
             <Button
@@ -246,7 +247,7 @@ export function ReportSummary() {
           <ul className="space-y-0.5">
             {report.patterns.map((pattern, i) => (
               <li key={i} className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                &bull; {resolveSpeed(pattern)}
+                &bull; <MarkdownText>{resolveSpeed(pattern)}</MarkdownText>
               </li>
             ))}
           </ul>
@@ -262,7 +263,7 @@ export function ReportSummary() {
           <ul className="space-y-0.5">
             {report.drills.map((drill, i) => (
               <li key={i} className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                &bull; {resolveSpeed(drill)}
+                &bull; <MarkdownText>{resolveSpeed(drill)}</MarkdownText>
               </li>
             ))}
           </ul>
