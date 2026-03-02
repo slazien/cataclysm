@@ -114,7 +114,7 @@ export function SessionScore({ score, breakdown, isLoading }: SessionScoreProps)
 
   const ring = (
     <div className="flex flex-col items-center justify-center rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] px-3 py-2">
-      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+      <p className="mb-1 font-[family-name:var(--font-display)] text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
         Session Score
       </p>
       <div className="relative" style={{ width: SIZE, height: SIZE }}>
@@ -152,7 +152,7 @@ export function SessionScore({ score, breakdown, isLoading }: SessionScoreProps)
         {/* Center label */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span
-            className="text-lg font-bold tabular-nums"
+            className="font-[family-name:var(--font-display)] text-lg font-bold tracking-tight tabular-nums"
             style={{ color }}
           >
             {displayScore !== null ? displayScore : '--'}
@@ -161,7 +161,7 @@ export function SessionScore({ score, breakdown, isLoading }: SessionScoreProps)
         </div>
       </div>
       {displayScore !== null && (
-        <p className="mt-0.5 text-[11px] text-[var(--text-secondary)]">
+        <p className="mt-0.5 font-[family-name:var(--font-display)] text-[11px] text-[var(--text-secondary)]">
           {getSubtitle(displayScore)}
         </p>
       )}

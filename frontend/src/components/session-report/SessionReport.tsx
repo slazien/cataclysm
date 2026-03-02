@@ -58,6 +58,7 @@ export function SessionReport() {
           <PriorityCardsSection
             priorities={report.priority_corners}
             isNovice={isNovice}
+            cornerGrades={report.corner_grades}
           />
         )}
 
@@ -84,7 +85,7 @@ export function SessionReport() {
 
         {activeSessionId && laps && laps.length > 0 && (
           <div>
-            <h3 className="mb-3 text-sm font-medium text-[var(--text-secondary)]">Lap Times</h3>
+            <h3 className="mb-3 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Lap Times</h3>
             <LapTimesBar sessionId={activeSessionId} />
           </div>
         )}

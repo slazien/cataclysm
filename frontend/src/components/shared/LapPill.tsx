@@ -52,7 +52,7 @@ export function LapPill({
         </span>
       )}
       <span>L{lapNumber}</span>
-      <span className="tabular-nums">{time}</span>
+      <span className="font-[family-name:var(--font-display)] tracking-tight tabular-nums">{time}</span>
     </button>
   );
 }

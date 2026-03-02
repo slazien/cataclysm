@@ -125,7 +125,7 @@ export function ProgressView() {
     <div className="flex flex-col gap-6 overflow-y-auto p-6">
       {/* Section title */}
       <div>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+        <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--text-primary)]">
           Progress: {trendData.track_name}
         </h2>
         <p className="text-sm text-[var(--text-secondary)]">
@@ -179,7 +179,7 @@ export function ProgressView() {
 
       {/* 3. Milestone Timeline */}
       <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-        <h3 className="mb-2 text-sm font-medium text-[var(--text-secondary)]">Milestone Timeline</h3>
+        <h3 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Milestone Timeline</h3>
         <ChartErrorBoundary name="Milestone Timeline">
           <MilestoneTimeline sessions={trendData.sessions} milestones={milestones} />
         </ChartErrorBoundary>
@@ -188,7 +188,7 @@ export function ProgressView() {
       {/* 4. Two-column trend charts */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-          <h3 className="mb-2 text-sm font-medium text-[var(--text-secondary)]">Lap Time Trend</h3>
+          <h3 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Lap Time Trend</h3>
           <div className="h-[280px]">
             <ChartErrorBoundary name="Lap Time Trend">
               <LapTimeTrend
@@ -201,7 +201,7 @@ export function ProgressView() {
           </div>
         </div>
         <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-          <h3 className="mb-2 text-sm font-medium text-[var(--text-secondary)]">
+          <h3 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">
             Consistency Trend
           </h3>
           <div className="h-[280px]">
@@ -218,7 +218,7 @@ export function ProgressView() {
       {/* 5. Corner Heatmap (hidden for novice) */}
       {showFeature('heatmap') && (
         <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-          <h3 className="mb-2 text-sm font-medium text-[var(--text-secondary)]">Corner Heatmap</h3>
+          <h3 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Corner Heatmap</h3>
           <div className="h-[320px]">
             <ChartErrorBoundary name="Corner Heatmap">
               <CornerHeatmap
@@ -235,7 +235,7 @@ export function ProgressView() {
       {/* 6. Session Box Plot (hidden for novice) */}
       {showFeature('boxplot') && (
         <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-          <h3 className="mb-2 text-sm font-medium text-[var(--text-secondary)]">
+          <h3 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">
             Session Lap Time Distribution
           </h3>
           <div className="h-[280px]">

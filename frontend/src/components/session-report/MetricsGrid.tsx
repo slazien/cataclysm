@@ -25,7 +25,7 @@ export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced }
 
   return (
     <div>
-      <h3 className="mb-3 text-sm font-medium text-[var(--text-secondary)]">Session Metrics</h3>
+      <h3 className="mb-3 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Session Metrics</h3>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <MetricCard
           label="Best Lap"

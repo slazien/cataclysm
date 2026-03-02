@@ -35,7 +35,7 @@ export function MobileBottomTabs() {
             )}
           >
             <Icon className="h-5 w-5" />
-            <span className="text-[10px] font-medium">{item.label}</span>
+            <span className="font-[family-name:var(--font-display)] text-[10px] font-medium">{item.label}</span>
           </button>
         );
       })}

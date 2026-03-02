@@ -41,10 +41,10 @@ export function MetricCard({
         className,
       )}
     >
-      <p className="truncate text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+      <p className="truncate font-[family-name:var(--font-display)] text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
         {label}
       </p>
-      <p className="mt-0.5 truncate text-base font-semibold tabular-nums text-[var(--text-primary)] sm:text-lg">
+      <p className="mt-0.5 truncate font-[family-name:var(--font-display)] text-base font-semibold tracking-tight tabular-nums text-[var(--text-primary)] sm:text-lg">
         {value}
       </p>
       {(delta !== undefined || subtitle || deltaLabel) && (

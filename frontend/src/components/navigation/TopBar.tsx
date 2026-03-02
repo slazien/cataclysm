@@ -71,7 +71,7 @@ export function TopBar() {
               type="button"
               onClick={() => setActiveView(tab.value)}
               className={cn(
-                'relative px-3 py-1.5 text-sm font-medium transition-colors',
+                'relative px-3 py-1.5 font-[family-name:var(--font-display)] text-sm font-medium transition-colors',
                 activeView === tab.value
                   ? 'text-[var(--text-primary)]'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',

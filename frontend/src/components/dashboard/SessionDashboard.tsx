@@ -391,7 +391,7 @@ function CompareButton({ sessionId }: { sessionId: string }) {
       </button>
       {dropdownOpen && otherSessions.length > 0 && (
         <div className="absolute right-0 top-full z-50 mt-1 max-h-72 w-72 overflow-y-auto rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] py-1 shadow-xl">
-          <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+          <p className="px-3 py-1.5 font-[family-name:var(--font-display)] text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
             Compare with...
           </p>
           {otherSessions

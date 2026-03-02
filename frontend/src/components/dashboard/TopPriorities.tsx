@@ -38,7 +38,7 @@ function PriorityCard({
     <AiInsight mode="card">
       <div className={cn('border-l-2 pl-3', priorityColors[index] ?? priorityColors[2])}>
         <div className="flex items-center justify-between">
-          <span className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+          <span className="font-[family-name:var(--font-display)] text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
             {priorityLabels[index] ?? `Priority ${index + 1}`}
           </span>
           <span className="text-xs font-semibold tabular-nums text-[var(--color-brake)]">
@@ -67,7 +67,7 @@ export function TopPriorities({ sessionId }: TopPrioritiesProps) {
   if (isLoading) {
     return (
       <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium uppercase tracking-wider text-[var(--text-muted)]">
+        <h2 className="font-[family-name:var(--font-display)] text-sm font-medium uppercase tracking-wider text-[var(--text-muted)]">
           Top Priorities
         </h2>
         <div className="flex flex-col items-center gap-3 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-8">
@@ -83,7 +83,7 @@ export function TopPriorities({ sessionId }: TopPrioritiesProps) {
   if (isError) {
     return (
       <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium uppercase tracking-wider text-[var(--text-muted)]">
+        <h2 className="font-[family-name:var(--font-display)] text-sm font-medium uppercase tracking-wider text-[var(--text-muted)]">
           Top Priorities
         </h2>
         <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-6 text-center">
@@ -105,7 +105,7 @@ export function TopPriorities({ sessionId }: TopPrioritiesProps) {
   if (!report || report.priority_corners.length === 0) {
     return (
       <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium uppercase tracking-wider text-[var(--text-muted)]">
+        <h2 className="font-[family-name:var(--font-display)] text-sm font-medium uppercase tracking-wider text-[var(--text-muted)]">
           Top Priorities
         </h2>
         <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-6 text-center">

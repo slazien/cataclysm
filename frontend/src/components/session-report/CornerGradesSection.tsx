@@ -22,7 +22,7 @@ export function CornerGradesSection({ grades, isNovice }: CornerGradesSectionPro
 
   return (
     <div>
-      <h3 className="mb-3 text-sm font-medium text-[var(--text-secondary)]">Corner Grades</h3>
+      <h3 className="mb-3 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Corner Grades</h3>
       <div className="overflow-x-auto rounded-lg border border-[var(--cata-border)]">
         <table className="w-full text-sm">
           <thead>

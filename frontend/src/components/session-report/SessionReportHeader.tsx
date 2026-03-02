@@ -18,7 +18,7 @@ export function SessionReportHeader({ session, gpsQuality }: SessionReportHeader
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
       {/* Score circle */}
       <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-4 border-[var(--cata-border)] bg-[var(--bg-elevated)]">
-        <span className={`text-2xl font-bold ${scoreColor}`}>
+        <span className={`font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight ${scoreColor}`}>
           {score != null ? Math.round(score) : '\u2014'}
         </span>
         <span className="absolute -bottom-1 rounded-full bg-[var(--bg-surface)] px-1.5 text-[10px] font-medium text-[var(--text-muted)]">
@@ -28,7 +28,7 @@ export function SessionReportHeader({ session, gpsQuality }: SessionReportHeader
 
       {/* Track info */}
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-xl font-semibold text-[var(--text-primary)]">
+        <h1 className="truncate font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-[var(--text-primary)]">
           {session?.track_name ?? 'Loading...'}
         </h1>
         <p className="text-sm text-[var(--text-muted)]">{session?.session_date ?? ''}</p>
