@@ -1,0 +1,127 @@
+import '@testing-library/jest-dom/vitest';
+import { render, screen } from '@testing-library/react';
+import { GradeChip } from '../GradeChip';
+
+// GradeChip uses motion/react for entrance animation — replace with plain elements
+vi.mock('motion/react', () => ({
+  motion: {
+    span: ({ children, className, ...rest }: React.HTMLAttributes<HTMLSpanElement>) => (
+      <span className={className} {...rest}>
+        {children}
+      </span>
+    ),
+  },
+}));
+
+// design-tokens motion export is only referenced for transition config — no-op is fine
+vi.mock('@/lib/design-tokens', () => ({
+  motion: { gradeChip: {} },
+  colors: {
+    lap: ['#58a6ff'],
+    comparison: { reference: '#58a6ff', compare: '#f97316' },
+  },
+}));
+
+describe('GradeChip', () => {
+  describe('renders the correct grade letter', () => {
+    it('renders A grade', () => {
+      render(<GradeChip grade="A" />);
+      expect(screen.getByText(/^A/)).toBeInTheDocument();
+    });
+
+    it('renders B grade', () => {
+      render(<GradeChip grade="B" />);
+      expect(screen.getByText(/^B/)).toBeInTheDocument();
+    });
+
+    it('renders C grade', () => {
+      render(<GradeChip grade="C" />);
+      expect(screen.getByText(/^C/)).toBeInTheDocument();
+    });
+
+    it('renders D grade', () => {
+      render(<GradeChip grade="D" />);
+      expect(screen.getByText(/^D/)).toBeInTheDocument();
+    });
+
+    it('renders F grade', () => {
+      render(<GradeChip grade="F" />);
+      expect(screen.getByText(/^F/)).toBeInTheDocument();
+    });
+  });
+
+  describe('normalizes lowercase input', () => {
+    it('renders lowercase "a" as uppercase A', () => {
+      render(<GradeChip grade="a" />);
+      expect(screen.getByText(/^A/)).toBeInTheDocument();
+    });
+
+    it('renders lowercase "f" as uppercase F', () => {
+      render(<GradeChip grade="f" />);
+      expect(screen.getByText(/^F/)).toBeInTheDocument();
+    });
+  });
+
+  describe('colorblind-safe grade indicators', () => {
+    it('renders a checkmark suffix for A grade', () => {
+      const { container } = render(<GradeChip grade="A" />);
+      // The suffix span contains the unicode checkmark \u2713
+      const suffixSpan = container.querySelector('span.text-\\[0\\.6rem\\]');
+      expect(suffixSpan).toBeInTheDocument();
+      expect(suffixSpan?.textContent).toContain('\u2713');
+    });
+
+    it('renders a down-arrow suffix for F grade', () => {
+      const { container } = render(<GradeChip grade="F" />);
+      const suffixSpan = container.querySelector('span.text-\\[0\\.6rem\\]');
+      expect(suffixSpan).toBeInTheDocument();
+      expect(suffixSpan?.textContent).toContain('\u25BC');
+    });
+
+    it('renders no suffix span for B grade', () => {
+      const { container } = render(<GradeChip grade="B" />);
+      const suffixSpan = container.querySelector('span.text-\\[0\\.6rem\\]');
+      expect(suffixSpan).not.toBeInTheDocument();
+    });
+
+    it('renders no suffix span for C grade', () => {
+      const { container } = render(<GradeChip grade="C" />);
+      const suffixSpan = container.querySelector('span.text-\\[0\\.6rem\\]');
+      expect(suffixSpan).not.toBeInTheDocument();
+    });
+
+    it('renders no suffix span for D grade', () => {
+      const { container } = render(<GradeChip grade="D" />);
+      const suffixSpan = container.querySelector('span.text-\\[0\\.6rem\\]');
+      expect(suffixSpan).not.toBeInTheDocument();
+    });
+  });
+
+  describe('applies color classes', () => {
+    it('applies A color class to the chip', () => {
+      const { container } = render(<GradeChip grade="A" />);
+      const chip = container.firstChild as HTMLElement;
+      expect(chip.className).toContain('bg-[var(--grade-a)]');
+    });
+
+    it('applies F color class to the chip', () => {
+      const { container } = render(<GradeChip grade="F" />);
+      const chip = container.firstChild as HTMLElement;
+      expect(chip.className).toContain('bg-[var(--grade-f)]');
+    });
+
+    it('falls back to C color for an unknown grade string', () => {
+      const { container } = render(<GradeChip grade="Z" />);
+      const chip = container.firstChild as HTMLElement;
+      expect(chip.className).toContain('bg-[var(--grade-c)]');
+    });
+  });
+
+  describe('extra className prop', () => {
+    it('merges custom className onto the chip', () => {
+      const { container } = render(<GradeChip grade="B" className="my-custom-class" />);
+      const chip = container.firstChild as HTMLElement;
+      expect(chip.className).toContain('my-custom-class');
+    });
+  });
+});
