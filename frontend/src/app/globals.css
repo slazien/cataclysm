@@ -25,12 +25,15 @@
   --grade-f: #ef4444;
   --ai-bg: rgba(99, 102, 241, 0.06);
   --ai-icon: #818cf8;
-  --cata-accent: #3b82f6;
-  --cata-accent-hover: #2563eb;
+  --cata-accent: #f59e0b;
+  --cata-accent-hover: #d97706;
+  --cata-data: #3b82f6;
+  --cata-data-hover: #2563eb;
   --cata-border: #2a2d35;
-  --border-focus: #3b82f6;
+  --border-focus: #f59e0b;
   --cursor-line: rgba(255, 255, 255, 0.25);
   --radius: 0.5rem;
+  --font-display: 'Barlow Semi Condensed', 'Inter', system-ui, sans-serif;
 
   /* --- shadcn/ui required variables (light base) --- */
   --background: oklch(1 0 0);
@@ -164,8 +167,8 @@ body {
   border-radius: 3px;
   background: linear-gradient(
     to right,
-    var(--cata-accent, #3b82f6) 0%,
-    var(--cata-accent, #3b82f6) var(--progress, 0%),
+    var(--cata-accent, #f59e0b) 0%,
+    var(--cata-accent, #f59e0b) var(--progress, 0%),
     var(--bg-elevated, #1c1f27) var(--progress, 0%),
     var(--bg-elevated, #1c1f27) 100%
   );
@@ -179,7 +182,7 @@ body {
   height: 14px;
   border-radius: 50%;
   background: #ffffff;
-  border: 2px solid var(--cata-accent, #3b82f6);
+  border: 2px solid var(--cata-accent, #f59e0b);
   cursor: pointer;
   box-shadow: 0 0 4px rgba(59, 130, 246, 0.4);
 }
@@ -189,13 +192,13 @@ body {
   height: 14px;
   border-radius: 50%;
   background: #ffffff;
-  border: 2px solid var(--cata-accent, #3b82f6);
+  border: 2px solid var(--cata-accent, #f59e0b);
   cursor: pointer;
   box-shadow: 0 0 4px rgba(59, 130, 246, 0.4);
 }
 
 .replay-scrubber::-moz-range-progress {
-  background: var(--cata-accent, #3b82f6);
+  background: var(--cata-accent, #f59e0b);
   border-radius: 3px;
   height: 6px;
 }

@@ -6,7 +6,6 @@ import { FileText, Plus, Settings, ChevronRight, LogOut, Sparkles, Award } from 
 import { useUiStore, useSessionStore } from '@/stores';
 import { useSession, useUploadSessions } from '@/hooks/useSession';
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { LapGridSelector } from '@/components/deep-dive/LapGridSelector';
 import { SeasonWrapped } from '@/components/wrapped/SeasonWrapped';
@@ -61,8 +60,7 @@ export function TopBar() {
       <div className="flex h-12 items-center bg-[var(--bg-surface)] px-4">
         {/* Left: Logo */}
         <div className="flex items-center gap-2">
-          <span className="text-lg font-semibold text-[var(--text-primary)]">Cataclysm</span>
-          <Badge variant="secondary" className="text-[10px]">v2</Badge>
+          <span className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--text-primary)]">Cataclysm</span>
         </div>
 
         {/* Center: View tabs */}
