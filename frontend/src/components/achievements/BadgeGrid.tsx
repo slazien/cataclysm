@@ -1,7 +1,9 @@
 'use client';
 
+import { motion as m } from 'motion/react';
 import { X, Trophy, Flame, Target, Zap, Wind, MapPin, Repeat, Lock } from 'lucide-react';
 import { useAchievements } from '@/hooks/useAchievements';
+import { motion as motionTokens } from '@/lib/design-tokens';
 import type { Achievement } from '@/lib/types';
 
 const TIER_COLORS: Record<string, string> = {
@@ -20,12 +22,19 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string; style?:
   repeat: Repeat,
 };
 
+const badgeVariants = {
+  initial: { opacity: 0, scale: 0.8 },
+  animate: { opacity: 1, scale: 1 },
+};
+
 function AchievementBadge({ achievement }: { achievement: Achievement }) {
   const Icon = ICON_MAP[achievement.icon] ?? Trophy;
   const color = TIER_COLORS[achievement.tier] ?? '#c0c0c0';
 
   return (
-    <div
+    <m.div
+      variants={badgeVariants}
+      transition={motionTokens.cardEntrance}
       className={`flex flex-col items-center gap-2 rounded-xl p-4 transition ${
         achievement.unlocked
           ? 'bg-[var(--bg-elevated)]'
@@ -56,7 +65,7 @@ function AchievementBadge({ achievement }: { achievement: Achievement }) {
           {new Date(achievement.unlocked_at).toLocaleDateString()}
         </span>
       )}
-    </div>
+    </m.div>
   );
 }
 
@@ -101,11 +110,16 @@ export function BadgeGrid({ open, onClose }: BadgeGridProps) {
         )}
 
         {data && (
-          <div className="grid grid-cols-3 gap-3">
+          <m.div
+            className="grid grid-cols-3 gap-3"
+            initial="initial"
+            animate="animate"
+            variants={{ animate: { transition: motionTokens.stagger } }}
+          >
             {data.achievements.map((a) => (
               <AchievementBadge key={a.id} achievement={a} />
             ))}
-          </div>
+          </m.div>
         )}
       </div>
     </div>

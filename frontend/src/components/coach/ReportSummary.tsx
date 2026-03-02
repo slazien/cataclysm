@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { AlertTriangle, ChevronDown, ChevronRight, Volume2, VolumeX } from 'lucide-react';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { GradeChip } from '@/components/shared/GradeChip';
@@ -10,6 +11,22 @@ import { useSessionStore } from '@/stores';
 import { useAutoReport } from '@/hooks/useAutoReport';
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 import type { CoachingReport } from '@/lib/types';
+
+const gradeContainerVariants = {
+  initial: {},
+  animate: {
+    transition: { staggerChildren: 0.04 },
+  },
+};
+
+const gradeChipVariants = {
+  initial: { opacity: 0, scale: 0.8 },
+  animate: {
+    opacity: 1,
+    scale: 1,
+    transition: { duration: 0.2, ease: 'easeOut' as const },
+  },
+};
 
 function buildSpeechText(report: CoachingReport): string {
   const parts: string[] = [];
@@ -157,42 +174,59 @@ export function ReportSummary() {
             Corner Grades ({report.corner_grades.length})
           </button>
 
-          {gradesExpanded && (
-            <div className="mt-2 overflow-x-auto">
-              <table className="w-full text-[10px]">
-                <thead>
-                  <tr className="text-[var(--text-tertiary)]">
-                    <th className="pb-1 pr-2 text-left font-medium">Corner</th>
-                    <th className="pb-1 px-1 text-center font-medium">Brake</th>
-                    <th className="pb-1 px-1 text-center font-medium">Trail</th>
-                    <th className="pb-1 px-1 text-center font-medium">Speed</th>
-                    <th className="pb-1 pl-1 text-center font-medium">Throttle</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {report.corner_grades.map((grade) => (
-                    <tr key={grade.corner} className="border-t border-[var(--cata-border)]/50">
-                      <td className="py-1 pr-2 text-[var(--text-primary)] font-medium">
-                        T{grade.corner}
-                      </td>
-                      <td className="py-1 px-1 text-center">
-                        <GradeChip grade={grade.braking} className="text-[9px] px-1.5 py-0" />
-                      </td>
-                      <td className="py-1 px-1 text-center">
-                        <GradeChip grade={grade.trail_braking} className="text-[9px] px-1.5 py-0" />
-                      </td>
-                      <td className="py-1 px-1 text-center">
-                        <GradeChip grade={grade.min_speed} className="text-[9px] px-1.5 py-0" />
-                      </td>
-                      <td className="py-1 pl-1 text-center">
-                        <GradeChip grade={grade.throttle} className="text-[9px] px-1.5 py-0" />
-                      </td>
+          <AnimatePresence>
+            {gradesExpanded && (
+              <motion.div
+                className="mt-2 overflow-x-auto"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
+              >
+                <motion.table
+                  className="w-full text-[10px]"
+                  variants={gradeContainerVariants}
+                  initial="initial"
+                  animate="animate"
+                >
+                  <thead>
+                    <tr className="text-[var(--text-tertiary)]">
+                      <th className="pb-1 pr-2 text-left font-medium">Corner</th>
+                      <th className="pb-1 px-1 text-center font-medium">Brake</th>
+                      <th className="pb-1 px-1 text-center font-medium">Trail</th>
+                      <th className="pb-1 px-1 text-center font-medium">Speed</th>
+                      <th className="pb-1 pl-1 text-center font-medium">Throttle</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  </thead>
+                  <tbody>
+                    {report.corner_grades.map((grade) => (
+                      <motion.tr
+                        key={grade.corner}
+                        className="border-t border-[var(--cata-border)]/50"
+                        variants={gradeChipVariants}
+                      >
+                        <td className="py-1 pr-2 text-[var(--text-primary)] font-medium">
+                          T{grade.corner}
+                        </td>
+                        <td className="py-1 px-1 text-center">
+                          <GradeChip grade={grade.braking} className="text-[9px] px-1.5 py-0" />
+                        </td>
+                        <td className="py-1 px-1 text-center">
+                          <GradeChip grade={grade.trail_braking} className="text-[9px] px-1.5 py-0" />
+                        </td>
+                        <td className="py-1 px-1 text-center">
+                          <GradeChip grade={grade.min_speed} className="text-[9px] px-1.5 py-0" />
+                        </td>
+                        <td className="py-1 pl-1 text-center">
+                          <GradeChip grade={grade.throttle} className="text-[9px] px-1.5 py-0" />
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </tbody>
+                </motion.table>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
 

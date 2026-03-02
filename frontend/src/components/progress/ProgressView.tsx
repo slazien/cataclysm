@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { motion as m } from 'motion/react';
 import { useSessionStore } from '@/stores';
 import { useSession } from '@/hooks/useSession';
 import { useTrends, useMilestones } from '@/hooks/useTrends';
@@ -11,6 +12,7 @@ import { AiInsight } from '@/components/shared/AiInsight';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { ChartErrorBoundary } from '@/components/shared/ChartErrorBoundary';
+import { motion as motionTokens } from '@/lib/design-tokens';
 import { MilestoneTimeline } from './MilestoneTimeline';
 import { LapTimeTrend } from './LapTimeTrend';
 import { ConsistencyTrend } from './ConsistencyTrend';
@@ -135,7 +137,12 @@ export function ProgressView() {
 
       {/* 1. Hero metrics row */}
       {heroMetrics && (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <m.div
+          className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+          initial="initial"
+          animate="animate"
+          variants={{ animate: { transition: motionTokens.stagger } }}
+        >
           <MetricCard
             label="Best Lap"
             value={formatTimeShort(heroMetrics.bestLap)}
@@ -167,7 +174,7 @@ export function ProgressView() {
                   : 'none'
             }
           />
-        </div>
+        </m.div>
       )}
 
       {/* 2. AI Progress Summary */}

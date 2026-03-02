@@ -1,8 +1,15 @@
 'use client';
 
+import { motion as m } from 'motion/react';
 import { useUiStore, useAnalysisStore } from '@/stores';
 import { GradeChip } from '@/components/shared/GradeChip';
+import { motion as motionTokens } from '@/lib/design-tokens';
 import type { CornerGrade } from '@/lib/types';
+
+const rowVariants = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+};
 
 interface CornerGradesSectionProps {
   grades: CornerGrade[];
@@ -37,10 +44,16 @@ export function CornerGradesSection({ grades, isNovice }: CornerGradesSectionPro
               )}
             </tr>
           </thead>
-          <tbody>
+          <m.tbody
+            initial="initial"
+            animate="animate"
+            variants={{ animate: { transition: motionTokens.gradeStagger } }}
+          >
             {grades.map((g) => (
-              <tr
+              <m.tr
                 key={g.corner}
+                variants={rowVariants}
+                transition={motionTokens.gradeChip}
                 onClick={() => handleCornerClick(g.corner)}
                 className="cursor-pointer border-b border-[var(--cata-border)] transition-colors last:border-0 hover:bg-[var(--bg-elevated)]"
               >
@@ -52,9 +65,9 @@ export function CornerGradesSection({ grades, isNovice }: CornerGradesSectionPro
                 {!isNovice && (
                   <td className="hidden px-2 py-1.5 text-xs text-[var(--text-muted)] lg:table-cell lg:px-3 lg:py-2">{g.notes}</td>
                 )}
-              </tr>
+              </m.tr>
             ))}
-          </tbody>
+          </m.tbody>
         </table>
       </div>
       {isNovice && grades.length > 0 && (

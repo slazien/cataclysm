@@ -1,6 +1,8 @@
 'use client';
 
+import { motion as m } from 'motion/react';
 import { cn } from '@/lib/utils';
+import { motion as motionTokens } from '@/lib/design-tokens';
 
 type Grade = 'A' | 'B' | 'C' | 'D' | 'F';
 
@@ -17,12 +19,21 @@ const gradeColors: Record<string, string> = {
   F: 'bg-[var(--grade-f)]/15 text-[var(--grade-f)] border-[var(--grade-f)]/30',
 };
 
+const chipVariants = {
+  initial: { opacity: 0, scale: 0.8 },
+  animate: { opacity: 1, scale: 1 },
+};
+
 export function GradeChip({ grade, className }: GradeChipProps) {
   const normalized = grade.toUpperCase();
   const colorClass = gradeColors[normalized] ?? gradeColors['C'];
 
   return (
-    <span
+    <m.span
+      variants={chipVariants}
+      initial="initial"
+      animate="animate"
+      transition={motionTokens.gradeChip}
       className={cn(
         'inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-bold',
         colorClass,
@@ -30,6 +41,6 @@ export function GradeChip({ grade, className }: GradeChipProps) {
       )}
     >
       {normalized}
-    </span>
+    </m.span>
   );
 }

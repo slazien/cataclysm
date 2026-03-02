@@ -1,8 +1,19 @@
 'use client';
 
 import { useMemo } from 'react';
+import { motion } from 'motion/react';
 import type { Milestone, TrendSessionSummary } from '@/lib/types';
 import { parseSessionDate } from '@/lib/formatters';
+
+const timelineContainer = {
+  initial: {},
+  animate: { transition: { staggerChildren: 0.08 } },
+};
+
+const timelineItem = {
+  initial: { opacity: 0, x: -20 },
+  animate: { opacity: 1, x: 0, transition: { duration: 0.4, ease: 'easeOut' as const } },
+};
 
 interface MilestoneTimelineProps {
   sessions: TrendSessionSummary[];
@@ -71,17 +82,29 @@ export function MilestoneTimeline({ sessions, milestones, className }: Milestone
 
       {/* Scrollable vertical timeline */}
       <div className="max-h-[240px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
-        <div className="relative pl-6">
-          {/* Vertical line */}
-          <div
+        <motion.div
+          className="relative pl-6"
+          variants={timelineContainer}
+          initial="initial"
+          animate="animate"
+        >
+          {/* Vertical line — delayed fade-in */}
+          <motion.div
             className="absolute left-[9px] top-1 bottom-1 w-px"
             style={{ backgroundColor: 'var(--cata-border, #1c1f27)' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.15 }}
           />
 
           {sortedMilestones.map((m, i) => {
             const { color, label } = getCategoryConfig(m.category);
             return (
-              <div key={`${m.session_date}-${m.category}-${i}`} className="relative pb-4 last:pb-0">
+              <motion.div
+                key={`${m.session_date}-${m.category}-${i}`}
+                className="relative pb-4 last:pb-0"
+                variants={timelineItem}
+              >
                 {/* Dot on the timeline */}
                 <div
                   className="absolute left-[-18px] top-[5px] h-[10px] w-[10px] rounded-full ring-2 ring-[var(--bg-surface)]"
@@ -116,10 +139,10 @@ export function MilestoneTimeline({ sessions, milestones, className }: Milestone
                     </span>
                   )}
                 </div>
-              </div>
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       </div>
     </div>
   );

@@ -1,6 +1,8 @@
 'use client';
 
+import { motion as m } from 'motion/react';
 import { cn } from '@/lib/utils';
+import { motion as motionTokens } from '@/lib/design-tokens';
 
 type Highlight = 'pb' | 'good' | 'bad' | 'none';
 
@@ -21,6 +23,11 @@ const highlightStyles: Record<Highlight, string> = {
   none: 'border-[var(--cata-border)] bg-[var(--bg-surface)]',
 };
 
+const cardVariants = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+};
+
 export function MetricCard({
   label,
   value,
@@ -34,7 +41,11 @@ export function MetricCard({
   const isNegative = delta !== undefined && delta < 0;
 
   return (
-    <div
+    <m.div
+      variants={cardVariants}
+      initial="initial"
+      animate="animate"
+      transition={motionTokens.cardEntrance}
       className={cn(
         'overflow-hidden rounded-lg border px-3 py-2 transition-colors',
         highlightStyles[highlight],
@@ -67,6 +78,6 @@ export function MetricCard({
           )}
         </div>
       )}
-    </div>
+    </m.div>
   );
 }

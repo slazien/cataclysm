@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { motion } from 'motion/react';
 
 interface RadarDataset {
   label: string;
@@ -54,12 +55,18 @@ export function RadarChart({ axes, datasets, size = 200, maxValue = 100 }: Radar
   const dataPolygons = useMemo(
     () =>
       datasets.map((ds) => {
-        const points = ds.values.map((v, i) => {
+        const coords = ds.values.map((v, i) => {
           const r = (Math.min(v, maxValue) / maxValue) * radius;
           const angle = startAngle + i * angleStep;
-          return `${center + r * Math.cos(angle)},${center + r * Math.sin(angle)}`;
+          return { x: center + r * Math.cos(angle), y: center + r * Math.sin(angle) };
         });
-        return { ...ds, polygon: points.join(' ') };
+        // SVG path d string (M start, L to each point, Z close) — needed for pathLength animation
+        const pathD = coords
+          .map((c, i) => `${i === 0 ? 'M' : 'L'}${c.x},${c.y}`)
+          .join(' ') + ' Z';
+        // polygon points string for the fill area
+        const polygon = coords.map((c) => `${c.x},${c.y}`).join(' ');
+        return { ...ds, pathD, polygon, coords };
       }),
     [datasets, center, radius, angleStep, startAngle, maxValue],
   );
@@ -90,24 +97,45 @@ export function RadarChart({ axes, datasets, size = 200, maxValue = 100 }: Radar
         />
       ))}
 
-      {/* Data polygons */}
+      {/* Data polygons — animated stroke draw + fill fade */}
       {dataPolygons.map((dp, i) => (
         <g key={i}>
-          <polygon points={dp.polygon} fill={dp.color} fillOpacity={0.15} stroke={dp.color} strokeWidth={1.5} />
-          {/* Data points */}
-          {dp.values.map((v, j) => {
-            const r = (Math.min(v, maxValue) / maxValue) * radius;
-            const angle = startAngle + j * angleStep;
-            return (
-              <circle
-                key={j}
-                cx={center + r * Math.cos(angle)}
-                cy={center + r * Math.sin(angle)}
-                r={3}
-                fill={dp.color}
-              />
-            );
-          })}
+          {/* Fill area — fades in after stroke draws */}
+          <motion.polygon
+            points={dp.polygon}
+            fill={dp.color}
+            fillOpacity={0.15}
+            stroke="none"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, delay: 0.35 + i * 0.15, ease: 'easeOut' }}
+          />
+          {/* Stroke — draws itself via pathLength */}
+          <motion.path
+            d={dp.pathD}
+            fill="none"
+            stroke={dp.color}
+            strokeWidth={1.5}
+            pathLength={1}
+            strokeDasharray="1"
+            strokeDashoffset="0"
+            initial={{ pathLength: 0, opacity: 0 }}
+            animate={{ pathLength: 1, opacity: 1 }}
+            transition={{ duration: 0.5, delay: i * 0.15, ease: 'easeOut' }}
+          />
+          {/* Data points — pop in after stroke completes */}
+          {dp.coords.map((c, j) => (
+            <motion.circle
+              key={j}
+              cx={c.x}
+              cy={c.y}
+              r={3}
+              fill={dp.color}
+              initial={{ opacity: 0, scale: 0 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.25, delay: 0.4 + i * 0.15 + j * 0.04, ease: 'easeOut' }}
+            />
+          ))}
         </g>
       ))}
 

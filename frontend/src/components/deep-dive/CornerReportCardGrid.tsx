@@ -1,12 +1,14 @@
 'use client';
 
 import { useMemo } from 'react';
+import { motion as m } from 'motion/react';
 import { useSessionStore, useAnalysisStore } from '@/stores';
 import { useCorners } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { GradeChip } from '@/components/shared/GradeChip';
 import { cn } from '@/lib/utils';
 import { worstGrade } from '@/lib/gradeUtils';
+import { motion as motionTokens } from '@/lib/design-tokens';
 import type { Corner, CornerGrade, PriorityCorner } from '@/lib/types';
 
 interface CornerReportCardGridProps {
@@ -22,6 +24,11 @@ interface CornerCardData {
 }
 
 const GRADE_SORT_ORDER: Record<string, number> = { F: 0, D: 1, C: 2, B: 3, A: 4 };
+
+const gridItemVariants = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0 },
+};
 
 function buildCardData(
   corners: Corner[],
@@ -93,7 +100,12 @@ function CornerCard({
 
       {/* Sub-grade chips */}
       {cornerGrade && (
-        <div className="flex flex-wrap gap-1.5">
+        <m.div
+          className="flex flex-wrap gap-1.5"
+          initial="initial"
+          animate="animate"
+          variants={{ animate: { transition: motionTokens.gradeStagger } }}
+        >
           {cornerGrade.braking && (
             <div className="flex items-center gap-1">
               <span className="text-[10px] text-[var(--text-muted)]">Brk</span>
@@ -118,7 +130,7 @@ function CornerCard({
               <GradeChip grade={cornerGrade.throttle} className="px-1.5 py-0 text-[10px]" />
             </div>
           )}
-        </div>
+        </m.div>
       )}
 
       {/* Min speed KPI */}
@@ -180,18 +192,28 @@ export function CornerReportCardGrid({ onSelectCorner }: CornerReportCardGridPro
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 overflow-y-auto p-1 lg:grid-cols-3 xl:grid-cols-4">
+    <m.div
+      className="grid grid-cols-2 gap-3 overflow-y-auto p-1 lg:grid-cols-3 xl:grid-cols-4"
+      initial="initial"
+      animate="animate"
+      variants={{ animate: { transition: motionTokens.stagger } }}
+    >
       {cards.map((card) => (
-        <CornerCard
+        <m.div
           key={card.cornerNumber}
-          card={card}
-          isSelected={selectedCorner === `T${card.cornerNumber}`}
-          onClick={() => {
-            selectCorner(`T${card.cornerNumber}`);
-            onSelectCorner?.();
-          }}
-        />
+          variants={gridItemVariants}
+          transition={motionTokens.cardEntrance}
+        >
+          <CornerCard
+            card={card}
+            isSelected={selectedCorner === `T${card.cornerNumber}`}
+            onClick={() => {
+              selectCorner(`T${card.cornerNumber}`);
+              onSelectCorner?.();
+            }}
+          />
+        </m.div>
       ))}
-    </div>
+    </m.div>
   );
 }

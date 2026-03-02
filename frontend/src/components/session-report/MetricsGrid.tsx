@@ -1,6 +1,8 @@
 'use client';
 
+import { motion as m } from 'motion/react';
 import { MetricCard } from '@/components/shared/MetricCard';
+import { motion as motionTokens } from '@/lib/design-tokens';
 import type { SessionSummary, LapSummary, SessionConsistency } from '@/lib/types';
 
 interface MetricsGridProps {
@@ -26,7 +28,12 @@ export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced }
   return (
     <div>
       <h3 className="mb-3 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Session Metrics</h3>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <m.div
+        className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+        initial="initial"
+        animate="animate"
+        variants={{ animate: { transition: motionTokens.stagger } }}
+      >
         <MetricCard
           label="Best Lap"
           value={bestLap != null ? formatTime(bestLap) : '\u2014'}
@@ -56,7 +63,7 @@ export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced }
             subtitle="Top 3 avg - best lap"
           />
         )}
-      </div>
+      </m.div>
     </div>
   );
 }

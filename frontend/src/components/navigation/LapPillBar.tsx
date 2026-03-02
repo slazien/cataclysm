@@ -1,10 +1,20 @@
 'use client';
 
+import { motion } from 'motion/react';
 import { useSessionStore, useAnalysisStore } from '@/stores';
 import { useSessionLaps } from '@/hooks/useSession';
 import { LapPill } from '@/components/shared/LapPill';
 import { formatLapTime } from '@/lib/formatters';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+
+const staggerContainer = {
+  animate: { transition: { staggerChildren: 0.03 } },
+};
+
+const staggerItem = {
+  initial: { opacity: 0, x: -8 },
+  animate: { opacity: 1, x: 0 },
+};
 
 export function LapPillBar() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
@@ -32,26 +42,32 @@ export function LapPillBar() {
 
   return (
     <ScrollArea className="max-w-[50vw]">
-      <div className="flex items-center gap-1.5 px-1 py-1">
+      <motion.div
+        className="flex items-center gap-1.5 px-1 py-1"
+        initial="initial"
+        animate="animate"
+        variants={staggerContainer}
+      >
         {cleanLaps.map((lap, index) => {
           const selIdx = selectedLaps.indexOf(lap.lap_number);
           const role = selIdx === 0 ? 'reference' as const
             : selIdx === 1 ? 'compare' as const
             : undefined;
           return (
-            <LapPill
-              key={lap.lap_number}
-              lapNumber={lap.lap_number}
-              time={formatLapTime(lap.lap_time_s)}
-              isPb={lap.lap_time_s === bestLapTime}
-              selected={selIdx >= 0}
-              colorIndex={index}
-              role={role}
-              onClick={() => handleToggle(lap.lap_number)}
-            />
+            <motion.div key={lap.lap_number} variants={staggerItem}>
+              <LapPill
+                lapNumber={lap.lap_number}
+                time={formatLapTime(lap.lap_time_s)}
+                isPb={lap.lap_time_s === bestLapTime}
+                selected={selIdx >= 0}
+                colorIndex={index}
+                role={role}
+                onClick={() => handleToggle(lap.lap_number)}
+              />
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
       <ScrollBar orientation="horizontal" />
     </ScrollArea>
   );

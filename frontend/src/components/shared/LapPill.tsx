@@ -1,5 +1,6 @@
 'use client';
 
+import { motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { colors } from '@/lib/design-tokens';
 
@@ -29,11 +30,14 @@ export function LapPill({
     : colors.lap[(colorIndex ?? lapNumber - 1) % colors.lap.length];
 
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onClick}
+      whileTap={{ scale: 0.93 }}
+      whileHover={{ scale: 1.04 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all',
+        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-[color,border-color,background-color]',
         selected
           ? 'border-transparent text-[var(--bg-base)]'
           : 'border-[var(--cata-border)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]',
@@ -53,6 +57,6 @@ export function LapPill({
       )}
       <span>L{lapNumber}</span>
       <span className="font-[family-name:var(--font-display)] tracking-tight tabular-nums">{time}</span>
-    </button>
+    </motion.button>
   );
 }

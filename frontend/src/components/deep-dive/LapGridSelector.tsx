@@ -1,12 +1,22 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { motion } from 'motion/react';
 import { ChevronDown, Star } from 'lucide-react';
 import { useSessionStore, useAnalysisStore } from '@/stores';
 import { useSessionLaps } from '@/hooks/useSession';
 import { formatLapTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+
+const gridStaggerContainer = {
+  animate: { transition: { staggerChildren: 0.03 } },
+};
+
+const gridStaggerItem = {
+  initial: { opacity: 0, scale: 0.85 },
+  animate: { opacity: 1, scale: 1 },
+};
 
 /** Map a 0-1 percentile to a green-yellow-red HSL color string. */
 function percentileColor(percentile: number): string {
@@ -103,7 +113,12 @@ export function LapGridSelector() {
         </p>
 
         {/* Grid */}
-        <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-5">
+        <motion.div
+          className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-5"
+          initial="initial"
+          animate="animate"
+          variants={gridStaggerContainer}
+        >
           {cleanLaps.map((lap) => {
             const isPb = lap.lap_time_s === bestLapTime;
             const percentile = timeRange > 0 ? (lap.lap_time_s - bestLapTime) / timeRange : 0;
@@ -113,12 +128,16 @@ export function LapGridSelector() {
             const role = selIdx === 0 ? 'REF' : selIdx === 1 ? 'CMP' : null;
 
             return (
-              <button
+              <motion.button
                 key={lap.lap_number}
                 type="button"
                 onClick={() => handleToggle(lap.lap_number)}
+                variants={gridStaggerItem}
+                whileTap={{ scale: 0.93 }}
+                whileHover={{ scale: 1.06 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                 className={cn(
-                  'relative flex flex-col items-center justify-center rounded-md px-1 py-1.5 text-center transition-all',
+                  'relative flex flex-col items-center justify-center rounded-md px-1 py-1.5 text-center transition-[color,border-color,background-color]',
                   'cursor-pointer select-none',
                   dimmed && !isSelected && 'opacity-50',
                 )}
@@ -129,11 +148,17 @@ export function LapGridSelector() {
                     : '2px solid transparent',
                 }}
               >
-                {/* PB star */}
+                {/* PB star — subtle breathing pulse */}
                 {isPb && (
-                  <Star
-                    className="absolute -right-0.5 -top-0.5 h-3 w-3 fill-yellow-400 text-yellow-400"
-                  />
+                  <motion.div
+                    className="absolute -right-0.5 -top-0.5"
+                    animate={{ scale: [1, 1.03, 1] }}
+                    transition={{ duration: 0.6, ease: 'easeInOut', repeat: Infinity, repeatDelay: 2 }}
+                  >
+                    <Star
+                      className="h-3 w-3 fill-yellow-400 text-yellow-400"
+                    />
+                  </motion.div>
                 )}
 
                 {/* Role badge */}
@@ -154,10 +179,10 @@ export function LapGridSelector() {
                 <span className="mt-0.5 text-[10px] tabular-nums leading-none text-white/70">
                   {formatLapTime(lap.lap_time_s)}
                 </span>
-              </button>
+              </motion.button>
             );
           })}
-        </div>
+        </motion.div>
 
         {/* Legend */}
         <div className="mt-2.5 flex items-center gap-3 text-[10px] text-[var(--text-muted)]">

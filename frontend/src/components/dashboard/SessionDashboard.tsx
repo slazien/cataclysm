@@ -27,6 +27,8 @@ import { ShareSessionDialog } from '@/components/comparison/ShareSessionDialog';
 import { DegradationAlerts } from './DegradationAlerts';
 import { useUnits } from '@/hooks/useUnits';
 import { useSessionWeather } from '@/hooks/useEquipment';
+import { motion as m } from 'motion/react';
+import { motion as motionTokens } from '@/lib/design-tokens';
 import { cn } from '@/lib/utils';
 
 export function SessionDashboard() {
@@ -212,7 +214,12 @@ export function SessionDashboard() {
       {weatherData?.weather && <WeatherPanel weather={weatherData.weather} />}
 
       {/* Hero Metrics Row */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+      <m.div
+        className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4"
+        initial="initial"
+        animate="animate"
+        variants={{ animate: { transition: motionTokens.stagger } }}
+      >
         <SessionScore score={session.session_score ?? sessionScoreData.score} breakdown={sessionScoreData.breakdown} isLoading={consistencyLoading} />
 
         <MetricCard
@@ -235,7 +242,7 @@ export function SessionDashboard() {
           delta={(session.avg_lap_time_s ?? 0) - (session.best_lap_time_s ?? 0)}
           deltaLabel="vs best"
         />
-      </div>
+      </m.div>
 
       {/* Degradation alerts (conditionally rendered) */}
       <DegradationAlerts sessionId={sessionId} />
@@ -268,7 +275,12 @@ export function SessionDashboard() {
       </ChartErrorBoundary>
 
       {/* Summary Metrics Row */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+      <m.div
+        className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4"
+        initial="initial"
+        animate="animate"
+        variants={{ animate: { transition: motionTokens.stagger } }}
+      >
         <MetricCard
           label="Consistency"
           value={
@@ -317,7 +329,7 @@ export function SessionDashboard() {
           deltaLabel={idealLapInfo ? 'potential gain' : undefined}
           highlight={idealLapInfo ? 'good' : 'none'}
         />
-      </div>
+      </m.div>
     </div>
   );
 }
