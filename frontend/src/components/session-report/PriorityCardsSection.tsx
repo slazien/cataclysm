@@ -5,6 +5,7 @@ import { ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { useUiStore, useAnalysisStore } from '@/stores';
 import type { PriorityCorner, CornerGrade } from '@/lib/types';
 import { worstGrade } from '@/lib/gradeUtils';
+import { extractActionTitle } from '@/lib/textUtils';
 
 /** Maps a grade letter to the CSS variable for left-border color */
 const GRADE_BORDER_COLORS: Record<string, string> = {
@@ -14,22 +15,6 @@ const GRADE_BORDER_COLORS: Record<string, string> = {
   D: 'border-l-[var(--grade-d)]',
   F: 'border-l-[var(--grade-f)]',
 };
-
-/** Extracts a short action phrase from the issue text.
- *  Takes the first clause (before a comma, period, or dash) and caps it. */
-function extractActionTitle(issue: string): string {
-  // Try to grab first short clause
-  const match = issue.match(/^(.{10,60}?)[.,;:\u2014\u2013-]\s/);
-  if (match) return match[1].trim();
-  // Fallback: first N words up to ~50 chars
-  const words = issue.split(/\s+/);
-  let result = '';
-  for (const w of words) {
-    if ((result + ' ' + w).trim().length > 50) break;
-    result = (result + ' ' + w).trim();
-  }
-  return result || issue.slice(0, 50);
-}
 
 interface PriorityCardsSectionProps {
   priorities: PriorityCorner[];

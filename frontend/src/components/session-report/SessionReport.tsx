@@ -74,7 +74,6 @@ export function SessionReport() {
         {report?.corner_grades && report.corner_grades.length > 0 && (
           <CornerGradesSection
             grades={report.corner_grades}
-            isNovice={isNovice}
           />
         )}
 

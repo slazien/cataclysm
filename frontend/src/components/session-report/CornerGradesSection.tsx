@@ -13,10 +13,9 @@ const rowVariants = {
 
 interface CornerGradesSectionProps {
   grades: CornerGrade[];
-  isNovice: boolean;
 }
 
-export function CornerGradesSection({ grades, isNovice }: CornerGradesSectionProps) {
+export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
   const setActiveView = useUiStore((s) => s.setActiveView);
   const setMode = useAnalysisStore((s) => s.setMode);
   const selectCorner = useAnalysisStore((s) => s.selectCorner);
@@ -39,9 +38,6 @@ export function CornerGradesSection({ grades, isNovice }: CornerGradesSectionPro
               <th className="px-2 py-1.5 text-center font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">Trail Braking</th>
               <th className="px-2 py-1.5 text-center font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">Min Speed</th>
               <th className="px-2 py-1.5 text-center font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">Throttle</th>
-              {!isNovice && (
-                <th className="hidden px-2 py-1.5 text-left font-medium text-[var(--text-muted)] lg:table-cell lg:px-3 lg:py-2">Notes</th>
-              )}
             </tr>
           </thead>
           <m.tbody
@@ -62,19 +58,14 @@ export function CornerGradesSection({ grades, isNovice }: CornerGradesSectionPro
                 <td className="px-2 py-1.5 text-center lg:px-3 lg:py-2"><GradeChip grade={g.trail_braking} /></td>
                 <td className="px-2 py-1.5 text-center lg:px-3 lg:py-2"><GradeChip grade={g.min_speed} /></td>
                 <td className="px-2 py-1.5 text-center lg:px-3 lg:py-2"><GradeChip grade={g.throttle} /></td>
-                {!isNovice && (
-                  <td className="hidden px-2 py-1.5 text-xs text-[var(--text-muted)] lg:table-cell lg:px-3 lg:py-2">{g.notes}</td>
-                )}
               </m.tr>
             ))}
           </m.tbody>
         </table>
       </div>
-      {isNovice && grades.length > 0 && (
-        <p className="mt-2 text-xs text-[var(--text-muted)]">
-          Click any corner row to see detailed analysis in Deep Dive.
-        </p>
-      )}
+      <p className="mt-2 text-xs text-[var(--text-muted)]">
+        Click any corner row to see detailed analysis in Deep Dive.
+      </p>
     </div>
   );
 }

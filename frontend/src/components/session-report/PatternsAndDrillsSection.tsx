@@ -1,13 +1,51 @@
 'use client';
 
-import { TrendingUp, Target } from 'lucide-react';
+import { useState } from 'react';
+import { TrendingUp, Target, ChevronDown, ChevronUp } from 'lucide-react';
+import { extractActionTitle } from '@/lib/textUtils';
+
+const DEFAULT_VISIBLE = 3;
 
 interface PatternsAndDrillsSectionProps {
   patterns: string[];
   drills: string[];
 }
 
+function ExpandableItem({ text, bullet }: { text: string; bullet: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const title = extractActionTitle(text);
+  const isTruncated = title !== text;
+
+  return (
+    <li className="text-sm text-[var(--text-secondary)]">
+      <div className="flex items-start gap-1">
+        <span className="mt-0.5 shrink-0 text-[var(--text-muted)]">{bullet}</span>
+        <div className="min-w-0">
+          <span>{expanded ? text : title}{!expanded && isTruncated && '…'}</span>
+          {isTruncated && (
+            <button
+              type="button"
+              onClick={() => setExpanded(!expanded)}
+              className="ml-1.5 inline-flex items-center gap-0.5 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
+            >
+              {expanded ? (
+                <>Less <ChevronUp className="inline h-3 w-3" /></>
+              ) : (
+                <>More <ChevronDown className="inline h-3 w-3" /></>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    </li>
+  );
+}
+
 export function PatternsAndDrillsSection({ patterns, drills }: PatternsAndDrillsSectionProps) {
+  const [showAllPatterns, setShowAllPatterns] = useState(false);
+  const visiblePatterns = showAllPatterns ? patterns : patterns.slice(0, DEFAULT_VISIBLE);
+  const hiddenCount = patterns.length - DEFAULT_VISIBLE;
+
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       {patterns.length > 0 && (
@@ -17,12 +55,23 @@ export function PatternsAndDrillsSection({ patterns, drills }: PatternsAndDrills
             <h4 className="font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-primary)]">Patterns</h4>
           </div>
           <ul className="space-y-1.5">
-            {patterns.map((p, i) => (
-              <li key={i} className="text-sm text-[var(--text-secondary)]">
-                <span className="mr-2 text-[var(--text-muted)]">&bull;</span>{p}
-              </li>
+            {visiblePatterns.map((p, i) => (
+              <ExpandableItem key={i} text={p} bullet="&bull;" />
             ))}
           </ul>
+          {hiddenCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowAllPatterns(!showAllPatterns)}
+              className="mt-2 flex items-center gap-1 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
+            >
+              {showAllPatterns ? (
+                <>Show less <ChevronUp className="h-3 w-3" /></>
+              ) : (
+                <>Show {hiddenCount} more <ChevronDown className="h-3 w-3" /></>
+              )}
+            </button>
+          )}
         </div>
       )}
       {drills.length > 0 && (
@@ -33,9 +82,7 @@ export function PatternsAndDrillsSection({ patterns, drills }: PatternsAndDrills
           </div>
           <ul className="space-y-1.5">
             {drills.map((d, i) => (
-              <li key={i} className="text-sm text-[var(--text-secondary)]">
-                <span className="mr-2 text-[var(--text-muted)]">{i + 1}.</span>{d}
-              </li>
+              <ExpandableItem key={i} text={d} bullet={`${i + 1}.`} />
             ))}
           </ul>
         </div>
