@@ -44,6 +44,14 @@ export function SessionReport() {
           gpsQuality={gpsQuality ?? null}
         />
 
+        <MetricsGrid
+          session={session ?? null}
+          laps={laps ?? null}
+          consistency={consistency ?? null}
+          isNovice={isNovice}
+          isAdvanced={isAdvanced}
+        />
+
         <CoachingSummaryHero report={report ?? null} />
 
         {report?.priority_corners && report.priority_corners.length > 0 && (
@@ -73,14 +81,6 @@ export function SessionReport() {
             drills={report.drills}
           />
         )}
-
-        <MetricsGrid
-          session={session ?? null}
-          laps={laps ?? null}
-          consistency={consistency ?? null}
-          isNovice={isNovice}
-          isAdvanced={isAdvanced}
-        />
 
         {activeSessionId && laps && laps.length > 0 && (
           <div>
