@@ -1,7 +1,8 @@
 'use client';
 
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { Upload, FileSpreadsheet, ChevronDown, Clock, Sparkles, Target, TrendingUp } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Upload, FileSpreadsheet, ChevronDown, Clock, Sparkles, Target, TrendingUp, Check } from 'lucide-react';
 import { useSessionStore } from '@/stores';
 import { useUploadSessions, useSessions } from '@/hooks/useSession';
 import { useTracks, useLoadTrackFolder } from '@/hooks/useTracks';
@@ -36,6 +37,7 @@ export function WelcomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
     const mql = window.matchMedia('(max-width: 1023px)');
@@ -52,7 +54,10 @@ export function WelcomeScreen() {
       uploadMutation.mutate(files, {
         onSuccess: (data) => {
           if (data.session_ids.length > 0) {
-            setActiveSession(data.session_ids[0]);
+            setShowSuccess(true);
+            setTimeout(() => {
+              setActiveSession(data.session_ids[0]);
+            }, 800);
           }
         },
       });
@@ -129,13 +134,16 @@ export function WelcomeScreen() {
   }, [tracks, loadTrackMutation, setActiveSession]);
 
   return (
-    <div className="flex h-full flex-col items-center gap-8 overflow-y-auto p-6 lg:p-10">
+    <div className="relative flex h-full flex-col items-center gap-8 overflow-y-auto p-6 lg:p-10">
+      {/* Gradient mesh background */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.05)_0%,transparent_70%)]" />
+
       {/* Hero */}
-      <div className="mt-8 text-center lg:mt-16">
-        <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)] lg:text-4xl">
+      <div className="relative mt-8 text-center lg:mt-16">
+        <h1 className="font-[family-name:var(--font-display)] text-4xl font-bold tracking-tight text-[var(--text-primary)] lg:text-5xl">
           Your AI racing coach
         </h1>
-        <p className="mt-3 text-base text-[var(--text-secondary)] lg:text-lg">
+        <p className="mt-3 font-[family-name:var(--font-display)] text-lg text-[var(--text-secondary)] lg:text-xl">
           Upload a session. Get faster.
         </p>
       </div>
@@ -182,24 +190,34 @@ export function WelcomeScreen() {
       )}
 
       {/* Value cards */}
-      <div className="grid w-full max-w-2xl grid-cols-1 gap-4 sm:grid-cols-3">
+      <motion.div
+        className="grid w-full max-w-2xl grid-cols-1 gap-4 sm:grid-cols-3"
+        initial="initial"
+        animate="animate"
+        variants={{ animate: { transition: { staggerChildren: 0.1 } } }}
+      >
         {VALUE_CARDS.map((card) => (
-          <div
+          <motion.div
             key={card.title}
             className="flex flex-col items-center gap-3 rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-5 text-center"
+            variants={{
+              initial: { opacity: 0, y: 20 },
+              animate: { opacity: 1, y: 0 },
+            }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
           >
             <div className="rounded-full bg-[var(--bg-elevated)] p-3">
               <card.icon className="h-5 w-5 text-[var(--cata-accent)]" />
             </div>
-            <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+            <h3 className="font-[family-name:var(--font-display)] text-sm font-semibold text-[var(--text-primary)]">
               {card.title}
             </h3>
             <p className="text-xs leading-relaxed text-[var(--text-muted)]">
               {card.description}
             </p>
-          </div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       {/* Upload drop zone */}
       <div
@@ -217,7 +235,7 @@ export function WelcomeScreen() {
         onDragLeave={handleDragLeave}
         onClick={() => fileInputRef.current?.click()}
         className={cn(
-          'flex w-full max-w-2xl cursor-pointer flex-col items-center gap-4 rounded-xl border-2 border-dashed p-6 lg:p-10 min-h-[10rem] transition-colors',
+          'flex w-full max-w-2xl cursor-pointer flex-col items-center gap-4 rounded-xl border-2 border-dashed p-6 lg:p-10 min-h-[6rem] lg:min-h-[10rem] transition-colors',
           isDragging
             ? 'border-[var(--cata-accent)] bg-[var(--cata-accent)]/5'
             : 'border-[var(--cata-border)] bg-[var(--bg-surface)] hover:border-[var(--text-muted)]',
@@ -232,12 +250,43 @@ export function WelcomeScreen() {
           />
         </div>
         <div className="text-center">
-          <p className="text-sm font-medium text-[var(--text-primary)]">
-            {uploadMutation.isPending ? 'Uploading...' : 'Drop CSV files here'}
-          </p>
-          <p className="mt-1 text-xs text-[var(--text-muted)]">
-            or click to browse — RaceChrono v3 CSV format
-          </p>
+          <AnimatePresence mode="wait">
+            {showSuccess ? (
+              <motion.div
+                key="success"
+                className="flex flex-col items-center gap-1"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Check className="h-6 w-6 text-[var(--grade-a)]" />
+                <p className="text-sm font-medium text-[var(--grade-a)]">Upload complete</p>
+              </motion.div>
+            ) : uploadMutation.isPending ? (
+              <motion.div
+                key="uploading"
+                className="flex flex-col items-center gap-2"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <motion.div
+                  className="h-5 w-5 rounded-full border-2 border-[var(--cata-accent)] border-t-transparent"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                />
+                <p className="text-sm font-medium text-[var(--cata-accent)]">Processing telemetry...</p>
+              </motion.div>
+            ) : (
+              <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <p className="text-sm font-medium text-[var(--text-primary)]">Drop CSV files here</p>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  or click to browse — RaceChrono v3 CSV format
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -257,7 +306,7 @@ export function WelcomeScreen() {
               >
                 <Clock className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-[var(--text-primary)]">
+                  <p className="truncate font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-primary)]">
                     {s.track_name}
                   </p>
                   <p className="text-xs text-[var(--text-muted)]">
@@ -277,7 +326,7 @@ export function WelcomeScreen() {
           onClick={() => setInstructionsOpen((o) => !o)}
           className="flex w-full items-center justify-between"
         >
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+          <h3 className="font-[family-name:var(--font-display)] text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
             How to export from RaceChrono
           </h3>
           <ChevronDown

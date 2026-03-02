@@ -10,6 +10,7 @@ import { TimeLossCorners } from './TimeLossCorners';
 import { QuickTip } from './QuickTip';
 import { SkeletonCard } from '@/components/shared/SkeletonCard';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { SectionDivider } from '@/components/shared/SectionDivider';
 
 export function PitLaneDebrief() {
   const sessionId = useSessionStore((s) => s.activeSessionId);
@@ -49,6 +50,9 @@ export function PitLaneDebrief() {
         sessionDate={session.session_date ?? ''}
         nLaps={session.n_laps ?? 0}
       />
+
+      {/* Amber section divider */}
+      <SectionDivider />
 
       {/* Top 3 time-loss corners */}
       {report?.priority_corners && report.priority_corners.length > 0 && (

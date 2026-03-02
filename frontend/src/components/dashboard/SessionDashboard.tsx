@@ -30,6 +30,7 @@ import { useSessionWeather } from '@/hooks/useEquipment';
 import { motion as m } from 'motion/react';
 import { motion as motionTokens } from '@/lib/design-tokens';
 import { cn } from '@/lib/utils';
+import { TrackWatermark } from '@/components/shared/TrackWatermark';
 
 export function SessionDashboard() {
   const sessionId = useSessionStore((s) => s.activeSessionId);
@@ -175,7 +176,8 @@ export function SessionDashboard() {
   }
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 lg:p-6">
+    <div className="relative mx-auto flex max-w-6xl flex-col gap-6 p-4 lg:p-6">
+      <TrackWatermark />
       {/* Action Row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

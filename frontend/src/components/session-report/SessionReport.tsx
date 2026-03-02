@@ -16,6 +16,7 @@ import { MetricsGrid } from './MetricsGrid';
 import { LapTimesBar } from '@/components/dashboard/LapTimesBar';
 import { RawDataTable } from './RawDataTable';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { TrackWatermark } from '@/components/shared/TrackWatermark';
 
 export function SessionReport() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
@@ -38,7 +39,8 @@ export function SessionReport() {
 
   return (
     <ScrollArea className="h-full">
-      <div className="mx-auto max-w-5xl space-y-6 p-4 lg:p-6">
+      <div className="relative mx-auto max-w-5xl space-y-6 p-4 lg:p-6">
+        <TrackWatermark />
         <SessionReportHeader
           session={session ?? null}
           gpsQuality={gpsQuality ?? null}

@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
+import { MousePointerClick } from 'lucide-react';
 import { useSessionStore, useAnalysisStore } from '@/stores';
 import type { DeepDiveMode } from '@/stores/analysisStore';
 import { useSessionLaps } from '@/hooks/useSession';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { SpeedAnalysis } from './SpeedAnalysis';
 import { CornerAnalysis } from './CornerAnalysis';
 import { MiniSectorMap } from './charts/MiniSectorMap';
@@ -52,6 +54,16 @@ export function DeepDive() {
       setMode('speed');
     }
   }, [mode, showSectors, showCustom, showReplay, setMode]);
+
+  if (!activeSessionId) {
+    return (
+      <EmptyState
+        title="Select a lap to explore"
+        message="Load a session, then pick a lap from the grid to analyze speed, corners, and sectors"
+        icon={MousePointerClick}
+      />
+    );
+  }
 
   return (
     <div className="flex h-full flex-col">

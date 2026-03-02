@@ -99,22 +99,23 @@ export function MilestoneTimeline({ sessions, milestones, className }: Milestone
 
           {sortedMilestones.map((m, i) => {
             const { color, label } = getCategoryConfig(m.category);
+            const isPB = m.category === 'pb';
             return (
               <motion.div
                 key={`${m.session_date}-${m.category}-${i}`}
-                className="relative pb-4 last:pb-0"
+                className={`relative pb-4 last:pb-0 ${isPB ? 'rounded-md border-l-2 border-l-[var(--cata-accent)] bg-[var(--cata-accent)]/5 py-2 pl-4 -ml-2' : ''}`}
                 variants={timelineItem}
               >
                 {/* Dot on the timeline */}
                 <div
-                  className="absolute left-[-18px] top-[5px] h-[10px] w-[10px] rounded-full ring-2 ring-[var(--bg-surface)]"
+                  className={`absolute top-[5px] h-[10px] w-[10px] rounded-full ring-2 ring-[var(--bg-surface)] ${isPB ? 'left-[-10px]' : 'left-[-18px]'}`}
                   style={{ backgroundColor: color }}
                 />
 
                 {/* Content */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm leading-snug text-[var(--text-primary)]">
+                    <p className={`leading-snug text-[var(--text-primary)] ${isPB ? 'font-[family-name:var(--font-display)] text-base font-semibold' : 'text-sm'}`}>
                       {m.description}
                     </p>
                     <div className="mt-1 flex items-center gap-2">
@@ -132,7 +133,7 @@ export function MilestoneTimeline({ sessions, milestones, className }: Milestone
 
                   {/* Value badge (e.g., lap time) */}
                   {m.value > 0 && (
-                    <span className="shrink-0 font-mono text-xs text-[var(--text-secondary)]">
+                    <span className={`shrink-0 font-mono text-[var(--text-secondary)] ${isPB ? 'font-[family-name:var(--font-display)] text-sm font-bold' : 'text-xs'}`}>
                       {m.category === 'pb'
                         ? `${Math.floor(m.value / 60)}:${(m.value % 60).toFixed(2).padStart(5, '0')}`
                         : m.value.toFixed(1)}

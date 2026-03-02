@@ -24,9 +24,19 @@ const chipVariants = {
   animate: { opacity: 1, scale: 1 },
 };
 
+// Colorblind-safe indicators: shape/weight supplements color
+const gradeIndicators: Record<string, { suffix: string; fontWeight: string }> = {
+  A: { suffix: '\u00A0\u2713', fontWeight: 'font-bold' },
+  B: { suffix: '', fontWeight: 'font-bold' },
+  C: { suffix: '', fontWeight: 'font-medium' },
+  D: { suffix: '', fontWeight: 'font-normal' },
+  F: { suffix: '\u00A0\u25BC', fontWeight: 'font-bold' },
+};
+
 export function GradeChip({ grade, className }: GradeChipProps) {
   const normalized = grade.toUpperCase();
   const colorClass = gradeColors[normalized] ?? gradeColors['C'];
+  const indicator = gradeIndicators[normalized] ?? gradeIndicators['C'];
 
   return (
     <m.span
@@ -35,12 +45,16 @@ export function GradeChip({ grade, className }: GradeChipProps) {
       animate="animate"
       transition={motionTokens.gradeChip}
       className={cn(
-        'inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-bold',
+        'inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs',
+        indicator.fontWeight,
         colorClass,
         className,
       )}
     >
       {normalized}
+      {indicator.suffix && (
+        <span className="text-[0.6rem] leading-none">{indicator.suffix}</span>
+      )}
     </m.span>
   );
 }

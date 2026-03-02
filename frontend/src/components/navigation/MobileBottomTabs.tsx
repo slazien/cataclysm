@@ -1,5 +1,6 @@
 'use client';
 
+import { motion } from 'motion/react';
 import { FileText, Search, TrendingUp, Timer } from 'lucide-react';
 import { useUiStore } from '@/stores';
 import { cn } from '@/lib/utils';
@@ -23,10 +24,12 @@ export function MobileBottomTabs() {
         const Icon = item.icon;
         const isActive = activeView === item.view;
         return (
-          <button
+          <motion.button
             key={item.view}
             type="button"
             onClick={() => setActiveView(item.view)}
+            whileTap={{ scale: 0.95 }}
+            transition={{ duration: 0.1 }}
             className={cn(
               'flex flex-1 flex-col items-center justify-center gap-0.5 transition-colors',
               isActive
@@ -36,7 +39,7 @@ export function MobileBottomTabs() {
           >
             <Icon className="h-5 w-5" />
             <span className="font-[family-name:var(--font-display)] text-[10px] font-medium">{item.label}</span>
-          </button>
+          </motion.button>
         );
       })}
     </div>

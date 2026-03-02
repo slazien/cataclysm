@@ -5,13 +5,15 @@ import { motion as m } from 'motion/react';
 import { useSessionStore } from '@/stores';
 import { useSession } from '@/hooks/useSession';
 import { useTrends, useMilestones } from '@/hooks/useTrends';
-import { formatTimeShort } from '@/lib/formatters';
+import { formatTimeShort, parseSessionDate } from '@/lib/formatters';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
+import { TrendingUp } from 'lucide-react';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { AiInsight } from '@/components/shared/AiInsight';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { ChartErrorBoundary } from '@/components/shared/ChartErrorBoundary';
+import { SectionDivider } from '@/components/shared/SectionDivider';
 import { motion as motionTokens } from '@/lib/design-tokens';
 import { MilestoneTimeline } from './MilestoneTimeline';
 import { LapTimeTrend } from './LapTimeTrend';
@@ -94,6 +96,30 @@ export function ProgressView() {
     return parts.join(' ');
   }, [trendData, milestones]);
 
+  // Journey card metrics
+  const journeyMetrics = useMemo(() => {
+    if (!trendData || trendData.sessions.length < 2) return null;
+    const sessions = trendData.sessions;
+    const first = sessions[0];
+    const latest = sessions[sessions.length - 1];
+    const firstBestLap = first.best_lap_time_s;
+    const latestBestLap = latest.best_lap_time_s;
+    const improvement = firstBestLap - latestBestLap;
+
+    const firstDate = parseSessionDate(first.session_date).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    const latestDate = parseSessionDate(latest.session_date).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+
+    return { firstBestLap, latestBestLap, improvement, firstDate, latestDate };
+  }, [trendData]);
+
   // Loading session or trends
   if (sessionLoading || trendsLoading) {
     return (
@@ -118,7 +144,8 @@ export function ProgressView() {
     return (
       <EmptyState
         title="No trend data"
-        message="Upload multiple sessions for the same track to see progress trends"
+        message="Upload multiple sessions for the same track to track your improvement journey"
+        icon={TrendingUp}
       />
     );
   }
@@ -134,6 +161,39 @@ export function ProgressView() {
           {trendData.n_sessions} session{trendData.n_sessions !== 1 ? 's' : ''} tracked
         </p>
       </div>
+
+      {/* Journey Card */}
+      {heroMetrics && journeyMetrics && trendData.sessions.length >= 2 && (
+        <div className="rounded-lg border-l-[3px] border-l-[var(--cata-accent)] bg-gradient-to-r from-[var(--bg-surface)] to-[color-mix(in_srgb,var(--bg-surface)_92%,white)] p-5 lg:p-6">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+            Your journey at {trendData.track_name}
+          </p>
+          <div className="flex items-baseline gap-6">
+            <div>
+              <p className="text-xs text-[var(--text-muted)]">Started</p>
+              <p className="font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight text-[var(--text-secondary)]">
+                {formatTimeShort(journeyMetrics.firstBestLap)}
+              </p>
+              <p className="text-xs text-[var(--text-muted)]">{journeyMetrics.firstDate}</p>
+            </div>
+            <span className="text-lg text-[var(--text-muted)]">&rarr;</span>
+            <div>
+              <p className="text-xs text-[var(--text-muted)]">Now</p>
+              <p className="font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight text-[var(--text-primary)]">
+                {formatTimeShort(journeyMetrics.latestBestLap)}
+              </p>
+              <p className="text-xs text-[var(--text-muted)]">{journeyMetrics.latestDate}</p>
+            </div>
+            <div className="ml-auto text-right">
+              <p className="text-xs text-[var(--text-muted)]">Improvement</p>
+              <p className="font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight text-[var(--color-throttle)]">
+                -{journeyMetrics.improvement.toFixed(1)}s
+              </p>
+              <p className="text-xs text-[var(--text-muted)]">{trendData.sessions.length} sessions</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 1. Hero metrics row */}
       {heroMetrics && (
@@ -184,6 +244,9 @@ export function ProgressView() {
         </AiInsight>
       )}
 
+      {/* Section divider */}
+      <SectionDivider />
+
       {/* 3. Milestone Timeline */}
       <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
         <h3 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Milestone Timeline</h3>
@@ -191,6 +254,9 @@ export function ProgressView() {
           <MilestoneTimeline sessions={trendData.sessions} milestones={milestones} />
         </ChartErrorBoundary>
       </div>
+
+      {/* Section divider */}
+      <SectionDivider />
 
       {/* 4. Two-column trend charts */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
