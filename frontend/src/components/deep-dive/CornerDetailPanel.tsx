@@ -102,7 +102,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
   const { data: corners } = useCorners(sessionId);
   const { data: allLapCorners } = useAllLapCorners(sessionId);
   const { data: report } = useCoachingReport(sessionId);
-  const { convertSpeed, speedUnit } = useUnits();
+  const { convertSpeed, speedUnit, resolveSpeed } = useUnits();
   const { skillLevel, showFeature } = useSkillLevel();
   const showExplanations = showFeature('grade_explanations');
 
@@ -277,7 +277,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
       {/* AI coaching tip */}
       {(priorityCorner?.tip || cornerGrade?.notes) && (
         <AiInsight mode="card">
-          <p className="text-xs leading-relaxed">{priorityCorner?.tip ?? cornerGrade?.notes}</p>
+          <p className="text-xs leading-relaxed">{resolveSpeed(priorityCorner?.tip ?? cornerGrade?.notes ?? '')}</p>
         </AiInsight>
       )}
     </div>

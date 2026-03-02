@@ -9,7 +9,7 @@ from io import BytesIO
 import plotly.graph_objects as go
 from fpdf import FPDF
 
-from cataclysm.coaching import CoachingReport, CornerGrade
+from cataclysm.coaching import CoachingReport, CornerGrade, resolve_speed_markers
 from cataclysm.engine import LapSummary
 
 
@@ -41,6 +41,11 @@ def _sanitize_text(text: str) -> str:
     # Fallback: replace any remaining non-Latin-1 characters via NFKD decomposition
     normalized = unicodedata.normalize("NFKD", text)
     return normalized.encode("latin-1", errors="replace").decode("latin-1")
+
+
+def _prepare_text(text: str) -> str:
+    """Resolve speed markers (to imperial) then sanitize for PDF font."""
+    return _sanitize_text(resolve_speed_markers(text))
 
 
 @dataclass
@@ -147,7 +152,7 @@ def generate_pdf(content: ReportContent) -> bytes:
         _add_section_header(pdf, "Session Summary")
         pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(40, 40, 40)
-        pdf.multi_cell(0, 5, _sanitize_text(content.report.summary), new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(0, 5, _prepare_text(content.report.summary), new_x="LMARGIN", new_y="NEXT")
         pdf.ln(4)
 
     # --- Lap Times Chart ---
@@ -173,10 +178,10 @@ def generate_pdf(content: ReportContent) -> bytes:
             pdf.cell(0, 5, f"T{cn} ({cost:+.3f}s)", new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Helvetica", "", 9)
             pdf.set_text_color(60, 60, 60)
-            pdf.multi_cell(0, 4.5, _sanitize_text(f"{issue}"), new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(0, 4.5, _prepare_text(f"{issue}"), new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Helvetica", "I", 9)
             pdf.set_text_color(0, 100, 0)
-            pdf.multi_cell(0, 4.5, _sanitize_text(f"Tip: {tip}"), new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(0, 4.5, _prepare_text(f"Tip: {tip}"), new_x="LMARGIN", new_y="NEXT")
             pdf.ln(2)
 
     # --- Patterns ---
@@ -185,7 +190,7 @@ def generate_pdf(content: ReportContent) -> bytes:
         pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(40, 40, 40)
         for p in content.report.patterns:
-            pdf.multi_cell(0, 5, _sanitize_text(f"  * {p}"), new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(0, 5, _prepare_text(f"  * {p}"), new_x="LMARGIN", new_y="NEXT")
         pdf.ln(3)
 
     # --- Practice Drills ---
@@ -194,7 +199,7 @@ def generate_pdf(content: ReportContent) -> bytes:
         pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(40, 40, 40)
         for i, drill in enumerate(content.report.drills, 1):
-            pdf.multi_cell(0, 5, _sanitize_text(f"  {i}. {drill}"), new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(0, 5, _prepare_text(f"  {i}. {drill}"), new_x="LMARGIN", new_y="NEXT")
         pdf.ln(3)
 
     # --- Charts ---
@@ -274,7 +279,7 @@ def _add_grades_table(pdf: _ReportPDF, grades: list[CornerGrade]) -> None:
         pdf.set_fill_color(255, 255, 255)
         # Truncate notes to fit
         notes = g.notes[:80] + "..." if len(g.notes) > 80 else g.notes
-        pdf.cell(col_widths[5], 6, _sanitize_text(notes), border=1, align="L")
+        pdf.cell(col_widths[5], 6, _prepare_text(notes), border=1, align="L")
         pdf.ln()
 
 

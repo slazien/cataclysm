@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { useSessionStore } from '@/stores';
 import { useAutoReport } from '@/hooks/useAutoReport';
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
+import { useUnits } from '@/hooks/useUnits';
 import type { CoachingReport } from '@/lib/types';
 
 const gradeContainerVariants = {
@@ -28,11 +29,14 @@ const gradeChipVariants = {
   },
 };
 
-function buildSpeechText(report: CoachingReport): string {
+function buildSpeechText(
+  report: CoachingReport,
+  resolveSpeed: (t: string) => string,
+): string {
   const parts: string[] = [];
 
   if (report.summary) {
-    parts.push(report.summary);
+    parts.push(resolveSpeed(report.summary));
   }
 
   if (report.priority_corners.length > 0) {
@@ -40,13 +44,15 @@ function buildSpeechText(report: CoachingReport): string {
     report.priority_corners.slice(0, 3).forEach((pc, i) => {
       const ordinal = ['First', 'Second', 'Third'][i];
       parts.push(
-        `${ordinal}: Turn ${pc.corner}. ${pc.issue}. ${pc.tip}. This costs you ${pc.time_cost_s.toFixed(2)} seconds per lap.`,
+        `${ordinal}: Turn ${pc.corner}. ${resolveSpeed(pc.issue)}. ${resolveSpeed(pc.tip)}. This costs you ${pc.time_cost_s.toFixed(2)} seconds per lap.`,
       );
     });
   }
 
   if (report.patterns.length > 0) {
-    parts.push('Key patterns I noticed: ' + report.patterns.join('. ') + '.');
+    parts.push(
+      'Key patterns I noticed: ' + report.patterns.map(resolveSpeed).join('. ') + '.',
+    );
   }
 
   return parts.join(' ');
@@ -57,10 +63,11 @@ export function ReportSummary() {
   const { report, isLoading, isGenerating, isError, retry } = useAutoReport(activeSessionId);
   const [gradesExpanded, setGradesExpanded] = useState(false);
   const speech = useSpeechSynthesis();
+  const { resolveSpeed } = useUnits();
 
   const speechText = useMemo(
-    () => (report?.status === 'ready' ? buildSpeechText(report) : ''),
-    [report],
+    () => (report?.status === 'ready' ? buildSpeechText(report, resolveSpeed) : ''),
+    [report, resolveSpeed],
   );
 
   const handleToggleSpeech = useCallback(() => {
@@ -116,7 +123,7 @@ export function ReportSummary() {
       {report.summary && (
         <div className="px-4 py-3">
           <AiInsight mode="compact">
-            <span className="text-xs leading-relaxed">{report.summary}</span>
+            <span className="text-xs leading-relaxed">{resolveSpeed(report.summary)}</span>
           </AiInsight>
           {speech.isSupported && (
             <Button
@@ -239,7 +246,7 @@ export function ReportSummary() {
           <ul className="space-y-0.5">
             {report.patterns.map((pattern, i) => (
               <li key={i} className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                &bull; {pattern}
+                &bull; {resolveSpeed(pattern)}
               </li>
             ))}
           </ul>
@@ -255,7 +262,7 @@ export function ReportSummary() {
           <ul className="space-y-0.5">
             {report.drills.map((drill, i) => (
               <li key={i} className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                &bull; {drill}
+                &bull; {resolveSpeed(drill)}
               </li>
             ))}
           </ul>

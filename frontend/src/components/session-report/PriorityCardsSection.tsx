@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { useUiStore, useAnalysisStore } from '@/stores';
 import type { PriorityCorner, CornerGrade } from '@/lib/types';
+import { useUnits } from '@/hooks/useUnits';
 import { worstGrade } from '@/lib/gradeUtils';
 import { extractActionTitle } from '@/lib/textUtils';
 
@@ -34,12 +35,14 @@ function PriorityCard({
   onExplore: (corner: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const { resolveSpeed } = useUnits();
 
   const borderColorClass = gradeForCorner
     ? (GRADE_BORDER_COLORS[gradeForCorner] ?? 'border-l-[var(--cata-accent)]')
     : 'border-l-[var(--cata-accent)]';
 
-  const actionTitle = extractActionTitle(p.issue);
+  const resolvedIssue = resolveSpeed(p.issue);
+  const actionTitle = extractActionTitle(resolvedIssue);
 
   return (
     <div
@@ -72,7 +75,7 @@ function PriorityCard({
 
       {/* Novice tip - always visible when available */}
       {isNovice && p.tip && (
-        <p className="mb-2 text-xs leading-relaxed text-[var(--text-muted)]">{p.tip}</p>
+        <p className="mb-2 text-xs leading-relaxed text-[var(--text-muted)]">{resolveSpeed(p.tip)}</p>
       )}
 
       {/* Expandable detail section */}
@@ -94,7 +97,7 @@ function PriorityCard({
         </button>
         {expanded && (
           <p className="mt-2 text-xs leading-relaxed text-[var(--text-secondary)]">
-            {p.issue}
+            {resolvedIssue}
           </p>
         )}
       </div>

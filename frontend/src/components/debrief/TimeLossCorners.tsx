@@ -1,5 +1,6 @@
 'use client';
 
+import { useUnits } from '@/hooks/useUnits';
 import type { PriorityCorner } from '@/lib/types';
 
 interface TimeLossCornersProps {
@@ -7,6 +8,7 @@ interface TimeLossCornersProps {
 }
 
 export function TimeLossCorners({ corners }: TimeLossCornersProps) {
+  const { resolveSpeed } = useUnits();
   return (
     <div className="rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-5">
       {/* Section header with amber left-border accent */}
@@ -28,7 +30,7 @@ export function TimeLossCorners({ corners }: TimeLossCornersProps) {
 
             {/* Tip — single line, truncated if needed */}
             <span className="min-w-0 flex-1 truncate text-sm text-[var(--text-secondary)]">
-              {pc.tip}
+              {resolveSpeed(pc.tip)}
             </span>
 
             {/* Time delta — right-aligned, display font, green for gain */}

@@ -21,6 +21,7 @@ from cataclysm.coaching import (
     _parse_coaching_response,
     ask_followup,
     generate_coaching_report,
+    resolve_speed_markers,
 )
 from cataclysm.corner_analysis import (
     CornerAnalysis,
@@ -1388,3 +1389,55 @@ class TestFormatOmitsEnrichedWhenNone:
         assert "Visibility:" not in text
         assert "Camber:" not in text
         assert "Coach tip:" not in text
+
+
+# ---------------------------------------------------------------------------
+# resolve_speed_markers
+# ---------------------------------------------------------------------------
+
+
+class TestResolveSpeedMarkers:
+    """Tests for the resolve_speed_markers utility."""
+
+    def test_imperial_basic(self) -> None:
+        assert resolve_speed_markers("carry {{speed:3}} more") == "carry 3 mph more"
+
+    def test_metric_basic(self) -> None:
+        result = resolve_speed_markers("carry {{speed:3}} more", metric=True)
+        assert result == "carry 5 km/h more"
+
+    def test_no_markers_passthrough(self) -> None:
+        text = "No speed values here."
+        assert resolve_speed_markers(text) == text
+        assert resolve_speed_markers(text, metric=True) == text
+
+    def test_multiple_markers(self) -> None:
+        text = "{{speed:2}}-{{speed:3}} more through apex"
+        assert resolve_speed_markers(text) == "2 mph-3 mph more through apex"
+
+    def test_decimal_preservation(self) -> None:
+        # 42.5 mph * 1.60934 = 68.39695 -> 68.4 (1 decimal place preserved)
+        result = resolve_speed_markers("{{speed:42.5}}", metric=True)
+        assert result == "68.4 km/h"
+
+    def test_integer_value_metric(self) -> None:
+        # 100 mph * 1.60934 = 160.934 -> 161 (0 decimal places)
+        result = resolve_speed_markers("{{speed:100}}", metric=True)
+        assert result == "161 km/h"
+
+    def test_imperial_preserves_original_value(self) -> None:
+        assert resolve_speed_markers("{{speed:42.5}}") == "42.5 mph"
+
+    def test_empty_string(self) -> None:
+        assert resolve_speed_markers("") == ""
+
+    def test_prompt_contains_speed_formatting_instruction(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        prompt = _build_coaching_prompt(
+            sample_summaries, sample_all_lap_corners, "Test Track"
+        )
+        assert "{{speed:N}}" in prompt
+        assert "SPEED FORMATTING" in prompt

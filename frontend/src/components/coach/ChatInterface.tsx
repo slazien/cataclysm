@@ -7,6 +7,7 @@ import { CircularProgress } from '@/components/shared/CircularProgress';
 import { AiInsight } from '@/components/shared/AiInsight';
 import { useCoachStore, useSessionStore } from '@/stores';
 import { useCoachingReport } from '@/hooks/useCoaching';
+import { useUnits } from '@/hooks/useUnits';
 import type { ChatMessage } from '@/lib/types';
 
 /**
@@ -205,6 +206,8 @@ export function ChatInput() {
 }
 
 function ChatBubble({ message }: { message: ChatMessage }) {
+  const { resolveSpeed } = useUnits();
+
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
@@ -219,7 +222,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
     <div className="flex justify-start">
       <div className="max-w-[95%]">
         <AiInsight>
-          <span className="text-xs leading-relaxed whitespace-pre-wrap">{message.content}</span>
+          <span className="text-xs leading-relaxed whitespace-pre-wrap">{resolveSpeed(message.content)}</span>
         </AiInsight>
       </div>
     </div>

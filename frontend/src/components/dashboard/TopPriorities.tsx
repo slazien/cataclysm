@@ -4,6 +4,7 @@ import { AiInsight } from '@/components/shared/AiInsight';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { useAutoReport } from '@/hooks/useAutoReport';
 import { useUiStore, useAnalysisStore } from '@/stores';
+import { useUnits } from '@/hooks/useUnits';
 import { cn } from '@/lib/utils';
 import type { PriorityCorner } from '@/lib/types';
 
@@ -28,6 +29,7 @@ function PriorityCard({
 }) {
   const setActiveView = useUiStore((s) => s.setActiveView);
   const selectCorner = useAnalysisStore((s) => s.selectCorner);
+  const { resolveSpeed } = useUnits();
 
   const handleDeepDive = () => {
     selectCorner(`T${priority.corner}`);
@@ -46,9 +48,9 @@ function PriorityCard({
           </span>
         </div>
         <p className="mt-1 text-sm font-medium text-[var(--text-primary)]">
-          Turn {priority.corner} — {priority.issue}
+          Turn {priority.corner} — {resolveSpeed(priority.issue)}
         </p>
-        <p className="mt-1 text-xs text-[var(--text-secondary)]">{priority.tip}</p>
+        <p className="mt-1 text-xs text-[var(--text-secondary)]">{resolveSpeed(priority.tip)}</p>
         <button
           type="button"
           onClick={handleDeepDive}

@@ -3,6 +3,7 @@
 import { useCallback } from 'react';
 import { useUiStore } from '@/stores';
 import { MPH_TO_KMH } from '@/lib/constants';
+import { resolveSpeedMarkers } from '@/lib/textUtils';
 
 /**
  * Hook returning unit-aware formatters bound to the current unitPreference.
@@ -70,6 +71,12 @@ export function useUnits() {
   /** Temperature unit label */
   const tempUnit = isMetric ? '°C' : '°F';
 
+  /** Resolve {{speed:N}} markers and legacy "N mph" in coaching text */
+  const resolveSpeed = useCallback(
+    (text: string): string => resolveSpeedMarkers(text, isMetric),
+    [isMetric],
+  );
+
   return {
     isMetric,
     formatSpeed,
@@ -81,5 +88,6 @@ export function useUnits() {
     convertSpeed,
     convertDistance,
     convertTemp,
+    resolveSpeed,
   };
 }

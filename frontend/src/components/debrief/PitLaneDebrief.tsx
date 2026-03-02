@@ -4,6 +4,7 @@ import { useSession } from '@/hooks/useSession';
 import { useConsistency } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useSessionStore } from '@/stores';
+import { useUnits } from '@/hooks/useUnits';
 import { normalizeScore } from '@/lib/formatters';
 import { DebriefHeroCard } from './DebriefHeroCard';
 import { TimeLossCorners } from './TimeLossCorners';
@@ -17,6 +18,7 @@ export function PitLaneDebrief() {
   const { data: session, isLoading: sessionLoading } = useSession(sessionId);
   const { data: consistency } = useConsistency(sessionId);
   const { data: report } = useCoachingReport(sessionId);
+  const { resolveSpeed } = useUnits();
 
   if (!sessionId) {
     return <EmptyState message="Select a session to see your debrief." />;
@@ -71,7 +73,7 @@ export function PitLaneDebrief() {
             Session Summary
           </h3>
           <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
-            {report.summary}
+            {resolveSpeed(report.summary)}
           </p>
         </div>
       )}

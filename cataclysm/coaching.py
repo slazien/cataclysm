@@ -6,6 +6,7 @@ import contextlib
 import json
 import logging
 import os
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -28,6 +29,23 @@ from cataclysm.optimal_comparison import OptimalComparisonResult
 from cataclysm.topic_guardrail import TOPIC_RESTRICTION_PROMPT
 
 logger = logging.getLogger(__name__)
+
+_SPEED_MARKER_RE = re.compile(r"\{\{speed:([\d.]+)\}\}")
+
+
+def resolve_speed_markers(text: str, *, metric: bool = False) -> str:
+    """Resolve ``{{speed:N}}`` markers to display text.  N is always mph."""
+
+    def _replace(m: re.Match[str]) -> str:
+        val = m.group(1)
+        if metric:
+            kmh = float(val) * 1.60934
+            dec = len(val.split(".")[1]) if "." in val else 0
+            return f"{kmh:.{dec}f} km/h"
+        return f"{val} mph"
+
+    return _SPEED_MARKER_RE.sub(_replace, text)
+
 
 _validator: CoachingValidator | None = None
 
@@ -117,7 +135,7 @@ _DRILL_TEMPLATES: dict[str, str] = {
     ),
     "min_speed": (
         "Corner speed drill for T{corner}: This lap, focus "
-        "on carrying 2-3 mph more through the apex by braking "
+        "on carrying {{speed:2}}-{{speed:3}} more through the apex by braking "
         "a touch earlier and trailing off smoothly. The goal "
         "is a rounder, faster arc — not a V-shaped speed trace."
     ),
@@ -139,7 +157,8 @@ _FOLLOWUP_SYSTEM = (
     COACHING_SYSTEM_PROMPT
     + "\nThe driver is asking follow-up questions about their telemetry data and your "
     "coaching report. Be specific, practical, and encouraging. "
-    "Reference corner numbers and speeds in mph." + TOPIC_RESTRICTION_PROMPT
+    "Reference corner numbers. For speeds, use {{speed:N}} markers where N is mph."
+    + TOPIC_RESTRICTION_PROMPT
 )
 
 
@@ -671,7 +690,12 @@ Grades reflect consistency across ALL laps, not just one comparison:
 Be encouraging but honest. Focus on the 2-3 biggest improvements.
 For each pattern, don't just describe WHAT happened — diagnose WHY. \
 If lap times plateaued, explain whether it's a technique ceiling, \
-fatigue, tire degradation, or confidence limit based on the data."""
+fatigue, tire degradation, or confidence limit based on the data.
+
+SPEED FORMATTING: In ALL text fields (summary, issue, tip, notes, patterns, drills), \
+wrap every speed value with the marker {{{{speed:N}}}} where N is the numeric value in mph. \
+Example: "Carry {{{{speed:3}}}} more through the apex" or "Min speed was {{{{speed:42.5}}}}". \
+Never write bare "mph" or "km/h" in text fields — always use {{{{speed:N}}}}."""
 
 
 def _parse_coaching_response(text: str) -> CoachingReport:
