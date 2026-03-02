@@ -31,6 +31,7 @@ Use subagents liberally to keep main context window clean
 - Diff behavior between main and your changes when relevant
 - Ask yourself: "Would a staff engineer approve this?"
 - Run tests, check logs, demonstrate correctness
+- **Always run a code review agent** after finishing implementation — this is mandatory, not optional
 
 ### 5. Demand Elegance (Balanced)
 - For non-trivial changes: pause and ask "is there a more elegant way?"
@@ -189,6 +190,7 @@ All of these must pass before committing:
 3. **Mypy** — zero type errors: `mypy cataclysm/ backend/`
 4. **Tests** — all pass: `pytest tests/ backend/tests/ -v`
 5. **Coverage** — write tests targeting as close to 100% coverage as realistically possible. Every new module needs a companion test file. Test edge cases, error paths, and boundary conditions, not just the happy path.
+6. **Code review** — after finishing implementation, ALWAYS dispatch the code reviewer agent (`superpowers:code-reviewer` or `code-review:code-review`) to review all changed files. This is in addition to automated checks (ruff, mypy, tests), not a replacement. The reviewer catches logic errors, architectural issues, and subtle bugs that linters miss.
 
 **CRITICAL: Fix ALL errors, including pre-existing ones.** Never dismiss errors as "pre-existing" and move on. If mypy, ruff, or tests show failures — even from code you didn't write — fix them immediately. Zero errors means zero errors, no exceptions.
 
