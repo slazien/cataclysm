@@ -227,14 +227,19 @@ class TestAtlantaMotorsportsPark:
     def test_lookup_case_insensitive(self) -> None:
         layout = lookup_track("atlanta motorsports park")
         assert layout is not None
+
+    def test_lookup_csv_alias(self) -> None:
+        """RaceChrono CSV metadata reports 'AMP Full' as the track name."""
+        layout = lookup_track("AMP Full")
+        assert layout is not None
         assert layout.name == "Atlanta Motorsports Park"
 
-    def test_has_twelve_corners(self) -> None:
-        assert len(ATLANTA_MOTORSPORTS_PARK.corners) == 12
+    def test_has_sixteen_corners(self) -> None:
+        assert len(ATLANTA_MOTORSPORTS_PARK.corners) == 16
 
     def test_corner_numbering(self) -> None:
         numbers = [c.number for c in ATLANTA_MOTORSPORTS_PARK.corners]
-        assert numbers == list(range(1, 13))
+        assert numbers == list(range(1, 17))
 
     def test_fractions_monotonic(self) -> None:
         fractions = [c.fraction for c in ATLANTA_MOTORSPORTS_PARK.corners]
@@ -245,12 +250,20 @@ class TestAtlantaMotorsportsPark:
         for c in ATLANTA_MOTORSPORTS_PARK.corners:
             assert 0.0 < c.fraction < 1.0
 
-    def test_gps_metadata(self) -> None:
-        assert ATLANTA_MOTORSPORTS_PARK.center_lat == pytest.approx(34.42, abs=0.01)
-        assert ATLANTA_MOTORSPORTS_PARK.center_lon == pytest.approx(-84.12, abs=0.01)
+    def test_gps_metadata_corrected(self) -> None:
+        """Center coords verified from real GPS telemetry centroid."""
+        assert ATLANTA_MOTORSPORTS_PARK.center_lat == pytest.approx(34.435, abs=0.01)
+        assert ATLANTA_MOTORSPORTS_PARK.center_lon == pytest.approx(-84.178, abs=0.01)
+
+    def test_track_length_corrected(self) -> None:
+        """Median lap distance from 10 telemetry laps."""
+        assert ATLANTA_MOTORSPORTS_PARK.length_m == pytest.approx(2935.0, abs=10.0)
+
+    def test_elevation_range(self) -> None:
+        assert ATLANTA_MOTORSPORTS_PARK.elevation_range_m == pytest.approx(30.0, abs=2.0)
 
     def test_landmarks_present(self) -> None:
-        assert len(ATLANTA_MOTORSPORTS_PARK.landmarks) >= 10
+        assert len(ATLANTA_MOTORSPORTS_PARK.landmarks) >= 17
 
     def test_landmarks_sorted(self) -> None:
         distances = [lm.distance_m for lm in ATLANTA_MOTORSPORTS_PARK.landmarks]
@@ -263,15 +276,83 @@ class TestAtlantaMotorsportsPark:
         for lm in ATLANTA_MOTORSPORTS_PARK.landmarks:
             assert 0.0 <= lm.distance_m < length
 
-    def test_track_length(self) -> None:
-        assert ATLANTA_MOTORSPORTS_PARK.length_m == pytest.approx(3220.0)
-
     def test_in_all_tracks(self) -> None:
         tracks = get_all_tracks()
         assert any(t.name == "Atlanta Motorsports Park" for t in tracks)
 
     def test_country(self) -> None:
         assert ATLANTA_MOTORSPORTS_PARK.country == "US"
+
+    def test_all_corners_have_direction(self) -> None:
+        for c in ATLANTA_MOTORSPORTS_PARK.corners:
+            assert c.direction in ("left", "right"), f"T{c.number} missing direction"
+
+    def test_all_corners_have_corner_type(self) -> None:
+        for c in ATLANTA_MOTORSPORTS_PARK.corners:
+            assert c.corner_type is not None, f"T{c.number} missing corner_type"
+
+    def test_all_corners_have_elevation_trend(self) -> None:
+        for c in ATLANTA_MOTORSPORTS_PARK.corners:
+            assert c.elevation_trend is not None, f"T{c.number} missing elevation_trend"
+
+    def test_all_corners_have_coaching_notes(self) -> None:
+        for c in ATLANTA_MOTORSPORTS_PARK.corners:
+            assert c.coaching_notes is not None, f"T{c.number} missing coaching_notes"
+            assert len(c.coaching_notes) > 10, f"T{c.number} coaching_notes too short"
+
+
+class TestAMPEnrichedData:
+    """Tests that specific AMP corners have expected curated values."""
+
+    def _get_corner(self, number: int) -> OfficialCorner:
+        matches = [c for c in ATLANTA_MOTORSPORTS_PARK.corners if c.number == number]
+        assert len(matches) == 1
+        return matches[0]
+
+    def test_t1_downhill_hairpin(self) -> None:
+        c = self._get_corner(1)
+        assert c.direction == "right"
+        assert c.corner_type == "hairpin"
+        assert c.elevation_trend == "downhill"
+        assert c.camber == "off-camber"
+
+    def test_t4_carousel(self) -> None:
+        c = self._get_corner(4)
+        assert c.direction == "right"
+        assert "carousel" in c.name.lower() or "carousel" in (c.coaching_notes or "").lower()
+
+    def test_t5_blind_braking(self) -> None:
+        c = self._get_corner(5)
+        assert c.direction == "left"
+        assert c.blind is True
+
+    def test_t11_compression(self) -> None:
+        c = self._get_corner(11)
+        assert c.elevation_trend == "compression"
+
+    def test_t14_eau_rouge(self) -> None:
+        c = self._get_corner(14)
+        assert "eau rouge" in c.name.lower() or "eau rouge" in (c.coaching_notes or "").lower()
+
+    def test_t16_blind_final(self) -> None:
+        c = self._get_corner(16)
+        assert c.blind is True
+        assert c.direction == "right"
+
+    def test_has_character_annotations(self) -> None:
+        """At least some fast corners should have character annotations."""
+        char_count = sum(
+            1 for c in ATLANTA_MOTORSPORTS_PARK.corners if c.character is not None
+        )
+        assert char_count >= 4, "Need character annotations on fast kinks/esses"
+
+    def test_landmarks_have_brake_boards(self) -> None:
+        brake_boards = [
+            lm
+            for lm in ATLANTA_MOTORSPORTS_PARK.landmarks
+            if lm.landmark_type == LandmarkType.brake_board
+        ]
+        assert len(brake_boards) >= 3
 
 
 class TestOfficialCornerCharacter:
