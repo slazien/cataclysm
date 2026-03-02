@@ -142,7 +142,7 @@ class TestAMPDetection:
         )
 
     def test_detect_amp_from_gps(self) -> None:
-        df = self._make_gps_df(lat=34.4218, lon=-84.1173)
+        df = self._make_gps_df(lat=34.4349, lon=-84.1781)
         match = detect_track(df)
         assert match is not None
         assert match.layout.name == "Atlanta Motorsports Park"
@@ -150,7 +150,7 @@ class TestAMPDetection:
         assert match.confidence > 0.5
 
     def test_amp_not_detected_as_barber(self) -> None:
-        df = self._make_gps_df(lat=34.4218, lon=-84.1173)
+        df = self._make_gps_df(lat=34.4349, lon=-84.1781)
         match = detect_track(df)
         assert match is not None
         assert match.layout.name != "Barber Motorsports Park"
