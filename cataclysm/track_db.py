@@ -401,7 +401,7 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
         ),
         OfficialCorner(
             5,
-            "Downhill Hairpin",
+            "Countdown Hairpin",
             0.353,
             direction="left",
             corner_type="hairpin",
@@ -433,8 +433,8 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
             elevation_trend="flat",
             camber="positive",
             coaching_notes=(
-                "Second hardest corner behind T3. Slowest point on track — "
-                "leads onto the long back straight. Sacrifice entry for exit speed."
+                "Slowest point on track — leads onto the long back straight. "
+                "Sacrifice entry for exit speed. Biggest laptime opportunity."
             ),
         ),
         OfficialCorner(
@@ -571,8 +571,14 @@ def lookup_track(track_name: str) -> TrackLayout | None:
 
 
 def get_all_tracks() -> list[TrackLayout]:
-    """Return all known track layouts."""
-    return list(_TRACK_REGISTRY.values())
+    """Return all known track layouts (deduplicated)."""
+    seen: set[int] = set()
+    result: list[TrackLayout] = []
+    for layout in _TRACK_REGISTRY.values():
+        if id(layout) not in seen:
+            seen.add(id(layout))
+            result.append(layout)
+    return result
 
 
 # ---------------------------------------------------------------------------
