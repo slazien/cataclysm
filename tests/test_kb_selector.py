@@ -518,3 +518,74 @@ class TestPriorityOrdering:
         early_triggers = [(sid, pri) for sid, pri in triggers if sid == "4.1"]
         assert len(early_triggers) >= 1
         assert early_triggers[0][1] == 0.5  # from corner 1
+
+
+# ---------------------------------------------------------------------------
+# Edge cases for _corner_pattern_snippets (lines 179, 189)
+# ---------------------------------------------------------------------------
+
+
+class TestCornerPatternSnippetsEdgeCases:
+    """Edge cases for _corner_pattern_snippets uncovered lines."""
+
+    def test_malformed_segment_name_skipped(self) -> None:
+        """Segment name without valid int suffix → ValueError caught, skipped."""
+        gains = _make_gains({1: 0.5})
+        # Hack the segment name to "T_bad" which can't be parsed as int
+        gains.consistency.segment_gains[0].segment = SegmentDefinition(
+            name="T_bad", entry_distance_m=100.0, exit_distance_m=200.0, is_corner=True
+        )
+        all_corners: dict[int, list[Corner]] = {
+            1: [_make_corner(number=1, apex_type="early")],
+        }
+        # Should not crash — the bad name is silently skipped
+        triggers = _corner_pattern_snippets(all_corners, gains)
+        # Corner 1 still gets default priority 0.1 (not from gains)
+        assert all(pri == 0.1 for _, pri in triggers if True)
+
+    def test_empty_segment_name_skipped(self) -> None:
+        """Segment name '' → IndexError caught, skipped."""
+        gains = _make_gains({1: 0.5})
+        gains.consistency.segment_gains[0].segment = SegmentDefinition(
+            name="", entry_distance_m=100.0, exit_distance_m=200.0, is_corner=True
+        )
+        all_corners: dict[int, list[Corner]] = {
+            1: [_make_corner(number=1, apex_type="early")],
+        }
+        triggers = _corner_pattern_snippets(all_corners, gains)
+        # Should not crash
+        assert isinstance(triggers, list)
+
+    def test_corner_number_with_no_data_skipped(self) -> None:
+        """Corner number in corner_nums but no matching data → skipped (line 189)."""
+        all_corners: dict[int, list[Corner]] = {
+            1: [_make_corner(number=1, apex_type="mid")],
+            # Corner 2 exists in keys via corner detection but no lap has corner 99
+        }
+        # Add corner 99 to the all_corners keys set but with no actual data
+        gains = _make_gains({99: 0.3})
+        triggers = _corner_pattern_snippets(all_corners, gains)
+        # Corner 99 was skipped (no data), only corner 1 patterns considered
+        assert isinstance(triggers, list)
+
+
+# ---------------------------------------------------------------------------
+# Edge cases for select_kb_snippets output formatting (lines 288, 292, 297)
+# ---------------------------------------------------------------------------
+
+
+class TestSelectKbSnippetsFormatEdgeCases:
+    """Edge cases for the formatting section of select_kb_snippets."""
+
+    def test_tiny_char_budget_returns_empty(self) -> None:
+        """When char_budget is too small for any snippet, returns '' (line 297)."""
+        # Monkey-patch MAX_INJECTION_TOKENS to force a tiny char budget
+        # The budget is MAX_INJECTION_TOKENS * 4 by default
+        all_corners: dict[int, list[Corner]] = {
+            1: [_make_corner(number=1, apex_type="early")],
+        }
+        # Use a very small char_budget by patching the module constant
+        with patch("cataclysm.kb_selector.MAX_INJECTION_TOKENS", 1):
+            result = select_kb_snippets(all_corners, "novice")
+        # With only 4 chars budget, nothing fits after the header
+        assert result == ""

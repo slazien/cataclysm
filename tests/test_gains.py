@@ -684,3 +684,150 @@ class TestReconstructIdealLap:
 
         ideal = reconstruct_ideal_lap(resampled, segments, seg_times, [1], 1)
         assert len(ideal.segment_sources) == len(segments)
+
+
+# ===========================================================================
+# Edge-case tests for uncovered lines
+# ===========================================================================
+
+
+class TestSegmentTimesEdgeCases:
+    """Edge cases for compute_segment_times (line 163)."""
+
+    def test_clean_lap_not_in_resampled_skipped(self) -> None:
+        """Clean lap number missing from resampled dict → skipped."""
+        lap1 = _make_lap(100, 30.0)
+        resampled = {1: lap1}  # only lap 1
+        corners = [_make_corner(1, entry=10.0, exit=30.0)]
+        segs = build_segments(corners, 69.3)
+        # clean_laps includes lap 2, but it's not in resampled
+        result = compute_segment_times(resampled, segs, [1, 2])
+        # Should still produce results for lap 1 only
+        for seg_name, times in result.items():
+            assert 2 not in times
+            assert 1 in times
+
+
+class TestConsistencyGainEdgeCases:
+    """Edge cases for compute_consistency_gain (line 199)."""
+
+    def test_segment_with_no_times_skipped(self) -> None:
+        """Segment missing from segment_times → skipped in output."""
+        segs = [
+            SegmentDefinition("S1", 0.0, 50.0, is_corner=False),
+            SegmentDefinition("T1", 50.0, 100.0, is_corner=True),
+        ]
+        # Only provide times for S1, not T1
+        seg_times = {"S1": {1: 2.0, 2: 2.5}}
+        summaries = [
+            LapSummary(lap_number=1, lap_time_s=5.0, lap_distance_m=100.0, max_speed_mps=30.0),
+            LapSummary(lap_number=2, lap_time_s=6.0, lap_distance_m=100.0, max_speed_mps=28.0),
+        ]
+        result = compute_consistency_gain(seg_times, segs, summaries, [1, 2])
+        # Only S1 appears in gains (T1 was skipped)
+        assert len(result.segment_gains) == 1
+        assert result.segment_gains[0].segment.name == "S1"
+
+
+class TestCompositeGainEdgeCases:
+    """Edge cases for compute_composite_gain (line 243)."""
+
+    def test_segment_with_no_times_skipped(self) -> None:
+        """Segment missing from segment_times → skipped in composite."""
+        segs = [
+            SegmentDefinition("S1", 0.0, 50.0, is_corner=False),
+            SegmentDefinition("T1", 50.0, 100.0, is_corner=True),
+        ]
+        seg_times = {"S1": {1: 2.0, 2: 2.5}}
+        result = compute_composite_gain(seg_times, segs, 5.0)
+        assert len(result.segment_gains) == 1
+        assert result.segment_gains[0].segment.name == "S1"
+
+
+class TestTheoreticalBestEdgeCases:
+    """Edge cases for compute_theoretical_best (lines 293-321)."""
+
+    def test_short_track_returns_best_lap_time(self) -> None:
+        """Track shorter than sector_size_m → returns best_lap_time, 0 gain."""
+        lap1 = _make_lap(50, 30.0, step=0.5)  # 25m track
+        resampled = {1: lap1}
+        result = compute_theoretical_best(resampled, [1], 0.833, sector_size_m=100.0)
+        assert result.n_sectors == 0
+        assert result.gain_s == 0.0
+        assert result.theoretical_time_s == 0.833
+
+    def test_no_boundary_times_returns_best_lap_time(self) -> None:
+        """All clean laps missing from resampled → no boundary times, fallback."""
+        lap1 = _make_lap(200, 30.0)
+        resampled = {1: lap1}
+        # clean_laps has lap 2, which isn't in resampled
+        result = compute_theoretical_best(resampled, [2], 5.0, sector_size_m=50.0)
+        assert result.theoretical_time_s == 5.0
+        assert result.gain_s == 0.0
+
+
+class TestEstimateGainsPhysicsGap:
+    """Edge case: estimate_gains with optimal_lap_time_s (line 404)."""
+
+    def test_physics_gap_computed_when_optimal_provided(self) -> None:
+        """Passing optimal_lap_time_s fills physics_gap field."""
+        laps = {
+            1: _make_lap(1000, 30.0),
+            2: _make_lap(1000, 28.0),
+        }
+        summaries = [
+            LapSummary(lap_number=1, lap_time_s=23.31, lap_distance_m=699.3, max_speed_mps=30.0),
+            LapSummary(lap_number=2, lap_time_s=24.98, lap_distance_m=699.3, max_speed_mps=28.0),
+        ]
+        corners = [_make_corner(1, entry=100.0, exit=200.0)]
+        result = estimate_gains(
+            laps, corners, summaries, [1, 2], 1, optimal_lap_time_s=20.0
+        )
+        assert result.physics_gap is not None
+        assert result.physics_gap.optimal_lap_time_s == 20.0
+        assert result.physics_gap.gap_s >= 0
+
+    def test_no_physics_gap_when_optimal_is_none(self) -> None:
+        """Without optimal_lap_time_s, physics_gap is None."""
+        laps = {
+            1: _make_lap(1000, 30.0),
+            2: _make_lap(1000, 28.0),
+        }
+        summaries = [
+            LapSummary(lap_number=1, lap_time_s=23.31, lap_distance_m=699.3, max_speed_mps=30.0),
+            LapSummary(lap_number=2, lap_time_s=24.98, lap_distance_m=699.3, max_speed_mps=28.0),
+        ]
+        result = estimate_gains(laps, [], summaries, [1, 2], 1)
+        assert result.physics_gap is None
+
+
+class TestReconstructIdealLapEdgeCases:
+    """Edge cases for reconstruct_ideal_lap (lines 473, 482)."""
+
+    def test_source_lap_fallback_to_best(self) -> None:
+        """When fastest seg lap is missing from resampled, fallback to best_lap."""
+        n = 100
+        step = 0.7
+        dist = np.arange(n) * step
+        base = {
+            "lap_distance_m": dist,
+            "heading_deg": np.zeros(n),
+            "lat": np.full(n, 33.53),
+            "lon": np.full(n, -86.62),
+            "lateral_g": np.zeros(n),
+            "longitudinal_g": np.zeros(n),
+            "yaw_rate_dps": np.zeros(n),
+            "altitude_m": np.full(n, 200.0),
+            "x_acc_g": np.zeros(n),
+            "y_acc_g": np.zeros(n),
+            "z_acc_g": np.ones(n),
+            "speed_mps": np.full(n, 30.0),
+            "lap_time_s": np.cumsum(np.full(n, step / 30.0)),
+        }
+        resampled = {1: pd.DataFrame(base)}
+        segs = [SegmentDefinition("S1", 0.0, float(dist[-1]), is_corner=False)]
+        # seg_times says lap 99 is fastest, but it's not in resampled → fallback to best_lap=1
+        seg_times = {"S1": {99: 1.0, 1: 2.0}}
+        ideal = reconstruct_ideal_lap(resampled, segs, seg_times, [1], 1)
+        # Should not crash, and should use lap 1 as fallback
+        assert len(ideal.speed_mps) == n
