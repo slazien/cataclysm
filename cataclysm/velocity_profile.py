@@ -260,18 +260,10 @@ def _find_transitions(
             throttle_points.append(float(distance[anchor_idx]))
             anchor_speed = speed[i]
             anchor_idx = i
-        elif state == "decel" and cumulative_dv > threshold:
-            # Reversed direction while decelerating — now accelerating
-            state = "accel"
-            throttle_points.append(float(distance[anchor_idx]))
-            anchor_speed = speed[i]
-            anchor_idx = i
-        elif state == "accel" and cumulative_dv < -threshold:
-            # Reversed direction while accelerating — now braking
-            state = "decel"
-            brake_points.append(float(distance[anchor_idx]))
-            anchor_speed = speed[i]
-            anchor_idx = i
+        # Note: decel→accel reversal is already handled by the
+        # `state != "accel"` branch above (covers both cruise and decel).
+        # Similarly, accel→decel reversal is handled by the
+        # `state != "decel"` branch (covers both cruise and accel).
 
         # While in a state, keep updating the anchor to track the extremum
         if state == "decel":

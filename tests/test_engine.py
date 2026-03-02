@@ -287,3 +287,113 @@ class TestFindAnomalousLaps:
         ]
         anomalous = find_anomalous_laps(sums)
         assert 7 in anomalous
+
+
+# ---------------------------------------------------------------------------
+# Edge cases for process_session error paths (lines 204-223)
+# ---------------------------------------------------------------------------
+
+
+class TestProcessSessionEdgeCases:
+    """Edge cases for process_session error paths."""
+
+    def test_all_laps_filtered_out_raises(self) -> None:
+        """All laps filtered by _filter_short_laps → ValueError (line 205).
+
+        Create one very long lap and one very short lap, so the short lap
+        is below MIN_LAP_FRACTION of median. Then mock _split_laps to only
+        return the short laps after the long one establishes the threshold.
+        """
+        from unittest.mock import patch
+
+        # Create two laps: lap 1 = 500m, lap 2 = 5m (way below 50% of median)
+        n_long = 80
+        n_short = 5
+        rows: list[dict] = []
+        for i in range(n_long):
+            rows.append(
+                {
+                    "elapsed_time": float(i),
+                    "distance_m": float(i * 10),
+                    "speed_mps": 30.0,
+                    "lat": 33.5,
+                    "lon": -86.6,
+                    "lap_number": 1.0,
+                }
+            )
+        for i in range(n_short):
+            rows.append(
+                {
+                    "elapsed_time": float(100 + i),
+                    "distance_m": float(800 + i),  # only 4m total
+                    "speed_mps": 5.0,
+                    "lat": 33.5,
+                    "lon": -86.6,
+                    "lap_number": 2.0,
+                }
+            )
+        df = pd.DataFrame(rows)
+
+        # Mock _filter_short_laps to return empty (simulating all laps filtered)
+        with patch("cataclysm.engine._filter_short_laps", return_value={}):
+            with pytest.raises(ValueError, match="filtered out"):
+                process_session(df)
+
+    def test_no_laps_resampled_raises(self) -> None:
+        """All laps fail resampling → ValueError (line 216)."""
+        from unittest.mock import patch
+
+        n_per_lap = 30
+        rows: list[dict] = []
+        for lap in [1, 2]:
+            for i in range(n_per_lap):
+                rows.append(
+                    {
+                        "elapsed_time": (lap - 1) * 50.0 + i * 1.0,
+                        "distance_m": (lap - 1) * 300.0 + i * 10.0,
+                        "speed_mps": 30.0,
+                        "lat": 33.5,
+                        "lon": -86.6,
+                        "lap_number": float(lap),
+                    }
+                )
+        df = pd.DataFrame(rows)
+
+        # Mock _resample_lap to always return empty
+        with patch("cataclysm.engine._resample_lap", return_value=pd.DataFrame()):
+            with pytest.raises(ValueError, match="resampled"):
+                process_session(df)
+
+    def test_lap_not_in_resampled_skipped_in_summaries(self) -> None:
+        """Lap that fails resampling → not in summaries (line 223)."""
+        from unittest.mock import patch
+
+        n_per_lap = 60
+        rows: list[dict] = []
+        for lap in [1, 2]:
+            for i in range(n_per_lap):
+                rows.append(
+                    {
+                        "elapsed_time": (lap - 1) * 100.0 + i * 1.0,
+                        "distance_m": (lap - 1) * 500.0 + i * 10.0,
+                        "speed_mps": 30.0,
+                        "lat": 33.5,
+                        "lon": -86.6,
+                        "lap_number": float(lap),
+                    }
+                )
+        df = pd.DataFrame(rows)
+
+        original_resample = _resample_lap
+
+        def _mock_resample(lap_df: pd.DataFrame) -> pd.DataFrame:
+            if float(lap_df["lap_number"].iloc[0]) == 2.0:
+                return pd.DataFrame()
+            return original_resample(lap_df)
+
+        with patch("cataclysm.engine._resample_lap", side_effect=_mock_resample):
+            result = process_session(df)
+
+        summary_laps = {s.lap_number for s in result.lap_summaries}
+        assert 2 not in summary_laps
+        assert 1 in summary_laps

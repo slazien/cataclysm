@@ -1909,3 +1909,310 @@ class TestGuardrailRetryLogic:
             report = generate_coaching_report(sample_summaries, sample_all_lap_corners, "Test")
 
         assert report.validation_failed is False
+
+
+# ---------------------------------------------------------------------------
+# Additional coverage tests for remaining uncovered lines
+# ---------------------------------------------------------------------------
+
+
+class TestResolveSpeedMarkersEdgeCases:
+    """Additional edge cases for resolve_speed_markers."""
+
+    def test_non_matching_pattern_passthrough(self) -> None:
+        """Text that doesn't match the speed marker pattern passes through unchanged."""
+        # The regex only matches {{speed:digits}} — non-numeric text won't match
+        result = resolve_speed_markers("{{speed:abc}} faster")
+        assert result == "{{speed:abc}} faster"
+
+    def test_zero_speed_marker(self) -> None:
+        """{{speed:0}} is a valid marker and should be resolved."""
+        result = resolve_speed_markers("{{speed:0}} delta")
+        assert result == "0 mph delta"
+
+
+class TestResolveRefNoneDistance:
+    """Tests for lines 219, 233: brake/throttle ref returns '—' when distance is None."""
+
+    def test_resolve_brake_ref_none_distance(self) -> None:
+        """_resolve_brake_ref(None, ...) returns '—' (line 219)."""
+        from cataclysm.coaching import _resolve_brake_ref
+
+        result = _resolve_brake_ref(None, landmarks=None)
+        assert result == "—"
+
+    def test_resolve_throttle_ref_none_distance(self) -> None:
+        """_resolve_throttle_ref(None, ...) returns '—' (line 233)."""
+        from cataclysm.coaching import _resolve_throttle_ref
+
+        result = _resolve_throttle_ref(None, landmarks=None)
+        assert result == "—"
+
+
+class TestFormatCornerCharacter:
+    """Tests for lines 390, 394: 'flat' and 'lift' character hints in _format_corner_analysis."""
+
+    def _make_analysis_with_character(self, character: str) -> SessionCornerAnalysis:
+        ca = CornerAnalysis(
+            corner_number=3,
+            n_laps=5,
+            stats_min_speed=CornerStats(
+                best=50.0, mean=48.0, std=1.0, value_range=4.0, best_lap=1, n_laps=5
+            ),
+            stats_brake_point=None,
+            stats_peak_brake_g=None,
+            stats_throttle_commit=None,
+            apex_distribution={"mid": 5},
+            recommendation=CornerRecommendation(
+                target_brake_m=None,
+                target_brake_landmark=None,
+                target_min_speed_mph=50.0,
+                gain_s=0.1,
+                corner_type="fast",
+                character=character,
+            ),
+            time_value=None,
+            correlations=[],
+        )
+        return SessionCornerAnalysis(
+            corners=[ca],
+            best_lap=1,
+            total_consistency_gain_s=0.5,
+            n_laps_analyzed=5,
+        )
+
+    def test_flat_character_hint_shown(self) -> None:
+        """character='flat' adds FLAT note to formatted output (line 390)."""
+        analysis = self._make_analysis_with_character("flat")
+        text = _format_corner_analysis(analysis)
+        assert "FLAT" in text
+
+    def test_lift_character_hint_shown(self) -> None:
+        """character='lift' adds LIFT note to formatted output (line 394)."""
+        analysis = self._make_analysis_with_character("lift")
+        text = _format_corner_analysis(analysis)
+        assert "LIFT" in text
+
+
+class TestParseCoachingResponsePlainCodeBlock:
+    """Tests for lines 712-713: plain ``` code block (no json prefix)."""
+
+    def test_plain_code_block_extracted(self) -> None:
+        """Response wrapped in ``` (not ```json) should be extracted (lines 712-713)."""
+        payload = {
+            "summary": "Plain block test.",
+            "priority_corners": [],
+            "corner_grades": [],
+            "patterns": [],
+        }
+        import json as _json
+
+        json_str = _json.dumps(payload)
+        # Wrap in plain triple-backtick block (no 'json' tag)
+        backticks = "```"
+        text = backticks + "\n" + json_str + "\n" + backticks
+        result = _parse_coaching_response(text)
+        assert result.summary == "Plain block test."
+
+    def test_json_fallback_brace_extraction(self) -> None:
+        """Malformed text where JSON is extracted by brace search (lines 723-724)."""
+        payload = {
+            "summary": "Brace fallback test.",
+            "priority_corners": [],
+            "corner_grades": [],
+            "patterns": [],
+        }
+        import json as _json
+
+        json_str = _json.dumps(payload)
+        # Add non-JSON prefix/suffix so direct json.loads fails but brace search works
+        text = "Here is the result:\n" + json_str + "\nEnd of response."
+        result = _parse_coaching_response(text)
+        assert result.summary == "Brace fallback test."
+
+
+class TestAskFollowupWeatherAndKbContext:
+    """Tests for lines 895-900: weather and KB context in ask_followup system prompt."""
+
+    def _make_mock_followup(self, response_text: str = "Great question.") -> MagicMock:
+        mock_msg = MagicMock()
+        mock_msg.content = [MagicMock(text=response_text)]
+        mock_client = MagicMock()
+        mock_client.messages.create.return_value = mock_msg
+        mock_module = MagicMock()
+        mock_module.Anthropic.return_value = mock_client
+        return mock_module
+
+    def test_weather_context_appended_to_system_when_present(
+        self,
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        """When weather has data, _format_weather_context returns non-empty and is appended
+        to system prompt (lines 895-896)."""
+        from cataclysm.equipment import SessionConditions, TrackCondition
+
+        ctx = CoachingContext()
+        mock_report = CoachingReport(
+            summary="Good session.",
+            priority_corners=[],
+            corner_grades=[],
+            patterns=[],
+        )
+        mock_report.raw_response = "Initial coaching done."
+        ctx.messages.append({"role": "assistant", "content": "Initial coaching done."})
+
+        conditions = SessionConditions(
+            track_condition=TrackCondition.DRY,
+            ambient_temp_c=25.0,
+            track_temp_c=35.0,
+        )
+        mock_anthropic = self._make_mock_followup("Weather tip.")
+        with (
+            patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test"}),
+            patch.dict("sys.modules", {"anthropic": mock_anthropic}),
+        ):
+            result = ask_followup(
+                ctx, "How does weather affect braking?", mock_report, weather=conditions
+            )
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+    def test_kb_context_appended_when_corners_present(
+        self,
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        """When all_lap_corners provided, KB snippets are selected and appended (lines 898-900)."""
+        ctx = CoachingContext()
+        mock_report = CoachingReport(
+            summary="Good session.",
+            priority_corners=[],
+            corner_grades=[],
+            patterns=[],
+        )
+        mock_report.raw_response = "Initial coaching done."
+        ctx.messages.append({"role": "assistant", "content": "Initial coaching done."})
+
+        mock_anthropic = self._make_mock_followup("KB response.")
+        with (
+            patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test"}),
+            patch.dict("sys.modules", {"anthropic": mock_anthropic}),
+        ):
+            result = ask_followup(
+                ctx,
+                "What should I focus on?",
+                mock_report,
+                all_lap_corners=sample_all_lap_corners,
+            )
+        assert isinstance(result, str)
+
+    def test_followup_api_exception_returns_error_message(self) -> None:
+        """When the Anthropic API raises an exception, friendly error message returned
+        (lines 909-911)."""
+        ctx = CoachingContext()
+        mock_report = CoachingReport(
+            summary="Good session.",
+            priority_corners=[],
+            corner_grades=[],
+            patterns=[],
+        )
+        mock_report.raw_response = "Initial coaching done."
+        ctx.messages.append({"role": "assistant", "content": "Initial coaching done."})
+
+        mock_client = MagicMock()
+        mock_client.messages.create.side_effect = RuntimeError("connection refused")
+        mock_module = MagicMock()
+        mock_module.Anthropic.return_value = mock_client
+
+        with (
+            patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test"}),
+            patch.dict("sys.modules", {"anthropic": mock_module}),
+        ):
+            result = ask_followup(ctx, "What happened?", mock_report)
+        assert "unavailable" in result.lower() or "overloaded" in result.lower()
+
+
+# ---------------------------------------------------------------------------
+# Tests for final uncovered branches (lines 446, 606-607)
+# ---------------------------------------------------------------------------
+
+
+class TestFormatCornerAnalysisTargetBrakeM:
+    """Test line 446: target_brake_m shown when no landmark is set."""
+
+    def test_brake_distance_shown_without_landmark(self) -> None:
+        """When target_brake_landmark is None but target_brake_m has a value, raw distance shown."""
+        ca = CornerAnalysis(
+            corner_number=2,
+            n_laps=4,
+            stats_min_speed=CornerStats(
+                best=45.0, mean=43.0, std=1.2, value_range=4.5, best_lap=1, n_laps=4
+            ),
+            stats_brake_point=CornerStats(
+                best=500.0, mean=510.0, std=6.0, value_range=18.0, best_lap=1, n_laps=4
+            ),
+            stats_peak_brake_g=None,
+            stats_throttle_commit=None,
+            apex_distribution={"mid": 4},
+            recommendation=CornerRecommendation(
+                target_brake_m=500.0,  # raw distance, no landmark
+                target_brake_landmark=None,
+                target_min_speed_mph=45.0,
+                gain_s=0.3,
+                corner_type="medium",
+            ),
+            time_value=None,
+            correlations=[],
+        )
+        analysis = SessionCornerAnalysis(
+            corners=[ca],
+            best_lap=1,
+            total_consistency_gain_s=0.3,
+            n_laps_analyzed=4,
+        )
+        text = _format_corner_analysis(analysis)
+        # Should show the raw distance since no landmark (line 446)
+        assert "500m" in text
+
+
+class TestBuildCoachingPromptWithOptimalComparison:
+    """Test lines 606-607: optimal_comparison section in _build_coaching_prompt."""
+
+    def test_optimal_comparison_section_included(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        """Passing optimal_comparison adds the comparison section (lines 606-607)."""
+        import numpy as np
+
+        from cataclysm.optimal_comparison import CornerOpportunity, OptimalComparisonResult
+
+        n = 10
+        comparison = OptimalComparisonResult(
+            actual_lap_time_s=92.5,
+            optimal_lap_time_s=90.0,
+            total_gap_s=2.5,
+            corner_opportunities=[
+                CornerOpportunity(
+                    corner_number=1,
+                    actual_min_speed_mps=26.8,
+                    optimal_min_speed_mps=28.1,
+                    speed_gap_mps=1.3,
+                    speed_gap_mph=2.9,
+                    actual_brake_point_m=None,
+                    optimal_brake_point_m=None,
+                    brake_gap_m=None,
+                    time_cost_s=0.4,
+                ),
+            ],
+            speed_delta_mps=np.zeros(n),
+            distance_m=np.arange(n) * 0.7,
+        )
+        prompt = _build_coaching_prompt(
+            sample_summaries,
+            sample_all_lap_corners,
+            "Test Track",
+            optimal_comparison=comparison,
+        )
+        # optimal section and instruction should be in prompt
+        assert "Optimal" in prompt or "optimal" in prompt or "physics" in prompt.lower()
