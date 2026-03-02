@@ -18,7 +18,12 @@ from cataclysm.engine import LapSummary
 from cataclysm.equipment import EquipmentProfile, SessionConditions
 from cataclysm.gains import GainEstimate
 from cataclysm.kb_selector import select_kb_snippets
-from cataclysm.landmarks import Landmark, format_corner_landmarks
+from cataclysm.landmarks import (
+    _BRAKE_PREFERRED_TYPES,
+    Landmark,
+    find_nearest_landmark,
+    format_corner_landmarks,
+)
 from cataclysm.optimal_comparison import OptimalComparisonResult
 from cataclysm.topic_guardrail import TOPIC_RESTRICTION_PROMPT
 
@@ -183,21 +188,60 @@ def _format_lap_summaries(summaries: list[LapSummary]) -> str:
     return "\n".join(lines)
 
 
+def _resolve_brake_ref(
+    distance_m: float | None,
+    landmarks: list[Landmark] | None,
+) -> str:
+    """Resolve a brake point distance to a landmark reference string."""
+    if distance_m is None:
+        return "—"
+    if landmarks:
+        ref = find_nearest_landmark(distance_m, landmarks, preferred_types=_BRAKE_PREFERRED_TYPES)
+        if ref is not None:
+            return ref.format_reference()
+    return f"{distance_m:.0f}m"
+
+
+def _resolve_throttle_ref(
+    distance_m: float | None,
+    landmarks: list[Landmark] | None,
+) -> str:
+    """Resolve a throttle commit distance to a landmark reference string."""
+    if distance_m is None:
+        return "—"
+    if landmarks:
+        ref = find_nearest_landmark(distance_m, landmarks)
+        if ref is not None:
+            return ref.format_reference()
+    return f"{distance_m:.0f}m"
+
+
 def _format_all_laps_corners(
     all_lap_corners: dict[int, list[Corner]],
     best_lap: int,
+    *,
+    landmarks: list[Landmark] | None = None,
 ) -> str:
     """Format corner KPIs for every lap in the session."""
-    lines = ["Lap | Corner | Min Speed (mph) | Brake Pt (m) | Peak Brake (G) | Throttle (m) | Apex"]
+    if landmarks:
+        brake_col = "Brake Ref"
+        throttle_col = "Throttle Ref"
+    else:
+        brake_col = "Brake Pt (m)"
+        throttle_col = "Throttle (m)"
+
+    lines = [
+        f"Lap | Corner | Min Speed (mph) | {brake_col} | Peak Brake (G) | {throttle_col} | Apex"
+    ]
     lines.append("--- | --- | --- | --- | --- | --- | ---")
 
     for lap_num in sorted(all_lap_corners):
         tag = " *" if lap_num == best_lap else ""
         for c in all_lap_corners[lap_num]:
             speed = f"{c.min_speed_mps * MPS_TO_MPH:.1f}"
-            brake = f"{c.brake_point_m:.0f}" if c.brake_point_m is not None else "—"
+            brake = _resolve_brake_ref(c.brake_point_m, landmarks)
             peak_g = f"{c.peak_brake_g:.2f}" if c.peak_brake_g is not None else "—"
-            throttle = f"{c.throttle_commit_m:.0f}" if c.throttle_commit_m is not None else "—"
+            throttle = _resolve_throttle_ref(c.throttle_commit_m, landmarks)
             lines.append(
                 f"L{lap_num}{tag} | T{c.number} | {speed} | {brake} "
                 f"| {peak_g} | {throttle} | {c.apex_type}"
@@ -299,7 +343,11 @@ def _format_landmark_context(
     return "\n".join(lines)
 
 
-def _format_corner_analysis(analysis: SessionCornerAnalysis) -> str:
+def _format_corner_analysis(
+    analysis: SessionCornerAnalysis,
+    *,
+    landmarks: list[Landmark] | None = None,
+) -> str:
     """Format pre-computed corner analysis into prompt text."""
     lines = [
         "## Pre-Computed Corner Analysis (sorted by time opportunity)",
@@ -347,7 +395,8 @@ def _format_corner_analysis(analysis: SessionCornerAnalysis) -> str:
         # Brake point
         if ca.stats_brake_point is not None:
             bp = ca.stats_brake_point
-            lines.append(f"  Brake pt: best={bp.best:.0f} mean={bp.mean:.0f} std={bp.std:.1f}m")
+            brake_ref = _resolve_brake_ref(bp.best, landmarks)
+            lines.append(f"  Brake pt: {brake_ref} (best), spread \u00b1{bp.std:.1f}m")
 
         # Peak brake g
         if ca.stats_peak_brake_g is not None:
@@ -357,7 +406,8 @@ def _format_corner_analysis(analysis: SessionCornerAnalysis) -> str:
         # Throttle commit
         if ca.stats_throttle_commit is not None:
             tc = ca.stats_throttle_commit
-            lines.append(f"  Throttle: best={tc.best:.0f} mean={tc.mean:.0f} std={tc.std:.1f}m")
+            throttle_ref = _resolve_throttle_ref(tc.best, landmarks)
+            lines.append(f"  Throttle: {throttle_ref} (best), spread \u00b1{tc.std:.1f}m")
 
         # Apex distribution
         apex_parts = [
@@ -505,7 +555,7 @@ def _build_coaching_prompt(
     best = min(summaries, key=lambda s: s.lap_time_s)
     best_min = int(best.lap_time_s // 60)
     best_sec = best.lap_time_s % 60
-    corner_text = _format_all_laps_corners(all_lap_corners, best.lap_number)
+    corner_text = _format_all_laps_corners(all_lap_corners, best.lap_number, landmarks=landmarks)
 
     gains_section = ""
     gains_instruction = ""
@@ -545,7 +595,9 @@ def _build_coaching_prompt(
     corner_analysis_section = ""
     corner_analysis_instruction = ""
     if corner_analysis is not None and corner_analysis.corners:
-        corner_analysis_section = f"\n{_format_corner_analysis(corner_analysis)}\n"
+        corner_analysis_section = (
+            f"\n{_format_corner_analysis(corner_analysis, landmarks=landmarks)}\n"
+        )
         corner_analysis_instruction = (
             "\nIMPORTANT: Use the pre-computed corner analysis above as your primary data source. "
             "The statistics, correlations, and recommendations are already computed — "
