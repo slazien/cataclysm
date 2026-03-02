@@ -1165,6 +1165,7 @@ async def test_backfill_weather_lookup_returns_none_increments_failed(
             sa_select(SessionModel).where(SessionModel.session_id == session_id)
         )
         row = result.scalar_one_or_none()
+        assert row is not None
         snap = dict(row.snapshot_json or {})
         snap.pop("weather", None)
         snap["gps_centroid"] = {"lat": 33.53, "lon": -86.62}
@@ -1205,6 +1206,7 @@ async def test_backfill_weather_skips_missing_centroid_with_no_memory(
             sa_select(SessionModel).where(SessionModel.session_id == session_id)
         )
         row = result.scalar_one_or_none()
+        assert row is not None
         # No centroid, no weather in snapshot
         row.snapshot_json = {}
         await db.commit()
@@ -1241,6 +1243,7 @@ async def test_backfill_weather_via_memory_fallback(
             sa_select(SessionModel).where(SessionModel.session_id == session_id)
         )
         row = result.scalar_one_or_none()
+        assert row is not None
         snap = dict(row.snapshot_json or {})
         snap.pop("gps_centroid", None)
         snap.pop("weather", None)
@@ -1294,6 +1297,7 @@ async def test_backfill_weather_skips_null_lat_lon(
             sa_select(SessionModel).where(SessionModel.session_id == session_id)
         )
         row = result.scalar_one_or_none()
+        assert row is not None
         snap = dict(row.snapshot_json or {})
         snap.pop("weather", None)
         snap["gps_centroid"] = {"lat": None, "lon": None}  # null coords
