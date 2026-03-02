@@ -54,11 +54,12 @@ export function ProgressView() {
     const counts = new Map<string, number>();
     for (const s of sessions) {
       const name = s.track_name;
+      if (!name) continue;
       counts.set(name, (counts.get(name) ?? 0) + 1);
     }
     return Array.from(counts.entries())
       .map(([name, sessionCount]) => ({ name, sessionCount }))
-      .sort((a, b) => b.sessionCount - a.sessionCount);
+      .sort((a, b) => b.sessionCount - a.sessionCount || a.name.localeCompare(b.name));
   }, [sessions]);
 
   const effectiveTrack = selectedTrack ?? sessionTrackName;
@@ -221,8 +222,11 @@ export function ProgressView() {
             ) : (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-1 rounded-md px-2 py-0.5 font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface)]">
-                    {trendData.track_name}
+                  <button
+                    aria-label={`Select track, currently ${effectiveTrack}`}
+                    className="flex items-center gap-1 rounded-md px-2 py-0.5 font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface)]"
+                  >
+                    {effectiveTrack}
                     <ChevronDown className="size-4 text-[var(--text-muted)]" />
                   </button>
                 </DropdownMenuTrigger>
