@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { X, ChevronLeft, ChevronRight, Sparkles, Trophy, Clock, MapPin, Gauge } from 'lucide-react';
 import { useWrapped } from '@/hooks/useWrapped';
+import { useUiStore } from '@/stores';
 import type { WrappedData } from '@/lib/types';
 
 /* ── Personality icon mapping ───────────────────────── */
@@ -29,12 +30,19 @@ function IntroCard({ data }: { data: WrappedData }) {
   );
 }
 
+const KM_TO_MI = 0.621371;
+
 function StatsCard({ data }: { data: WrappedData }) {
+  const unitPref = useUiStore((s) => s.unitPreference);
+  const isImperial = unitPref === 'imperial';
+  const distance = isImperial ? data.total_distance_km * KM_TO_MI : data.total_distance_km;
+  const distanceUnit = isImperial ? 'mi' : 'km';
+
   const stats = [
     { icon: Trophy, label: 'Total Laps', value: data.total_laps.toLocaleString(), color: '#f59e0b' },
     { icon: MapPin, label: 'Tracks Visited', value: String(data.tracks_visited.length), color: '#3b82f6' },
     { icon: Clock, label: 'Track Time', value: `${data.total_track_time_hours.toFixed(1)}h`, color: '#22c55e' },
-    { icon: Gauge, label: 'Distance', value: `${data.total_distance_km.toFixed(0)} km`, color: '#a855f7' },
+    { icon: Gauge, label: 'Distance', value: `${distance.toFixed(0)} ${distanceUnit}`, color: '#a855f7' },
   ];
 
   return (
