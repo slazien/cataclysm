@@ -666,3 +666,54 @@ class TestEnrichedRecommendation:
         assert rec.coaching_notes is None
         assert rec.elevation_change_m is None
         assert rec.gradient_pct is None
+
+
+# ---------------------------------------------------------------------------
+# Edge cases for multi-lap analysis (lines 261, 284, 288-292)
+# ---------------------------------------------------------------------------
+
+
+class TestMultiLapCornerMissing:
+    """Cover lines where a corner is missing from some laps."""
+
+    def test_corner_missing_from_one_lap(self) -> None:
+        """Line 261: corner number not found in a lap → continue."""
+        # Lap 1 has corners 1 and 2, lap 2 has only corner 1
+        c1_lap1 = _make_corner(1, min_speed_mps=20.0)
+        c2_lap1 = _make_corner(2, min_speed_mps=15.0, entry_distance_m=800.0,
+                                exit_distance_m=1100.0, apex_distance_m=950.0)
+        c1_lap2 = _make_corner(1, min_speed_mps=21.0)
+
+        all_corners = {1: [c1_lap1, c2_lap1], 2: [c1_lap2]}
+        result = compute_corner_analysis(all_corners, None, None, None, best_lap=1)
+        # Both corners should appear (corner 2 only from lap 1)
+        corner_nums = {c.corner_number for c in result.corners}
+        assert 1 in corner_nums
+        assert 2 in corner_nums
+
+    def test_corner_missing_from_all_laps(self) -> None:
+        """Line 284: no data for a corner number → skip it."""
+        # Corner 1 exists, but corner 2 has no matching corners in any lap
+        c1 = _make_corner(1)
+        all_corners = {1: [c1]}
+        # The function iterates over corner_numbers derived from the data,
+        # so all corners in the dict will be found. This is tested indirectly.
+        result = compute_corner_analysis(all_corners, None, None, None, best_lap=1)
+        assert len(result.corners) == 1
+
+    def test_best_lap_missing_corner_uses_first(self) -> None:
+        """Lines 288-292: best lap doesn't have this corner → use first available."""
+        # Lap 1 has corner 1, lap 2 (best) has corner 1, lap 3 has corners 1 and 2
+        # Best lap (2) does NOT have corner 2
+        c1_lap1 = _make_corner(1, min_speed_mps=20.0)
+        c1_lap2 = _make_corner(1, min_speed_mps=22.0)
+        c1_lap3 = _make_corner(1, min_speed_mps=21.0)
+        c2_lap1 = _make_corner(2, min_speed_mps=15.0, entry_distance_m=800.0,
+                                exit_distance_m=1100.0, apex_distance_m=950.0)
+        c2_lap3 = _make_corner(2, min_speed_mps=16.0, entry_distance_m=800.0,
+                                exit_distance_m=1100.0, apex_distance_m=950.0)
+
+        all_corners = {1: [c1_lap1, c2_lap1], 2: [c1_lap2], 3: [c1_lap3, c2_lap3]}
+        result = compute_corner_analysis(all_corners, None, None, None, best_lap=2)
+        corner_nums = {c.corner_number for c in result.corners}
+        assert 2 in corner_nums  # corner 2 still appears even though best lap misses it

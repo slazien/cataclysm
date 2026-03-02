@@ -381,3 +381,66 @@ class TestParentComplex:
         straight_segs = [s for s in result.segments if s.segment_type == "straight"]
         for seg in straight_segs:
             assert seg.parent_complex is None
+
+
+# ---------------------------------------------------------------------------
+# Edge case tests for uncovered lines
+# ---------------------------------------------------------------------------
+
+
+class TestInferStepEdgeCases:
+    """Cover _infer_step_m single-point fallback (line 60)."""
+
+    def test_single_point_returns_default(self) -> None:
+        from cataclysm.segmentation import _infer_step_m
+
+        result = _infer_step_m(np.array([42.0]))
+        assert result == 0.7
+
+
+class TestClassifySegmentsEdgeCases:
+    """Cover _classify_segments edge cases (lines 79, 90, 100)."""
+
+    def test_empty_distance_returns_empty(self) -> None:
+        cr = CurvatureResult(
+            distance_m=np.array([]),
+            curvature=np.array([]),
+            abs_curvature=np.array([]),
+            heading_rad=np.array([]),
+            x_smooth=np.array([]),
+            y_smooth=np.array([]),
+        )
+        result = _classify_segments([], cr, method="test")
+        assert result.segments == []
+
+    def test_single_boundary_after_clamp(self) -> None:
+        """Changepoints outside data range → fallback to [d_min, d_max]."""
+        n = 200
+        distance = np.linspace(0, 100, n)
+        cr = CurvatureResult(
+            distance_m=distance,
+            curvature=np.zeros(n),
+            abs_curvature=np.zeros(n),
+            heading_rad=np.zeros(n),
+            x_smooth=distance,
+            y_smooth=np.zeros(n),
+        )
+        result = _classify_segments([200.0, 300.0], cr, method="test")
+        assert len(result.segments) >= 1
+
+
+class TestASCEmptyDistance:
+    """Cover segment_asc with empty distance (line 347)."""
+
+    def test_empty_curvature(self) -> None:
+        cr = CurvatureResult(
+            distance_m=np.array([]),
+            curvature=np.array([]),
+            abs_curvature=np.array([]),
+            heading_rad=np.array([]),
+            x_smooth=np.array([]),
+            y_smooth=np.array([]),
+        )
+        result = segment_asc(cr)
+        assert result.segments == []
+        assert result.method == "asc"

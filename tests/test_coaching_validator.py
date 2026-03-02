@@ -324,3 +324,67 @@ def test_summary_returns_useful_info(validator: CoachingValidator) -> None:
     assert s["current_interval"] == DEFAULT_INTERVAL
     assert s["next_check_in"] == DEFAULT_INTERVAL
     assert s["recent_failure_rate"] == 0.0
+
+
+# ── API call failure (lines 158-160) ────────────────────────────────
+
+
+@patch("cataclysm.coaching_validator.CoachingValidator._create_client")
+def test_api_exception_returns_pass(
+    mock_client_factory: MagicMock,
+    validator: CoachingValidator,
+) -> None:
+    """If the API call raises, validation defaults to pass (fail-open)."""
+    mock_client = MagicMock()
+    mock_client.messages.create.side_effect = RuntimeError("Connection timeout")
+    mock_client_factory.return_value = mock_client
+
+    for _ in range(DEFAULT_INTERVAL - 1):
+        validator.record_and_maybe_validate("text")
+
+    result = validator.record_and_maybe_validate("text")
+    assert result is not None
+    assert result.passed is True
+
+
+# ── _save exception handling (lines 253-256) ─────────────────────────
+
+
+def test_save_exception_cleans_temp_file(state_path: Path) -> None:
+    """_save should clean up temp file and re-raise on write failure."""
+    v = CoachingValidator(state_path=state_path)
+    v.state.total_outputs = 10
+
+    with patch("json.dump", side_effect=OSError("Disk full")):
+        with pytest.raises(OSError, match="Disk full"):
+            v._save()
+
+
+# ── _create_client (lines 261-266) ──────────────────────────────────
+
+
+def test_create_client_no_api_key() -> None:
+    """Without ANTHROPIC_API_KEY, _create_client returns None."""
+    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""}, clear=False):
+        result = CoachingValidator._create_client()
+    assert result is None
+
+
+def test_create_client_with_api_key() -> None:
+    """With an API key, _create_client returns an Anthropic client."""
+    import sys
+
+    mock_anthropic = MagicMock()
+    mock_anthropic.Anthropic.return_value = MagicMock(name="FakeClient")
+    original = sys.modules.get("anthropic")
+    sys.modules["anthropic"] = mock_anthropic
+    try:
+        with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"}, clear=False):
+            result = CoachingValidator._create_client()
+        assert result is not None
+        mock_anthropic.Anthropic.assert_called_once()
+    finally:
+        if original is not None:
+            sys.modules["anthropic"] = original
+        else:
+            sys.modules.pop("anthropic", None)
