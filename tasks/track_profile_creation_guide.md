@@ -67,34 +67,38 @@ import numpy as np
 from cataclysm.parser import parse_racechrono_csv
 from cataclysm.engine import process_session
 
-session = parse_racechrono_csv("path/to/session.csv")
-processed = process_session(session)
+parsed = parse_racechrono_csv("path/to/session.csv")
+processed = process_session(parsed.data)  # pass DataFrame, not ParsedSession
 
 # GPS centroid (used for track auto-detection)
-all_lats = session.data["lat"].dropna()
-all_lons = session.data["lon"].dropna()
+all_lats = parsed.data["lat"].dropna()
+all_lons = parsed.data["lon"].dropna()
 center_lat = float(all_lats.mean())
 center_lon = float(all_lons.mean())
 
 # Lap length (median of clean laps)
-lap_distances = [float(lap.resampled["lap_distance_m"].iloc[-1]) for lap in processed.laps]
+# ProcessedSession has: lap_summaries, resampled_laps (dict[int, DataFrame]), best_lap (int)
+lap_distances = [
+    float(processed.resampled_laps[ls.lap_number]["lap_distance_m"].iloc[-1])
+    for ls in processed.lap_summaries
+]
 length_m = float(np.median(lap_distances))
 
 # Elevation range (from GPS altitude if available)
-if "altitude_m" in session.data.columns:
-    alts = session.data["altitude_m"].dropna()
+if "altitude_m" in parsed.data.columns:
+    alts = parsed.data["altitude_m"].dropna()
     elevation_range_m = float(alts.max() - alts.min())
 ```
 
 #### 1.3 Export Telemetry Trace for Map Overlay
 Save the best lap's GPS trace for projection work later:
 ```python
-best_lap = min(processed.laps, key=lambda l: l.summary.lap_time_s)
-df = best_lap.resampled
+best_df = processed.resampled_laps[processed.best_lap]
 np.savez("/tmp/track_trace.npz",
-    dist=df["lap_distance_m"].to_numpy(),
-    lat=df["lat"].to_numpy(),
-    lon=df["lon"].to_numpy(),
+    dist=best_df["lap_distance_m"].to_numpy(),
+    lat=best_df["lat"].to_numpy(),
+    lon=best_df["lon"].to_numpy(),
+    speed=best_df["speed_mps"].to_numpy(),
 )
 ```
 Record: total GPS point count, total lap distance, which lap number.
@@ -147,6 +151,44 @@ For each official corner:
 **Cross-reference with satellite imagery:**
 - Plot the GPS trace on satellite imagery
 - Visually confirm that the speed minimum location matches the physical corner apex
+
+**Secondary method: Heading-rate curvature analysis**
+
+When speed minimums are ambiguous (e.g., two adjacent same-direction corners share a single combined speed minimum), use heading-rate curvature to disambiguate:
+
+```python
+from scipy.signal import find_peaks
+
+d = np.load("/tmp/track_trace.npz")
+dist, lat, lon, speed = d["dist"], d["lat"], d["lon"], d["speed"]
+
+# Compute heading rate (degrees per meter)
+dlat, dlon = np.diff(lat), np.diff(lon)
+mid_lat = np.radians(np.mean(lat))
+dx = dlon * 111320 * np.cos(mid_lat)
+dy = dlat * 111320
+heading = np.degrees(np.arctan2(dx, dy))
+dheading = np.diff(heading)
+dheading = (dheading + 180) % 360 - 180  # normalize to [-180, 180]
+ddist = np.diff(dist[:-1])
+ddist[ddist == 0] = 0.7
+heading_rate = dheading / ddist
+
+# Smooth and find curvature peaks
+window = max(2, int(20.0 / 0.7))  # 20m rolling average
+kernel = np.ones(window) / window
+smoothed_rate = np.convolve(np.abs(heading_rate), kernel, mode="same")
+
+hr_peaks, _ = find_peaks(smoothed_rate, prominence=0.1, distance=30)
+for p in hr_peaks:
+    sign = "R" if np.mean(heading_rate[max(0, p - 10) : p + 10]) > 0 else "L"
+    print(f"dist={dist[p+1]:.0f}m  rate={smoothed_rate[p]:.3f}deg/m  dir={sign}")
+```
+
+This identifies corners by their physical curvature even when they don't produce distinct speed minimums. Particularly useful for:
+- **Adjacent same-direction corners** (e.g., Roebling T1-T2, both rights) that merge into one speed dip
+- **Fast sweepers** where speed barely drops but curvature is clear
+- **Verifying turn direction** (left/right) when guides disagree
 
 **Validation:**
 - Fractions must be monotonically increasing (corners appear in order around the track)
@@ -539,9 +581,21 @@ Not every track needs the full Barber-level treatment. Here's a tiered approach:
 - **Key insight**: Real telemetry-derived fractions differed significantly from map estimates. Fractions from speed trace minimums are always more accurate than geometric map analysis.
 - **Name aliasing**: RaceChrono stored sessions as "AMP Full" — needed an alias in the registry.
 
+### Roebling Road Raceway
+- **Tier 2 profile** built from 8 sessions (44 laps) with corner fractions from speed-trace + heading-rate analysis.
+- **Key challenge**: Roebling's sweeping corners have low heading rates (max 1.4 deg/m smoothed vs Barber's 2.0). The auto-detection threshold of 1.0 deg/m finds 0 corners on Roebling, making the track map invisible. This was the primary motivation for adding the profile.
+- **Multiple track guides combined**: racetrackdriving.com (most detailed, wet/dry line info), PCA Beginner's Guide (general tips), Paradigm Shift Racing (track map). No single source covered all 9 turns completely.
+- **T1-T2 inseparable in speed trace**: Both are right-handers with a single combined speed minimum at 93 km/h. Heading-rate curvature peaks were used to separate T1 apex (~530m, rate 1.03 deg/m) from T2 apex (~720m, rate 1.22 deg/m).
+- **T8-T9 combo**: Guides describe "one corner" with left-to-right transition. Heading rate confirms brief L-direction (T8) then sustained R-direction (T9). Speed remains >120 km/h — among the fastest corners.
+- **Flat track challenge**: Only 8m elevation range means elevation_trend is "flat" for 7 of 9 corners. T6 (downhill) and T7 (uphill) are the only exceptions — verified by both altitude data and track guides.
+- **Landmarks are sparse** (Tier 2 level): No brake boards identified from guides; curbing locations estimated. Can be upgraded to Tier 3 with satellite imagery verification.
+- **Name aliasing**: RaceChrono stores as "Roebling Road" — registry includes both "roebling road" and "roebling road raceway".
+
 ### General Lessons
 - Track guides from driving schools are 10x more valuable than Wikipedia for coaching metadata
 - Elevation is the hardest field to verify without topographic data or onboard video
 - Camber is almost impossible to determine from satellite imagery — always needs track guides or personal experience
 - `character` field ("flat"/"lift"/"brake") should only be set for clear-cut cases — let the system auto-detect for ambiguous corners
 - Start/finish gantry at distance 0.0 is a universal landmark — always include it
+- **Auto-detection fails on sweeping tracks**: The heading-rate threshold (1.0 deg/m) is calibrated for tight tracks (Barber, AMP). Tracks with all-sweeper layouts (Roebling) may never exceed this threshold. Adding a track profile is the reliable fix.
+- **Heading-rate direction analysis** can disambiguate adjacent same-direction corners (like Roebling T1-T2) by finding curvature dips between them — even when the speed trace shows a single combined minimum.

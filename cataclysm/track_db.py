@@ -549,11 +549,197 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
     ],
 )
 
+# ---------------------------------------------------------------------------
+# Roebling Road Raceway visual landmarks
+# ---------------------------------------------------------------------------
+# Verification:
+#   - GPS centroid from real telemetry: (32.1682, -81.3218)
+#   - Median lap distance (44 laps across 8 sessions): 3200.4m
+#   - Elevation range (GPS altitude): ~8m (10–18m ASL) — essentially flat
+#   - Corner fractions derived from speed-trace minimums + heading-rate curvature
+#     cross-referenced with racetrackdriving.com guide, PCA Beginner's Guide,
+#     and Paradigm Shift Racing track notes.
+#   - Session: session_20260111_075431_roebling_road_v3.csv (best lap #8)
+
+_ROEBLING_LANDMARKS: list[Landmark] = [
+    # --- Start/Finish area ---
+    Landmark("S/F gantry", 0.0, LandmarkType.structure, description="Timing gantry"),
+    # --- T1-T2 braking zone ---
+    Landmark("T1 turn-in curb", 440.0, LandmarkType.curbing, description="Right side entry"),
+    Landmark("T2 exit curb", 810.0, LandmarkType.curbing, description="Usable exit curbing"),
+    # --- T5 braking zone ---
+    Landmark(
+        "T5 outside curb",
+        1430.0,
+        LandmarkType.curbing,
+        description="Reference for brake point",
+    ),
+    # --- T6-T7 elevation change ---
+    Landmark("T6 downhill entry", 1740.0, LandmarkType.natural, description="Track drops"),
+    Landmark("T7 uphill exit", 2170.0, LandmarkType.natural, description="Track climbs back"),
+    # --- T8-T9 complex ---
+    Landmark("T9 exit curb", 2680.0, LandmarkType.curbing, description="Dips in exit curb"),
+    # --- Return to start ---
+    Landmark("pit entry", 3050.0, LandmarkType.road, description="Pit lane entry on right"),
+]
+
+ROEBLING_ROAD_RACEWAY = TrackLayout(
+    name="Roebling Road Raceway",
+    landmarks=_ROEBLING_LANDMARKS,
+    center_lat=32.1682,
+    center_lon=-81.3218,
+    country="US",
+    length_m=3200.4,
+    elevation_range_m=8.0,
+    corners=[
+        OfficialCorner(
+            1,
+            "Decreasing Radius Right",
+            0.166,
+            lat=32.168318,
+            lon=-81.328249,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="flat",
+            camber="positive",
+            coaching_notes=(
+                "Heavy braking from top speed. Decreasing radius — don't turn in early. "
+                "Trail-brake to rotate and find the late apex."
+            ),
+        ),
+        OfficialCorner(
+            2,
+            "Blind Right",
+            0.225,
+            lat=32.169803,
+            lon=-81.328499,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="flat",
+            camber="positive",
+            blind=True,
+            coaching_notes=(
+                "Blind apex — commit to reference points. Additional braking may be needed. "
+                "Late apex and use full exit curbing."
+            ),
+        ),
+        OfficialCorner(
+            3,
+            "Fast Left Sweeper",
+            0.334,
+            lat=32.168765,
+            lon=-81.325403,
+            character="lift",
+            direction="left",
+            corner_type="sweeper",
+            elevation_trend="flat",
+            camber="positive",
+            coaching_notes=(
+                "One of the fastest corners on track. Resist the temptation to lift — "
+                "carry speed and trust grip. Wet: puddles form on the right side."
+            ),
+        ),
+        OfficialCorner(
+            4,
+            "Tricky Entry Right",
+            0.419,
+            lat=32.169187,
+            lon=-81.322816,
+            character="lift",
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="flat",
+            coaching_notes=(
+                "Slippery entry worsens the deeper you penetrate. "
+                "Turn in earlier than instinct says. Sets up the T5 braking zone."
+            ),
+        ),
+        OfficialCorner(
+            5,
+            "The Hairpin",
+            0.466,
+            lat=32.169784,
+            lon=-81.321494,
+            direction="left",
+            corner_type="hairpin",
+            elevation_trend="flat",
+            camber="positive",
+            coaching_notes=(
+                "Slowest and tightest corner. Hardest turn to master but most rewarding. "
+                "Late apex, rotate the car, use full track width on exit."
+            ),
+        ),
+        OfficialCorner(
+            6,
+            "Downhill Right",
+            0.566,
+            lat=32.167818,
+            lon=-81.319413,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="downhill",
+            coaching_notes=(
+                "Downhill entry makes the surface slippery. Don't turn in too early — "
+                "mid-corner washout is common. Patience through the arc."
+            ),
+        ),
+        OfficialCorner(
+            7,
+            "Uphill Left",
+            0.656,
+            lat=32.170034,
+            lon=-81.318406,
+            direction="left",
+            corner_type="sweeper",
+            elevation_trend="uphill",
+            camber="positive",
+            coaching_notes=(
+                "Uphill recovers elevation from T6. Late apex — becomes a non-event "
+                "when T6 is nailed. Use the exit curb."
+            ),
+        ),
+        OfficialCorner(
+            8,
+            "Fast Left Kink",
+            0.772,
+            lat=32.168155,
+            lon=-81.316687,
+            character="flat",
+            direction="left",
+            corner_type="kink",
+            elevation_trend="flat",
+            camber="positive",
+            coaching_notes=(
+                "Entry to the T8-T9 complex. Flat out for lower-power cars, brief lift "
+                "for fast cars. Smooth left-to-right transition."
+            ),
+        ),
+        OfficialCorner(
+            9,
+            "Fast Right Sweeper",
+            0.813,
+            lat=32.167007,
+            lon=-81.316955,
+            character="flat",
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="flat",
+            camber="positive",
+            coaching_notes=(
+                "One of the fastest corners. Flows from T8 as a single arc. "
+                "Exit curb has dips — stay smooth. Exit speed onto front straight is critical."
+            ),
+        ),
+    ],
+)
+
 # Registry of known tracks — keys are normalized (lowercased, stripped).
 _TRACK_REGISTRY: dict[str, TrackLayout] = {
     "barber motorsports park": BARBER_MOTORSPORTS_PARK,
     "atlanta motorsports park": ATLANTA_MOTORSPORTS_PARK,
     "amp full": ATLANTA_MOTORSPORTS_PARK,
+    "roebling road": ROEBLING_ROAD_RACEWAY,
+    "roebling road raceway": ROEBLING_ROAD_RACEWAY,
 }
 
 
