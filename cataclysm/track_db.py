@@ -305,56 +305,247 @@ BARBER_MOTORSPORTS_PARK = TrackLayout(
 # ---------------------------------------------------------------------------
 # Atlanta Motorsports Park visual landmarks
 # ---------------------------------------------------------------------------
-# Approximate positions along the 3220m AMP circuit in Dawsonville, GA.
-# Distances derived from track map analysis and public corner guides.
+# Verification:
+#   - GPS centroid from real telemetry: (34.4349, -84.1781)
+#   - Median lap distance (10 laps): 2935.0m
+#   - Elevation range (GPS altitude): ~30m (404–434m ASL)
+#   - Distances below projected from best-lap GPS onto satellite imagery
+#   - Session: session_20251214_155803_amp_full_v3.csv (best lap #6)
 
 _AMP_LANDMARKS: list[Landmark] = [
     # --- Start/Finish area ---
-    Landmark("S/F line", 0.0, LandmarkType.structure, description="Timing gantry"),
-    Landmark("pit entry", 96.0, LandmarkType.road, description="Pit lane entry on right"),
-    Landmark("pit exit", 225.0, LandmarkType.road, description="Pit merge on left"),
-    # --- T1-T2 ---
-    Landmark("T1 brake board", 257.0, LandmarkType.brake_board),
-    Landmark("T2 apex curb", 451.0, LandmarkType.curbing),
-    # --- T3-T6 Hill section ---
-    Landmark("T3 crest", 709.0, LandmarkType.natural, description="Uphill blind crest"),
-    Landmark("T5 brake board", 998.0, LandmarkType.brake_board),
-    Landmark("T6 gravel trap", 1159.0, LandmarkType.barrier, description="Runoff on outside"),
-    # --- T7 Back straight ---
-    Landmark("T7 brake board", 1575.0, LandmarkType.brake_board),
-    Landmark("bridge", 1610.0, LandmarkType.structure, description="Pedestrian bridge"),
-    # --- T8-T9 Chicane ---
-    Landmark("T8 chicane curb", 1771.0, LandmarkType.curbing),
-    Landmark("T9 chicane curb", 1900.0, LandmarkType.curbing),
-    Landmark("timing loop", 1997.0, LandmarkType.structure, description="Secondary timing"),
+    Landmark("S/F gantry", 0.0, LandmarkType.structure, description="Timing gantry"),
+    Landmark("pit entry", 59.0, LandmarkType.road, description="Pit lane entry on right"),
+    # --- T1 Downhill Hairpin ---
+    Landmark("T1 brake board", 104.0, LandmarkType.brake_board),
+    # --- T3-T4 Carousel complex ---
+    Landmark("carousel apex curb", 591.0, LandmarkType.curbing, description="T4 apex"),
+    Landmark("hilltop crest", 645.0, LandmarkType.natural, description="Highest point on track"),
+    # --- T5 Downhill Hairpin with brake boards ---
+    Landmark("T5 3 board", 910.0, LandmarkType.brake_board, description="300m to T5"),
+    Landmark("T5 2 board", 945.0, LandmarkType.brake_board, description="200m to T5"),
+    Landmark("T5 1 board", 981.0, LandmarkType.brake_board, description="100m to T5"),
+    Landmark("T5 gravel trap", 1067.0, LandmarkType.barrier, description="Runoff on outside"),
+    # --- Back straight ---
+    Landmark("pit exit merge", 1214.0, LandmarkType.road, description="Pit merge on left"),
+    # --- Bridge section ---
+    Landmark("T9 apex curb", 1633.0, LandmarkType.curbing),
+    Landmark("pedestrian bridge", 1665.0, LandmarkType.structure, description="Overhead bridge"),
     # --- T10-T11 ---
-    Landmark("T10 brake board", 2127.0, LandmarkType.brake_board),
-    # --- T11-T12 ---
-    Landmark("T12 exit curb", 2866.0, LandmarkType.curbing),
-    Landmark("podium", 2963.0, LandmarkType.structure, description="Visible on left"),
-    Landmark("victory lane", 3123.0, LandmarkType.structure, description="Near front straight"),
+    Landmark("T10 brake board", 1796.0, LandmarkType.brake_board),
+    Landmark("The Dip compression", 1889.0, LandmarkType.natural, description="Compression dip"),
+    # --- Eau Rouge complex ---
+    Landmark("Eau Rouge entry curb", 2044.0, LandmarkType.curbing),
+    Landmark("Eau Rouge crest", 2090.0, LandmarkType.natural, description="Crest of Eau Rouge"),
+    # --- Final section ---
+    Landmark("T16 apex curb", 2759.0, LandmarkType.curbing),
+    Landmark("victory lane", 2840.0, LandmarkType.structure, description="Near front straight"),
 ]
 
 ATLANTA_MOTORSPORTS_PARK = TrackLayout(
     name="Atlanta Motorsports Park",
     landmarks=_AMP_LANDMARKS,
-    center_lat=34.4218,
-    center_lon=-84.1173,
+    center_lat=34.4349,
+    center_lon=-84.1781,
     country="US",
-    length_m=3220.0,
+    length_m=2935.0,
+    elevation_range_m=30.0,
     corners=[
-        OfficialCorner(1, "Fast Right Entry", 0.09),
-        OfficialCorner(2, "Hairpin", 0.14),
-        OfficialCorner(3, "Uphill Right", 0.22),
-        OfficialCorner(4, "Uphill Left", 0.27),
-        OfficialCorner(5, "Technical Right", 0.31),
-        OfficialCorner(6, "Downhill Left", 0.36),
-        OfficialCorner(7, "Back Straight Right", 0.50),
-        OfficialCorner(8, "Chicane Left", 0.55),
-        OfficialCorner(9, "Chicane Right", 0.59),
-        OfficialCorner(10, "Fast Left", 0.67),
-        OfficialCorner(11, "Double Apex Right", 0.78),
-        OfficialCorner(12, "Final Complex", 0.89),
+        OfficialCorner(
+            1,
+            "Downhill Hairpin",
+            0.059,
+            direction="right",
+            corner_type="hairpin",
+            elevation_trend="downhill",
+            camber="off-camber",
+            coaching_notes=(
+                "Most dangerous turn on track. Heavy braking from top speed into "
+                "downhill off-camber right. Don't overdrive — grip drops fast."
+            ),
+        ),
+        OfficialCorner(
+            2,
+            "Blind Left",
+            0.180,
+            character="lift",
+            direction="left",
+            corner_type="kink",
+            elevation_trend="uphill",
+            camber="positive",
+            blind=True,
+            coaching_notes="Completely blind minor left. Brief lift at most. Trust the line.",
+        ),
+        OfficialCorner(
+            3,
+            "Carousel Entry",
+            0.206,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="uphill",
+            camber="positive",
+            coaching_notes="Entry to the carousel complex. Braking while climbing — uphill helps.",
+        ),
+        OfficialCorner(
+            4,
+            "The Carousel",
+            0.237,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="crest",
+            camber="positive",
+            coaching_notes=(
+                "Long constant-radius right. Single steering angle — more throttle "
+                "pushes you wide, less throttle tightens the line."
+            ),
+        ),
+        OfficialCorner(
+            5,
+            "Downhill Hairpin",
+            0.353,
+            direction="left",
+            corner_type="hairpin",
+            elevation_trend="downhill",
+            camber="off-camber",
+            blind=True,
+            coaching_notes=(
+                "Blind braking zone with countdown boards (3, 2, 1). "
+                "Downhill increases stopping distance. Commit to brake markers."
+            ),
+        ),
+        OfficialCorner(
+            6,
+            "Uphill Right Kink",
+            0.373,
+            character="lift",
+            direction="right",
+            corner_type="kink",
+            elevation_trend="uphill",
+            camber="positive",
+            coaching_notes="Quick direction change exiting T5. Brief lift, not heavy braking.",
+        ),
+        OfficialCorner(
+            7,
+            "Back Straight Entry",
+            0.498,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="flat",
+            camber="positive",
+            coaching_notes=(
+                "Second hardest corner behind T3. Slowest point on track — "
+                "leads onto the long back straight. Sacrifice entry for exit speed."
+            ),
+        ),
+        OfficialCorner(
+            8,
+            "Right Kink",
+            0.508,
+            character="flat",
+            direction="right",
+            corner_type="kink",
+            elevation_trend="flat",
+            camber="positive",
+            coaching_notes="Flat out. Continuation of T7 arc onto back straight.",
+        ),
+        OfficialCorner(
+            9,
+            "Downhill Left Sweeper",
+            0.559,
+            direction="left",
+            corner_type="sweeper",
+            elevation_trend="downhill",
+            camber="positive",
+            coaching_notes="Long sweeping left, downhill. Smooth steering — don't upset the car.",
+        ),
+        OfficialCorner(
+            10,
+            "Hard Left Uphill",
+            0.610,
+            direction="left",
+            corner_type="hairpin",
+            elevation_trend="uphill",
+            camber="positive",
+            coaching_notes=(
+                "Common section for early turn-in. Delay entry — uphill adds grip. "
+                "Positive camber rewards patience."
+            ),
+        ),
+        OfficialCorner(
+            11,
+            "The Dip",
+            0.643,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="compression",
+            coaching_notes=(
+                "Car compresses through the dip, giving extra grip. "
+                "Trust the grip and begin accelerating through the compression."
+            ),
+        ),
+        OfficialCorner(
+            12,
+            "Downhill Left Kink",
+            0.661,
+            character="lift",
+            direction="left",
+            corner_type="kink",
+            elevation_trend="downhill",
+            coaching_notes="Quick left, downhill. Brief lift — transition into Eau Rouge complex.",
+        ),
+        OfficialCorner(
+            13,
+            "Eau Rouge Entry",
+            0.712,
+            character="flat",
+            direction="left",
+            corner_type="esses",
+            elevation_trend="uphill",
+            camber="positive",
+            coaching_notes=(
+                "Start of the Eau Rouge tribute. Flat out — do NOT lift. "
+                "Uphill entry, smooth steering through the esses."
+            ),
+        ),
+        OfficialCorner(
+            14,
+            "Eau Rouge Mid",
+            0.814,
+            character="flat",
+            direction="right",
+            corner_type="esses",
+            elevation_trend="flat",
+            camber="positive",
+            coaching_notes=(
+                "Long on-ramp style sweeper — continue accelerating. "
+                "Balance throttle through multiple direction changes."
+            ),
+        ),
+        OfficialCorner(
+            15,
+            "Eau Rouge Exit",
+            0.898,
+            character="flat",
+            direction="left",
+            corner_type="esses",
+            elevation_trend="flat",
+            camber="positive",
+            coaching_notes="Exit of Eau Rouge complex. Stay flat, smooth transition to T16.",
+        ),
+        OfficialCorner(
+            16,
+            "Final Right",
+            0.949,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="flat",
+            camber="positive",
+            blind=True,
+            coaching_notes=(
+                "Blind quick right before start/finish. Keep your line and hit your marks. "
+                "Exit speed onto the main straight is critical."
+            ),
+        ),
     ],
 )
 
@@ -362,6 +553,7 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
 _TRACK_REGISTRY: dict[str, TrackLayout] = {
     "barber motorsports park": BARBER_MOTORSPORTS_PARK,
     "atlanta motorsports park": ATLANTA_MOTORSPORTS_PARK,
+    "amp full": ATLANTA_MOTORSPORTS_PARK,
 }
 
 
