@@ -172,15 +172,20 @@ async def _run_generation(
             weather=weather,
         )
 
-        priority_corners = [
-            PriorityCornerSchema(
-                corner=int(pc.get("corner", 0)),  # type: ignore[call-overload]
-                time_cost_s=float(pc.get("time_cost_s", 0)),  # type: ignore[arg-type]
-                issue=str(pc.get("issue", "")),
-                tip=str(pc.get("tip", "")),
+        priority_corners = []
+        for pc in report.priority_corners:
+            try:
+                corner_num = int(pc.get("corner", 0))  # type: ignore[call-overload]
+            except (ValueError, TypeError):
+                corner_num = 0  # AI returned non-numeric (e.g. "Entire Session")
+            priority_corners.append(
+                PriorityCornerSchema(
+                    corner=corner_num,
+                    time_cost_s=float(pc.get("time_cost_s", 0) or 0),  # type: ignore[arg-type]
+                    issue=str(pc.get("issue", "")),
+                    tip=str(pc.get("tip", "")),
+                )
             )
-            for pc in report.priority_corners
-        ]
 
         corner_grades = [
             CornerGradeSchema(
