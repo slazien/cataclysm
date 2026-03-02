@@ -34,6 +34,20 @@ export function ProgressView() {
   const trendData = trendResponse?.data ?? null;
   const milestones = milestoneResponse?.milestones ?? [];
 
+  // Compute PB session indices (sessions where best_lap_time_s was the best so far)
+  const pbSessionIndices = useMemo(() => {
+    if (!trendData) return new Set<number>();
+    const indices = new Set<number>();
+    let bestSoFar = Infinity;
+    trendData.sessions.forEach((s, i) => {
+      if (s.best_lap_time_s < bestSoFar) {
+        bestSoFar = s.best_lap_time_s;
+        indices.add(i);
+      }
+    });
+    return indices;
+  }, [trendData]);
+
   // Hero metrics
   const heroMetrics = useMemo(() => {
     if (!trendData || trendData.sessions.length === 0) return null;
@@ -151,7 +165,7 @@ export function ProgressView() {
   }
 
   return (
-    <div className="flex flex-col gap-6 overflow-y-auto p-6">
+    <div className="flex flex-col gap-6 p-4 lg:p-6">
       {/* Section title */}
       <div>
         <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--text-primary)]">
@@ -269,6 +283,7 @@ export function ProgressView() {
                 bestLapTrend={trendData.best_lap_trend}
                 top3AvgTrend={trendData.top3_avg_trend}
                 theoreticalTrend={trendData.theoretical_trend}
+                pbIndices={pbSessionIndices}
               />
             </ChartErrorBoundary>
           </div>
@@ -282,6 +297,7 @@ export function ProgressView() {
               <ConsistencyTrend
                 sessions={trendData.sessions}
                 consistencyTrend={trendData.consistency_trend}
+                pbIndices={pbSessionIndices}
               />
             </ChartErrorBoundary>
           </div>

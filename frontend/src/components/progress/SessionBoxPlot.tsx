@@ -100,12 +100,14 @@ export function SessionBoxPlot({ sessions, className }: SessionBoxPlotProps) {
     ctx.textBaseline = 'middle';
     for (const tick of yTicks) {
       const y = yScale(tick);
-      ctx.strokeStyle = colors.grid;
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.lineWidth = 0.5;
+      ctx.setLineDash([4, 4]);
       ctx.beginPath();
       ctx.moveTo(MARGINS.left, y);
       ctx.lineTo(MARGINS.left + dimensions.innerWidth, y);
       ctx.stroke();
+      ctx.setLineDash([]);
       ctx.fillStyle = colors.axis;
       ctx.font = `10px ${fonts.mono}`;
       ctx.fillText(formatTimeShort(tick), MARGINS.left - 6, y);
@@ -271,8 +273,16 @@ export function SessionBoxPlot({ sessions, className }: SessionBoxPlotProps) {
         : x + 8;
     const tooltipY = MARGINS.top + 4;
 
-    ctx.fillStyle = 'rgba(10, 12, 16, 0.9)';
-    ctx.fillRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
+    // Tooltip card with rounded corners and subtle border
+    ctx.fillStyle = 'rgba(10, 12, 16, 0.92)';
+    ctx.beginPath();
+    ctx.roundRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight, 6);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.roundRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight, 6);
+    ctx.stroke();
 
     for (let i = 0; i < lines.length; i++) {
       ctx.fillStyle = colors.text.secondary;

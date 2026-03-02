@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { useGains } from '@/hooks/useAnalysis';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
 import { SkeletonCard } from '@/components/shared/SkeletonCard';
@@ -145,7 +146,14 @@ export function TimeGainedChart({ sessionId }: TimeGainedChartProps) {
         Average vs. personal best per corner — where to focus practice
       </p>
       <div ref={containerRef} style={{ height: chartHeight }} className="relative">
-        <canvas ref={dataCanvasRef} className="absolute inset-0" />
+        <motion.div
+          initial={{ clipPath: 'inset(0 100% 0 0)' }}
+          animate={{ clipPath: 'inset(0 0% 0 0)' }}
+          transition={{ duration: 0.5, ease: 'easeOut', delay: 0.2 }}
+          className="absolute inset-0"
+        >
+          <canvas ref={dataCanvasRef} className="absolute inset-0" />
+        </motion.div>
       </div>
     </div>
   );

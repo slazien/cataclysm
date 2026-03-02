@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
+import { motion } from 'motion/react';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
 import { colors, fonts } from '@/lib/design-tokens';
 import { formatTimeShort } from '@/lib/formatters';
@@ -13,6 +14,7 @@ interface LapTimeTrendProps {
   bestLapTrend: number[];
   top3AvgTrend: number[];
   theoreticalTrend: number[];
+  pbIndices?: Set<number>;
   className?: string;
 }
 
@@ -59,11 +61,92 @@ function drawLine(
   }
 }
 
+/** Draw a gradient fill area under a line series to ground it visually */
+function drawAreaFill(
+  ctx: CanvasRenderingContext2D,
+  xScale: d3.ScaleLinear<number, number>,
+  yScale: d3.ScaleLinear<number, number>,
+  data: number[],
+  color: string,
+  chartBottom: number,
+) {
+  const points: { x: number; y: number }[] = [];
+  for (let i = 0; i < data.length; i++) {
+    if (data[i] == null || data[i] <= 0) continue;
+    points.push({ x: xScale(i), y: yScale(data[i]) });
+  }
+  if (points.length < 2) return;
+
+  // Parse hex color to RGB for gradient stops
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(color);
+  const rgb = m
+    ? `${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}`
+    : '59, 130, 246';
+
+  const gradient = ctx.createLinearGradient(0, Math.min(...points.map((p) => p.y)), 0, chartBottom);
+  gradient.addColorStop(0, `rgba(${rgb}, 0.15)`);
+  gradient.addColorStop(1, `rgba(${rgb}, 0)`);
+
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, chartBottom);
+  for (const pt of points) {
+    ctx.lineTo(pt.x, pt.y);
+  }
+  ctx.lineTo(points[points.length - 1].x, chartBottom);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/** Draw a tooltip card with rounded corners and subtle border */
+function drawTooltipCard(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  radius = 6,
+) {
+  ctx.fillStyle = 'rgba(10, 12, 16, 0.92)';
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, radius);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, radius);
+  ctx.stroke();
+}
+
+function drawPbDiamonds(
+  ctx: CanvasRenderingContext2D,
+  xScale: d3.ScaleLinear<number, number>,
+  yScale: d3.ScaleLinear<number, number>,
+  data: number[],
+  pbIndices: Set<number>,
+) {
+  for (const i of pbIndices) {
+    if (i >= data.length || data[i] == null || data[i] <= 0) continue;
+    const x = xScale(i);
+    const y = yScale(data[i]);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(Math.PI / 4);
+    ctx.fillStyle = colors.accent.primary;
+    ctx.fillRect(-4, -4, 8, 8);
+    ctx.strokeStyle = colors.accent.primaryHover;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(-4, -4, 8, 8);
+    ctx.restore();
+  }
+}
+
 export function LapTimeTrend({
   sessions,
   bestLapTrend,
   top3AvgTrend,
   theoreticalTrend,
+  pbIndices,
   className,
 }: LapTimeTrendProps) {
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx } =
@@ -121,9 +204,19 @@ export function LapTimeTrend({
       formatYTick: formatTimeShort,
       yTickCount: 6,
     });
+    // Area fills (drawn first so they sit behind lines)
+    const chartBottom = MARGINS.top + dimensions.innerHeight;
+    drawAreaFill(ctx, xScale, yScale, bestLapTrend, colors.motorsport.optimal, chartBottom);
+    drawAreaFill(ctx, xScale, yScale, top3AvgTrend, colors.motorsport.neutral, chartBottom);
+
     drawLine(ctx, xScale, yScale, theoreticalTrend, colors.motorsport.pb, 1.5, true);
     drawLine(ctx, xScale, yScale, top3AvgTrend, colors.motorsport.neutral, 2);
     drawLine(ctx, xScale, yScale, bestLapTrend, colors.motorsport.optimal, 2);
+
+    // PB diamonds on the best lap line
+    if (pbIndices && pbIndices.size > 0) {
+      drawPbDiamonds(ctx, xScale, yScale, bestLapTrend, pbIndices);
+    }
 
     // Legend
     const legendX = MARGINS.left + 8;
@@ -132,7 +225,7 @@ export function LapTimeTrend({
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
 
-    const items = [
+    const items: { label: string; color: string; dashed: boolean }[] = [
       { label: 'Best Lap', color: colors.motorsport.optimal, dashed: false },
       { label: 'Top 3 Avg', color: colors.motorsport.neutral, dashed: false },
       { label: 'Theoretical', color: colors.motorsport.pb, dashed: true },
@@ -153,7 +246,24 @@ export function LapTimeTrend({
       ctx.fillStyle = colors.text.secondary;
       ctx.fillText(items[i].label, legendX + 26, y);
     }
-  }, [sessions, bestLapTrend, top3AvgTrend, theoreticalTrend, xScale, yScale, dimensions, getDataCtx]);
+
+    // PB diamond legend entry
+    if (pbIndices && pbIndices.size > 0) {
+      const pbY = legendY + items.length * 16;
+      ctx.save();
+      ctx.translate(legendX + 10, pbY);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = colors.accent.primary;
+      ctx.fillRect(-3, -3, 6, 6);
+      ctx.strokeStyle = colors.accent.primaryHover;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(-3, -3, 6, 6);
+      ctx.restore();
+
+      ctx.fillStyle = colors.text.secondary;
+      ctx.fillText('PB Session', legendX + 26, pbY);
+    }
+  }, [sessions, bestLapTrend, top3AvgTrend, theoreticalTrend, pbIndices, xScale, yScale, dimensions, getDataCtx]);
 
   // Hover overlay
   useEffect(() => {
@@ -221,8 +331,7 @@ export function LapTimeTrend({
     const tooltipX = x + tooltipWidth + 16 > MARGINS.left + dimensions.innerWidth ? x - tooltipWidth - 8 : x + 8;
     const tooltipY = MARGINS.top + 4;
 
-    ctx.fillStyle = 'rgba(10, 12, 16, 0.9)';
-    ctx.fillRect(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
+    drawTooltipCard(ctx, tooltipX, tooltipY, tooltipWidth, tooltipHeight);
 
     const tooltipColors = [colors.motorsport.optimal, colors.motorsport.neutral, colors.motorsport.pb];
     for (let i = 0; i < lines.length; i++) {
@@ -241,16 +350,23 @@ export function LapTimeTrend({
 
   return (
     <div ref={containerRef} className={`relative h-full w-full ${className ?? ''}`}>
-      <canvas
-        ref={dataCanvasRef}
+      <motion.div
+        initial={{ clipPath: 'inset(0 100% 0 0)' }}
+        animate={{ clipPath: 'inset(0 0% 0 0)' }}
+        transition={{ duration: 0.5, ease: 'easeOut', delay: 0.2 }}
         className="absolute inset-0"
-        style={{ width: '100%', height: '100%', zIndex: 1 }}
-      />
-      <canvas
-        ref={overlayCanvasRef}
-        className="absolute inset-0"
-        style={{ width: '100%', height: '100%', cursor: 'crosshair', zIndex: 2, pointerEvents: 'auto' }}
-      />
+      >
+        <canvas
+          ref={dataCanvasRef}
+          className="absolute inset-0"
+          style={{ width: '100%', height: '100%', zIndex: 1 }}
+        />
+        <canvas
+          ref={overlayCanvasRef}
+          className="absolute inset-0"
+          style={{ width: '100%', height: '100%', cursor: 'crosshair', zIndex: 2, pointerEvents: 'auto' }}
+        />
+      </motion.div>
     </div>
   );
 }

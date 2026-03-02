@@ -38,12 +38,14 @@ export function drawTrendAxes({
   ctx.textBaseline = 'middle';
   for (const tick of yTicks) {
     const y = yScale(tick);
-    ctx.strokeStyle = colors.grid;
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 0.5;
+    ctx.setLineDash([4, 4]);
     ctx.beginPath();
     ctx.moveTo(margins.left, y);
     ctx.lineTo(margins.left + innerWidth, y);
     ctx.stroke();
+    ctx.setLineDash([]);
     ctx.fillStyle = colors.axis;
     ctx.fillText(formatYTick(tick), margins.left - 6, y);
   }

@@ -24,7 +24,7 @@ export function PitLaneDebrief() {
 
   if (sessionLoading) {
     return (
-      <div className="mx-auto flex max-w-5xl flex-col gap-4 p-4">
+      <div className="mx-auto flex max-w-5xl flex-col gap-6 p-4 lg:p-6">
         <SkeletonCard height="h-48" />
         <SkeletonCard height="h-40" />
         <SkeletonCard height="h-20" />
@@ -41,7 +41,7 @@ export function PitLaneDebrief() {
     : null;
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-5 p-4 pb-24">
+    <div className="mx-auto flex max-w-5xl flex-col gap-6 p-4 pb-24 lg:p-6 lg:pb-24">
       {/* Hero — pit board style */}
       <DebriefHeroCard
         bestLapTime={session.best_lap_time_s ?? 0}
@@ -66,8 +66,8 @@ export function PitLaneDebrief() {
 
       {/* Summary */}
       {report?.summary && (
-        <div className="rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-5">
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+        <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
+          <h3 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">
             Session Summary
           </h3>
           <p className="text-sm leading-relaxed text-[var(--text-secondary)]">

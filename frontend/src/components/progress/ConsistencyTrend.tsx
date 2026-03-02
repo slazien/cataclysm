@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
+import { motion } from 'motion/react';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
 import { colors, fonts } from '@/lib/design-tokens';
 import type { TrendSessionSummary } from '@/lib/types';
@@ -10,12 +11,13 @@ import { drawTrendAxes } from './progressChartHelpers';
 interface ConsistencyTrendProps {
   sessions: TrendSessionSummary[];
   consistencyTrend: number[];
+  pbIndices?: Set<number>;
   className?: string;
 }
 
 const MARGINS = { top: 20, right: 20, bottom: 44, left: 64 };
 
-export function ConsistencyTrend({ sessions, consistencyTrend, className }: ConsistencyTrendProps) {
+export function ConsistencyTrend({ sessions, consistencyTrend, pbIndices, className }: ConsistencyTrendProps) {
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx } =
     useCanvasChart(MARGINS);
 
@@ -63,15 +65,19 @@ export function ConsistencyTrend({ sessions, consistencyTrend, className }: Cons
       yLabel: 'Consistency (0-100)',
     });
 
-    // Fill area under line
+    // Fill area under line with gradient
     if (consistencyTrend.length > 1) {
-      ctx.fillStyle = `${colors.motorsport.optimal}15`;
+      const chartBottom = MARGINS.top + dimensions.innerHeight;
+      const gradient = ctx.createLinearGradient(0, MARGINS.top, 0, chartBottom);
+      gradient.addColorStop(0, 'rgba(59, 130, 246, 0.15)');
+      gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+      ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.moveTo(xScale(0), yScale(0));
+      ctx.moveTo(xScale(0), chartBottom);
       for (let i = 0; i < consistencyTrend.length; i++) {
         ctx.lineTo(xScale(i), yScale(consistencyTrend[i] ?? 0));
       }
-      ctx.lineTo(xScale(consistencyTrend.length - 1), yScale(0));
+      ctx.lineTo(xScale(consistencyTrend.length - 1), chartBottom);
       ctx.closePath();
       ctx.fill();
     }
@@ -104,7 +110,25 @@ export function ConsistencyTrend({ sessions, consistencyTrend, className }: Cons
       ctx.arc(xScale(i), yScale(dotVal), 3.5, 0, Math.PI * 2);
       ctx.fill();
     }
-  }, [sessions, consistencyTrend, xScale, yScale, dimensions, getDataCtx]);
+
+    // PB diamonds on the consistency line
+    if (pbIndices && pbIndices.size > 0) {
+      for (const i of pbIndices) {
+        if (i >= consistencyTrend.length || consistencyTrend[i] == null) continue;
+        const px = xScale(i);
+        const py = yScale(consistencyTrend[i]);
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(Math.PI / 4);
+        ctx.fillStyle = colors.accent.primary;
+        ctx.fillRect(-4, -4, 8, 8);
+        ctx.strokeStyle = colors.accent.primaryHover;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(-4, -4, 8, 8);
+        ctx.restore();
+      }
+    }
+  }, [sessions, consistencyTrend, pbIndices, xScale, yScale, dimensions, getDataCtx]);
 
   // Mouse events
   useEffect(() => {
@@ -165,8 +189,18 @@ export function ConsistencyTrend({ sessions, consistencyTrend, className }: Cons
     const tooltipX = x + textWidth + 20 > MARGINS.left + dimensions.innerWidth ? x - textWidth - 16 : x + 8;
     const tooltipY = MARGINS.top + 4;
 
-    ctx.fillStyle = 'rgba(10, 12, 16, 0.9)';
-    ctx.fillRect(tooltipX, tooltipY, textWidth + 12, 22);
+    // Tooltip card with rounded corners and subtle border
+    const tw = textWidth + 12;
+    const th = 22;
+    ctx.fillStyle = 'rgba(10, 12, 16, 0.92)';
+    ctx.beginPath();
+    ctx.roundRect(tooltipX, tooltipY, tw, th, 6);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.roundRect(tooltipX, tooltipY, tw, th, 6);
+    ctx.stroke();
 
     ctx.fillStyle = colors.motorsport.optimal;
     ctx.fillText(label, tooltipX + 6, tooltipY + 5);
@@ -182,16 +216,23 @@ export function ConsistencyTrend({ sessions, consistencyTrend, className }: Cons
 
   return (
     <div ref={containerRef} className={`relative h-full w-full ${className ?? ''}`}>
-      <canvas
-        ref={dataCanvasRef}
+      <motion.div
+        initial={{ clipPath: 'inset(0 100% 0 0)' }}
+        animate={{ clipPath: 'inset(0 0% 0 0)' }}
+        transition={{ duration: 0.5, ease: 'easeOut', delay: 0.2 }}
         className="absolute inset-0"
-        style={{ width: '100%', height: '100%', zIndex: 1 }}
-      />
-      <canvas
-        ref={overlayCanvasRef}
-        className="absolute inset-0"
-        style={{ width: '100%', height: '100%', cursor: 'crosshair', zIndex: 2, pointerEvents: 'auto' }}
-      />
+      >
+        <canvas
+          ref={dataCanvasRef}
+          className="absolute inset-0"
+          style={{ width: '100%', height: '100%', zIndex: 1 }}
+        />
+        <canvas
+          ref={overlayCanvasRef}
+          className="absolute inset-0"
+          style={{ width: '100%', height: '100%', cursor: 'crosshair', zIndex: 2, pointerEvents: 'auto' }}
+        />
+      </motion.div>
     </div>
   );
 }

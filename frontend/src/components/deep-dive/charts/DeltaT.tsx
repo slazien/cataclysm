@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from 'react';
 import * as d3 from 'd3';
+import { motion } from 'motion/react';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
 import { useAnimationFrame } from '@/hooks/useAnimationFrame';
 import { useDelta } from '@/hooks/useAnalysis';
@@ -254,16 +255,23 @@ export function DeltaT({ sessionId }: DeltaTProps) {
 
   return (
     <div ref={containerRef} className="relative h-full w-full">
-      <canvas
-        ref={dataCanvasRef}
+      <motion.div
+        initial={{ clipPath: 'inset(0 100% 0 0)' }}
+        animate={{ clipPath: 'inset(0 0% 0 0)' }}
+        transition={{ duration: 0.5, ease: 'easeOut', delay: 0.2 }}
         className="absolute inset-0"
-        style={{ width: '100%', height: '100%', zIndex: 1 }}
-      />
-      <canvas
-        ref={overlayCanvasRef}
-        className="absolute inset-0"
-        style={{ width: '100%', height: '100%', cursor: 'crosshair', zIndex: 2, pointerEvents: 'auto' }}
-      />
+      >
+        <canvas
+          ref={dataCanvasRef}
+          className="absolute inset-0"
+          style={{ width: '100%', height: '100%', zIndex: 1 }}
+        />
+        <canvas
+          ref={overlayCanvasRef}
+          className="absolute inset-0"
+          style={{ width: '100%', height: '100%', cursor: 'crosshair', zIndex: 2, pointerEvents: 'auto' }}
+        />
+      </motion.div>
     </div>
   );
 }
