@@ -55,7 +55,7 @@ export function EquipmentProfileList() {
   }
 
   return (
-    <fieldset className="mb-6">
+    <fieldset className="mb-6 min-w-0">
       <legend className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
         Equipment Profiles
       </legend>

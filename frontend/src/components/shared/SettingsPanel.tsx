@@ -72,7 +72,7 @@ export function SettingsPanel() {
           <EquipmentProfileList />
 
           {/* Skill Level */}
-          <fieldset className="mb-6">
+          <fieldset className="mb-6 min-w-0">
             <legend className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
               Skill Level
             </legend>
@@ -122,7 +122,7 @@ export function SettingsPanel() {
           </fieldset>
 
           {/* Units */}
-          <fieldset>
+          <fieldset className="min-w-0">
             <legend className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
               Units
             </legend>
