@@ -1,44 +1,27 @@
 'use client';
 
-/**
- * Lightweight inline markdown renderer.
- * Converts **bold**, *italic*, and `code` to React elements
- * without adding any wrapper elements — safe inside <span>, <p>, <li>.
- */
+import ReactMarkdown from 'react-markdown';
 
-const INLINE_MD_RE = /(\*\*.*?\*\*|\*.*?\*|`[^`]+`)/g;
+/**
+ * Inline-safe markdown renderer using react-markdown.
+ * Overrides <p> to render as a fragment so it can be used inside
+ * <span>, <p>, <li>, etc. without creating invalid nested HTML.
+ */
 
 interface MarkdownTextProps {
   children: string;
 }
 
 export function MarkdownText({ children }: MarkdownTextProps) {
-  const segments = children.split(INLINE_MD_RE);
-
-  // Fast path: no markdown found
-  if (segments.length === 1) return <>{children}</>;
-
   return (
-    <>
-      {segments.map((seg, i) => {
-        if (seg.startsWith('**') && seg.endsWith('**') && seg.length > 4) {
-          return <strong key={i}>{seg.slice(2, -2)}</strong>;
-        }
-        if (seg.startsWith('*') && seg.endsWith('*') && seg.length > 2) {
-          return <em key={i}>{seg.slice(1, -1)}</em>;
-        }
-        if (seg.startsWith('`') && seg.endsWith('`') && seg.length > 2) {
-          return (
-            <code
-              key={i}
-              className="rounded bg-[var(--bg-elevated)] px-1 py-0.5 text-[0.9em]"
-            >
-              {seg.slice(1, -1)}
-            </code>
-          );
-        }
-        return seg;
-      })}
-    </>
+    <ReactMarkdown
+      components={{
+        p: ({ children }) => <>{children}</>,
+      }}
+      allowedElements={['p', 'strong', 'em', 'code', 'a', 'del', 'br']}
+      unwrapDisallowed
+    >
+      {children}
+    </ReactMarkdown>
   );
 }
