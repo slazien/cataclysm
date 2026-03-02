@@ -155,6 +155,37 @@ describe('useKeyboardShortcuts', () => {
       // panelOpen stays true (if (!panelOpen) guard prevents double-toggle)
       expect(useCoachStore.getState().panelOpen).toBe(true);
     });
+
+    it('focuses chat input after "/" opens the panel', () => {
+      vi.useFakeTimers();
+      useCoachStore.setState({ panelOpen: false });
+      // Create a mock chat input element in the DOM
+      const chatInput = document.createElement('input');
+      chatInput.setAttribute('data-chat-input', '');
+      const focusSpy = vi.spyOn(chatInput, 'focus');
+      document.body.appendChild(chatInput);
+
+      renderHook(() => useKeyboardShortcuts());
+      fireKey('/');
+
+      // Advance past the 100ms setTimeout
+      vi.advanceTimersByTime(100);
+      expect(focusSpy).toHaveBeenCalled();
+
+      // Cleanup
+      document.body.removeChild(chatInput);
+      vi.useRealTimers();
+    });
+
+    it('does not throw when chat input element is not in DOM after "/"', () => {
+      vi.useFakeTimers();
+      useCoachStore.setState({ panelOpen: false });
+      renderHook(() => useKeyboardShortcuts());
+      fireKey('/');
+      // Advance past setTimeout — no input in DOM, should not throw
+      expect(() => vi.advanceTimersByTime(100)).not.toThrow();
+      vi.useRealTimers();
+    });
   });
 
   // ---------------------------------------------------------------------------

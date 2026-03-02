@@ -80,6 +80,25 @@ describe('resolveSpeedMarkers', () => {
       expect(resolveSpeedMarkers('', false)).toBe('');
       expect(resolveSpeedMarkers('', true)).toBe('');
     });
+
+    it('returns raw value when marker value is not a valid number', () => {
+      // The regex matches [\d.]+ so "abc" won't match. But "." matches
+      // and parseFloat(".") returns NaN, exercising the isNaN guard.
+      expect(resolveSpeedMarkers('{{speed:.}}', false)).toBe('.');
+      expect(resolveSpeedMarkers('{{speed:.}}', true)).toBe('.');
+    });
+  });
+
+  describe('legacy decimal handling', () => {
+    it('preserves decimal precision in legacy single speed metric conversion', () => {
+      // Exercise the decimal branch on line 32 — "42.5 mph" has 1 decimal
+      expect(resolveSpeedMarkers('Speed was 42.5 mph', true)).toBe('Speed was 68.4 km/h');
+    });
+
+    it('converts legacy integer mph to integer km/h', () => {
+      // No decimal in "42 mph" → 0 decimals in output
+      expect(resolveSpeedMarkers('Speed was 42 mph', true)).toBe('Speed was 68 km/h');
+    });
   });
 
   describe('mixed markers + legacy', () => {
@@ -100,8 +119,30 @@ describe('extractActionTitle', () => {
     ).toBe('Late braking into T5');
   });
 
-  it('falls back to first ~50 chars for long text', () => {
+  it('falls back to first ~50 chars for long text without punctuation', () => {
     const long = 'A'.repeat(80);
     expect(extractActionTitle(long).length).toBeLessThanOrEqual(50);
+  });
+
+  it('returns first word when subsequent words would exceed 50 chars', () => {
+    const text = 'Short ' + 'X'.repeat(60);
+    const result = extractActionTitle(text);
+    expect(result).toBe('Short');
+    expect(result.length).toBeLessThanOrEqual(50);
+  });
+
+  it('falls back to text.slice(0, 50) when first word alone exceeds 50 chars', () => {
+    const text = 'X'.repeat(60);
+    const result = extractActionTitle(text);
+    expect(result).toBe('X'.repeat(50));
+  });
+
+  it('returns full text when shorter than 50 chars with no punctuation', () => {
+    expect(extractActionTitle('Brake later into T5')).toBe('Brake later into T5');
+  });
+
+  it('handles text with multiple words that fit within 50 chars', () => {
+    const text = 'word1 word2 word3 word4 word5';
+    expect(extractActionTitle(text)).toBe(text);
   });
 });

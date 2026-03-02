@@ -109,6 +109,38 @@ describe('analysisStore', () => {
     });
   });
 
+  describe('reset', () => {
+    it('resets all fields to initial state', () => {
+      const store = useAnalysisStore.getState();
+      store.setCursorDistance(500);
+      store.selectLaps([1, 2, 3]);
+      store.selectCorner('T5');
+      store.setMode('corner');
+      store.setZoom([100, 800]);
+
+      // Verify state is dirty
+      expect(useAnalysisStore.getState().cursorDistance).toBe(500);
+      expect(useAnalysisStore.getState().selectedLaps).toEqual([1, 2, 3]);
+
+      // Reset
+      useAnalysisStore.getState().reset();
+
+      const state = useAnalysisStore.getState();
+      expect(state.cursorDistance).toBeNull();
+      expect(state.selectedLaps).toEqual([]);
+      expect(state.selectedCorner).toBeNull();
+      expect(state.deepDiveMode).toBe('speed');
+      expect(state.zoomRange).toBeNull();
+    });
+
+    it('is idempotent on already-initial state', () => {
+      useAnalysisStore.getState().reset();
+      const state = useAnalysisStore.getState();
+      expect(state.cursorDistance).toBeNull();
+      expect(state.selectedLaps).toEqual([]);
+    });
+  });
+
   describe('state independence', () => {
     it('setting one field does not affect others', () => {
       useAnalysisStore.getState().selectLaps([1, 2]);

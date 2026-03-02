@@ -145,6 +145,98 @@ describe('CircularProgress', () => {
       // In indeterminate mode the component sets transition: 'none'
       expect((progressCircle as HTMLElement).style.transition).toBe('none');
     });
+
+    it('advances progress during the fast phase (elapsed < 8s)', async () => {
+      let container!: HTMLElement;
+      await act(async () => {
+        ({ container } = render(<CircularProgress />));
+      });
+
+      // Fire the first RAF callback at ts=0 (sets start=0)
+      await act(async () => {
+        const firstCb = rafCallbacks.values().next().value!;
+        rafCallbacks.clear();
+        firstCb(0);
+      });
+
+      // Fire at ts=4000 (midway through fast phase)
+      await act(async () => {
+        const cb = rafCallbacks.values().next().value!;
+        rafCallbacks.clear();
+        cb(4000);
+      });
+
+      // Fast phase formula: (1 - (1 - 0.5)^3) * 90 = (1 - 0.125) * 90 = 78.75
+      const progressCircle = getProgressCircle(container);
+      const offset = parseFloat(progressCircle.getAttribute('stroke-dashoffset')!);
+      const size = 20;
+      const strokeWidth = 2.5;
+      const radius = (size - strokeWidth) / 2;
+      const circumference = 2 * Math.PI * radius;
+      const expectedPct = 78.75;
+      const expectedOffset = circumference - (expectedPct / 100) * circumference;
+      expect(offset).toBeCloseTo(expectedOffset, 1);
+    });
+
+    it('enters slow creep phase after 8s', async () => {
+      let container!: HTMLElement;
+      await act(async () => {
+        ({ container } = render(<CircularProgress />));
+      });
+
+      // Fire ts=0 to set start
+      await act(async () => {
+        const cb = rafCallbacks.values().next().value!;
+        rafCallbacks.clear();
+        cb(0);
+      });
+
+      // Fire ts=10000 (2s into slow creep phase)
+      await act(async () => {
+        const cb = rafCallbacks.values().next().value!;
+        rafCallbacks.clear();
+        cb(10000);
+      });
+
+      // Slow creep formula: 90 + 5 * (1 - exp(-2000/30000)) ≈ 90 + 5 * 0.06449 ≈ 90.32
+      const progressCircle = getProgressCircle(container);
+      const offset = parseFloat(progressCircle.getAttribute('stroke-dashoffset')!);
+      const size = 20;
+      const strokeWidth = 2.5;
+      const radius = (size - strokeWidth) / 2;
+      const circumference = 2 * Math.PI * radius;
+      const expectedPct = 90 + 5 * (1 - Math.exp(-2000 / 30000));
+      const expectedOffset = circumference - (expectedPct / 100) * circumference;
+      expect(offset).toBeCloseTo(expectedOffset, 1);
+    });
+
+    it('resets indeterminate progress on unmount', async () => {
+      let container!: HTMLElement;
+      let unmount!: () => void;
+      await act(async () => {
+        ({ container, unmount } = render(<CircularProgress />));
+      });
+
+      // Fire a frame to advance progress
+      await act(async () => {
+        const cb = rafCallbacks.values().next().value!;
+        rafCallbacks.clear();
+        cb(0);
+      });
+      await act(async () => {
+        const cb = rafCallbacks.values().next().value!;
+        rafCallbacks.clear();
+        cb(2000);
+      });
+
+      // Unmount — cleanup runs cancelAnimationFrame and setIndeterminate(0)
+      await act(async () => {
+        unmount();
+      });
+
+      // Verify cancelAnimationFrame was called (callbacks cleared)
+      expect(rafCallbacks.size).toBe(0);
+    });
   });
 
   describe('color props', () => {
