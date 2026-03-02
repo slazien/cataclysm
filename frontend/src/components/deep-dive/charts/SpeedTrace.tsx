@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import * as d3 from 'd3';
 import { motion } from 'motion/react';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
@@ -154,32 +154,22 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
     drawAxes(ctx, xScale, yScale, dimensions.innerWidth, dimensions.innerHeight, MARGINS, `Speed (${speedUnit})`);
   }, [lapDataArr, corners, xScale, yScale, dimensions, convertSpeed, speedUnit]);
 
-  // Mouse events
-  useEffect(() => {
-    const overlay = overlayCanvasRef.current;
-    if (!overlay) return;
+  // Mouse handlers as React event props — avoids stale listener bug when
+  // canvas unmounts/remounts during loading transitions (useEffect with
+  // [dimensions.innerWidth] wouldn't re-attach listeners if width is unchanged).
+  const handleOverlayMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const scale = xScaleRef.current;
+    const [xMin, xMax] = scale.range();
+    if (x >= xMin && x <= xMax) {
+      useAnalysisStore.getState().setCursorDistance(scale.invert(x));
+    }
+  }, []);
 
-    const setCursorDistance = useAnalysisStore.getState().setCursorDistance;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const rect = overlay.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const scale = xScaleRef.current;
-      const [xMin, xMax] = scale.range();
-      if (x >= xMin && x <= xMax) {
-        setCursorDistance(scale.invert(x));
-      }
-    };
-
-    const handleMouseLeave = () => setCursorDistance(null);
-
-    overlay.addEventListener('mousemove', handleMouseMove);
-    overlay.addEventListener('mouseleave', handleMouseLeave);
-    return () => {
-      overlay.removeEventListener('mousemove', handleMouseMove);
-      overlay.removeEventListener('mouseleave', handleMouseLeave);
-    };
-  }, [dimensions.innerWidth]);
+  const handleOverlayMouseLeave = useCallback(() => {
+    useAnalysisStore.getState().setCursorDistance(null);
+  }, []);
 
   // Cursor overlay — always-active RAF reads store directly to avoid
   // timing issues where React re-renders haven't propagated cursorDistance yet
@@ -265,6 +255,8 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
         <canvas
           ref={overlayCanvasRef}
           className="absolute inset-0"
+          onMouseMove={handleOverlayMouseMove}
+          onMouseLeave={handleOverlayMouseLeave}
           style={{ width: '100%', height: '100%', cursor: 'crosshair', zIndex: 2, pointerEvents: 'auto' }}
         />
       </motion.div>
