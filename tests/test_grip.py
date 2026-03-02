@@ -528,3 +528,148 @@ class TestBuildDirectionalEnvelopeFallback:
         result = estimate_grip_limit({1: df}, [1])
         assert all(np.isfinite(v) for v in result.envelope_lat_g)
         assert all(np.isfinite(v) for v in result.envelope_lon_g)
+
+
+# ---------------------------------------------------------------------------
+# TestEllipseSwapConvention (lines 216-218: b > a swap to ensure semi_major >= semi_minor)
+# ---------------------------------------------------------------------------
+
+
+class TestEllipseSwapConvention:
+    """Tests for lines 216-218: ellipse swap so semi_major >= semi_minor."""
+
+    def test_semi_major_always_gte_semi_minor(self) -> None:
+        """compute_directional_peaks must always return semi_major >= semi_minor."""
+        from cataclysm.grip import _fit_ellipse_to_peaks
+
+        # Create angular data where the least_squares fit naturally returns b > a
+        # by providing peaks that are larger in the b-axis direction
+        # Using a true ellipse with a=0.5, b=1.5 encoded as polar radii
+        n = 64
+        theta = np.linspace(-np.pi, np.pi, n, endpoint=False)
+
+        def _polar_r(t: np.ndarray, a: float, b: float, phi: float) -> np.ndarray:
+            cos_t = b * np.cos(t - phi)
+            sin_t = a * np.sin(t - phi)
+            denom = np.sqrt(cos_t**2 + sin_t**2)
+            denom = np.maximum(denom, 1e-10)
+            return (a * b) / denom
+
+        # Ellipse with a=0.5 (minor) and b=1.5 (major) — so b > a initially
+        rng = np.random.default_rng(42)
+        peaks = _polar_r(theta, 0.5, 1.5, 0.0) + rng.normal(0, 0.02, n)
+        ellipse, _ = _fit_ellipse_to_peaks(theta, peaks)
+
+        # After swap, semi_major must be >= semi_minor
+        assert ellipse.semi_major >= ellipse.semi_minor
+
+    def test_ellipse_swap_preserves_equivalent_radius(self) -> None:
+        """Swapping a and b should not change the equivalent radius (sqrt(a*b))."""
+        from cataclysm.grip import _fit_ellipse_to_peaks
+
+        n = 64
+        theta = np.linspace(-np.pi, np.pi, n, endpoint=False)
+
+        def _polar_r(t: np.ndarray, a: float, b: float, phi: float) -> np.ndarray:
+            cos_t = b * np.cos(t - phi)
+            sin_t = a * np.sin(t - phi)
+            denom = np.maximum(np.sqrt(cos_t**2 + sin_t**2), 1e-10)
+            return (a * b) / denom
+
+        rng = np.random.default_rng(123)
+        true_a, true_b = 0.6, 1.4
+        peaks = _polar_r(theta, true_a, true_b, 0.0) + rng.normal(0, 0.02, n)
+        ellipse, _ = _fit_ellipse_to_peaks(theta, peaks)
+
+        # Equivalent radius should be close to sqrt(0.6 * 1.4) = sqrt(0.84) ≈ 0.917
+        expected_r = np.sqrt(true_a * true_b)
+        actual_r = np.sqrt(ellipse.semi_major * ellipse.semi_minor)
+        assert abs(actual_r - expected_r) < 0.2
+
+
+# ---------------------------------------------------------------------------
+# TestSpeedGripModelSparseBin (line 314: sparse bin skip with 2+ populated bins)
+# ---------------------------------------------------------------------------
+
+
+class TestSpeedGripModelSparseBin:
+    """Tests for line 314: sparse speed bin skipped while >= 2 bins remain."""
+
+    def test_sparse_middle_bin_skipped_produces_real_fit(self) -> None:
+        """A sparse middle speed bin triggers line 314 continue; flanking bins fit a model."""
+        # bin_width=5.0 → bins at [20.5, 25.5, 30.5, 35.5, 40.5]
+        # Middle bin [25.5,30.5) gets 3 points (< MIN_BIN_POINTS=5) → line 314 fires
+        # Outer bins get 50 points each → 3 populated bins → real model fit
+        n = 153
+        speed_vals = np.concatenate(
+            [
+                np.full(50, 21.0),  # bin [20.5, 25.5): 50 points
+                np.full(3, 27.0),  # bin [25.5, 30.5): 3 points — sparse, skip
+                np.full(50, 32.0),  # bin [30.5, 35.5): 50 points
+                np.full(50, 38.0),  # bin [35.5, 40.5): 50 points
+            ]
+        )
+        df = pd.DataFrame(
+            {
+                "lateral_g": np.ones(n) * 0.8,
+                "longitudinal_g": np.zeros(n),
+                "speed_mps": speed_vals,
+                "lap_distance_m": np.arange(n) * 0.7,
+                "lap_time_s": np.arange(n) * 0.025,
+                "heading_deg": np.zeros(n),
+                "lat": np.zeros(n),
+                "lon": np.zeros(n),
+                "yaw_rate_dps": np.zeros(n),
+                "altitude_m": np.full(n, 200.0),
+                "x_acc_g": np.zeros(n),
+                "y_acc_g": np.zeros(n),
+                "z_acc_g": np.ones(n),
+            }
+        )
+        result = compute_speed_grip_model({1: df}, [1], bin_width_mps=5.0)
+        assert isinstance(result, SpeedGripModel)
+        # Should have 3 bins (middle was skipped)
+        assert len(result.speed_bins) == 3
+        # Should be a real fit (not flat fallback), so bins are correctly populated
+        assert result.base_grip_g > 0
+
+
+# ---------------------------------------------------------------------------
+# TestBuildCompositeEnvelopeNearZeroG (line 451: mean_r < 1e-6 guard)
+# ---------------------------------------------------------------------------
+
+
+class TestBuildCompositeEnvelopeNearZeroG:
+    """Tests for line 451: near-zero G data triggers mean_r < 1e-6 fallback."""
+
+    def test_near_zero_g_data_produces_finite_envelope(self) -> None:
+        """All-near-zero G data exercises the mean_r guard (line 451) without crashing."""
+        from cataclysm.grip import DirectionalPeaksResult, EllipseParams, _build_composite_envelope
+
+        # Build a DirectionalPeaksResult with >= 4 bins but near-zero peaks
+        n_bins = 8
+        angles = np.linspace(-np.pi, np.pi, n_bins, endpoint=False).tolist()
+        # Peaks extremely close to zero
+        peaks = [1e-10] * n_bins
+        ellipse = EllipseParams(
+            semi_major=1e-10,
+            semi_minor=1e-10,
+            rotation_rad=0.0,
+            center_lat_g=0.0,
+            center_lon_g=0.0,
+        )
+        directional = DirectionalPeaksResult(
+            ellipse=ellipse,
+            n_bins=n_bins,
+            bin_angles=angles,
+            bin_peaks=peaks,
+            fit_residual=0.0,
+            equivalent_radius=1e-10,
+        )
+        # composite_max_g is also near zero but non-zero to trigger scaling
+        lat_g_env, lon_g_env = _build_composite_envelope(directional, composite_max_g=0.5)
+        assert len(lat_g_env) == 360
+        assert len(lon_g_env) == 360
+        # All values should be finite after the guard sets mean_r=1.0
+        assert all(np.isfinite(v) for v in lat_g_env)
+        assert all(np.isfinite(v) for v in lon_g_env)

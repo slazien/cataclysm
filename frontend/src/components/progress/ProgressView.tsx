@@ -1,13 +1,13 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion as m } from 'motion/react';
 import { useSessionStore } from '@/stores';
 import { useSession } from '@/hooks/useSession';
 import { useTrends, useMilestones } from '@/hooks/useTrends';
 import { formatTimeShort, parseSessionDate } from '@/lib/formatters';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
-import { TrendingUp } from 'lucide-react';
+import { ChevronDown, TrendingUp } from 'lucide-react';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { AiInsight } from '@/components/shared/AiInsight';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -15,6 +15,13 @@ import { CircularProgress } from '@/components/shared/CircularProgress';
 import { ChartErrorBoundary } from '@/components/shared/ChartErrorBoundary';
 import { TrackWatermark } from '@/components/shared/TrackWatermark';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { motion as motionTokens } from '@/lib/design-tokens';
 import { MilestoneTimeline } from './MilestoneTimeline';
@@ -23,15 +30,41 @@ import { ConsistencyTrend } from './ConsistencyTrend';
 import { CornerHeatmap } from './CornerHeatmap';
 import { SessionBoxPlot } from './SessionBoxPlot';
 
+interface TrackOption {
+  name: string;
+  sessionCount: number;
+}
+
 export function ProgressView() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const sessions = useSessionStore((s) => s.sessions);
   const { data: session, isLoading: sessionLoading } = useSession(activeSessionId);
   const { showFeature } = useSkillLevel();
 
-  const trackName = session?.track_name ?? null;
+  const sessionTrackName = session?.track_name ?? null;
+  const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
 
-  const { data: trendResponse, isLoading: trendsLoading } = useTrends(trackName);
-  const { data: milestoneResponse } = useMilestones(trackName);
+  // Reset override when active session changes so we default to the new session's track
+  useEffect(() => {
+    setSelectedTrack(null);
+  }, [activeSessionId]);
+
+  // Derive available tracks from all sessions, sorted by session count descending
+  const availableTracks: TrackOption[] = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const s of sessions) {
+      const name = s.track_name;
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([name, sessionCount]) => ({ name, sessionCount }))
+      .sort((a, b) => b.sessionCount - a.sessionCount);
+  }, [sessions]);
+
+  const effectiveTrack = selectedTrack ?? sessionTrackName;
+
+  const { data: trendResponse, isLoading: trendsLoading } = useTrends(effectiveTrack);
+  const { data: milestoneResponse } = useMilestones(effectiveTrack);
 
   const trendData = trendResponse?.data ?? null;
   const milestones = milestoneResponse?.milestones ?? [];
@@ -175,11 +208,50 @@ export function ProgressView() {
       <div className="relative mx-auto flex max-w-5xl flex-col gap-6 p-4 lg:p-6">
         <TrackWatermark />
 
-        {/* 1. Header */}
+        {/* 1. Header with track selector */}
         <div>
-          <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--text-primary)]">
-            Progress: {trendData.track_name}
-          </h2>
+          <div className="flex items-center gap-2">
+            <span className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--text-primary)]">
+              Progress:
+            </span>
+            {availableTracks.length <= 1 ? (
+              <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--text-primary)]">
+                {trendData.track_name}
+              </h2>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-1 rounded-md px-2 py-0.5 font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface)]">
+                    {trendData.track_name}
+                    <ChevronDown className="size-4 text-[var(--text-muted)]" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-[200px]">
+                  <DropdownMenuRadioGroup
+                    value={effectiveTrack ?? ''}
+                    onValueChange={setSelectedTrack}
+                  >
+                    {availableTracks.map((t) => (
+                      <DropdownMenuRadioItem
+                        key={t.name}
+                        value={t.name}
+                        disabled={t.sessionCount < 2}
+                      >
+                        <span className="flex w-full items-center justify-between gap-3">
+                          <span>{t.name}</span>
+                          <span className="text-xs text-[var(--text-muted)]">
+                            {t.sessionCount < 2
+                              ? `${t.sessionCount} session`
+                              : `${t.sessionCount} sessions`}
+                          </span>
+                        </span>
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
           <p className="text-sm text-[var(--text-secondary)]">
             {trendData.n_sessions} session{trendData.n_sessions !== 1 ? 's' : ''} tracked
           </p>

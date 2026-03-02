@@ -14,10 +14,13 @@ from cataclysm.coaching import (
     _build_coaching_prompt,
     _format_all_laps_corners,
     _format_corner_analysis,
+    _format_cross_condition_context,
     _format_equipment_context,
     _format_gains_for_prompt,
     _format_landmark_context,
     _format_lap_summaries,
+    _format_optimal_comparison,
+    _format_weather_context,
     _parse_coaching_response,
     ask_followup,
     generate_coaching_report,
@@ -42,6 +45,7 @@ from cataclysm.gains import (
     TheoreticalBestResult,
 )
 from cataclysm.landmarks import Landmark, LandmarkType
+from cataclysm.optimal_comparison import CornerOpportunity, OptimalComparisonResult
 
 
 @pytest.fixture
@@ -1436,8 +1440,472 @@ class TestResolveSpeedMarkers:
         sample_summaries: list[LapSummary],
         sample_all_lap_corners: dict[int, list[Corner]],
     ) -> None:
-        prompt = _build_coaching_prompt(
-            sample_summaries, sample_all_lap_corners, "Test Track"
-        )
+        prompt = _build_coaching_prompt(sample_summaries, sample_all_lap_corners, "Test Track")
         assert "{{speed:N}}" in prompt
         assert "SPEED FORMATTING" in prompt
+
+
+# ---------------------------------------------------------------------------
+# TestFormatGainsMarkdown (lines 300-333: _format_gains_for_prompt corner list)
+# ---------------------------------------------------------------------------
+
+
+class TestFormatGainsMarkdownEdgeCases:
+    """Tests for the per-corner gains section of _format_gains_for_prompt."""
+
+    def _make_gains(
+        self,
+        corner_gain: float,
+        *,
+        is_corner: bool = True,
+        seg_name: str = "T1",
+    ) -> GainEstimate:
+        seg = SegmentDefinition(seg_name, 100.0, 200.0, is_corner=is_corner)
+        sg = SegmentGain(
+            segment=seg,
+            best_time_s=3.0,
+            avg_time_s=3.0 + corner_gain,
+            gain_s=corner_gain,
+            best_lap=1,
+            lap_times_s={1: 3.0},
+        )
+        return GainEstimate(
+            consistency=ConsistencyGainResult(
+                segment_gains=[sg],
+                total_gain_s=corner_gain,
+                avg_lap_time_s=93.0,
+                best_lap_time_s=92.5,
+            ),
+            composite=CompositeGainResult(
+                segment_gains=[],
+                composite_time_s=92.0,
+                best_lap_time_s=92.5,
+                gain_s=0.0,
+            ),
+            theoretical=TheoreticalBestResult(
+                sector_size_m=10.0,
+                n_sectors=38,
+                theoretical_time_s=92.0,
+                best_lap_time_s=92.5,
+                gain_s=0.0,
+            ),
+            clean_lap_numbers=[1],
+            best_lap_number=1,
+        )
+
+    def test_all_corners_below_threshold_shows_placeholder(self) -> None:
+        """When all corner gains are below 0.01s, placeholder message appears."""
+        gains = self._make_gains(0.005)  # below 0.01 threshold
+        text = _format_gains_for_prompt(gains)
+        assert "all corners below 0.01s threshold" in text
+
+    def test_corner_gains_sorted_descending(self) -> None:
+        """Corner gains should appear in descending order (largest first)."""
+        t1 = SegmentDefinition("T1", 100.0, 200.0, is_corner=True)
+        t2 = SegmentDefinition("T2", 300.0, 400.0, is_corner=True)
+        t3 = SegmentDefinition("T3", 500.0, 600.0, is_corner=True)
+        segs = [
+            SegmentGain(
+                segment=t1,
+                best_time_s=3.0,
+                avg_time_s=3.1,
+                gain_s=0.1,
+                best_lap=1,
+                lap_times_s={1: 3.0},
+            ),
+            SegmentGain(
+                segment=t2,
+                best_time_s=3.0,
+                avg_time_s=3.5,
+                gain_s=0.5,
+                best_lap=1,
+                lap_times_s={1: 3.0},
+            ),
+            SegmentGain(
+                segment=t3,
+                best_time_s=3.0,
+                avg_time_s=3.3,
+                gain_s=0.3,
+                best_lap=1,
+                lap_times_s={1: 3.0},
+            ),
+        ]
+        gains = GainEstimate(
+            consistency=ConsistencyGainResult(
+                segment_gains=segs, total_gain_s=0.9, avg_lap_time_s=93.0, best_lap_time_s=92.5
+            ),
+            composite=CompositeGainResult(
+                segment_gains=[], composite_time_s=92.0, best_lap_time_s=92.5, gain_s=0.0
+            ),
+            theoretical=TheoreticalBestResult(
+                sector_size_m=10.0,
+                n_sectors=38,
+                theoretical_time_s=92.0,
+                best_lap_time_s=92.5,
+                gain_s=0.0,
+            ),
+            clean_lap_numbers=[1],
+            best_lap_number=1,
+        )
+        text = _format_gains_for_prompt(gains)
+        t2_pos = text.index("T2")
+        t3_pos = text.index("T3")
+        t1_pos = text.index("T1")
+        assert t2_pos < t3_pos < t1_pos
+
+    def test_straights_excluded_from_per_corner_list(self) -> None:
+        """Non-corner (straight) segments must not appear in the corner list."""
+        straight_gains = self._make_gains(0.5, is_corner=False, seg_name="S1")
+        # Add a corner with small gain to avoid placeholder
+        corner = SegmentDefinition("T1", 100.0, 200.0, is_corner=True)
+        sg_corner = SegmentGain(
+            segment=corner,
+            best_time_s=3.0,
+            avg_time_s=3.3,
+            gain_s=0.3,
+            best_lap=1,
+            lap_times_s={1: 3.0},
+        )
+        straight_gains.consistency.segment_gains.append(sg_corner)
+        text = _format_gains_for_prompt(straight_gains)
+        lines = text.split("\n")
+        bullet_lines = [ln for ln in lines if ln.startswith("- ")]
+        bullet_names = [ln.split(":")[0].strip("- ") for ln in bullet_lines]
+        assert "S1" not in bullet_names
+
+
+# ---------------------------------------------------------------------------
+# TestFormatOptimalComparison (lines 309-333: _format_optimal_comparison)
+# ---------------------------------------------------------------------------
+
+
+class TestFormatOptimalComparison:
+    """Tests for _format_optimal_comparison."""
+
+    def _make_result(
+        self,
+        opportunities: list | None = None,
+        actual: float = 93.0,
+        optimal: float = 91.5,
+    ) -> OptimalComparisonResult:
+        import numpy as np
+
+        return OptimalComparisonResult(
+            corner_opportunities=opportunities or [],
+            actual_lap_time_s=actual,
+            optimal_lap_time_s=optimal,
+            total_gap_s=actual - optimal,
+            speed_delta_mps=np.zeros(10),
+            distance_m=np.arange(10) * 0.7,
+        )
+
+    def test_includes_header(self) -> None:
+        text = _format_optimal_comparison(self._make_result())
+        assert "Physics-Optimal Analysis" in text
+
+    def test_shows_times_and_gap(self) -> None:
+        text = _format_optimal_comparison(self._make_result(actual=93.0, optimal=91.5))
+        assert "93.00" in text
+        assert "91.50" in text
+        assert "1.50" in text
+
+    def test_no_opportunities_shows_placeholder(self) -> None:
+        text = _format_optimal_comparison(self._make_result(opportunities=[]))
+        assert "no corner data available" in text
+
+    def test_opportunity_with_brake_gap(self) -> None:
+        import numpy as np
+
+        opp = CornerOpportunity(
+            corner_number=3,
+            actual_min_speed_mps=20.0,
+            optimal_min_speed_mps=23.0,
+            speed_gap_mps=3.0,
+            speed_gap_mph=6.7,
+            actual_brake_point_m=150.0,
+            optimal_brake_point_m=165.0,
+            brake_gap_m=15.0,
+            time_cost_s=0.45,
+        )
+        result = OptimalComparisonResult(
+            corner_opportunities=[opp],
+            actual_lap_time_s=93.0,
+            optimal_lap_time_s=91.5,
+            total_gap_s=1.5,
+            speed_delta_mps=np.zeros(10),
+            distance_m=np.arange(10) * 0.7,
+        )
+        text = _format_optimal_comparison(result)
+        assert "T3" in text
+        assert "brakes" in text
+
+    def test_opportunity_without_brake_gap(self) -> None:
+        import numpy as np
+
+        opp = CornerOpportunity(
+            corner_number=1,
+            actual_min_speed_mps=18.0,
+            optimal_min_speed_mps=20.0,
+            speed_gap_mps=2.0,
+            speed_gap_mph=4.5,
+            actual_brake_point_m=None,
+            optimal_brake_point_m=None,
+            brake_gap_m=None,
+            time_cost_s=0.2,
+        )
+        result = OptimalComparisonResult(
+            corner_opportunities=[opp],
+            actual_lap_time_s=93.0,
+            optimal_lap_time_s=91.5,
+            total_gap_s=1.5,
+            speed_delta_mps=np.zeros(10),
+            distance_m=np.arange(10) * 0.7,
+        )
+        text = _format_optimal_comparison(result)
+        assert "T1" in text
+        assert "brakes" not in text
+
+    def test_top_10_limit(self) -> None:
+        """Only the top 10 opportunities should appear in the output."""
+        import numpy as np
+
+        opps = [
+            CornerOpportunity(
+                corner_number=i,
+                actual_min_speed_mps=20.0,
+                optimal_min_speed_mps=22.0,
+                speed_gap_mps=2.0,
+                speed_gap_mph=4.5,
+                actual_brake_point_m=None,
+                optimal_brake_point_m=None,
+                brake_gap_m=None,
+                time_cost_s=0.1 * i,
+            )
+            for i in range(1, 16)
+        ]
+        result = OptimalComparisonResult(
+            corner_opportunities=opps,
+            actual_lap_time_s=93.0,
+            optimal_lap_time_s=91.5,
+            total_gap_s=1.5,
+            speed_delta_mps=np.zeros(10),
+            distance_m=np.arange(10) * 0.7,
+        )
+        text = _format_optimal_comparison(result)
+        assert "T11" not in text
+        assert "T15" not in text
+        assert "T10" in text
+
+
+# ---------------------------------------------------------------------------
+# TestFormatWeatherContext (lines 501-518)
+# ---------------------------------------------------------------------------
+
+
+class TestFormatWeatherContext:
+    """Tests for _format_weather_context."""
+
+    def test_none_weather_returns_empty(self) -> None:
+        assert _format_weather_context(None) == ""
+
+    def test_dry_condition(self) -> None:
+        from cataclysm.equipment import SessionConditions, TrackCondition
+
+        text = _format_weather_context(SessionConditions(track_condition=TrackCondition.DRY))
+        assert "Weather Conditions" in text
+        assert "dry" in text
+
+    def test_ambient_temp_included_when_present(self) -> None:
+        from cataclysm.equipment import SessionConditions, TrackCondition
+
+        weather = SessionConditions(track_condition=TrackCondition.DRY, ambient_temp_c=22.0)
+        text = _format_weather_context(weather)
+        assert "22" in text
+
+    def test_ambient_temp_absent_when_none(self) -> None:
+        from cataclysm.equipment import SessionConditions, TrackCondition
+
+        weather = SessionConditions(track_condition=TrackCondition.DRY, ambient_temp_c=None)
+        text = _format_weather_context(weather)
+        assert "Ambient" not in text
+
+    def test_humidity_included_when_present(self) -> None:
+        from cataclysm.equipment import SessionConditions, TrackCondition
+
+        weather = SessionConditions(track_condition=TrackCondition.DRY, humidity_pct=65.0)
+        text = _format_weather_context(weather)
+        assert "65" in text
+        assert "Humidity" in text
+
+    def test_wind_speed_included_when_present(self) -> None:
+        from cataclysm.equipment import SessionConditions, TrackCondition
+
+        weather = SessionConditions(track_condition=TrackCondition.DRY, wind_speed_kmh=20.0)
+        text = _format_weather_context(weather)
+        assert "Wind" in text
+
+    def test_precipitation_included_when_positive(self) -> None:
+        from cataclysm.equipment import SessionConditions, TrackCondition
+
+        weather = SessionConditions(track_condition=TrackCondition.WET, precipitation_mm=3.5)
+        text = _format_weather_context(weather)
+        assert "3.5" in text
+        assert "Precipitation" in text
+
+    def test_precipitation_zero_not_shown(self) -> None:
+        from cataclysm.equipment import SessionConditions, TrackCondition
+
+        weather = SessionConditions(track_condition=TrackCondition.DRY, precipitation_mm=0.0)
+        text = _format_weather_context(weather)
+        assert "Precipitation" not in text
+
+
+# ---------------------------------------------------------------------------
+# TestFormatCrossConditionContext (lines 521-558)
+# ---------------------------------------------------------------------------
+
+
+class TestFormatCrossConditionContext:
+    """Tests for _format_cross_condition_context."""
+
+    def test_both_none_returns_empty(self) -> None:
+        assert _format_cross_condition_context(None, None) == ""
+
+    def test_one_none_returns_empty(self) -> None:
+        from cataclysm.equipment import SessionConditions, TrackCondition
+
+        weather = SessionConditions(track_condition=TrackCondition.DRY)
+        assert _format_cross_condition_context(weather, None) == ""
+        assert _format_cross_condition_context(None, weather) == ""
+
+    def test_same_condition_small_temp_diff_returns_empty(self) -> None:
+        from cataclysm.equipment import SessionConditions, TrackCondition
+
+        a = SessionConditions(track_condition=TrackCondition.DRY, ambient_temp_c=20.0)
+        b = SessionConditions(track_condition=TrackCondition.DRY, ambient_temp_c=22.0)
+        assert _format_cross_condition_context(a, b) == ""
+
+    def test_different_track_condition_triggers_warning(self) -> None:
+        from cataclysm.equipment import SessionConditions, TrackCondition
+
+        a = SessionConditions(track_condition=TrackCondition.DRY)
+        b = SessionConditions(track_condition=TrackCondition.WET)
+        text = _format_cross_condition_context(a, b)
+        assert "Cross-Condition Warning" in text
+        assert "DIFFERENT" in text
+
+    def test_large_temp_diff_triggers_warning(self) -> None:
+        from cataclysm.equipment import SessionConditions, TrackCondition
+
+        a = SessionConditions(track_condition=TrackCondition.DRY, ambient_temp_c=10.0)
+        b = SessionConditions(track_condition=TrackCondition.DRY, ambient_temp_c=25.0)
+        text = _format_cross_condition_context(a, b)
+        assert "Cross-Condition Warning" in text
+
+    def test_condition_diff_adds_wet_coaching_note(self) -> None:
+        from cataclysm.equipment import SessionConditions, TrackCondition
+
+        a = SessionConditions(track_condition=TrackCondition.DRY)
+        b = SessionConditions(track_condition=TrackCondition.WET)
+        text = _format_cross_condition_context(a, b)
+        assert "Wet/damp" in text or "grip" in text.lower()
+
+    def test_temp_diff_only_does_not_add_wet_note(self) -> None:
+        from cataclysm.equipment import SessionConditions, TrackCondition
+
+        a = SessionConditions(track_condition=TrackCondition.DRY, ambient_temp_c=5.0)
+        b = SessionConditions(track_condition=TrackCondition.DRY, ambient_temp_c=25.0)
+        text = _format_cross_condition_context(a, b)
+        assert "Wet/damp" not in text
+
+    def test_temp_none_no_temp_warning(self) -> None:
+        from cataclysm.equipment import SessionConditions, TrackCondition
+
+        a = SessionConditions(track_condition=TrackCondition.DRY, ambient_temp_c=None)
+        b = SessionConditions(track_condition=TrackCondition.DRY, ambient_temp_c=None)
+        assert _format_cross_condition_context(a, b) == ""
+
+
+# ---------------------------------------------------------------------------
+# TestGuardrailRetryLogic (lines 847-859)
+# ---------------------------------------------------------------------------
+
+
+class TestGuardrailRetryLogic:
+    """Tests for the guardrail validation retry path in generate_coaching_report."""
+
+    def _valid_response(self) -> str:
+        return json.dumps(
+            {
+                "summary": "Good session.",
+                "priority_corners": [],
+                "corner_grades": [],
+                "patterns": [],
+            }
+        )
+
+    def test_validation_failure_triggers_retry_and_sets_flag(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        mock_anthropic = _make_mock_anthropic(self._valid_response())
+        mock_validator = MagicMock()
+        failed = MagicMock()
+        failed.passed = False
+        failed.violations = ["test violation"]
+        mock_validator.record_and_maybe_validate.return_value = failed
+        mock_validator.force_validate.return_value = failed
+
+        with (
+            patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test"}),
+            patch.dict(sys.modules, {"anthropic": mock_anthropic}),
+            patch("cataclysm.coaching._get_validator", return_value=mock_validator),
+        ):
+            report = generate_coaching_report(sample_summaries, sample_all_lap_corners, "Test")
+
+        assert report.validation_failed is True
+        assert "test violation" in report.validation_violations
+
+    def test_no_validation_fired_no_retry(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        mock_anthropic = _make_mock_anthropic(self._valid_response())
+        mock_validator = MagicMock()
+        mock_validator.record_and_maybe_validate.return_value = None
+
+        with (
+            patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test"}),
+            patch.dict(sys.modules, {"anthropic": mock_anthropic}),
+            patch("cataclysm.coaching._get_validator", return_value=mock_validator),
+        ):
+            report = generate_coaching_report(sample_summaries, sample_all_lap_corners, "Test")
+
+        mock_validator.force_validate.assert_not_called()
+        assert report.validation_failed is False
+
+    def test_validation_fails_then_retry_passes_no_flag(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        mock_anthropic = _make_mock_anthropic(self._valid_response())
+        mock_validator = MagicMock()
+        failed = MagicMock()
+        failed.passed = False
+        failed.violations = ["violation"]
+        passed = MagicMock()
+        passed.passed = True
+        mock_validator.record_and_maybe_validate.return_value = failed
+        mock_validator.force_validate.return_value = passed
+
+        with (
+            patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test"}),
+            patch.dict(sys.modules, {"anthropic": mock_anthropic}),
+            patch("cataclysm.coaching._get_validator", return_value=mock_validator),
+        ):
+            report = generate_coaching_report(sample_summaries, sample_all_lap_corners, "Test")
+
+        assert report.validation_failed is False

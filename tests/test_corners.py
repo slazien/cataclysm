@@ -593,3 +593,107 @@ class TestExtractKpisPreservesCoachingFields:
         assert c.coaching_notes == "Brake early."
         assert c.elevation_change_m == -5.0
         assert c.gradient_pct == -2.5
+
+
+# ---------------------------------------------------------------------------
+# TestExtractCornerKpisEdgeCases (lines 527-566)
+# ---------------------------------------------------------------------------
+
+
+class TestExtractCornerKpisEdgeCases:
+    """Coverage for extract_corner_kpis_for_lap edge cases (lines 527-566)."""
+
+    def _make_simple_lap_df(self, n: int = 200) -> pd.DataFrame:
+        """Build a minimal lap DataFrame for testing."""
+        distance = np.arange(n) * 0.7
+        speed = 30.0 - 5.0 * np.sin(np.linspace(0, 2 * np.pi, n))
+        return pd.DataFrame(
+            {
+                "lap_distance_m": distance,
+                "speed_mps": speed,
+                "longitudinal_g": np.zeros(n),
+                "heading_deg": np.linspace(0, 360, n),
+                "lat": np.zeros(n),
+                "lon": np.zeros(n),
+            }
+        )
+
+    def test_corner_beyond_max_distance_is_skipped(self) -> None:
+        """Reference corner beyond lap max_dist should be skipped (line 539)."""
+        lap_df = self._make_simple_lap_df(n=100)
+        max_dist = lap_df["lap_distance_m"].iloc[-1]  # ~69.3 m
+        ref = Corner(
+            number=1,
+            entry_distance_m=max_dist + 100.0,  # beyond lap
+            exit_distance_m=max_dist + 200.0,
+            apex_distance_m=max_dist + 150.0,
+            min_speed_mps=20.0,
+            brake_point_m=None,
+            peak_brake_g=None,
+            throttle_commit_m=None,
+            apex_type="mid",
+        )
+        result = extract_corner_kpis_for_lap(lap_df, [ref])
+        assert len(result) == 0
+
+    def test_exit_idx_equal_to_entry_idx_is_skipped(self) -> None:
+        """When entry and exit map to same index, corner is skipped (lines 546-548)."""
+        # Build a very short lap so that a corner spanning 0.01 m collapses
+        n = 50
+        distance = np.arange(n) * 0.7
+        lap_df = pd.DataFrame(
+            {
+                "lap_distance_m": distance,
+                "speed_mps": np.full(n, 30.0),
+                "longitudinal_g": np.zeros(n),
+                "heading_deg": np.zeros(n),
+                "lat": np.zeros(n),
+                "lon": np.zeros(n),
+            }
+        )
+        # entry and exit are so close they both searchsorted to the same index
+        ref = Corner(
+            number=1,
+            entry_distance_m=0.35,
+            exit_distance_m=0.36,  # only 0.01 m gap — same bin as entry
+            apex_distance_m=0.355,
+            min_speed_mps=20.0,
+            brake_point_m=None,
+            peak_brake_g=None,
+            throttle_commit_m=None,
+            apex_type="mid",
+        )
+        result = extract_corner_kpis_for_lap(lap_df, [ref])
+        assert len(result) == 0
+
+    def test_curvature_block_runs_when_peak_curvature_set(
+        self, sample_resampled_lap: pd.DataFrame
+    ) -> None:
+        """When any reference corner has peak_curvature set, spline curvature is computed
+        and used for geo_apex override (lines 526-533, 563-566)."""
+        ref_corners = detect_corners(sample_resampled_lap)
+        if not ref_corners:
+            pytest.skip("No corners detected in sample lap")
+        # Set peak_curvature on first corner to trigger the spline curvature block
+        ref_corners[0].peak_curvature = 0.01
+        # Should run without raising and produce corner results
+        result = extract_corner_kpis_for_lap(sample_resampled_lap, ref_corners)
+        assert isinstance(result, list)
+        # At least some corners should be returned
+        assert len(result) > 0
+
+    def test_curvature_import_error_falls_back_gracefully(
+        self, sample_resampled_lap: pd.DataFrame
+    ) -> None:
+        """ImportError from curvature module falls back to heading rate (line 532)."""
+        from unittest.mock import patch
+
+        ref_corners = detect_corners(sample_resampled_lap)
+        if not ref_corners:
+            pytest.skip("No corners detected in sample lap")
+        ref_corners[0].peak_curvature = 0.01
+
+        with patch("cataclysm.curvature.compute_curvature", side_effect=ImportError("no module")):
+            result = extract_corner_kpis_for_lap(sample_resampled_lap, ref_corners)
+        assert isinstance(result, list)
+        assert len(result) > 0
