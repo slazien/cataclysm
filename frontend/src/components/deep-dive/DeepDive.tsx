@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useAnalysisStore } from '@/stores';
+import { useEffect, useMemo } from 'react';
+import { useSessionStore, useAnalysisStore } from '@/stores';
 import type { DeepDiveMode } from '@/stores/analysisStore';
+import { useSessionLaps } from '@/hooks/useSession';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
 import { SpeedAnalysis } from './SpeedAnalysis';
@@ -13,7 +14,29 @@ import { LapReplay } from '@/components/replay/LapReplay';
 export function DeepDive() {
   const mode = useAnalysisStore((s) => s.deepDiveMode);
   const setMode = useAnalysisStore((s) => s.setMode);
+  const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
+  const selectLaps = useAnalysisStore((s) => s.selectLaps);
+  const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const { data: laps } = useSessionLaps(activeSessionId);
   const { showFeature } = useSkillLevel();
+
+  // Auto-select the best lap so charts show data immediately
+  const bestLapNumber = useMemo(() => {
+    if (!laps || laps.length === 0) return null;
+    const clean = laps.filter((l) => l.is_clean);
+    const pool = clean.length > 0 ? clean : laps;
+    let best = pool[0];
+    for (const lap of pool) {
+      if (lap.lap_time_s < best.lap_time_s) best = lap;
+    }
+    return best.lap_number;
+  }, [laps]);
+
+  useEffect(() => {
+    if (selectedLaps.length === 0 && bestLapNumber !== null) {
+      selectLaps([bestLapNumber]);
+    }
+  }, [selectedLaps.length, bestLapNumber, selectLaps]);
 
   const showSectors = showFeature('sectors_tab');
   const showCustom = showFeature('custom_tab');
