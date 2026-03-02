@@ -63,6 +63,12 @@
 - **Why**: `min-height` does not establish a computable height for `height: 100%` children. The `useCanvasChart` hook's `ResizeObserver` sees 0 height → canvas never initializes → charts disappear entirely. This caused a regression where Speed Trace and Delta-T went completely missing on mobile.
 - **Pattern**: `h-[16rem] lg:h-auto lg:flex-1` (mobile: fixed height, desktop: flex-proportional)
 
+## Build-Verify Before Every Push
+- **When**: EVERY time before `git push`, for frontend and/or backend changes
+- **Rule**: Run `cd frontend && npx next build` (for frontend changes) and/or `pytest` (for backend changes) BEFORE pushing. Commit first (per the commit-immediately rule), but verify the build before pushing to remote.
+- **Sequence**: Edit → `git add` + `git commit` → `next build` / `pytest` → fix if broken → amend or new commit → `git push`
+- **Why**: User called this out ("did you test before pushing?"). Pushing broken code to remote is worse than a slightly delayed push. The build verification takes ~30s and catches TypeScript errors, import issues, and compilation failures.
+
 ## False Brake Attribution from Overlapping Search Windows
 - **When**: Working on brake point detection or corner KPI extraction
 - **Rule**: When searching for a brake point before a corner, the search window must not extend into the previous corner's zone. Use `prev_exit_idx` parameter in `_find_brake_point` to clamp the search start. Without this, closely-spaced corners (e.g. T9→T10 at Barber, ~350m apart) will attribute the previous corner's trail braking to the next corner.

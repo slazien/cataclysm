@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useSessionStore, useUiStore, useAnalysisStore } from '@/stores';
 import { ViewErrorBoundary } from '@/components/shared/ViewErrorBoundary';
 import { WelcomeScreen } from '@/components/shared/WelcomeScreen';
@@ -10,26 +11,7 @@ import { DeepDive } from '@/components/deep-dive/DeepDive';
 import { ProgressView } from '@/components/progress/ProgressView';
 import { PitLaneDebrief } from '@/components/debrief/PitLaneDebrief';
 
-export function ViewRouter() {
-  const activeView = useUiStore((s) => s.activeView);
-  const activeSessionId = useSessionStore((s) => s.activeSessionId);
-  const resetAnalysis = useAnalysisStore((s) => s.reset);
-  const prevSessionId = useRef(activeSessionId);
-
-  // Reset analysis state when switching sessions to prevent stale data crashes
-  useEffect(() => {
-    if (prevSessionId.current !== null && activeSessionId !== prevSessionId.current) {
-      resetAnalysis();
-    }
-    prevSessionId.current = activeSessionId;
-  }, [activeSessionId, resetAnalysis]);
-
-  if (!activeSessionId) {
-    return <WelcomeScreen />;
-  }
-
-  // key={activeSessionId} forces remount of ErrorBoundary + children on session switch,
-  // clearing any caught error state and giving components fresh renders
+function ViewContent({ activeView, activeSessionId }: { activeView: string; activeSessionId: string }) {
   switch (activeView) {
     case 'session-report':
       return (
@@ -62,4 +44,37 @@ export function ViewRouter() {
         </ViewErrorBoundary>
       );
   }
+}
+
+export function ViewRouter() {
+  const activeView = useUiStore((s) => s.activeView);
+  const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const resetAnalysis = useAnalysisStore((s) => s.reset);
+  const prevSessionId = useRef(activeSessionId);
+
+  // Reset analysis state when switching sessions to prevent stale data crashes
+  useEffect(() => {
+    if (prevSessionId.current !== null && activeSessionId !== prevSessionId.current) {
+      resetAnalysis();
+    }
+    prevSessionId.current = activeSessionId;
+  }, [activeSessionId, resetAnalysis]);
+
+  if (!activeSessionId) {
+    return <WelcomeScreen />;
+  }
+
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={activeView}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -4 }}
+        transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+      >
+        <ViewContent activeView={activeView} activeSessionId={activeSessionId} />
+      </motion.div>
+    </AnimatePresence>
+  );
 }
