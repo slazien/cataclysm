@@ -108,8 +108,8 @@ async def compute_wrapped(year: int) -> dict[str, Any]:
     total_time_s = 0.0
     for sd in year_sessions:
         lap_df = sd.processed.resampled_laps.get(sd.processed.best_lap)
-        if lap_df is not None and "distance_m" in lap_df.columns:
-            track_len_m = float(lap_df["distance_m"].iloc[-1])
+        if lap_df is not None and "lap_distance_m" in lap_df.columns:
+            track_len_m = float(lap_df["lap_distance_m"].iloc[-1])
             total_distance_km += (track_len_m * sd.snapshot.n_laps) / 1000.0
         total_time_s += sd.snapshot.avg_lap_time_s * sd.snapshot.n_laps
 
