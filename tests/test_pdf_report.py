@@ -193,3 +193,180 @@ class TestFigToPngBytes:
         fig = go.Figure(data=[go.Scatter(x=[1, 2], y=[3, 4])])
         result = _fig_to_png_bytes(fig, width=400, height=200)
         assert result[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+# ---------------------------------------------------------------------------
+# TestGeneratePdfChartBranches (lines 207, 210, 213)
+# ---------------------------------------------------------------------------
+
+
+class TestGeneratePdfChartBranches:
+    """Tests for lines 207, 210, 213: speed_trace, track_map, g_force chart branches."""
+
+    def test_with_speed_trace_fig(self, sample_summaries: list[LapSummary]) -> None:
+        """PDF generation with speed_trace_fig should use the chart branch (line 207)."""
+        fig = go.Figure(data=[go.Scatter(x=[0, 100, 200], y=[30, 25, 35])])
+        content = ReportContent(
+            track_name="Test Track",
+            session_date="01/01/2026",
+            best_lap_number=1,
+            best_lap_time_s=90.0,
+            n_laps=2,
+            summaries=sample_summaries,
+            report=CoachingReport(
+                summary="Speed trace test.",
+                priority_corners=[],
+                corner_grades=[],
+                patterns=[],
+            ),
+            speed_trace_fig=fig,
+        )
+        result = generate_pdf(content)
+        assert result[:5] == b"%PDF-"
+        assert len(result) > 500
+
+    def test_with_track_map_fig(self, sample_summaries: list[LapSummary]) -> None:
+        """PDF generation with track_map_fig should use the chart branch (line 210)."""
+        fig = go.Figure(data=[go.Scatter(x=[0.0, 0.1, 0.2], y=[0.0, 0.05, 0.1])])
+        content = ReportContent(
+            track_name="Test Track",
+            session_date="01/01/2026",
+            best_lap_number=1,
+            best_lap_time_s=90.0,
+            n_laps=2,
+            summaries=sample_summaries,
+            report=CoachingReport(
+                summary="Track map test.",
+                priority_corners=[],
+                corner_grades=[],
+                patterns=[],
+            ),
+            track_map_fig=fig,
+        )
+        result = generate_pdf(content)
+        assert result[:5] == b"%PDF-"
+
+    def test_with_g_force_fig(self, sample_summaries: list[LapSummary]) -> None:
+        """PDF generation with g_force_fig should use the chart branch (line 213)."""
+        fig = go.Figure(data=[go.Scatter(x=[0, 0.5, -0.5], y=[0.8, 0.3, 0.3])])
+        content = ReportContent(
+            track_name="Test Track",
+            session_date="01/01/2026",
+            best_lap_number=1,
+            best_lap_time_s=90.0,
+            n_laps=2,
+            summaries=sample_summaries,
+            report=CoachingReport(
+                summary="G-force test.",
+                priority_corners=[],
+                corner_grades=[],
+                patterns=[],
+            ),
+            g_force_fig=fig,
+        )
+        result = generate_pdf(content)
+        assert result[:5] == b"%PDF-"
+
+    def test_with_all_charts(self, sample_content: ReportContent) -> None:
+        """PDF with all chart types should produce valid output."""
+        fig = go.Figure(data=[go.Scatter(x=[1, 2], y=[3, 4])])
+        sample_content.speed_trace_fig = fig
+        sample_content.track_map_fig = fig
+        sample_content.g_force_fig = fig
+        result = generate_pdf(sample_content)
+        assert result[:5] == b"%PDF-"
+        assert len(result) > 2000
+
+
+# ---------------------------------------------------------------------------
+# TestAddChartErrorPath (lines 298-308: error fallback in _add_chart)
+# ---------------------------------------------------------------------------
+
+
+class TestAddChartErrorPath:
+    """Tests for lines 298-308: _add_chart error fallback when rendering fails."""
+
+    def test_failing_chart_produces_valid_pdf_not_crash(
+        self, sample_summaries: list[LapSummary]
+    ) -> None:
+        """If chart rendering fails, PDF still generates with an error note (lines 298-308)."""
+        from unittest.mock import patch
+
+        fig = go.Figure()
+        content = ReportContent(
+            track_name="Error Test",
+            session_date="01/01/2026",
+            best_lap_number=1,
+            best_lap_time_s=90.0,
+            n_laps=1,
+            summaries=sample_summaries,
+            report=CoachingReport(
+                summary="Error test.",
+                priority_corners=[],
+                corner_grades=[],
+                patterns=[],
+            ),
+            speed_trace_fig=fig,
+        )
+        with patch(
+            "cataclysm.pdf_report._fig_to_png_bytes",
+            side_effect=RuntimeError("kaleido failure"),
+        ):
+            result = generate_pdf(content)
+        # Should still produce a valid PDF even when chart rendering fails
+        assert result[:5] == b"%PDF-"
+        assert len(result) > 0
+
+
+# ---------------------------------------------------------------------------
+# TestAddChartPageBreak (line 322: page break when image doesn't fit)
+# ---------------------------------------------------------------------------
+
+
+class TestAddChartPageBreak:
+    """Tests for line 322: page break when image doesn't fit on current page."""
+
+    def test_multiple_charts_trigger_page_breaks(
+        self, sample_summaries: list[LapSummary]
+    ) -> None:
+        """Multiple tall charts that overflow the page should trigger page breaks (line 322)."""
+        # Use a very tall aspect-ratio figure to force overflow
+        fig = go.Figure(data=[go.Scatter(x=list(range(10)), y=list(range(10)))])
+        content = ReportContent(
+            track_name="Page Break Test",
+            session_date="01/01/2026",
+            best_lap_number=1,
+            best_lap_time_s=90.0,
+            n_laps=1,
+            summaries=sample_summaries,
+            report=CoachingReport(
+                summary="Testing page overflow with multiple charts.",
+                priority_corners=[],
+                corner_grades=[],
+                patterns=["Pattern A", "Pattern B"],
+                drills=["Drill 1", "Drill 2"],
+            ),
+            speed_trace_fig=fig,
+            track_map_fig=fig,
+            g_force_fig=fig,
+        )
+        result = generate_pdf(content)
+        assert result[:5] == b"%PDF-"
+        # Multi-chart PDF should have more content than a chartless one
+        chartless = ReportContent(
+            track_name="Page Break Test",
+            session_date="01/01/2026",
+            best_lap_number=1,
+            best_lap_time_s=90.0,
+            n_laps=1,
+            summaries=sample_summaries,
+            report=CoachingReport(
+                summary="Testing page overflow with multiple charts.",
+                priority_corners=[],
+                corner_grades=[],
+                patterns=[],
+                drills=[],
+            ),
+        )
+        chartless_result = generate_pdf(chartless)
+        assert len(result) > len(chartless_result)

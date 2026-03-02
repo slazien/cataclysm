@@ -229,3 +229,78 @@ class TestSessionConsistencyIntegration:
         assert isinstance(result.track_position, TrackPositionConsistency)
         assert 0.0 <= result.lap_consistency.consistency_score <= 100.0
         assert result.track_position.n_laps == len(resampled_laps)
+
+
+# ---------------------------------------------------------------------------
+# TestCornerConsistencyEdgeCases (lines 150, 169, 181-193)
+# ---------------------------------------------------------------------------
+
+
+class TestCornerConsistencyEdgeCases:
+    """Edge case coverage for compute_corner_consistency (lines 150, 169, 181-193)."""
+
+    def test_all_laps_anomalous_returns_empty_list(self) -> None:
+        """When all laps are anomalous, clean_laps is empty → returns [] (line 150)."""
+        all_lap_corners: dict[int, list[Corner]] = {
+            1: [_make_corner(1)],
+            2: [_make_corner(1)],
+        }
+        result = compute_corner_consistency(all_lap_corners, anomalous_laps={1, 2})
+        assert result == []
+
+    def test_clean_laps_with_no_corners_returns_empty_list(self) -> None:
+        """When all clean laps have empty corner lists, returns [] (line 153-154)."""
+        all_lap_corners: dict[int, list[Corner]] = {
+            1: [],
+            2: [],
+        }
+        result = compute_corner_consistency(all_lap_corners, anomalous_laps=set())
+        assert result == []
+
+    def test_single_clean_lap_returns_zero_std_and_100_score(self) -> None:
+        """With only one clean lap, each corner gets 0 std and 100% score (lines 181-193)."""
+        all_lap_corners: dict[int, list[Corner]] = {
+            1: [_make_corner(1, min_speed_mps=20.0, brake_point_m=80.0)],
+        }
+        result = compute_corner_consistency(all_lap_corners, anomalous_laps=set())
+        assert len(result) == 1
+        entry = result[0]
+        assert entry.min_speed_std_mph == 0.0
+        assert entry.min_speed_range_mph == 0.0
+        assert entry.consistency_score == 100.0
+        assert entry.brake_point_std_m is None
+        assert entry.throttle_commit_std_m is None
+
+    def test_corner_missing_from_some_laps_still_processed(self) -> None:
+        """Corner only in some laps should be included with available data (line 169)."""
+        all_lap_corners: dict[int, list[Corner]] = {
+            1: [_make_corner(1), _make_corner(2)],
+            2: [_make_corner(1)],  # no corner 2 in lap 2
+            3: [_make_corner(1), _make_corner(2)],
+        }
+        result = compute_corner_consistency(all_lap_corners, anomalous_laps=set())
+        corner_numbers = [e.corner_number for e in result]
+        assert 1 in corner_numbers
+        assert 2 in corner_numbers
+
+    def test_anomalous_laps_excluded_from_stats(self) -> None:
+        """Anomalous laps must not contribute to corner consistency metrics."""
+        all_lap_corners: dict[int, list[Corner]] = {
+            1: [_make_corner(1, min_speed_mps=20.0)],
+            2: [_make_corner(1, min_speed_mps=21.0)],
+            3: [_make_corner(1, min_speed_mps=100.0)],  # anomalous
+        }
+        result_with = compute_corner_consistency(all_lap_corners, anomalous_laps=set())
+        result_without = compute_corner_consistency(all_lap_corners, anomalous_laps={3})
+        assert result_without[0].min_speed_std_mph < result_with[0].min_speed_std_mph
+
+    def test_lap_numbers_in_sorted_order(self) -> None:
+        """Lap numbers in CornerConsistencyEntry should be sorted ascending."""
+        all_lap_corners: dict[int, list[Corner]] = {
+            3: [_make_corner(1, min_speed_mps=20.0)],
+            1: [_make_corner(1, min_speed_mps=21.0)],
+            2: [_make_corner(1, min_speed_mps=19.5)],
+        }
+        result = compute_corner_consistency(all_lap_corners, anomalous_laps=set())
+        assert len(result) == 1
+        assert result[0].lap_numbers == [1, 2, 3]

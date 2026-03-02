@@ -636,3 +636,123 @@ class TestComputeOptimalProfile:
         assert profile.lap_time_s > 0.0
         assert np.all(profile.optimal_speed_mps >= MIN_SPEED_MPS)
         assert np.all(profile.optimal_speed_mps <= params.top_speed_mps)
+
+
+# ---------------------------------------------------------------------------
+# TestFindTransitionsStateMachine (lines 241-274: decel→accel reversals)
+# ---------------------------------------------------------------------------
+
+
+class TestFindTransitionsStateMachine:
+    """Edge-case coverage of _find_transitions state machine (lines 241-274)."""
+
+    def test_single_point_returns_empty(self) -> None:
+        """A single-element speed array should return no transitions."""
+        speed = np.array([30.0])
+        distance = np.array([0.0])
+        brake, throttle = _find_transitions(speed, distance)
+        assert brake == []
+        assert throttle == []
+
+    def test_decel_then_immediate_accel_reversal(self) -> None:
+        """Braking then immediately accelerating should produce both a brake and throttle point."""
+        n = 300
+        distance = np.arange(n) * 0.7
+        speed = np.concatenate(
+            [
+                np.linspace(50.0, 30.0, 100),  # decel
+                np.linspace(30.0, 50.0, 200),  # accel
+            ]
+        )
+        brake, throttle = _find_transitions(speed, distance)
+        assert len(brake) >= 1
+        assert len(throttle) >= 1
+        # Brake must come first
+        assert brake[0] < throttle[0]
+
+    def test_accel_then_immediate_decel_reversal(self) -> None:
+        """Accelerating then immediately braking should produce both throttle and brake point."""
+        n = 300
+        distance = np.arange(n) * 0.7
+        speed = np.concatenate(
+            [
+                np.linspace(30.0, 50.0, 100),  # accel
+                np.linspace(50.0, 30.0, 200),  # decel
+            ]
+        )
+        brake, throttle = _find_transitions(speed, distance)
+        assert len(throttle) >= 1
+        assert len(brake) >= 1
+        # Throttle must come first
+        assert throttle[0] < brake[0]
+
+    def test_decel_state_with_no_reversal(self) -> None:
+        """Pure braking segment should register a brake point without any throttle."""
+        n = 100
+        distance = np.arange(n) * 0.7
+        speed = np.linspace(50.0, 30.0, n)  # monotonic drop of 20 m/s
+        brake, throttle = _find_transitions(speed, distance)
+        assert len(brake) >= 1
+        assert len(throttle) == 0
+
+    def test_accel_state_with_no_reversal(self) -> None:
+        """Pure acceleration should register a throttle point without any brake."""
+        n = 100
+        distance = np.arange(n) * 0.7
+        speed = np.linspace(30.0, 50.0, n)  # monotonic rise of 20 m/s
+        brake, throttle = _find_transitions(speed, distance)
+        assert len(throttle) >= 1
+        assert len(brake) == 0
+
+    def test_threshold_exactly_at_boundary_not_triggered(self) -> None:
+        """Speed change exactly equal to threshold (0.5 m/s) should not trigger a transition."""
+        n = 100
+        distance = np.arange(n) * 0.7
+        # Drop exactly 0.5 m/s total — NOT less than -0.5, so no decel triggered
+        speed = np.concatenate([np.full(50, 30.0), np.full(50, 29.5)])
+        brake, throttle = _find_transitions(speed, distance)
+        assert len(brake) == 0
+        assert len(throttle) == 0
+
+    def test_large_decel_triggers_brake(self) -> None:
+        """A speed drop well above threshold must register a brake point."""
+        n = 100
+        distance = np.arange(n) * 0.7
+        speed = np.concatenate([np.full(50, 50.0), np.full(50, 45.0)])  # 5 m/s drop
+        brake, throttle = _find_transitions(speed, distance)
+        assert len(brake) == 1
+
+    def test_large_accel_triggers_throttle(self) -> None:
+        """A speed rise well above threshold must register a throttle point."""
+        n = 100
+        distance = np.arange(n) * 0.7
+        speed = np.concatenate([np.full(50, 30.0), np.full(50, 36.0)])  # 6 m/s rise
+        brake, throttle = _find_transitions(speed, distance)
+        assert len(throttle) == 1
+
+    def test_decel_reversal_while_in_decel_state_triggers_throttle(self) -> None:
+        """Speed reversal during decel (lines 263-268): should produce a throttle point."""
+        # Speed drops 2 m/s (enters decel), then rises 2 m/s (reversal → accel)
+        speed = np.array([30.0, 29.0, 28.0, 29.0, 30.0])
+        distance = np.arange(len(speed)) * 0.7
+        brake, throttle = _find_transitions(speed, distance)
+        assert len(brake) >= 1
+        assert len(throttle) >= 1
+
+    def test_accel_reversal_while_in_accel_state_triggers_brake(self) -> None:
+        """Speed reversal during accel (lines 269-274): should produce a brake point."""
+        # Speed rises 2 m/s (enters accel), then drops 2 m/s (reversal → decel)
+        speed = np.array([30.0, 31.0, 32.0, 31.0, 30.0])
+        distance = np.arange(len(speed)) * 0.7
+        brake, throttle = _find_transitions(speed, distance)
+        assert len(throttle) >= 1
+        assert len(brake) >= 1
+
+    def test_anchor_updates_to_speed_minimum_during_decel(self) -> None:
+        """During decel, the anchor tracks the minimum speed so reversal distance is correct."""
+        # Speed: 50 → 40 → 35 → 45 (decel to 35, then reversal with 10 m/s gain)
+        speed = np.array([50.0, 46.0, 42.0, 38.0, 35.0, 38.0, 42.0, 45.0])
+        distance = np.arange(len(speed)) * 0.7
+        brake, throttle = _find_transitions(speed, distance)
+        assert len(brake) >= 1
+        assert len(throttle) >= 1

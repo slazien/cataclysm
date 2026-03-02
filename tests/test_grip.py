@@ -388,3 +388,143 @@ class TestIntegration:
         laps = {1: _make_lap_df(seed=1)}
         result = estimate_grip_limit(laps, [1])
         assert abs(sum(result.weights.values()) - 1.0) < 1e-6
+
+
+# ---------------------------------------------------------------------------
+# TestDirectionalPeaksCircularFallback (lines 255-272)
+# ---------------------------------------------------------------------------
+
+
+def _make_sparse_lap_df(n: int = 3) -> pd.DataFrame:
+    """Build a minimal lap DataFrame with too few points for 4+ direction bins."""
+    return pd.DataFrame(
+        {
+            "lateral_g": np.linspace(-1.0, 1.0, n),
+            "longitudinal_g": np.zeros(n),
+            "speed_mps": np.full(n, 30.0),
+            "lap_distance_m": np.arange(n) * 0.7,
+            "lap_time_s": np.arange(n) * 0.025,
+            "heading_deg": np.zeros(n),
+            "lat": np.zeros(n),
+            "lon": np.zeros(n),
+            "yaw_rate_dps": np.zeros(n),
+            "altitude_m": np.full(n, 200.0),
+            "x_acc_g": np.zeros(n),
+            "y_acc_g": np.zeros(n),
+            "z_acc_g": np.ones(n),
+        }
+    )
+
+
+class TestDirectionalPeaksCircularFallback:
+    """Tests for the circular fallback when < 4 bins have data (lines 255-272)."""
+
+    def test_sparse_data_triggers_circular_fallback(self) -> None:
+        """When fewer than 4 direction bins have data, a circle is returned."""
+        df = _make_sparse_lap_df(n=3)
+        result = compute_directional_peaks({1: df}, [1])
+        # When circular fallback is used, semi_major == semi_minor
+        assert result.ellipse.semi_major == result.ellipse.semi_minor
+        assert result.fit_residual == 0.0
+        assert result.equivalent_radius > 0
+
+    def test_circular_fallback_equivalent_radius_matches_ellipse_axes(self) -> None:
+        """In circular fallback, equivalent_radius should equal semi_major == semi_minor."""
+        df = _make_sparse_lap_df(n=2)
+        result = compute_directional_peaks({1: df}, [1])
+        assert abs(result.ellipse.semi_major - result.equivalent_radius) < 1e-9
+        assert abs(result.ellipse.semi_minor - result.equivalent_radius) < 1e-9
+        assert result.ellipse.rotation_rad == 0.0
+
+    def test_circular_fallback_n_bins_matches_populated_bins(self) -> None:
+        """n_bins in the result should reflect only the populated bins."""
+        df = _make_sparse_lap_df(n=3)
+        result = compute_directional_peaks({1: df}, [1])
+        assert result.n_bins == len(result.bin_angles)
+        assert result.n_bins < 4
+
+
+# ---------------------------------------------------------------------------
+# TestSpeedGripModelFlatFallback (lines 314, 318-330: < 2 speed bins)
+# ---------------------------------------------------------------------------
+
+
+class TestSpeedGripModelFlatFallback:
+    """Tests for flat model fallback when fewer than 2 speed bins have data."""
+
+    def test_single_speed_bin_triggers_flat_fallback(self) -> None:
+        """All data in one speed bin produces a flat grip model (lines 318-330)."""
+        n = 200
+        df = pd.DataFrame(
+            {
+                "lateral_g": np.ones(n) * 0.8,
+                "longitudinal_g": np.zeros(n),
+                "speed_mps": np.full(n, 30.0),  # constant speed → 1 bin
+                "lap_distance_m": np.arange(n) * 0.7,
+                "lap_time_s": np.arange(n) * 0.025,
+                "heading_deg": np.zeros(n),
+                "lat": np.zeros(n),
+                "lon": np.zeros(n),
+                "yaw_rate_dps": np.zeros(n),
+                "altitude_m": np.full(n, 200.0),
+                "x_acc_g": np.zeros(n),
+                "y_acc_g": np.zeros(n),
+                "z_acc_g": np.ones(n),
+            }
+        )
+        # Use bin_width wider than speed range to collapse all data into one bin
+        result = compute_speed_grip_model({1: df}, [1], bin_width_mps=50.0)
+        assert isinstance(result, SpeedGripModel)
+        assert result.aero_coefficient_k == 0.0
+        assert result.r_squared == 0.0
+        assert result.base_grip_g > 0
+        assert result.equivalent_g == result.base_grip_g
+
+    def test_flat_fallback_uses_median_speed_as_reference(self) -> None:
+        """Flat fallback reference_speed_mps should equal the median speed (line 320-322)."""
+        n = 200
+        speed_vals = np.linspace(25.0, 35.0, n)
+        df = pd.DataFrame(
+            {
+                "lateral_g": np.ones(n) * 0.9,
+                "longitudinal_g": np.zeros(n),
+                "speed_mps": speed_vals,
+                "lap_distance_m": np.arange(n) * 0.7,
+                "lap_time_s": np.arange(n) * 0.025,
+                "heading_deg": np.zeros(n),
+                "lat": np.zeros(n),
+                "lon": np.zeros(n),
+                "yaw_rate_dps": np.zeros(n),
+                "altitude_m": np.full(n, 200.0),
+                "x_acc_g": np.zeros(n),
+                "y_acc_g": np.zeros(n),
+                "z_acc_g": np.ones(n),
+            }
+        )
+        result = compute_speed_grip_model({1: df}, [1], bin_width_mps=100.0)
+        expected_median = float(np.median(speed_vals))
+        assert abs(result.reference_speed_mps - expected_median) < 0.5
+
+
+# ---------------------------------------------------------------------------
+# TestBuildDirectionalEnvelopeFallback (lines 429-434, 451)
+# ---------------------------------------------------------------------------
+
+
+class TestBuildDirectionalEnvelopeFallback:
+    """Tests for _build_directional_envelope with < 4 bins (circular fallback)."""
+
+    def test_envelope_with_sparse_directional_data_is_circle(self) -> None:
+        """Sparse G data triggers circular envelope (lines 429-434)."""
+        df = _make_sparse_lap_df(n=3)
+        result = estimate_grip_limit({1: df}, [1])
+        # Envelope should still have the standard 360 points
+        assert len(result.envelope_lat_g) == 360
+        assert len(result.envelope_lon_g) == 360
+
+    def test_envelope_circular_fallback_all_finite(self) -> None:
+        """Circular envelope should contain only finite values (line 451)."""
+        df = _make_sparse_lap_df(n=3)
+        result = estimate_grip_limit({1: df}, [1])
+        assert all(np.isfinite(v) for v in result.envelope_lat_g)
+        assert all(np.isfinite(v) for v in result.envelope_lon_g)
