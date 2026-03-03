@@ -235,7 +235,7 @@ export function WelcomeScreen() {
         onDragLeave={handleDragLeave}
         onClick={() => fileInputRef.current?.click()}
         className={cn(
-          'flex w-full max-w-2xl cursor-pointer flex-col items-center gap-4 rounded-xl border-2 border-dashed p-6 lg:p-10 min-h-[6rem] lg:min-h-[10rem] transition-colors',
+          'flex w-full max-w-2xl cursor-pointer flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed p-6 lg:p-10 min-h-[6rem] lg:min-h-[10rem] transition-colors',
           isDragging
             ? 'border-[var(--cata-accent)] bg-[var(--cata-accent)]/5'
             : 'border-[var(--cata-border)] bg-[var(--bg-surface)] hover:border-[var(--text-muted)]',

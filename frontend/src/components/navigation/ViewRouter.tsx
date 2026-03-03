@@ -61,7 +61,11 @@ export function ViewRouter() {
   }, [activeSessionId, resetAnalysis]);
 
   if (!activeSessionId) {
-    return <WelcomeScreen />;
+    return (
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <WelcomeScreen />
+      </div>
+    );
   }
 
   return (
