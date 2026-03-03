@@ -25,7 +25,7 @@ A complete profile consists of **3 layers** that build on each other:
 |-------|------|----------|--------|--------|
 | `number` | int | Yes | Official track map | 1, 2, 3... |
 | `name` | str | Yes | Track guide / common name | `"Charlotte's Web"` |
-| `fraction` | float | Yes | Telemetry speed minimums | 0.0–1.0 |
+| `fraction` | float | Yes | Visual-first GPS matching (see 2.2) | 0.0–1.0 |
 | `lat` | float | No | GPS at apex | |
 | `lon` | float | No | GPS at apex | |
 | `character` | str | No | Telemetry analysis | `"flat"`, `"lift"`, `"brake"` |
@@ -167,66 +167,82 @@ Record: total GPS point count, total lap distance, which lap number.
 #### 2.2 Locate Apex Positions in Telemetry
 Corner fractions are the **apex position as a fraction of total lap distance** (0.0–1.0).
 
-**Primary method: Speed trace analysis**
-```python
-import matplotlib.pyplot as plt
+**Primary method: Visual-first GPS trace matching (RECOMMENDED)**
 
-df = best_lap.resampled
-plt.figure(figsize=(20, 6))
-plt.plot(df["lap_distance_m"], df["speed_mps"] * 3.6, linewidth=0.8)
-plt.xlabel("Distance (m)")
-plt.ylabel("Speed (km/h)")
-plt.title("Speed trace — identify speed minimums at corners")
-plt.grid(True, alpha=0.3)
-plt.savefig("/tmp/speed_trace.png", dpi=150)
+This approach starts from the labeled reference map and finds the corresponding GPS positions. It is more reliable than speed-minimum detection because it avoids the assignment problem of mapping unlabeled data features to labeled corners.
+
+**Step 1: Dump a dense GPS trace.** Export the best lap at 10m intervals with lat/lon/heading/speed/yaw_rate:
+```python
+from cataclysm.parser import parse_racechrono_csv
+from cataclysm.engine import process_session
+
+parsed = parse_racechrono_csv("path/to/session.csv")
+processed = process_session(parsed.data)
+lap_df = processed.resampled_laps[processed.best_lap]
+
+dist = lap_df["lap_distance_m"].to_numpy()
+lat = lap_df["lat"].to_numpy()
+lon = lap_df["lon"].to_numpy()
+speed = lap_df["speed_mps"].to_numpy()
+heading = lap_df["heading_deg"].to_numpy()
+yaw_rate = lap_df["yaw_rate_dps"].to_numpy()
+lap_length = dist[-1]
+
+# Print every 10m for manual matching
+import numpy as np
+for target in np.arange(0, lap_length, 10):
+    idx = np.argmin(np.abs(dist - target))
+    frac = dist[idx] / lap_length
+    print(f"{dist[idx]:7.0f}m  frac={frac:.3f}  "
+          f"lat={lat[idx]:.6f}  lon={lon[idx]:.6f}  "
+          f"hdg={heading[idx]:5.0f}  spd={speed[idx]*2.237:5.1f}mph  "
+          f"yaw={yaw_rate[idx]:+6.1f}")
 ```
 
-For each official corner:
-1. Find the speed minimum in the telemetry that corresponds to that corner
-2. Record the distance at the speed minimum
-3. Compute fraction = distance / total_lap_distance
+**Step 2: Match labels to GPS positions.** Open the reference map (from Step 2.1 consensus). For each labeled corner (T1, T2, ...):
+1. Note its **physical position** on the map (e.g., "T4 is the upper hairpin")
+2. Find that physical feature in the GPS trace by matching lat/lon position and heading
+3. Read off the fraction at that GPS position
 
-**Cross-reference with satellite imagery:**
-- Plot the GPS trace on satellite imagery
-- Visually confirm that the speed minimum location matches the physical corner apex
+The key insight: instead of asking "what T-number does this speed minimum correspond to?" (which requires solving an assignment problem), ask "where in the GPS trace is the physical feature that the reference map calls T4?" (which is just a lookup).
 
-**Secondary method: Heading-rate curvature analysis**
+**Step 3: Verify with speed and heading characteristics.** Each matched position should have physically consistent telemetry:
+- Hairpins: low speed, high yaw rate
+- Sweepers: moderate speed, sustained yaw rate
+- Kinks: high speed, brief yaw rate blip
+- Direction check: negative yaw_rate_dps = RIGHT turn (heading increasing clockwise)
 
-When speed minimums are ambiguous (e.g., two adjacent same-direction corners share a single combined speed minimum), use heading-rate curvature to disambiguate:
+**Secondary method: Speed trace analysis (for disambiguation only)**
+
+Speed minimums and heading-rate peaks can **supplement** the visual-first method but should not be the primary source:
 
 ```python
 from scipy.signal import find_peaks
 
-d = np.load("/tmp/track_trace.npz")
-dist, lat, lon, speed = d["dist"], d["lat"], d["lon"], d["speed"]
+# Speed minimums (corner apexes)
+neg_speed = -speed
+speed_peaks, _ = find_peaks(neg_speed, prominence=2.0, distance=100)
+for idx in speed_peaks:
+    frac = dist[idx] / lap_length
+    print(f"Speed min: {dist[idx]:.0f}m  frac={frac:.3f}  "
+          f"speed={speed[idx]*2.237:.1f}mph")
 
-# Compute heading rate (degrees per meter)
-dlat, dlon = np.diff(lat), np.diff(lon)
-mid_lat = np.radians(np.mean(lat))
-dx = dlon * 111320 * np.cos(mid_lat)
-dy = dlat * 111320
-heading = np.degrees(np.arctan2(dx, dy))
-dheading = np.diff(heading)
-dheading = (dheading + 180) % 360 - 180  # normalize to [-180, 180]
-ddist = np.diff(dist[:-1])
-ddist[ddist == 0] = 0.7
-heading_rate = dheading / ddist
-
-# Smooth and find curvature peaks
-window = max(2, int(20.0 / 0.7))  # 20m rolling average
-kernel = np.ones(window) / window
-smoothed_rate = np.convolve(np.abs(heading_rate), kernel, mode="same")
-
-hr_peaks, _ = find_peaks(smoothed_rate, prominence=0.1, distance=30)
-for p in hr_peaks:
-    sign = "R" if np.mean(heading_rate[max(0, p - 10) : p + 10]) > 0 else "L"
-    print(f"dist={dist[p+1]:.0f}m  rate={smoothed_rate[p]:.3f}deg/m  dir={sign}")
+# Heading-rate peaks (maximum turning)
+abs_yaw = np.abs(yaw_rate)
+yaw_peaks, _ = find_peaks(abs_yaw, prominence=5.0, distance=100)
+for idx in yaw_peaks:
+    frac = dist[idx] / lap_length
+    direction = "LEFT" if yaw_rate[idx] > 0 else "RIGHT"
+    print(f"Yaw peak: {dist[idx]:.0f}m  frac={frac:.3f}  "
+          f"yaw={yaw_rate[idx]:.1f}  dir={direction}")
 ```
 
-This identifies corners by their physical curvature even when they don't produce distinct speed minimums. Particularly useful for:
-- **Adjacent same-direction corners** (e.g., Roebling T1-T2, both rights) that merge into one speed dip
-- **Fast sweepers** where speed barely drops but curvature is clear
-- **Verifying turn direction** (left/right) when guides disagree
+Use this for:
+- **Confirming** the visual match (speed minimum near the matched position)
+- **Adjacent same-direction corners** (e.g., Roebling T1-T2) where speed trace shows one combined minimum but the visual map shows two distinct turns
+- **Fast sweepers** where the visual position is hard to pinpoint — the heading-rate peak gives a precise location
+
+**WARNING**: Never use speed minimums or heading-rate peaks as the **primary** source for T-number assignment. These features are unlabeled — mapping "the 5th speed minimum" to "T5" requires knowing the circuit layout, which is the thing you're trying to determine. This circular dependency caused Roebling T4-T8 to be shifted ~1 position early.
 
 **Validation:**
 - Fractions must be monotonically increasing (corners appear in order around the track)
@@ -594,7 +610,9 @@ Not every track needs the full Barber-level treatment. Here's a tiered approach:
 - [ ] Consensus table built (corner number + direction from each source)
 - [ ] Majority-vote numbering and directions determined
 - [ ] Disagreements documented in verification comment block
-- [ ] Corner fractions derived from speed trace minimums
+- [ ] Dense GPS trace dumped (10m intervals with lat/lon/heading/speed/yaw)
+- [ ] Corner fractions derived via visual-first matching (map labels → GPS positions)
+- [ ] Fractions cross-checked against speed minimums and heading-rate peaks
 - [ ] Fractions validated (monotonic, reasonable spacing)
 - [ ] Corner directions verified against consensus table (every corner)
 - [ ] Corner types filled (all corners)
@@ -634,12 +652,18 @@ Not every track needs the full Barber-level treatment. Here's a tiered approach:
 ### Roebling Road Raceway
 - **Tier 2 profile** built from 8 sessions (44 laps) with corner fractions from speed-trace + heading-rate analysis.
 - **Key challenge**: Roebling's sweeping corners have low heading rates (max 1.4 deg/m smoothed vs Barber's 2.0). The auto-detection threshold of 1.0 deg/m finds 0 corners on Roebling, making the track map invisible. This was the primary motivation for adding the profile.
-- **POSTMORTEM — Four corner directions wrong (T4, T5, T6, T7)**:
+- **POSTMORTEM 1 — Four corner directions wrong (T4, T5, T6, T7)**:
   - T4 was RIGHT, should be LEFT (leftward bulge between T3 and T5). T5 was LEFT, should be RIGHT (car turns right toward the big loop). T6 was RIGHT, should be LEFT (entry to loop, car heads north). T7 was LEFT, should be RIGHT (apex of loop, car reverses south). T5 was also named "The Hairpin" but no source uses that name — renamed to "Slow Right".
   - **Root cause 1 — No consensus table**: Multiple guides were "cross-referenced" but no structured comparison was done. Different sources use different numbering (na-motorsports uses 10 turns, others use 9), so casually reading multiple guides without a side-by-side table leads to mixing numbering systems.
   - **Root cause 2 — Algorithm-derived directions trusted over sources**: The heading-rate sign was likely used as the primary direction source instead of track guides. At complex corners where the approach has a different curvature than the main arc, the algorithm can get the sign wrong.
   - **Root cause 3 — No direction verification step**: The validation phase checked fractions (monotonic, spacing) but never checked each corner's direction and name against the source material.
   - **Fix applied**: Process now requires a multi-source consensus table (Step 2.1) and an explicit corner identity verification step (Step 6.2) before any profile is considered complete.
+- **POSTMORTEM 2 — Corner fractions wrong (T2, T4-T8 all shifted ~1 position early)**:
+  - After fixing directions, corner labels on the deployed track map still didn't match the reference. T4 and T5 were nearly overlapping, T6 appeared where T5 should be, etc.
+  - **Root cause 1 — Speed-minimum-first fraction derivation**: Fractions were derived by finding speed minimums in the telemetry, then assigning T-numbers to them in order. This is an assignment problem — mapping N unlabeled features to N labeled corners — and gets the wrong answer when corners are close together or share a speed minimum (e.g., T1/T2 hairpin pair, T6/T7 loop pair).
+  - **Root cause 2 — Apex snapping bug in `corners.py`**: `extract_corner_kpis_for_lap()` was overwriting `apex_distance_m` with `np.argmin(speed)` within each corner's entry-exit zone. For hairpin-pair corners sharing the same speed minimum, both corners snapped to the same GPS point. Fixed by preserving `ref.apex_distance_m` (the fraction-based skeleton position).
+  - **Fix applied**: Switched to visual-first GPS trace matching (Step 2.2). Instead of "find speed minimums → assign T-numbers" (data→labels), the approach is now "for each T-number on the reference map, find its physical location in the GPS trace" (labels→data). This eliminates the assignment problem entirely.
+  - **Key lesson**: When matching labeled references to unlabeled data, always start from the labels and find corresponding data points. Going data→labels requires solving an assignment problem; going labels→data is just lookup.
 - **T1-T2 inseparable in speed trace**: Both are right-handers with a single combined speed minimum at 93 km/h. Heading-rate curvature peaks were used to separate T1 apex (~530m, rate 1.03 deg/m) from T2 apex (~720m, rate 1.22 deg/m).
 - **T8-T9 combo**: Guides describe "one corner" with left-to-right transition. Heading rate confirms brief L-direction (T8) then sustained R-direction (T9). Speed remains >120 km/h — among the fastest corners.
 - **Flat track challenge**: Only 8m elevation range means elevation_trend is "flat" for 7 of 9 corners. T6 (downhill) and T7 (uphill) are the only exceptions — verified by both altitude data and track guides.
@@ -657,3 +681,5 @@ Not every track needs the full Barber-level treatment. Here's a tiered approach:
 - **Heading-rate direction analysis** can disambiguate adjacent same-direction corners (like Roebling T1-T2) by finding curvature dips between them — even when the speed trace shows a single combined minimum.
 - **Never trust a single source for corner numbering.** Tracks routinely have 2–3 different numbering schemes in circulation (different total counts, different groupings). Build a consensus table from 4–6 sources and majority-vote. This is the #1 source of profile errors.
 - **Algorithm-derived directions are a tool, not a source.** Heading-rate sign analysis can suggest LEFT/RIGHT, but complex corners (approach curvature differs from main arc) can fool it. Always verify against the multi-source consensus. If they disagree, the human sources win.
+- **Visual-first GPS matching is more reliable than speed-minimum assignment.** The old approach (find speed minimums → assign T-numbers in order) is an assignment problem that fails when corners are close together or share a speed minimum. The visual-first approach (for each labeled corner on the reference map, find its GPS position) eliminates the assignment problem entirely. This is now the primary method in Phase 2.2.
+- **Always verify the deployed track map visually.** After updating fractions, open the deployed app and compare the track map against the reference image corner by corner. API-level verification (checking distance values) isn't enough — the visual comparison catches spatial errors that numbers alone miss.
