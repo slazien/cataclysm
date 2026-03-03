@@ -134,7 +134,7 @@ export function WelcomeScreen() {
   }, [tracks, loadTrackMutation, setActiveSession]);
 
   return (
-    <div className="relative flex h-full flex-col items-center gap-8 overflow-y-auto p-6 lg:p-10">
+    <div className="relative flex min-h-0 w-full flex-1 flex-col items-center gap-8 overflow-y-auto p-6 lg:p-10">
       {/* Gradient mesh background */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.05)_0%,transparent_70%)]" />
 
