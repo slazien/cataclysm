@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
+import { useUnits } from '@/hooks/useUnits';
 
 interface CornerTrendSparklinesProps {
   cornerMinSpeedTrends: Record<string, (number | null)[]>;
@@ -113,6 +114,7 @@ export function CornerTrendSparklines({
   cornerMinSpeedTrends,
   className,
 }: CornerTrendSparklinesProps) {
+  const { convertSpeed, speedUnit } = useUnits();
   const sparklines: SparklineData[] = useMemo(() => {
     const keys = Object.keys(cornerMinSpeedTrends).sort(
       (a, b) => parseInt(a) - parseInt(b),
@@ -155,9 +157,9 @@ export function CornerTrendSparklines({
                   T{data.cornerKey}
                 </p>
                 <p className={cn('text-sm font-semibold tabular-nums', colors.text)}>
-                  {data.latestValue != null ? `${data.latestValue.toFixed(0)}` : '--'}
+                  {data.latestValue != null ? `${convertSpeed(data.latestValue).toFixed(0)}` : '--'}
                 </p>
-                <p className="text-[9px] text-[var(--text-muted)]">mph</p>
+                <p className="text-[9px] text-[var(--text-muted)]">{speedUnit}</p>
               </div>
               <div className="min-w-0 flex-1">
                 <Sparkline data={data} width={72} height={28} />

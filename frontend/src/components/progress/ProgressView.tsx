@@ -173,7 +173,7 @@ export function ProgressView() {
     const latest = bestLaps[n - 1];
     if (thirdLatest <= 0 || latest <= 0) return false;
     const improvement = thirdLatest - latest;
-    return improvement < 0.2;
+    return improvement >= 0 && improvement < 0.2;
   }, [trendData]);
 
   // Journey card metrics
