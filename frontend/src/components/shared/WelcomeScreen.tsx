@@ -279,9 +279,9 @@ export function WelcomeScreen() {
                 <p className="text-sm font-medium text-[var(--cata-accent)]">Processing telemetry...</p>
               </motion.div>
             ) : (
-              <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <motion.div key="idle" className="flex flex-col items-center gap-1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <p className="text-sm font-medium text-[var(--text-primary)]">Drop CSV files here</p>
-                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                <p className="text-xs text-[var(--text-muted)]">
                   or click to browse — RaceChrono v3 CSV format
                 </p>
               </motion.div>
