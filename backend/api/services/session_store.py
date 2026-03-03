@@ -104,11 +104,23 @@ def get_session_for_user(session_id: str, user_id: str) -> SessionData | None:
     """
     sd = _store.get(session_id)
     if sd is None:
+        logger.warning(
+            "get_session_for_user: session %s NOT in memory store (store has %d sessions)",
+            session_id,
+            len(_store),
+        )
         return None
     # Skip ownership check for dev users or sessions without user_id set
     if user_id == "dev-user" or sd.user_id is None:
         return sd
     if sd.user_id != user_id:
+        logger.warning(
+            "get_session_for_user: ownership mismatch for %s — "
+            "sd.user_id=%s vs requested user_id=%s",
+            session_id,
+            sd.user_id,
+            user_id,
+        )
         return None
     return sd
 
