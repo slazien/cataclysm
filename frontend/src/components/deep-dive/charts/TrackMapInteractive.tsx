@@ -4,7 +4,9 @@ import { useMemo } from 'react';
 import * as d3 from 'd3';
 import { useMultiLapData, useCorners, useDelta } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
-import { useAnalysisStore } from '@/stores';
+import { useCornerKings } from '@/hooks/useLeaderboard';
+import { useSession } from '@/hooks/useSession';
+import { useAnalysisStore, useSessionStore } from '@/stores';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { colors } from '@/lib/design-tokens';
 import { worstGrade } from '@/lib/gradeUtils';
@@ -204,6 +206,21 @@ export function TrackMapInteractive({ sessionId }: TrackMapInteractiveProps) {
   const cursorDistance = useAnalysisStore((s) => s.cursorDistance);
   const selectedCorner = useAnalysisStore((s) => s.selectedCorner);
   const selectCorner = useAnalysisStore((s) => s.selectCorner);
+  const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const { data: sessionData } = useSession(activeSessionId);
+  const trackName = sessionData?.track_name ?? undefined;
+  const { data: kingsData } = useCornerKings(trackName);
+
+  // Build a set of corner numbers the user is king of
+  const kingCorners = useMemo(() => {
+    const set = new Set<number>();
+    if (kingsData?.kings) {
+      for (const k of kingsData.kings) {
+        set.add(k.corner_number);
+      }
+    }
+    return set;
+  }, [kingsData]);
 
   const refLap = selectedLaps.length >= 2 ? selectedLaps[0] : null;
   const compLap = selectedLaps.length >= 2 ? selectedLaps[1] : null;
@@ -353,6 +370,18 @@ export function TrackMapInteractive({ sessionId }: TrackMapInteractiveProps) {
               >
                 {label.number}
               </text>
+              {/* Crown for Corner King */}
+              {kingCorners.has(label.number) && (
+                <text
+                  x={label.x - 10}
+                  y={label.y - 10}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fontSize={8}
+                >
+                  {'\u{1F451}'}
+                </text>
+              )}
               {/* Grade badge offset */}
               {label.grade && (
                 <g transform={`translate(${label.x + 10}, ${label.y - 10})`}>

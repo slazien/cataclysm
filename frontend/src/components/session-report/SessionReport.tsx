@@ -21,6 +21,7 @@ import { RawDataTable } from './RawDataTable';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TrackWatermark } from '@/components/shared/TrackWatermark';
 import { BadgeGrid } from '@/components/achievements/BadgeGrid';
+import { TrackLeaderboardSummary } from '@/components/leaderboard/TrackLeaderboardSummary';
 
 export function SessionReport() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
@@ -83,6 +84,10 @@ export function SessionReport() {
 
         {activeSessionId && showFeature('optimal_comparison') && (
           <OptimalGapChart sessionId={activeSessionId} />
+        )}
+
+        {session?.track_name && (
+          <TrackLeaderboardSummary trackName={session.track_name} />
         )}
 
         {report?.corner_grades && report.corner_grades.length > 0 && (

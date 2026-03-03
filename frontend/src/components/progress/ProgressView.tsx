@@ -7,7 +7,7 @@ import { useSession } from '@/hooks/useSession';
 import { useTrends, useMilestones } from '@/hooks/useTrends';
 import { formatTimeShort, parseSessionDate } from '@/lib/formatters';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
-import { ChevronDown, TrendingUp } from 'lucide-react';
+import { ChevronDown, TrendingUp, Award, Sparkles } from 'lucide-react';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { AiInsight } from '@/components/shared/AiInsight';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -24,6 +24,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { motion as motionTokens } from '@/lib/design-tokens';
+import { useRecentAchievements } from '@/hooks/useAchievements';
+import { BadgeGrid } from '@/components/achievements/BadgeGrid';
+import { SeasonWrapped } from '@/components/wrapped/SeasonWrapped';
 import { MilestoneTimeline } from './MilestoneTimeline';
 import { LapTimeTrend } from './LapTimeTrend';
 import { ConsistencyTrend } from './ConsistencyTrend';
@@ -40,6 +43,16 @@ export function ProgressView() {
   const sessions = useSessionStore((s) => s.sessions);
   const { data: session, isLoading: sessionLoading } = useSession(activeSessionId);
   const { showFeature } = useSkillLevel();
+  const { data: recentAchievementsData } = useRecentAchievements(!!activeSessionId);
+  const [badgesOpen, setBadgesOpen] = useState(false);
+  const [wrappedOpen, setWrappedOpen] = useState(false);
+
+  const isWrapSeason = new Date().getMonth() >= 9; // Oct, Nov, Dec
+
+  const recentBadges = useMemo(() => {
+    const unlocked = recentAchievementsData?.newly_unlocked ?? [];
+    return unlocked.slice(0, 4);
+  }, [recentAchievementsData]);
 
   const sessionTrackName = session?.track_name ?? null;
   const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
@@ -209,6 +222,30 @@ export function ProgressView() {
       <div className="relative mx-auto flex max-w-5xl flex-col gap-6 p-4 lg:p-6">
         <TrackWatermark />
 
+        {/* Season Wrapped banner */}
+        {isWrapSeason && trendData && trendData.sessions.length >= 3 && (
+          <div className="rounded-xl border border-[var(--cata-accent)]/30 bg-[var(--cata-accent)]/5 p-4">
+            <div className="flex items-start gap-3">
+              <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-[var(--cata-accent)]" />
+              <div className="min-w-0 flex-1">
+                <h3 className="font-[family-name:var(--font-display)] text-sm font-semibold text-[var(--text-primary)]">
+                  Your {new Date().getFullYear()} Season Wrapped is ready!
+                </h3>
+                <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+                  See your year in review with stats, highlights, and your driving personality.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setWrappedOpen(true)}
+                  className="mt-2 rounded-lg bg-[var(--cata-accent)] px-3 py-1.5 text-xs font-medium text-white transition hover:opacity-90"
+                >
+                  View Wrapped
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 1. Header with track selector */}
         <div>
           <div className="flex items-center gap-2">
@@ -343,6 +380,54 @@ export function ProgressView() {
           </m.div>
         )}
 
+        {/* 4b. Recent Achievements */}
+        {recentBadges.length > 0 && (
+          <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Award className="h-4 w-4 text-yellow-400" />
+                <h3 className="font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">
+                  Recent Achievements
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBadgesOpen(true)}
+                className="text-xs font-medium text-[var(--cata-accent)] hover:underline"
+              >
+                View All
+              </button>
+            </div>
+            <div className="flex gap-3 overflow-x-auto">
+              {recentBadges.map((badge) => (
+                <div
+                  key={badge.id}
+                  className="flex min-w-[100px] flex-col items-center gap-1.5 rounded-lg bg-[var(--bg-elevated)] p-3"
+                >
+                  <div
+                    className="flex h-8 w-8 items-center justify-center rounded-full border"
+                    style={{
+                      borderColor:
+                        badge.tier === 'gold'
+                          ? '#ffd700'
+                          : badge.tier === 'silver'
+                            ? '#c0c0c0'
+                            : '#cd7f32',
+                    }}
+                  >
+                    <span className="text-sm">
+                      {badge.tier === 'gold' ? '🥇' : badge.tier === 'silver' ? '🥈' : '🥉'}
+                    </span>
+                  </div>
+                  <span className="text-center text-[10px] font-medium text-[var(--text-primary)]">
+                    {badge.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* 5. Milestone Timeline */}
         <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
           <h3 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Milestone Timeline</h3>
@@ -422,6 +507,8 @@ export function ProgressView() {
           </div>
         )}
       </div>
+      <BadgeGrid open={badgesOpen} onClose={() => setBadgesOpen(false)} />
+      <SeasonWrapped open={wrappedOpen} onClose={() => setWrappedOpen(false)} />
     </ScrollArea>
   );
 }

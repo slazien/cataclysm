@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useCornerLeaderboard } from '@/hooks/useLeaderboard';
 import type { CornerRecordEntry } from '@/lib/types';
 import { KingBadge } from './KingBadge';
+import { LeaderboardCompareCard } from './LeaderboardCompareCard';
 import { cn } from '@/lib/utils';
 
 const CATEGORIES = [
@@ -112,6 +113,7 @@ export function CornerLeaderboard({
   limit = 10,
 }: CornerLeaderboardProps) {
   const [category, setCategory] = useState<CategoryKey>('sector_time');
+  const [selectedEntry, setSelectedEntry] = useState<CornerRecordEntry | null>(null);
 
   const { data, isLoading, error } = useCornerLeaderboard(
     trackName,
@@ -119,6 +121,12 @@ export function CornerLeaderboard({
     limit,
     category,
   );
+
+  // Find the user's own entry — use king entry or fall back to first entry
+  const userEntry = useMemo(() => {
+    if (!data || data.entries.length === 0) return null;
+    return data.entries.find((e) => e.is_king) ?? data.entries[0];
+  }, [data]);
 
   const handleSharePosition = useCallback(async () => {
     const categoryLabel =
@@ -164,7 +172,17 @@ export function CornerLeaderboard({
   }
 
   return (
-    <div className="rounded-lg border border-zinc-700 bg-zinc-800/50 overflow-hidden">
+    <div className="relative rounded-lg border border-zinc-700 bg-zinc-800/50 overflow-hidden">
+      {/* Compare overlay */}
+      {selectedEntry && userEntry && selectedEntry.rank !== userEntry.rank && (
+        <LeaderboardCompareCard
+          yourEntry={userEntry}
+          theirEntry={selectedEntry}
+          cornerNumber={cornerNumber}
+          onClose={() => setSelectedEntry(null)}
+        />
+      )}
+
       {/* Category tabs */}
       <div className="flex gap-1 overflow-x-auto px-4 py-2">
         {CATEGORIES.map((c) => (
@@ -202,11 +220,14 @@ export function CornerLeaderboard({
           {data.entries.map((entry: CornerRecordEntry) => (
             <tr
               key={entry.rank}
-              className={`border-b border-zinc-700/30 ${
+              onClick={() => setSelectedEntry(entry)}
+              className={cn(
+                'border-b border-zinc-700/30 cursor-pointer transition-colors',
                 entry.is_king
                   ? 'bg-yellow-500/10'
-                  : 'hover:bg-zinc-700/30'
-              }`}
+                  : 'hover:bg-zinc-700/30',
+                selectedEntry?.rank === entry.rank && 'ring-1 ring-inset ring-[var(--cata-accent)]',
+              )}
             >
               <td className="px-4 py-2 text-zinc-400 font-mono">
                 {entry.rank}
