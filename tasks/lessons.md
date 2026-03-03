@@ -100,6 +100,19 @@
 - **Anti-pattern**: "Wave 1 (~1-2 weeks)", "Effort: ~2 days", "This phase takes 3 weeks". Replace with file counts and parallelization notes.
 - **Why**: User caught this directly. CLAUDE.md says: "NEVER say 'this is ambitious' or hedge about scope. You implement in hours, not weeks." Time estimates signal a human-pace mindset that contradicts the agent-parallel reality.
 
+## Keep Dockerfile Dependencies in Sync with pyproject.toml — CRITICAL
+- **When**: Adding ANY new Python dependency to `backend/pyproject.toml`
+- **Rule**: ALWAYS also add the dependency to `Dockerfile.backend` line 11 (the explicit `pip install` list). The Dockerfile does NOT auto-read `backend/pyproject.toml` — it installs the root `pyproject.toml` (cataclysm core) and then manually lists backend deps.
+- **Verification**: After adding a dep to pyproject.toml, immediately `grep` the Dockerfile to confirm it's there.
+- **Why**: Adding `slowapi` to pyproject.toml without updating `Dockerfile.backend` caused a production crash (`ModuleNotFoundError: No module named 'slowapi'`) that took down the backend completely. The backend crash-looped for multiple deploy cycles.
+- **Future improvement**: Consider switching Dockerfile to `pip install -e ./backend` or `pip install --no-cache-dir -r requirements.txt` to avoid maintaining two dependency lists.
+
+## Raw SQL Must Include ALL NOT NULL Columns — ORM Defaults Don't Apply
+- **When**: Writing raw SQL INSERT statements that bypass the ORM (e.g. `text("INSERT INTO ...")`)
+- **Rule**: Check the ORM model for ALL `Mapped[str]` / `Mapped[bool]` (non-Optional) columns with `default=`. Raw SQL bypasses ORM `default=` values. You must explicitly include those columns with their default values in the INSERT statement.
+- **Pattern**: Compare `text("INSERT INTO users (id, email, name, avatar_url)")` against `class User` model — if `skill_level`, `role`, `leaderboard_opt_in` are NOT NULL with ORM defaults, they MUST be in the raw SQL.
+- **Why**: Hit this TWICE in `ensure_user_exists` migration path. First: FK violation (UPDATE FKs before new user row existed). Second: NOT NULL violation on `skill_level` because raw INSERT didn't include it. Both caused production 500 errors on CSV upload.
+
 ## Always Run Code Reviewer After Implementation
 - **When**: After finishing ANY implementation task — features, bug fixes, refactors
 - **Rule**: Dispatch the code reviewer agent (`superpowers:code-reviewer` or `code-review:code-review`) to review all changed files. This is in ADDITION to automated checks (ruff, mypy, tests), not a replacement.
