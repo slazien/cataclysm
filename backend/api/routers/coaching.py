@@ -246,9 +246,14 @@ async def get_report(
     if report is not None:
         # Filter out hallucinated corners beyond the actual corner count.
         num_corners = len(next(iter(sd.all_lap_corners.values()), []))
-        if num_corners > 0 and report.corner_grades:
+        if num_corners > 0:
             valid = set(range(1, num_corners + 1))
-            report.corner_grades = [g for g in report.corner_grades if g.corner in valid]
+            if report.corner_grades:
+                report.corner_grades = [g for g in report.corner_grades if g.corner in valid]
+            if report.priority_corners:
+                report.priority_corners = [
+                    pc for pc in report.priority_corners if pc.corner in valid
+                ]
         return report
 
     if is_generating(session_id):

@@ -266,6 +266,20 @@ class TestBuildCoachingPrompt:
         assert "priority_corners" in prompt
         assert "corner_grades" in prompt
 
+    def test_includes_corner_count_constraint(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        prompt = _build_coaching_prompt(
+            sample_summaries,
+            sample_all_lap_corners,
+            "Test",
+        )
+        assert "Number of corners: 2" in prompt
+        assert "Include exactly 2 entries in corner_grades" in prompt
+        assert "Do NOT include corners beyond T2" in prompt
+
     def test_includes_all_laps_data(
         self,
         sample_summaries: list[LapSummary],
@@ -340,6 +354,65 @@ class TestGenerateCoachingReport:
         call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args_list[0]
         assert "system" in call_kwargs.kwargs
         assert "traction circle" in call_kwargs.kwargs["system"].lower()
+
+    def test_filters_hallucinated_corner_grades(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        """Corner grades beyond the actual corner count are stripped."""
+        response_json = json.dumps(
+            {
+                "summary": "Test",
+                "priority_corners": [
+                    {"corner": 1, "time_cost_s": 0.1, "issue": "ok", "tip": "ok"},
+                    {"corner": 10, "time_cost_s": 0.5, "issue": "fake", "tip": "fake"},
+                ],
+                "corner_grades": [
+                    {
+                        "corner": 1,
+                        "braking": "A",
+                        "trail_braking": "A",
+                        "min_speed": "A",
+                        "throttle": "A",
+                        "notes": "ok",
+                    },
+                    {
+                        "corner": 2,
+                        "braking": "B",
+                        "trail_braking": "B",
+                        "min_speed": "B",
+                        "throttle": "B",
+                        "notes": "ok",
+                    },
+                    {
+                        "corner": 10,
+                        "braking": "C",
+                        "trail_braking": "C",
+                        "min_speed": "C",
+                        "throttle": "C",
+                        "notes": "hallucinated",
+                    },
+                ],
+                "patterns": [],
+                "drills": [],
+            }
+        )
+        mock_anthropic = _make_mock_anthropic(response_json)
+        with (
+            patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test"}),
+            patch.dict(sys.modules, {"anthropic": mock_anthropic}),
+        ):
+            report = generate_coaching_report(
+                sample_summaries,
+                sample_all_lap_corners,
+                "Test",
+            )
+        # sample_all_lap_corners has 2 corners — T10 should be stripped
+        assert len(report.corner_grades) == 2
+        assert all(g.corner <= 2 for g in report.corner_grades)
+        assert len(report.priority_corners) == 1
+        assert report.priority_corners[0]["corner"] == 1
 
 
 class TestAskFollowup:

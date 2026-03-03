@@ -870,7 +870,20 @@ def generate_coaching_report(
     num_corners = len(next(iter(all_lap_corners.values()), []))
     if num_corners > 0:
         valid = set(range(1, num_corners + 1))
+        before_grades = len(report.corner_grades)
         report.corner_grades = [g for g in report.corner_grades if g.corner in valid]
+        report.priority_corners = [
+            pc
+            for pc in report.priority_corners
+            if isinstance(pc.get("corner"), int) and pc["corner"] in valid
+        ]
+        dropped = before_grades - len(report.corner_grades)
+        if dropped:
+            logger.warning(
+                "Filtered %d hallucinated corner grade(s) (track has %d corners)",
+                dropped,
+                num_corners,
+            )
 
     return report
 
