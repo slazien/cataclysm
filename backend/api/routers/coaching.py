@@ -244,6 +244,11 @@ async def get_report(
 
     report = await get_coaching_report(session_id)
     if report is not None:
+        # Filter out hallucinated corners beyond the actual corner count.
+        num_corners = len(next(iter(sd.all_lap_corners.values()), []))
+        if num_corners > 0 and report.corner_grades:
+            valid = set(range(1, num_corners + 1))
+            report.corner_grades = [g for g in report.corner_grades if g.corner in valid]
         return report
 
     if is_generating(session_id):

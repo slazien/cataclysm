@@ -632,9 +632,13 @@ def _build_coaching_prompt(
             "The raw KPI table below is for lap-specific citations only.\n"
         )
 
+    # Determine the number of corners from the data to constrain the AI output.
+    num_corners = len(next(iter(all_lap_corners.values()), []))
+
     return f"""Track: {track_name}
 Best Lap: L{best.lap_number} ({best_min}:{best_sec:05.2f})
 Total laps: {len(summaries)}
+Number of corners: {num_corners} (T1 through T{num_corners})
 {corner_analysis_section}\
 ## Lap Times
 {lap_text}
@@ -678,6 +682,10 @@ Respond in JSON with this exact structure:
     "<specific practice drill for weakness 2>"
   ]
 }}
+
+Include exactly {num_corners} entries in corner_grades \
+(one per corner, T1 through T{num_corners}). \
+Do NOT include corners beyond T{num_corners}.
 
 Include 1-2 specific practice drills tailored to the driver's weakest areas. \
 Each drill should reference a specific corner number and give the driver \
@@ -857,6 +865,12 @@ def generate_coaching_report(
             )
             report.validation_failed = True
             report.validation_violations = retry_validation.violations
+
+    # Filter out hallucinated corners beyond the actual corner count.
+    num_corners = len(next(iter(all_lap_corners.values()), []))
+    if num_corners > 0:
+        valid = set(range(1, num_corners + 1))
+        report.corner_grades = [g for g in report.corner_grades if g.corner in valid]
 
     return report
 
