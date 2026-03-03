@@ -15,6 +15,7 @@ import { SettingsPanel } from '@/components/shared/SettingsPanel';
 import { ToastContainer } from '@/components/shared/ToastContainer';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { KeyboardShortcutOverlay } from '@/components/shared/KeyboardShortcutOverlay';
+import { DisclaimerModal } from '@/components/shared/DisclaimerModal';
 
 export default function Home() {
   const settingsPanelOpen = useUiStore((s) => s.settingsPanelOpen);
@@ -55,6 +56,7 @@ export default function Home() {
       <SettingsPanel />
       <ToastContainer />
       <KeyboardShortcutOverlay />
+      <DisclaimerModal />
     </div>
   );
 }
