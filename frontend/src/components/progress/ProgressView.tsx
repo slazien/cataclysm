@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion as m } from 'motion/react';
 import { useSessionStore } from '@/stores';
-import { useSession } from '@/hooks/useSession';
+import { useSession, useSessions } from '@/hooks/useSession';
 import { useTrends, useMilestones } from '@/hooks/useTrends';
 import { formatTimeShort, parseSessionDate } from '@/lib/formatters';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
@@ -43,7 +43,7 @@ interface TrackOption {
 
 export function ProgressView() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
-  const sessions = useSessionStore((s) => s.sessions);
+  const { data: sessionsData } = useSessions();
   const { data: session, isLoading: sessionLoading } = useSession(activeSessionId);
   const { showFeature } = useSkillLevel();
   const { data: recentAchievementsData } = useRecentAchievements(!!activeSessionId);
@@ -66,9 +66,10 @@ export function ProgressView() {
   }, [activeSessionId]);
 
   // Derive available tracks from all sessions, sorted by session count descending
+  const allSessions = sessionsData?.items ?? [];
   const availableTracks: TrackOption[] = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const s of sessions) {
+    for (const s of allSessions) {
       const name = s.track_name;
       if (!name) continue;
       counts.set(name, (counts.get(name) ?? 0) + 1);
@@ -76,7 +77,7 @@ export function ProgressView() {
     return Array.from(counts.entries())
       .map(([name, sessionCount]) => ({ name, sessionCount }))
       .sort((a, b) => b.sessionCount - a.sessionCount || a.name.localeCompare(b.name));
-  }, [sessions]);
+  }, [allSessions]);
 
   const effectiveTrack = selectedTrack ?? sessionTrackName;
 
@@ -201,8 +202,8 @@ export function ProgressView() {
 
   // Derive the latest session ID at the effective track for the skill radar
   const latestTrackSessionId = useMemo(() => {
-    if (!effectiveTrack) return null;
-    const trackSessions = sessions
+    if (!effectiveTrack || !sessionsData?.items) return null;
+    const trackSessions = sessionsData.items
       .filter((s) => s.track_name === effectiveTrack)
       .sort((a, b) => {
         const da = new Date(a.session_date).getTime();
@@ -210,7 +211,7 @@ export function ProgressView() {
         return db - da;
       });
     return trackSessions.length > 0 ? trackSessions[0].session_id : null;
-  }, [sessions, effectiveTrack]);
+  }, [sessionsData?.items, effectiveTrack]);
 
   const showSkillRadar = (trendData?.sessions.length ?? 0) >= 2 && !!latestTrackSessionId;
 
