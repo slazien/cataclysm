@@ -5,19 +5,23 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Annotated
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
 
 from backend.api.config import Settings
+from backend.api.db.database import get_db
 from backend.api.rate_limit import limiter
 from backend.api.routers import (
     achievements,
@@ -374,6 +378,12 @@ app.include_router(progress.router, prefix="/api/progress", tags=["progress"])
 
 
 @app.get("/health")
-async def health_check() -> dict[str, str]:
-    """Return a simple health-check response."""
-    return {"status": "ok"}
+async def health_check(db: Annotated[AsyncSession, Depends(get_db)]) -> dict[str, str]:
+    """Health check that verifies database connectivity."""
+    try:
+        await db.execute(text("SELECT 1"))
+        db_status = "ok"
+    except Exception:  # noqa: BLE001
+        db_status = "error"
+    status = "ok" if db_status == "ok" else "degraded"
+    return {"status": status, "db": db_status}
