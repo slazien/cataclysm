@@ -307,6 +307,7 @@ class ShareComparisonReport(Base):
     )
     challenger_session_id: Mapped[str] = mapped_column(String, nullable=False)
     report_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    ai_comparison_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Relationship

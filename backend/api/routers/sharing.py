@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import logging
+import os
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -28,6 +30,10 @@ from backend.api.services.session_store import get_session
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Haiku model used for AI comparison narrative
+_HAIKU_MODEL = "claude-haiku-4-5-20251001"
+_HAIKU_MAX_TOKENS = 1024
 
 # Share links expire after 7 days
 SHARE_EXPIRY_DAYS = 7
@@ -224,3 +230,130 @@ async def get_share_comparison(
         skill_dimensions=data.get("skill_dimensions"),
         ai_verdict=data.get("ai_verdict"),
     )
+
+
+# ---------------------------------------------------------------------------
+# AI comparison narrative
+# ---------------------------------------------------------------------------
+
+
+class AiComparisonResponse(BaseModel):
+    """Response for the AI comparison narrative endpoint."""
+
+    ai_comparison_text: str
+
+
+def _build_comparison_prompt(data: dict[str, object]) -> str:
+    """Build a prompt for Haiku from comparison data."""
+    session_a_best = float(data.get("session_a_best_lap", 0) or 0)
+    session_b_best = float(data.get("session_b_best_lap", 0) or 0)
+    corner_deltas = data.get("corner_deltas", [])
+
+    lines = [
+        "You are a motorsport driving coach comparing two drivers' laps.",
+        "Write a 3-4 paragraph analysis suitable for a shared comparison page.",
+        "Be specific about corner numbers and time differences.",
+        "Use an encouraging but honest tone.",
+        "",
+        f"Driver A best lap: {session_a_best:.3f}s",
+        f"Driver B best lap: {session_b_best:.3f}s",
+        f"Overall delta: {session_a_best - session_b_best:+.3f}s",
+        "",
+        "Corner-by-corner deltas:",
+    ]
+
+    if isinstance(corner_deltas, list):
+        for cd in corner_deltas:
+            if not isinstance(cd, dict):
+                continue
+            corner_num = cd.get("corner_number", "?")
+            speed_diff = float(cd.get("speed_diff_mph", 0) or 0)
+            faster = "A faster" if speed_diff > 0 else "B faster"
+            lines.append(f"  Turn {corner_num}: {abs(speed_diff):.1f} mph ({faster})")
+
+    lines.append("")
+    lines.append(
+        "Write a concise comparison narrative (3-4 paragraphs). "
+        "Highlight the biggest differences and where each driver excels."
+    )
+    return "\n".join(lines)
+
+
+async def _call_haiku_comparison(prompt: str) -> str:
+    """Call Claude Haiku to generate a comparison narrative.
+
+    Uses the synchronous Anthropic client in a thread to avoid blocking
+    the event loop, matching the pattern in cataclysm.coaching.
+    """
+    import asyncio
+
+    import anthropic
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return (
+            "AI comparison is unavailable (no API key configured). "
+            "Please check your ANTHROPIC_API_KEY environment variable."
+        )
+
+    client = anthropic.Anthropic(api_key=api_key, max_retries=3, timeout=60.0)
+
+    def _call() -> str:
+        msg = client.messages.create(
+            model=_HAIKU_MODEL,
+            max_tokens=_HAIKU_MAX_TOKENS,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return msg.content[0].text  # type: ignore[union-attr]
+
+    return await asyncio.to_thread(_call)
+
+
+async def _get_or_generate_ai_comparison(
+    report: ShareComparisonReport,
+    db: AsyncSession,
+) -> str:
+    """Return cached AI comparison text, or generate and persist it."""
+    if report.ai_comparison_text:
+        return report.ai_comparison_text
+
+    comparison_data = report.report_json or {}
+    prompt = _build_comparison_prompt(comparison_data)
+    text = await _call_haiku_comparison(prompt)
+
+    # Cache on the report row
+    report.ai_comparison_text = text
+    db.add(report)
+    await db.flush()
+
+    return text
+
+
+@router.post("/{token}/ai-comparison", response_model=AiComparisonResponse)
+async def generate_ai_comparison(
+    token: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> AiComparisonResponse:
+    """Generate (or return cached) AI comparison narrative for a share link.
+
+    No auth required — this is a public share endpoint.
+    """
+    # Verify the share token exists
+    result = await db.execute(select(SharedSession).where(SharedSession.token == token))
+    shared = result.scalar_one_or_none()
+    if shared is None:
+        raise HTTPException(status_code=404, detail="Share link not found")
+
+    # Get the most recent comparison report
+    report_result = await db.execute(
+        select(ShareComparisonReport)
+        .where(ShareComparisonReport.share_token == token)
+        .order_by(ShareComparisonReport.created_at.desc())
+        .limit(1)
+    )
+    report = report_result.scalar_one_or_none()
+    if report is None or report.report_json is None:
+        raise HTTPException(status_code=404, detail="No comparison available yet")
+
+    text = await _get_or_generate_ai_comparison(report, db)
+    return AiComparisonResponse(ai_comparison_text=text)
