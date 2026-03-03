@@ -2,7 +2,7 @@
 
 *Unified plan synthesizing the literature review (60+ sources), killer features research, competitive UX analysis, social features design, and current architecture into a single actionable roadmap.*
 
-*March 2026 — Reconciled with social features P0-P3 implementation plans.*
+*March 2026 — Reconciled with social features P0-P3 implementation plans. Audited against codebase — completed features marked ✅, partial ⚠️, remaining ❌.*
 
 ---
 
@@ -48,49 +48,46 @@ No product combines real-world track data + AI coaching + web-based accessibilit
 
 **Research basis:** Multiple motor learning papers (PMC1780106, PMC7371850) confirm that too much feedback hurts skill learning. Ross Bentley's "2 priorities per session" rule is scientifically validated.
 
-**Current state:** `coaching.py` generates coaching for every corner. The coaching report can be overwhelming.
+**Current state:** `coaching.py` generates coaching for every corner. The prompt includes "Focus on the 2-3 biggest improvements" as a soft guideline, but there's no hard cap.
 
 **Changes:**
 
-#### A. Priority Limiter (`coaching.py`)
-- Cap coaching to **3 actionable priorities per session** in the summary prompt
+#### A. Priority Limiter (`coaching.py`) — ⚠️ PARTIAL (soft guideline exists, needs hard enforcement)
+- Enforce a hard cap of **3 actionable priorities per session** in the summary prompt
 - Rank by estimated time gain (already computed in `gains.py`)
 - The detailed corner-by-corner analysis stays available but is secondary
-- Add to system prompt: "Identify the THREE corners with the largest improvement opportunity. For each, provide ONE specific actionable change."
+- Strengthen prompt: "Identify the THREE corners with the largest improvement opportunity. For each, provide ONE specific actionable change."
 
-#### B. Staged Coaching Tone (`coaching.py` + `kb_selector.py`)
-Map coaching style to Fitts-Posner motor learning stages:
+#### B. Staged Coaching Tone (`coaching.py` + `kb_selector.py`) — ✅ DONE
+Already implemented as `_SKILL_PROMPTS` dict with three branches:
+- **Novice** (HPDE Group 1-2): 1-2 priorities, no trail braking, encouraging language
+- **Intermediate** (HPDE Group 3): Trail braking, brake optimization, consistency focus
+- **Advanced** (HPDE Group 4+): Micro-optimization, composite/theoretical analysis
 
-| Skill Level | Stage | Coaching Style | Example |
-|------------|-------|---------------|---------|
-| Novice | Cognitive | Directive with landmarks | "Brake at the 3-board marker for Turn 5" |
-| Intermediate | Associative | Consistency + technique | "Your T5 brake point varied by 15m — aim for the 100m board every lap" |
-| Advanced | Autonomous | Quantified comparison | "T5 entry speed: 62mph vs 64mph PR. Trail braking 0.3s shorter than your best lap." |
+No further work needed.
 
-**Implementation:** Add `SKILL_TONE_PROMPTS` dict in `coaching.py` keyed by skill level. Inject into system prompt alongside KB snippets.
-
-#### C. OIS Coaching Format
-Every coaching insight follows Observation → Impact → Suggestion:
+#### C. OIS Coaching Format — ❌ TODO
+Every coaching insight should follow Observation → Impact → Suggestion:
 
 ```
 Observation: "You braked 12m early into Turn 5 compared to your best lap"
 Impact: "This cost approximately 0.3 seconds per lap"
-Suggestion: "Try braking at the 2-board marker instead of before the 3-board"
+Suggestion: "Experiment with braking closer to the 2-board marker"
 ```
 
-**Implementation:** Add OIS format instruction to `COACHING_SYSTEM_PROMPT` in `driving_physics.py`. Require the LLM to structure every recommendation in this format.
+**Implementation:** Add OIS format instruction to `COACHING_SYSTEM_PROMPT` in `driving_physics.py`. Require the LLM to structure every recommendation in this format. Note: Suggestions must stay grounded in telemetry data — "experiment with X" rather than prescribing physical technique.
 
-#### D. Positive Framing First
-Research (Lappi 2018) and competitive analysis (Garmin Catalyst, Blayze) show leading with positives improves learning outcomes.
+#### D. Positive Framing First — ⚠️ PARTIAL (soft instruction exists, needs structuring)
+Current prompt says "Be encouraging but honest" and "celebrate what they're doing well" but doesn't enforce leading with positives.
 
-**Implementation:** Add to system prompt: "Lead with what the driver does well (2-3 specific strengths) before identifying improvement areas. Ratio should be approximately 60% positive / 40% improvement."
+**Implementation:** Strengthen to: "Begin the report with 2-3 specific data-backed strengths (e.g., 'Your T7 consistency was excellent — only 0.1s variance'). Then transition to improvement areas. Ratio: ~60% positive / 40% improvement."
 
-#### E. Corner Speed Sensitivity Context
-Ross Bentley's simulation: 1 mph more through a corner ≈ 0.5s/lap. This makes advice concrete.
+#### E. Corner Speed Sensitivity Context — ❌ TODO
+Ross Bentley's generic "1 mph more ≈ 0.5s/lap" varies by track and corner.
 
-**Implementation:** Add to `DRIVING_PHYSICS_REFERENCE`: corner speed sensitivity data. When coaching mentions carrying more speed, include estimated lap time impact: "Carrying 2 more mph through Turn 5 could save approximately 0.1s at this corner alone."
+**Implementation:** Compute corner-specific speed sensitivity from the driver's own telemetry: simulate "what if min speed was 1mph higher?" by adjusting speed profile and recomputing segment time via the velocity profile solver. This replaces the generic Bentley approximation with a data-grounded, car+track-specific number. Add the computed value to the coaching prompt context per corner.
 
-### 2.2 Reflective Questions
+### 2.2 Reflective Questions — ❌ TODO
 
 **Research basis:** Lappi 2018 (12 deliberate practice procedures), Ziv 2023 (embodied cognition), Inner Speed Secrets (conscious vs. subconscious processing).
 
@@ -110,28 +107,28 @@ Ross Bentley's simulation: 1 mph more through a corner ≈ 0.5s/lap. This makes 
 
 ## 3. Phase 2: Knowledge Base Expansion
 
-*Expand from 20 KB snippets to 50+ with deeper physics and new coaching domains.*
+*Expand from 18 KB snippets to 50+ with deeper physics and new coaching domains.*
 
-### 3.1 New KB Snippet Categories
+### 3.1 New KB Snippet Categories — ❌ TODO
 
-**Current state:** `kb_selector.py` has 20 snippets from *Going Faster!* only. Pattern detection is limited to 7 triggers.
+**Current state:** `kb_selector.py` has **18 snippets** from *Going Faster!* only (9 base snippets by skill level + 9 pattern-triggered snippets). Pattern detection has **9 triggers** (not 7 as originally estimated).
 
 **New categories to add:**
 
 #### A. Load Transfer Quantification (from literature review §8)
+**Note:** These snippets become **dynamic** once the Vehicle Specs DB (§3.5) is implemented — hardcoded "3000lb car" is replaced with the driver's actual car specs.
 ```python
+# Static fallback (used until vehicle DB is integrated):
 "LT.1": (
     "Load transfer under braking: at 1g braking in a typical 3000lb track car, "
     "approximately 625 lbs transfers to the front tires — the front carries 71% of "
     "total vehicle weight. This is why front tire grip increases dramatically under "
     "braking, enabling trail braking to tighten your line."
 ),
-"LT.2": (
-    "Load transfer in cornering: at 1g lateral, approximately 1000 lbs transfers to "
-    "the outside tires — the outside tires carry 83% of total weight. The outside-front "
-    "tire does most of the work. This is why smooth weight transfer matters — abrupt "
-    "transitions cause momentary grip loss as tires adjust."
-),
+# Dynamic version (with vehicle DB):
+# f"Load transfer under braking at 1g: {delta_w_front:.0f} lbs transfers to the front — "
+# f"the front carries {front_pct:.0f}% of total weight."
+# f"(Computed for your {vehicle.make} {vehicle.model} at {vehicle.weight_kg:.0f}kg)"
 ```
 
 #### B. Brake Trace Pattern Recognition (from literature review §8)
@@ -315,77 +312,62 @@ f"(Computed for your {vehicle.make} {vehicle.model} at {vehicle.weight_kg:.0f}kg
 
 *Add the highest-impact visualizations identified in the killer features research.*
 
-### 4.1 Mini-Sector Gain/Loss Map (Killer Feature #4)
+### 4.1 Mini-Sector Gain/Loss Map (Killer Feature #4) — ✅ DONE
 
-**What:** Divide track into 10-20 equal-distance sectors. Color each on track map: green (faster than avg), purple (personal best), yellow/red (slower). Show gain/loss bar per sector.
+**Fully implemented:**
+- Backend: `cataclysm/mini_sectors.py` with `MiniSector` and `MiniSectorLapData` dataclasses, `compute_mini_sectors()` function
+- API: `GET /{session_id}/mini-sectors` with configurable `n_sectors` (3-100, default 20)
+- Frontend: `MiniSectorMap.tsx` — GPS-projected polylines, color-coded by classification (pb/faster/slower/neutral)
+- Hook: `useMiniSectors()` in `useAnalysis.ts`
 
-**Why:** F1 broadcasts prove this is the most intuitive visualization. Answers "where am I slow?" in 2 seconds. No consumer tool does this.
+### 4.2 Time Gained per Corner — Strokes Gained (Killer Feature #2) — ✅ DONE
 
-**Implementation:**
-- Backend: `mini_sectors.py` — divide distance domain into N equal segments, compute time per segment per lap
-- Frontend: Color track map segments. Add delta bar chart below map.
-- **Already exists conceptually:** Track is resampled in distance domain. D3 track map component exists. This is mainly frontend work with a thin backend computation.
+**Fully implemented:**
+- Backend: `cataclysm/gains.py` — three-tier system (ConsistencyGain, CompositeGain, TheoreticalGain) with per-corner time gains
+- API: `GET /{session_id}/gains`
+- Frontend: `TimeGainedChart.tsx` — bar chart showing top time-gaining corners, sorted by gain descending
+- Hook: `useGains()` in `useAnalysis.ts`
 
-**Complexity:** LOW — ~2 days backend, ~3 days frontend.
+### 4.3 G-G Diagram with Utilization Score (Literature Review §12 Priority 3) — ❌ TODO
 
-### 4.2 Time Gained per Corner — Strokes Gained (Killer Feature #2)
-
-**What:** Golf's Strokes Gained applied to motorsport. Rank corners by "where you're leaving the most time."
-
-**Why:** Arccos Golf (500M shot database) proves this transforms how amateurs improve. No motorsport tool implements this.
-
-**Implementation:**
-- Backend: Already computed in `gains.py` (ConsistencyGain has per-segment gains). Surface the data more prominently.
-- Frontend: New "Time Gained" card at session summary level. Corner ranking by time opportunity. Simple bar chart: `gain_s` per corner, sorted descending.
-- **Key UX:** "You're leaving 0.4s at Turn 5" is infinitely more actionable than a speed trace.
-
-**Complexity:** LOW — The math already exists. This is primarily a frontend presentation change.
-
-### 4.3 G-G Diagram with Utilization Score (Literature Review §12 Priority 3)
-
-**What:** Scatter plot of lateral G vs. longitudinal G for each lap. Overlay the theoretical traction circle. Score = area used / area available.
+**What:** Scatter plot of lateral G vs. longitudinal G for each lap. Overlay the reference traction circle. Score = area used / area available.
 
 **Why:** "You're using 75% of available grip through T3" is immediately actionable. Three patterns to detect: poor trail braking (gap between braking and cornering quadrants), insufficient entry speed (dots inside the circle), abrupt transitions (spikes).
 
-**Implementation:**
-- Backend: `gg_diagram.py` — compute per-sample lat_g and long_g from GPS data (already have speed + heading). Calculate utilization as area of convex hull / area of max-g circle.
-- Frontend: D3 scatter plot with overlaid reference circle. Per-corner filtering. Utilization percentage as a headline number.
+**Note:** Lateral and longitudinal G traces already exist in `LinkedChartResponse` (`lateral_g_traces`, `longitudinal_g_traces`), so the raw data is available. What's missing is the G-G scatter visualization and utilization computation.
 
-**Complexity:** MEDIUM — needs new backend computation + new D3 chart component.
-
-### 4.4 Brake Fade & Tire Degradation Detection (Killer Feature #3)
-
-**What:** Track per-corner metrics across all laps. Detect: declining peak brake G (brake fade), declining corner speed + increasing brake distance (tire degradation).
-
-**Why:** No consumer tool does this automatically. Safety-relevant and immediately actionable.
+**Caveat:** GPS-derived G is noisy at 25Hz. Smoothing clips peaks, so utilization scores will read systematically lower than with accelerometer data. Solution: normalize against observed max G (not theoretical traction circle) — measures "how close to YOUR observed limit" rather than a theoretical max. This also avoids needing the tire mu.
 
 **Implementation:**
-- Backend: `degradation.py` — for each corner, compute linear regression of (lap_number → peak_brake_g) and (lap_number → min_speed). Flag if slope exceeds threshold.
-- Frontend: Trend line on existing per-corner charts. Alert card: "Brake fade detected at Turn 5 starting lap 8 — peak braking dropped from 1.1g to 0.8g."
+- Backend: `gg_diagram.py` — compute utilization as convex hull area / observed-max-g circle area. Per-corner filtering.
+- Frontend: D3 scatter plot with overlaid reference circle. Per-corner tab. Utilization % as headline number.
 
-**Complexity:** MEDIUM — new backend module + UI alerts.
+**Complexity:** MEDIUM — ~3 days (backend module exists in raw data, needs aggregation + new D3 component).
 
-### 4.5 Voice-Narrated Session Summary (Killer Feature #5)
+### 4.4 Brake Fade & Tire Degradation Detection (Killer Feature #3) — ✅ DONE
 
-**What:** Press play and hear the AI coaching report read aloud.
+**Fully implemented:**
+- Backend: `cataclysm/degradation.py` — `DegradationEvent` and `DegradationAnalysis` dataclasses, linear regression with R²≥0.5 threshold, severity classification (mild/moderate/severe)
+- API: `GET /{session_id}/degradation`
+- Frontend: `DegradationAlerts.tsx` — alerts for brake fade and tire degradation
+- Hook: `useDegradation()` in `useAnalysis.ts`
 
-**Why:** Web Speech API is free, zero cost. trophi.ai's "Mansell AI" sets user expectations. ACM study (2025) found conversational AI coaching rated more useful than dashboards.
+### 4.5 Voice-Narrated Session Summary (Killer Feature #5) — ✅ DONE
 
-**Implementation:**
-- Frontend only: Wire existing coaching report text to `SpeechSynthesis` API (~10 lines of JS).
-- Add a "Listen" button to the coaching report card.
+**Fully implemented:**
+- Frontend: `useSpeechSynthesis.ts` — Web Speech API integration with speak/pause/stop controls
+- Used in: `ReportSummary.tsx` — narrates coaching report text aloud
+- Rate, pitch, volume configurable
 
-**Complexity:** LOW — ~1 day.
+### 4.6 Animated Lap Replay (Killer Feature #15) — ✅ DONE
 
-### 4.6 Animated Lap Replay (Killer Feature #15)
+**Fully implemented:**
+- Frontend: `LapReplay.tsx` — animates car position along track with synchronized speed gauge and G-force trail
+- Sub-components: `ReplayControls.tsx` (play/pause/speed), `ReplayTrackMap.tsx` (GPS viz), `GForceDisplay.tsx`
+- Hook: `useReplay()` — manages playback state, current index, timestamp sync
+- Available as a Deep Dive sub-tab (gated to intermediate+ skill level)
 
-**What:** D3.js dot tracing the racing line with synchronized speed gauge and throttle/brake bars.
-
-**Implementation:**
-- Frontend: Animate a dot along the track map path at time-proportional speed. Sync with speed/G readouts.
-- Export via MediaRecorder API (canvas recording to MP4 for sharing).
-
-**Complexity:** MEDIUM-HIGH — ~5 days.
+**Remaining:** MediaRecorder API export for sharing (canvas recording to MP4) — not yet implemented.
 
 ---
 
@@ -393,90 +375,70 @@ f"(Computed for your {vehicle.make} {vehicle.model} at {vehicle.weight_kg:.0f}kg
 
 *Restructure the experience around progressive disclosure and persona-adaptive UI.*
 
-### 5.1 Progressive Disclosure (Exactly 2 Levels)
+### 5.1 Progressive Disclosure — ✅ DONE (tab-based, 4 views)
 
-**Research basis:** UX research confirms 2-level progressive disclosure reduces error rates by 89% and cognitive load by 40%.
+**Current implementation:** The app uses a tab-based progressive disclosure model with four views:
+1. **Report** — AI coaching summary hero, priority corners, corner grades, patterns/drills
+2. **Deep Dive** — Speed, Corner, Sectors (intermediate+), Replay (intermediate+) sub-tabs
+3. **Progress** — Trend analysis across sessions
+4. **Debrief** — Mobile-optimized pit lane summary
 
-#### Level 1 — Session Summary (Default View)
+This differs from a strict 2-level expand/collapse pattern but achieves the same goal — summary first (Report tab), detail on demand (Deep Dive tab). The dashboard (`SessionDashboard`) already has a hero metrics row (session score, best lap, top 3 avg, session avg) + grid layout (priorities, track map, time gained, skill radar, lap times).
 
-When a session loads, show:
+**Remaining opportunity:** The Report → Deep Dive transition could be made more seamless (e.g., clicking a corner in the Report could auto-navigate to Deep Dive with that corner selected).
 
-```
-┌─────────────────────────────────────────────────────┐
-│  SESSION SCORE: 78/100          Best: 1:45.2 (-0.8s)│
-│  ─────────────────────────────────────────────────── │
-│  TOP 3 PRIORITIES                                    │
-│  1. Turn 5: Brake 12m earlier → save ~0.3s          │
-│  2. Turn 3: Carry 2mph more through apex → save ~0.2s│
-│  3. Esses: Smoother steering → save ~0.15s           │
-│  ─────────────────────────────────────────────────── │
-│  [Track Map - mini-sector colored]  [Lap Time Chart] │
-│  ─────────────────────────────────────────────────── │
-│  Consistency: 82%  |  Best Corner: T7  |  Laps: 18  │
-│  ─────────────────────────────────────────────────── │
-│  [↗ Share Card]  [🔗 Challenge a Friend]             │
-└─────────────────────────────────────────────────────┘
-```
+### 5.2 Session Score (0-100) — ✅ DONE
 
-#### Level 2 — Detailed Analysis (Drill-In)
+**Fully implemented:**
+- Frontend: `SessionScore.tsx` — circular progress ring with animated counter (800ms ease-out)
+- Calculation (in `SessionDashboard.tsx`):
+  - Consistency (40%): lap-to-lap performance variance
+  - Pace (30%): best lap vs ideal lap time
+  - Corner Grades (30%): average grade across all corners
+- Color coding: green ≥80, amber 60-80, red <60
+- Subtitle: "Strong session" / "Room to improve" / "Focus on fundamentals"
+- Displayed as hero metric in dashboard
 
-Click any corner or "Deep Dive" to see:
-- Speed trace with multi-lap overlay
-- Delta-T visualization
-- Corner-by-corner expandable cards (grade + KPIs)
-- Full AI coaching report
-- G-G diagram
-- Consistency analysis
-- Corner leaderboard (per-corner, multi-category)
+**Note:** The plan's original "Technique component" mentioned "line accuracy" — the current implementation uses corner grades (A/B/C/D/F) instead, which is better grounded since it's based on telemetry-observable metrics (brake point, min speed, throttle commit) rather than GPS lateral position.
 
-### 5.2 Session Score (0-100)
+### 5.3 Persona-Adaptive UI — ✅ DONE (comprehensive)
 
-**New metric** — a composite score that gives an instant answer to "how was my session?"
+**Fully implemented** via `useSkillLevel.ts` with 13 feature toggles:
 
-**Calculation:**
-- Consistency component (40%): How close were your laps to your best? `1 - (std_dev / mean_laptime)`
-- Improvement component (30%): Did you improve vs. previous session at this track?
-- Technique component (30%): Aggregate of per-corner grades (brake point accuracy, trail braking, throttle commit, line accuracy)
-
-**Implementation:** New `session_score.py` module. Displayed prominently as a large number with color (green >80, yellow 60-80, red <60). Also shown as a badge in the TopBar contextual bar (see Social P1 Task 7).
-
-**Social integration:** Session score IS the social identity — it appears on share cards, in leaderboards, and as the hero stat in the TopBar.
-
-### 5.3 Persona-Adaptive UI
-
-The skill level selector should meaningfully change what the user sees:
-
-| Element | Novice | Intermediate | Advanced |
+| Feature | Novice | Intermediate | Advanced |
 |---------|--------|-------------|----------|
-| Session summary | Score + "You improved!" | Score + top 3 corners | Score + full KPI table |
-| Track map | Speed-colored | Mini-sector gain/loss | G-utilization overlay |
-| Coaching format | Plain English directives | Technique + data context | Quantified targets + trends |
-| Deep dive | Simplified (speed trace only) | Speed + brake + throttle | All channels + g-g diagram |
-| Visible charts | 3-4 key charts | 6-8 charts | Everything |
+| Sectors Tab | No | Yes | Yes |
+| Custom Tab | No | No | Yes |
+| Replay Tab | No | Yes | Yes |
+| Heatmap | No | Yes | Yes |
+| Boxplot | No | Yes | Yes |
+| Absolute Distances | No | Yes | Yes |
+| Relative Distances | Yes | Yes | No |
+| Grade Explanations | Yes | No | No |
+| Guided Prompts | Yes | Yes | No |
+| Raw Data Table | No | No | Yes |
+| Keyboard Overlay | No | No | Yes |
+| Delta Breakdown | No | Yes | Yes |
+| G-Force Analysis | No | No | Yes |
 
-**Implementation:** Use skill level from user settings to conditionally render components. Not hiding data — providing appropriate defaults with ability to expand.
+Persisted in Zustand store via persist middleware. Default: Intermediate.
 
-### 5.4 "5-Minute Pit Lane Debrief" View (Killer Feature #6)
+### 5.4 "5-Minute Pit Lane Debrief" View (Killer Feature #6) — ✅ DONE
 
-**What:** Mobile-optimized single-screen summary for between sessions at the track.
+**Fully implemented:**
+- `PitLaneDebrief.tsx` with hero card (pit board style), time-loss corners analysis, quick tips, consistency metrics
+- Sub-components: `DebriefHeroCard.tsx`, `TimeLossCorners.tsx`, `QuickTip.tsx`
+- Available as a tab in both desktop TopBar and mobile bottom nav
+- Mobile-optimized layout
 
-**Implementation:**
-- New `/debrief` view or a "Pit Debrief" toggle on the session page
-- Contains: hero card (best lap + delta), top 3 corners losing time, consistency %, ONE coaching tip for next session
-- Auto-generated on CSV upload
-- Optimized for phone screen (stacked cards, large text, swipeable)
+### 5.5 Insight Annotations on Charts — ⚠️ PARTIAL
 
-**Complexity:** LOW-MEDIUM — curate existing data into a new responsive layout.
+**Current state:** `TopPriorities.tsx` shows AI coaching insights prominently on the dashboard. Some charts have annotation infrastructure but it's sparse and feature-flagged. Corner grade explanations exist (gated to novice skill level).
 
-### 5.5 Insight Annotations on Charts
-
-**Research basis:** "Never show a chart without explaining what it means" (competitive UX analysis).
-
-**Implementation:**
-- Every chart panel gets a 1-line AI-generated insight above it
-- Speed trace: "Your minimum speed through T5 varied by 4mph — consistency here would save ~0.2s"
-- Lap times: "Your pace dropped after lap 12 — possible tire degradation or fatigue"
-- These are generated as part of the coaching pipeline, not separate API calls
+**Remaining:**
+- Expand to all major charts (speed trace, lap times, heatmap)
+- Annotations should be precomputed in the coaching pipeline and delivered via API, not generated client-side
+- Time impact estimates (e.g., "consistency here would save ~0.2s") must be computed from telemetry, not AI-guessed
 
 ---
 
@@ -620,15 +582,15 @@ These require user density to justify. Architecture notes in `p2p3-implementatio
 - Stagnation alerts: "T5 has been your #1 time loss for 3 sessions — focus here next"
 - Rolling average trend lines (not just raw lap times)
 
-### 7.2 Skill Radar Chart (Killer Feature #10)
+### 7.2 Skill Radar Chart (Killer Feature #10) — ✅ DONE
 
-**What:** Four dimensions tracked over time:
-1. Braking (brake point accuracy + peak brake G utilization)
-2. Trail Braking (brake-turn overlap quality)
-3. Throttle Application (throttle commit distance + progressiveness)
-4. Line Accuracy (apex hit rate + consistency)
+**Fully implemented:**
+- Frontend: `SkillRadar.tsx` — D3 radar plot with 4-5 skill dimensions (braking, trail braking, entry/min speed, throttle/exit)
+- Computation: `skillDimensions.ts` — `computeSkillDimensions()` converts corner grades to 0-100 scores per axis
+- Color: Indigo (#6366f1), shows average score across all axes
+- Displayed on `SessionDashboard` in the grid layout
 
-**Implementation:** D3 radar chart. Computed from existing per-corner KPIs. Show evolution across sessions.
+**Remaining:** Show evolution across sessions (session-over-session overlay of radar shapes).
 
 ### 7.3 Corner Type-Specific Coaching Templates
 
@@ -645,11 +607,15 @@ Based on the 7-type geometric classification (LowerLaptime):
 
 **Implementation:** Classify corners by geometry (heading change rate profile). Inject corresponding coaching template as additional context in the LLM prompt.
 
-### 7.4 Optimal Racing Line Comparison
+### 7.4 Optimal Racing Line Comparison — ⚠️ BACKEND DONE, FRONTEND MINIMAL
 
-**Current:** `optimal_comparison.py` uses physics-based theoretical comparison.
+**Current:** `optimal_comparison.py` fully implements physics-based optimal comparison:
+- `CornerOpportunity` dataclass (actual/optimal min speed, speed gap, brake points, time cost)
+- `OptimalComparisonResult` with per-corner gaps and total delta
+- API: `GET /{session_id}/optimal-profile` (equipment-aware, uses tire grip params)
+- Frontend: Used indirectly for "Ideal Lap Time" metric card and session score computation
 
-**Enhancement:** Overlay the driver's actual GPS line on the track map alongside the theoretical optimal (outside-inside-outside). Color-code deviation. "Your line through T5 was 2m wide of the apex — tightening this could save ~0.1s."
+**Remaining enhancement:** Dedicated visualization showing the per-corner speed gap as a bar chart or overlay. Note: GPS lateral position claims ("2m wide of apex") exceed consumer GPS precision (3-5m). Use relative comparison (best lap vs other laps) or gate on GPS quality instead.
 
 ---
 
@@ -668,59 +634,63 @@ Quick wins — unblock social features that already exist but are inaccessible.
 **Spec:** `docs/plans/2026-03-02-social-features-p0p1-implementation.md` Tasks 1-3.
 **Outcome:** Users can now see and use share buttons, achievements, and corner leaderboards.
 
-### Wave 1: Coaching Intelligence (2-3 weeks)
+### Wave 1: Coaching Intelligence (1-2 weeks)
+
+*Skill-level prompts (1.2) already implemented. Focus on remaining coaching gaps.*
 
 | # | Task | Files | Effort |
 |---|------|-------|--------|
-| 1.1 | Add OIS format + 3-priority limit to coaching prompt | `driving_physics.py`, `coaching.py` | 1 day |
-| 1.2 | Add staged coaching tone (skill-level prompts) | `coaching.py` | 1 day |
-| 1.3 | Add positive framing + reflective questions to prompt | `driving_physics.py` | 0.5 day |
-| 1.4 | Add corner speed sensitivity data to physics reference | `driving_physics.py` | 0.5 day |
-| 1.5 | Expand KB from 20 to 40+ snippets (load transfer, brake traces, survival reactions, drivetrain, wet, vision) | `kb_selector.py` | 2 days |
-| 1.6 | Add new pattern detection triggers | `kb_selector.py` | 1 day |
+| ~~1.1~~ | ~~Staged coaching tone~~ | | ✅ DONE (`_SKILL_PROMPTS` in `coaching.py`) |
+| 1.2 | Add OIS format + harden 3-priority cap | `driving_physics.py`, `coaching.py` | 0.5 day |
+| 1.3 | Strengthen positive framing + add reflective questions | `driving_physics.py` | 0.5 day |
+| 1.4 | Compute corner speed sensitivity from telemetry | `velocity_profile.py`, `coaching.py` | 1 day |
+| 1.5 | Expand KB from 18 to 40+ snippets (load transfer, brake traces, survival reactions, drivetrain, wet, vision) | `kb_selector.py` | 2 days |
+| 1.6 | Add new pattern triggers (survival reaction, low grip, stagnation, short brake, aero) | `kb_selector.py` | 1 day |
 | 1.7 | Implement stagnation detection | New `stagnation.py` or in `gains.py` | 1 day |
-| 1.8 | Corner geometry classification | `corner_analysis.py` or new module | 2 days |
+| 1.8 | Corner geometry auto-classification | `corner_analysis.py` or new module | 2 days |
 | 1.9 | Vehicle specs DB (~40-50 common HPDE cars) | New `vehicle_db.py` | 1 day |
 | 1.10 | Vehicle selection UI + equipment profile integration | Frontend + backend | 1 day |
 | 1.11 | Dynamic load transfer + drivetrain KB snippet integration | `kb_selector.py`, `coaching.py` | 1 day |
 | 1.12 | Tests for all new modules | `tests/` | 2 days |
 | 1.13 | Validate coaching quality (sample prompts, check output) | Manual + validator | 1 day |
 
-**Outcome:** Coaching goes from "generic report" to "intelligent, prioritized, skill-adapted coach."
+**Outcome:** Coaching gains OIS structure, data-grounded sensitivity numbers, 2x more KB depth, and vehicle-specific physics context.
 
-### Wave 2: Key Visualizations (2-3 weeks)
+### Wave 2: Remaining Visualizations & Annotations (1 week)
 
-| # | Task | Files | Effort |
-|---|------|-------|--------|
-| 2.1 | Mini-sector computation backend | New `mini_sectors.py` | 1 day |
-| 2.2 | Mini-sector API endpoint | `backend/` | 0.5 day |
-| 2.3 | Mini-sector track map visualization (frontend) | New component | 3 days |
-| 2.4 | Time Gained per Corner — surface `gains.py` data prominently | Frontend refactor | 2 days |
-| 2.5 | Session Score computation | New `session_score.py` | 1 day |
-| 2.6 | Session Score API + frontend card | Backend + frontend | 1 day |
-| 2.7 | Voice narration (Web Speech API) | Frontend only | 0.5 day |
-| 2.8 | G-G diagram computation | New `gg_diagram.py` | 1 day |
-| 2.9 | G-G diagram frontend | New D3 component | 2 days |
-| 2.10 | Brake fade / tire degradation detection | New `degradation.py` | 1.5 days |
-| 2.11 | Degradation alerts frontend | Frontend cards/alerts | 1 day |
-| 2.12 | Tests | `tests/` | 2 days |
-
-**Dependency note:** Tasks 2.5-2.6 (session score) are prerequisites for Social P1 Task 7 (score in TopBar) and share card identity framing.
-
-**Outcome:** Visual experience goes from "telemetry charts" to "F1 broadcast-quality insight."
-
-### Wave 3: UX Overhaul (2-3 weeks)
+*Most visualizations already done. Only G-G diagram and chart annotations remain.*
 
 | # | Task | Files | Effort |
 |---|------|-------|--------|
-| 3.1 | Redesign session page to Level 1/Level 2 progressive disclosure | Major frontend refactor | 5 days |
-| 3.2 | Session Summary hero card (score + best lap + 3 priorities) | New component | 2 days |
-| 3.3 | Insight annotations on all chart panels | Coaching pipeline + frontend | 2 days |
-| 3.4 | Persona-adaptive rendering (skill level controls visible complexity) | Frontend conditional logic | 2 days |
-| 3.5 | Pit Lane Debrief mobile view | New responsive layout | 2 days |
-| 3.6 | QA testing (desktop + mobile device emulation) | Playwright | 2 days |
+| ~~2.1-2.3~~ | ~~Mini-sector (backend + API + frontend)~~ | | ✅ DONE |
+| ~~2.4~~ | ~~Time Gained per Corner~~ | | ✅ DONE |
+| ~~2.5-2.6~~ | ~~Session Score computation + frontend~~ | | ✅ DONE |
+| ~~2.7~~ | ~~Voice narration~~ | | ✅ DONE |
+| ~~2.10-2.11~~ | ~~Brake fade / tire degradation~~ | | ✅ DONE |
+| 2.1 | G-G diagram computation (normalize to observed max G) | New `gg_diagram.py` | 1 day |
+| 2.2 | G-G diagram frontend (D3 scatter + per-corner filter) | New component | 2 days |
+| 2.3 | Expand chart insight annotations to all major charts | Coaching pipeline + frontend | 2 days |
+| 2.4 | Tests | `tests/` | 1 day |
 
-**Outcome:** The app feels like it was designed by a driving instructor, not a data engineer.
+**Outcome:** G-G diagram fills the last major visualization gap. Chart annotations add narrative context everywhere.
+
+### Wave 3: UX Polish & Social P0 (1 week)
+
+*Core UX already done. Focus on polish, orphan fixes, and remaining gaps.*
+
+| # | Task | Files | Effort |
+|---|------|-------|--------|
+| ~~3.x~~ | ~~Progressive disclosure, hero card, persona-adaptive, debrief~~ | | ✅ ALL DONE |
+| 3.1 | Report→Deep Dive seamless corner click navigation | Frontend routing | 1 day |
+| 3.2 | Replay export via MediaRecorder (canvas → MP4 for sharing) | Frontend | 1 day |
+| 3.3 | Optimal comparison per-corner visualization (backend data exists) | Frontend component | 1 day |
+| 3.4 | Skill radar session-over-session overlay | Frontend component | 1 day |
+| 3.5 | P0: Move share buttons to SessionReportHeader | P0-1 | 0.5h |
+| 3.6 | P0: Unhide achievements/wrapped on mobile | P0-2 | 0.25h |
+| 3.7 | P0: Wire CornerLeaderboard into Deep Dive corner detail | P0-3 | 0.5h |
+| 3.8 | QA testing (desktop + mobile device emulation) | Playwright | 1 day |
+
+**Outcome:** Polish remaining gaps, unlock orphaned social features, ship P0 fixes.
 
 ### Wave 4: Social P1 Features (1-2 weeks)
 
@@ -732,7 +702,7 @@ Quick wins — unblock social features that already exist but are inaccessible.
 | 4.4 | Session score badge in TopBar contextual bar | P1 Task 7 | 0.25 day |
 | 4.5 | Expand leaderboard to multi-category (Late Braker, Smooth Operator) | P1 Task 8 | 2 days |
 | 4.6 | Add leaderboard position sharing | P1 Task 9 | 0.5 day |
-| 4.7 | Animated lap replay | Phase 3 §4.6 | 4 days |
+| ~~4.7~~ | ~~Animated lap replay~~ | | ✅ DONE (`LapReplay.tsx`) |
 
 **Spec:** `docs/plans/2026-03-02-social-features-p0p1-implementation.md` Tasks 4-9.
 **Outcome:** Every session generates shareable, identity-framed content. Users become ambassadors.
@@ -757,11 +727,12 @@ Quick wins — unblock social features that already exist but are inaccessible.
 
 | # | Task | Effort |
 |---|------|--------|
-| 6.1 | Multi-session progress dashboard enhancement | 3 days |
-| 6.2 | Skill radar chart (backend + D3 component) | 3 days |
-| 6.3 | Season Wrapped full generator (5-6 slides, Canvas cards) | 3 days |
-| 6.4 | Corner type-specific coaching templates | 2 days |
-| 6.5 | Optimal racing line overlay on track map | 3 days |
+| 6.1 | Multi-session progress dashboard enhancement (per-corner trends, milestones, rolling averages) | 3 days |
+| ~~6.2~~ | ~~Skill radar chart~~ | ✅ DONE (`SkillRadar.tsx` + `skillDimensions.ts`) |
+| ~~6.3~~ | ~~Season Wrapped generator~~ | ✅ DONE (`SeasonWrapped.tsx`, 4 slides + personalities) |
+| 6.2 | Skill radar session-over-session evolution overlay | 1 day |
+| 6.3 | Corner type-specific coaching templates (hairpin, chicane, esses, etc.) | 2 days |
+| 6.4 | Optimal comparison per-corner speed gap visualization | 2 days |
 
 ### Wave 7: Future Social (P3 — When User Density Justifies)
 
@@ -785,28 +756,34 @@ Quick wins — unblock social features that already exist but are inaccessible.
 |--------|---------|--------|
 | Physics accuracy (validator pass rate) | ~95% | >98% |
 | Coaching specificity (OIS format adherence) | Not measured | >90% of insights |
-| Priorities per session | Unlimited | Capped at 3 |
-| Skill-level adaptation | Basic | Full tone + content adaptation |
-| KB snippets available | 20 | 50+ |
-| Pattern detection triggers | 7 | 15+ |
+| Priorities per session | Soft "2-3" guideline | Hard cap at 3 |
+| Skill-level adaptation | ✅ Full (novice/intermediate/advanced) | Done |
+| KB snippets available | 18 | 50+ |
+| Pattern detection triggers | 9 | 15+ |
+| Vehicle-specific coaching | None | Car-specific load transfer, drivetrain, power-to-weight |
 
 ### User Experience
 
 | Metric | Current | Target |
 |--------|---------|--------|
 | Upload-to-insight time | ~30s | <15s perceived (skeleton UI) |
-| Charts with insight annotations | 0 | All main charts |
-| Mobile usability | Basic responsive | Dedicated pit debrief view |
-| Progressive disclosure levels | 1 (everything shown) | 2 (summary → detail) |
+| Charts with insight annotations | Sparse (TopPriorities only) | All main charts |
+| Mobile usability | ✅ Responsive + pit debrief | Done |
+| Progressive disclosure levels | ✅ 4 views (Report/DeepDive/Progress/Debrief) | Done |
+| Persona-adaptive rendering | ✅ 13 feature toggles | Done |
+| Session Score | ✅ Implemented (3-component, 0-100) | Done |
 
 ### Social & Engagement
 
 | Metric | Current | Target |
 |--------|---------|--------|
-| Share buttons visible | No (orphaned) | Yes (Report header) |
+| Share buttons visible | ✅ Yes (SessionDashboard) | Move to Report header too |
+| Share card data | Canvas card exists, improvement delta TODO | Identity-framed with hero stat |
 | Leaderboard categories | 1 (sector time) | 4 (Corner King, Apex Predator, Late Braker, Smooth Operator) |
-| Corner leaderboard reachable | No (dead code) | Yes (in Deep Dive corner detail) |
-| Achievement visibility on mobile | Hidden | Visible |
+| Corner leaderboard reachable | ❌ Orphaned (component exists, not wired) | Yes (in Deep Dive corner detail) |
+| Achievements system | ✅ Implemented (8 types, tiers, backend) | Visible on mobile + in Report |
+| Season Wrapped | ✅ Implemented (4 slides, personalities) | Share card export |
+| Achievement visibility on mobile | Hidden (`hidden sm:flex`) | Visible |
 | Sessions shared | 0 | Track after launch |
 | Comparison challenges sent | 0 | Track after launch |
 | Leaderboard positions shared | N/A | Track after launch |
