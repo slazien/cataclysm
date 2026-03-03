@@ -634,8 +634,8 @@ Not every track needs the full Barber-level treatment. Here's a tiered approach:
 ### Roebling Road Raceway
 - **Tier 2 profile** built from 8 sessions (44 laps) with corner fractions from speed-trace + heading-rate analysis.
 - **Key challenge**: Roebling's sweeping corners have low heading rates (max 1.4 deg/m smoothed vs Barber's 2.0). The auto-detection threshold of 1.0 deg/m finds 0 corners on Roebling, making the track map invisible. This was the primary motivation for adding the profile.
-- **POSTMORTEM — Corner misidentification (T7 direction wrong, T5 name wrong)**:
-  - T7 was labelled LEFT "Uphill Left" but official Roebling map, SVRA map, and racingcircuits.info all show T7 is RIGHT (apex of the big right loop). Caused by mixing racetrackdriving.com's prose numbering with the official 9-turn map. T5 was named "The Hairpin" but no source uses that name — renamed to "Slow Left".
+- **POSTMORTEM — Four corner directions wrong (T4, T5, T6, T7)**:
+  - T4 was RIGHT, should be LEFT (leftward bulge between T3 and T5). T5 was LEFT, should be RIGHT (car turns right toward the big loop). T6 was RIGHT, should be LEFT (entry to loop, car heads north). T7 was LEFT, should be RIGHT (apex of loop, car reverses south). T5 was also named "The Hairpin" but no source uses that name — renamed to "Slow Right".
   - **Root cause 1 — No consensus table**: Multiple guides were "cross-referenced" but no structured comparison was done. Different sources use different numbering (na-motorsports uses 10 turns, others use 9), so casually reading multiple guides without a side-by-side table leads to mixing numbering systems.
   - **Root cause 2 — Algorithm-derived directions trusted over sources**: The heading-rate sign was likely used as the primary direction source instead of track guides. At complex corners where the approach has a different curvature than the main arc, the algorithm can get the sign wrong.
   - **Root cause 3 — No direction verification step**: The validation phase checked fractions (monotonic, spacing) but never checked each corner's direction and name against the source material.

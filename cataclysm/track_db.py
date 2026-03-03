@@ -560,15 +560,21 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
 #     AFTER the loop — numbering offset from official; use map, not prose)
 #   - na-motorsports.com: 10 turns (splits T5/T6 differently) — noted, not used
 #
-# T7 fix (2026-03-02): Changed direction LEFT→RIGHT, name "Uphill Left"→
-#   "Uphill Right". Root cause: original profile mixed racetrackdriving.com's
-#   prose description (which shifts numbering) with the official 9-turn map.
-#   The physical corner at fraction 0.656 is the apex of the big right loop
-#   on the east side of the circuit.
-#
-# T5 name fix (2026-03-02): Changed "The Hairpin"→"Slow Left". No source uses
-#   "The Hairpin" for T5. racetrackdriving.com: "the slowest turn";
-#   na-motorsports: "Left 120°"; Paddock Pal: "one of the most difficult turns".
+# Direction fixes (2026-03-02), verified against racingcircuits.info map and
+#   GPS heading analysis (T5→T6→T7→T8 trace confirms loop traversal direction):
+#   T4: RIGHT→LEFT. "Tricky Entry Right"→"Tricky Entry Left".
+#       Physical corner is the leftward bulge between T3 sweeper and T5.
+#   T5: LEFT→RIGHT, name "The Hairpin"→"Slow Right". No source uses "The
+#       Hairpin". racetrackdriving.com: "the slowest turn"; na-motorsports:
+#       "Left 120°" (different numbering); Paddock Pal: "most difficult turn".
+#       Car turns RIGHT here to head east toward the big loop.
+#   T6: RIGHT→LEFT. "Downhill Right"→"Downhill Left".
+#       Entry to the big loop — car turns LEFT from heading SE to heading N.
+#   T7: LEFT→RIGHT. "Uphill Left"→"Uphill Right".
+#       Apex of the big loop — car reverses from heading N to heading SE.
+#   Root cause: algorithm-derived heading-rate signs were trusted over visual
+#   source comparison. Heading-rate analysis gets the sign wrong at complex
+#   curves where approach curvature differs from the main arc.
 #
 # Verification:
 #   - GPS centroid from real telemetry: (32.1682, -81.3218)
@@ -659,12 +665,12 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
         ),
         OfficialCorner(
             4,
-            "Tricky Entry Right",
+            "Tricky Entry Left",
             0.419,
             lat=32.169187,
             lon=-81.322816,
             character="lift",
-            direction="right",
+            direction="left",
             corner_type="sweeper",
             elevation_trend="flat",
             camber="off-camber",
@@ -675,11 +681,11 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
         ),
         OfficialCorner(
             5,
-            "Slow Left",
+            "Slow Right",
             0.466,
             lat=32.169784,
             lon=-81.321494,
-            direction="left",
+            direction="right",
             corner_type="hairpin",
             elevation_trend="flat",
             camber="positive",
@@ -690,11 +696,11 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
         ),
         OfficialCorner(
             6,
-            "Downhill Right",
+            "Downhill Left",
             0.566,
             lat=32.167818,
             lon=-81.319413,
-            direction="right",
+            direction="left",
             corner_type="sweeper",
             elevation_trend="downhill",
             camber="off-camber",
