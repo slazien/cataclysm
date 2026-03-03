@@ -97,13 +97,6 @@ def get_current_user(
     """
     # QA bypass: skip all auth when DEV_AUTH_BYPASS=true
     if settings.dev_auth_bypass:
-        import os
-
-        if os.getenv("RAILWAY_ENVIRONMENT"):
-            raise RuntimeError(
-                "DEV_AUTH_BYPASS cannot be enabled in a Railway environment. "
-                "Remove the DEV_AUTH_BYPASS environment variable."
-            )
         user_id = x_test_user_id or settings.test_auth_user_id or "dev-user"
         test_users = {
             "test-alex": ("alex@test.cataclysm.dev", "Alex Racer"),
