@@ -363,3 +363,167 @@ def compute_optimal_profile(
         lap_time_s=lap_time,
         vehicle_params=params,
     )
+
+
+# ---------------------------------------------------------------------------
+# Speed sensitivity
+# ---------------------------------------------------------------------------
+
+# 1 mph in m/s
+_ONE_MPH_MPS = 0.44704
+# Minimum number of integration points for a meaningful segment
+_MIN_SEGMENT_POINTS = 4
+
+
+def _segment_time(
+    entry_speed: float,
+    exit_speed: float,
+    min_speed: float,
+    arc_length: float,
+    vehicle: VehicleParams,
+    n_points: int = 200,
+) -> float:
+    """Estimate time through a corner segment using a simplified speed profile.
+
+    Models the corner as three phases:
+    1. Deceleration from entry speed to min speed (braking)
+    2. Constant speed at min speed through the apex
+    3. Acceleration from min speed to exit speed
+
+    The braking and acceleration distances are computed from vehicle
+    capabilities.  The remaining distance is traversed at min speed.
+
+    Parameters
+    ----------
+    entry_speed
+        Speed at corner entry (m/s).
+    exit_speed
+        Speed at corner exit (m/s).
+    min_speed
+        Minimum speed through the corner apex (m/s).
+    arc_length
+        Total corner arc length (m).
+    vehicle
+        Vehicle parameters for accel/decel limits.
+    n_points
+        Number of integration points for the trapezoidal rule.
+
+    Returns
+    -------
+    float
+        Estimated time through the segment in seconds.
+    """
+    if arc_length <= 0 or n_points < _MIN_SEGMENT_POINTS:
+        return 0.0
+
+    # Clamp min_speed to be no greater than entry/exit
+    min_speed = max(min_speed, MIN_SPEED_MPS)
+    entry_speed = max(entry_speed, min_speed)
+    exit_speed = max(exit_speed, min_speed)
+
+    # Braking distance: v_entry^2 - v_min^2 = 2 * a_brake * d_brake
+    # a_brake = max_decel_g * G
+    a_brake = vehicle.max_decel_g * G
+    if a_brake > 0 and entry_speed > min_speed:
+        d_brake = (entry_speed**2 - min_speed**2) / (2.0 * a_brake)
+    else:
+        d_brake = 0.0
+
+    # Acceleration distance: v_exit^2 - v_min^2 = 2 * a_accel * d_accel
+    a_accel = vehicle.max_accel_g * G
+    if a_accel > 0 and exit_speed > min_speed:
+        d_accel = (exit_speed**2 - min_speed**2) / (2.0 * a_accel)
+    else:
+        d_accel = 0.0
+
+    # If the braking + accel distance exceeds the arc, scale them down
+    total_transition = d_brake + d_accel
+    if total_transition > arc_length:
+        scale = arc_length / total_transition
+        d_brake *= scale
+        d_accel *= scale
+
+    d_apex = arc_length - d_brake - d_accel
+
+    # Build a piecewise speed profile over n_points
+    ds = arc_length / (n_points - 1)
+    speeds = np.empty(n_points, dtype=np.float64)
+
+    for i in range(n_points):
+        d = i * ds
+        if d <= d_brake and d_brake > 0:
+            # Braking phase: v^2 = v_entry^2 - 2*a_brake*d
+            v_sq = entry_speed**2 - 2.0 * a_brake * d
+            speeds[i] = np.sqrt(max(v_sq, min_speed**2))
+        elif d <= d_brake + d_apex:
+            # Apex phase: constant min speed
+            speeds[i] = min_speed
+        else:
+            # Acceleration phase: v^2 = v_min^2 + 2*a_accel*(d - d_brake - d_apex)
+            d_into_accel = d - d_brake - d_apex
+            v_sq = min_speed**2 + 2.0 * a_accel * d_into_accel
+            speeds[i] = np.sqrt(max(v_sq, min_speed**2))
+
+    # Trapezoidal integration: dt = ds / v
+    # t = sum(2*ds / (v_i + v_{i+1}))
+    t = float(np.sum(2.0 * ds / (speeds[:-1] + speeds[1:])))
+    return t
+
+
+def compute_speed_sensitivity(
+    corner_entry_speed_mps: float,
+    corner_exit_speed_mps: float,
+    corner_min_speed_mps: float,
+    corner_arc_length_m: float,
+    vehicle: VehicleParams,
+) -> float:
+    """Estimate time saved if minimum corner speed increases by 1 mph.
+
+    Simulates the corner with min_speed and min_speed + 1 mph by building a
+    simplified three-phase speed profile (brake -> apex -> accelerate) and
+    computing segment time via trapezoidal integration.
+
+    This replaces the generic Bentley approximation (1 mph ~ 0.5 s) with
+    a data-grounded, car+track-specific number.
+
+    Parameters
+    ----------
+    corner_entry_speed_mps
+        Speed at corner entry (m/s).
+    corner_exit_speed_mps
+        Speed at corner exit (m/s).
+    corner_min_speed_mps
+        Current minimum speed through the corner apex (m/s).
+    corner_arc_length_m
+        Total arc length of the corner (m).
+    vehicle
+        Vehicle parameters (accel, decel capabilities).
+
+    Returns
+    -------
+    float
+        Time saved in seconds if min speed increases by 1 mph.
+        Always non-negative; returns 0.0 for degenerate inputs.
+    """
+    if corner_arc_length_m <= 0 or corner_min_speed_mps <= 0:
+        return 0.0
+
+    t_current = _segment_time(
+        corner_entry_speed_mps,
+        corner_exit_speed_mps,
+        corner_min_speed_mps,
+        corner_arc_length_m,
+        vehicle,
+    )
+
+    # Increase min speed by 1 mph, but cap at entry/exit speed
+    faster_min = corner_min_speed_mps + _ONE_MPH_MPS
+    t_faster = _segment_time(
+        corner_entry_speed_mps,
+        corner_exit_speed_mps,
+        faster_min,
+        corner_arc_length_m,
+        vehicle,
+    )
+
+    return max(0.0, t_current - t_faster)

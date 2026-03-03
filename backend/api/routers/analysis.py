@@ -14,6 +14,7 @@ from backend.api.schemas.analysis import (
     ConsistencyResponse,
     CornerResponse,
     CornerSchema,
+    CornerSensitivitySchema,
     DegradationEventSchema,
     DegradationResponse,
     DeltaResponse,
@@ -26,6 +27,7 @@ from backend.api.schemas.analysis import (
     OptimalProfileResponse,
     SectorResponse,
     SectorSplitSchema,
+    SpeedSensitivityResponse,
     VehicleParamsSchema,
 )
 from backend.api.services import session_store
@@ -426,4 +428,77 @@ async def get_degradation(
         ],
         has_brake_fade=analysis.has_brake_fade,
         has_tire_degradation=analysis.has_tire_degradation,
+    )
+
+
+@router.get(
+    "/{session_id}/speed-sensitivity",
+    response_model=SpeedSensitivityResponse,
+)
+async def get_speed_sensitivity(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> SpeedSensitivityResponse:
+    """Compute per-corner speed sensitivity (seconds saved per +1 mph min speed).
+
+    Uses the velocity profile solver's vehicle model to estimate how much
+    time is saved at each corner if minimum corner speed increases by 1 mph.
+    Replaces the generic "1 mph = 0.5s" approximation with a physics-based,
+    car+track-specific number.
+    """
+    sd = _get_session_or_404(session_id, current_user.user_id)
+
+    from cataclysm.velocity_profile import compute_speed_sensitivity, default_vehicle_params
+
+    from backend.api.services.pipeline import _resolve_vehicle_params
+
+    vehicle = _resolve_vehicle_params(session_id) or default_vehicle_params()
+    corners = sd.corners
+
+    def _compute() -> list[CornerSensitivitySchema]:
+        import numpy as np
+
+        results: list[CornerSensitivitySchema] = []
+        best_df = sd.processed.resampled_laps[sd.processed.best_lap]
+        dist = best_df["lap_distance_m"].to_numpy()
+        speed = best_df["speed_mps"].to_numpy()
+
+        for c in corners:
+            arc_length = c.exit_distance_m - c.entry_distance_m
+            if arc_length <= 0:
+                continue
+
+            entry_speed = float(np.interp(c.entry_distance_m, dist, speed))
+            exit_speed = float(np.interp(c.exit_distance_m, dist, speed))
+
+            sensitivity = compute_speed_sensitivity(
+                corner_entry_speed_mps=entry_speed,
+                corner_exit_speed_mps=exit_speed,
+                corner_min_speed_mps=c.min_speed_mps,
+                corner_arc_length_m=arc_length,
+                vehicle=vehicle,
+            )
+
+            results.append(
+                CornerSensitivitySchema(
+                    corner_number=c.number,
+                    sensitivity_s=round(sensitivity, 4),
+                    min_speed_mph=round(c.min_speed_mps * MPS_TO_MPH, 2),
+                    arc_length_m=round(arc_length, 2),
+                )
+            )
+        return results
+
+    corner_results = await asyncio.to_thread(_compute)
+
+    return SpeedSensitivityResponse(
+        session_id=session_id,
+        corners=corner_results,
+        vehicle_params=VehicleParamsSchema(
+            mu=vehicle.mu,
+            max_accel_g=vehicle.max_accel_g,
+            max_decel_g=vehicle.max_decel_g,
+            max_lateral_g=vehicle.max_lateral_g,
+            top_speed_mps=vehicle.top_speed_mps,
+        ),
     )

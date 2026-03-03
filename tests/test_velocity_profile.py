@@ -16,7 +16,9 @@ from cataclysm.velocity_profile import (
     _compute_max_cornering_speed,
     _find_transitions,
     _forward_pass,
+    _segment_time,
     compute_optimal_profile,
+    compute_speed_sensitivity,
     default_vehicle_params,
 )
 
@@ -756,3 +758,199 @@ class TestFindTransitionsStateMachine:
         brake, throttle = _find_transitions(speed, distance)
         assert len(brake) >= 1
         assert len(throttle) >= 1
+
+
+# ---------------------------------------------------------------------------
+# TestSegmentTime
+# ---------------------------------------------------------------------------
+
+
+class TestSegmentTime:
+    """Tests for the internal _segment_time helper."""
+
+    def test_zero_arc_length_returns_zero(self) -> None:
+        """Zero arc length should return 0.0."""
+        params = default_vehicle_params()
+        assert _segment_time(30.0, 30.0, 20.0, 0.0, params) == 0.0
+
+    def test_negative_arc_length_returns_zero(self) -> None:
+        """Negative arc length should return 0.0."""
+        params = default_vehicle_params()
+        assert _segment_time(30.0, 30.0, 20.0, -10.0, params) == 0.0
+
+    def test_constant_speed_segment(self) -> None:
+        """If entry = exit = min, time should be arc_length / speed."""
+        params = default_vehicle_params()
+        speed = 20.0
+        arc = 100.0
+        t = _segment_time(speed, speed, speed, arc, params)
+        expected = arc / speed  # 5.0 seconds
+        assert t == pytest.approx(expected, rel=0.02)
+
+    def test_positive_time(self) -> None:
+        """Segment time should always be positive for valid inputs."""
+        params = default_vehicle_params()
+        t = _segment_time(40.0, 35.0, 25.0, 150.0, params)
+        assert t > 0.0
+
+    def test_higher_min_speed_shorter_time(self) -> None:
+        """Higher min speed through corner should produce shorter time."""
+        params = default_vehicle_params()
+        t_slow = _segment_time(40.0, 35.0, 20.0, 150.0, params)
+        t_fast = _segment_time(40.0, 35.0, 25.0, 150.0, params)
+        assert t_fast < t_slow
+
+    def test_longer_arc_longer_time(self) -> None:
+        """Longer arc length should produce longer segment time."""
+        params = default_vehicle_params()
+        t_short = _segment_time(40.0, 35.0, 25.0, 100.0, params)
+        t_long = _segment_time(40.0, 35.0, 25.0, 200.0, params)
+        assert t_long > t_short
+
+
+# ---------------------------------------------------------------------------
+# TestComputeSpeedSensitivity
+# ---------------------------------------------------------------------------
+
+
+class TestComputeSpeedSensitivity:
+    """Tests for the public compute_speed_sensitivity function."""
+
+    def test_positive_sensitivity(self) -> None:
+        """Speed sensitivity should be positive for a typical corner."""
+        params = default_vehicle_params()
+        sensitivity = compute_speed_sensitivity(
+            corner_entry_speed_mps=40.0,
+            corner_exit_speed_mps=35.0,
+            corner_min_speed_mps=25.0,
+            corner_arc_length_m=150.0,
+            vehicle=params,
+        )
+        assert sensitivity > 0.0
+
+    def test_zero_arc_length_returns_zero(self) -> None:
+        """Zero arc length should return 0.0 sensitivity."""
+        params = default_vehicle_params()
+        sensitivity = compute_speed_sensitivity(
+            corner_entry_speed_mps=40.0,
+            corner_exit_speed_mps=35.0,
+            corner_min_speed_mps=25.0,
+            corner_arc_length_m=0.0,
+            vehicle=params,
+        )
+        assert sensitivity == 0.0
+
+    def test_zero_min_speed_returns_zero(self) -> None:
+        """Zero min speed should return 0.0 sensitivity."""
+        params = default_vehicle_params()
+        sensitivity = compute_speed_sensitivity(
+            corner_entry_speed_mps=40.0,
+            corner_exit_speed_mps=35.0,
+            corner_min_speed_mps=0.0,
+            corner_arc_length_m=150.0,
+            vehicle=params,
+        )
+        assert sensitivity == 0.0
+
+    def test_slow_corner_higher_sensitivity(self) -> None:
+        """Slower corners should generally have higher speed sensitivity.
+
+        At low min speeds, the +1 mph increment is a larger fraction of
+        the apex speed, so the time saved should be greater.
+        """
+        params = default_vehicle_params()
+        slow = compute_speed_sensitivity(
+            corner_entry_speed_mps=30.0,
+            corner_exit_speed_mps=25.0,
+            corner_min_speed_mps=15.0,
+            corner_arc_length_m=150.0,
+            vehicle=params,
+        )
+        fast = compute_speed_sensitivity(
+            corner_entry_speed_mps=60.0,
+            corner_exit_speed_mps=55.0,
+            corner_min_speed_mps=45.0,
+            corner_arc_length_m=150.0,
+            vehicle=params,
+        )
+        assert slow > fast
+
+    def test_longer_corner_higher_sensitivity(self) -> None:
+        """Longer corners should have higher sensitivity (more time at min speed)."""
+        params = default_vehicle_params()
+        short = compute_speed_sensitivity(
+            corner_entry_speed_mps=40.0,
+            corner_exit_speed_mps=35.0,
+            corner_min_speed_mps=25.0,
+            corner_arc_length_m=80.0,
+            vehicle=params,
+        )
+        long = compute_speed_sensitivity(
+            corner_entry_speed_mps=40.0,
+            corner_exit_speed_mps=35.0,
+            corner_min_speed_mps=25.0,
+            corner_arc_length_m=300.0,
+            vehicle=params,
+        )
+        assert long > short
+
+    def test_reasonable_magnitude(self) -> None:
+        """Sensitivity should be in a reasonable range (0.01 to 1.0 seconds per mph).
+
+        The generic Bentley approximation is ~0.5s. A physics-based computation
+        should yield values in a similar ballpark for typical corners.
+        """
+        params = default_vehicle_params()
+        sensitivity = compute_speed_sensitivity(
+            corner_entry_speed_mps=40.0,
+            corner_exit_speed_mps=35.0,
+            corner_min_speed_mps=25.0,
+            corner_arc_length_m=200.0,
+            vehicle=params,
+        )
+        assert 0.01 < sensitivity < 1.0
+
+    def test_negative_arc_returns_zero(self) -> None:
+        """Negative arc length should return 0.0."""
+        params = default_vehicle_params()
+        sensitivity = compute_speed_sensitivity(
+            corner_entry_speed_mps=40.0,
+            corner_exit_speed_mps=35.0,
+            corner_min_speed_mps=25.0,
+            corner_arc_length_m=-50.0,
+            vehicle=params,
+        )
+        assert sensitivity == 0.0
+
+    def test_different_vehicle_params(self) -> None:
+        """Different vehicle parameters should produce different sensitivities."""
+        low_grip = VehicleParams(
+            mu=0.8,
+            max_accel_g=0.3,
+            max_decel_g=0.8,
+            max_lateral_g=0.8,
+        )
+        high_grip = VehicleParams(
+            mu=1.2,
+            max_accel_g=0.7,
+            max_decel_g=1.2,
+            max_lateral_g=1.2,
+        )
+        s_low = compute_speed_sensitivity(
+            corner_entry_speed_mps=40.0,
+            corner_exit_speed_mps=35.0,
+            corner_min_speed_mps=25.0,
+            corner_arc_length_m=150.0,
+            vehicle=low_grip,
+        )
+        s_high = compute_speed_sensitivity(
+            corner_entry_speed_mps=40.0,
+            corner_exit_speed_mps=35.0,
+            corner_min_speed_mps=25.0,
+            corner_arc_length_m=150.0,
+            vehicle=high_grip,
+        )
+        # Both should be positive and different
+        assert s_low > 0.0
+        assert s_high > 0.0
+        assert s_low != pytest.approx(s_high, abs=1e-6)

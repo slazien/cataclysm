@@ -174,3 +174,20 @@ class DegradationResponse(BaseModel):
     events: list[DegradationEventSchema]
     has_brake_fade: bool
     has_tire_degradation: bool
+
+
+class CornerSensitivitySchema(BaseModel):
+    """Speed sensitivity for a single corner."""
+
+    corner_number: int
+    sensitivity_s: float  # seconds saved per +1 mph min speed
+    min_speed_mph: float
+    arc_length_m: float
+
+
+class SpeedSensitivityResponse(BaseModel):
+    """Per-corner speed sensitivity for a session."""
+
+    session_id: str
+    corners: list[CornerSensitivitySchema]
+    vehicle_params: VehicleParamsSchema
