@@ -239,6 +239,7 @@ class TestGetCurrentUser:
             authorization=None,
             session_token=None,
             secure_session_token=None,
+            x_test_user_id=None,
             settings=settings,
         )
         assert isinstance(user, AuthenticatedUser)
@@ -258,6 +259,7 @@ class TestGetCurrentUser:
             authorization=f"Bearer {token}",
             session_token=None,
             secure_session_token=None,
+            x_test_user_id=None,
             settings=settings,
         )
         assert user.user_id == "dev-user"
@@ -277,3 +279,41 @@ class TestGetCurrentUser:
                 settings=settings,
             )
         assert exc_info.value.status_code == 401
+
+    def test_dev_bypass_blocked_in_railway_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """DEV_AUTH_BYPASS must be blocked when RAILWAY_ENVIRONMENT is set."""
+        monkeypatch.setenv("RAILWAY_ENVIRONMENT", "production")
+        settings = Settings(
+            nextauth_secret=_SECRET,
+            anthropic_api_key="fake",
+            dev_auth_bypass=True,
+        )
+        with pytest.raises(RuntimeError, match="cannot be enabled"):
+            get_current_user(
+                authorization=None,
+                session_token=None,
+                secure_session_token=None,
+                x_test_user_id=None,
+                settings=settings,
+            )
+
+    def test_dev_bypass_allowed_without_railway_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """DEV_AUTH_BYPASS should work when RAILWAY_ENVIRONMENT is NOT set."""
+        monkeypatch.delenv("RAILWAY_ENVIRONMENT", raising=False)
+        settings = Settings(
+            nextauth_secret=_SECRET,
+            anthropic_api_key="fake",
+            dev_auth_bypass=True,
+        )
+        user = get_current_user(
+            authorization=None,
+            session_token=None,
+            secure_session_token=None,
+            x_test_user_id=None,
+            settings=settings,
+        )
+        assert user.user_id == "dev-user"

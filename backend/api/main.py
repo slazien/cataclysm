@@ -235,6 +235,13 @@ load_dotenv()  # Populate os.environ from .env before reading settings
 settings = Settings()
 
 if settings.dev_auth_bypass:
+    import os as _os
+
+    if _os.getenv("RAILWAY_ENVIRONMENT"):
+        raise RuntimeError(
+            "DEV_AUTH_BYPASS cannot be enabled in a Railway environment. "
+            "Remove the DEV_AUTH_BYPASS environment variable."
+        )
     logger.warning(
         "DEV_AUTH_BYPASS is ENABLED — all authentication is disabled! "
         "All requests authenticate as 'dev-user'. "
