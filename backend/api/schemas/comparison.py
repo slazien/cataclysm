@@ -14,6 +14,22 @@ class CornerDeltaSchema(BaseModel):
     b_min_speed_mph: float
 
 
+class SpeedTracePoint(BaseModel):
+    """Speed vs distance data for a single lap."""
+
+    distance_m: list[float]
+    speed_mph: list[float]
+
+
+class SkillDimensionSchema(BaseModel):
+    """Aggregate skill scores derived from corner grades."""
+
+    braking: float
+    trail_braking: float
+    throttle: float
+    line: float
+
+
 class ComparisonResult(BaseModel):
     """Full comparison of two sessions' best laps."""
 
@@ -27,6 +43,9 @@ class ComparisonResult(BaseModel):
     distance_m: list[float]  # distance points
     delta_time_s: list[float]  # delta at each point
     corner_deltas: list[CornerDeltaSchema]  # per-corner speed differences
+    speed_traces: dict[str, SpeedTracePoint] | None = None
+    skill_dimensions: dict[str, SkillDimensionSchema] | None = None
+    ai_verdict: str | None = None
     session_a_weather_condition: str | None = None
     session_a_weather_temp_c: float | None = None
     session_b_weather_condition: str | None = None

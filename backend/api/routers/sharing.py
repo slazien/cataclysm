@@ -179,6 +179,9 @@ async def upload_to_share(
         distance_m=comparison["distance_m"],
         delta_time_s=comparison["delta_time_s"],
         corner_deltas=comparison["corner_deltas"],
+        speed_traces=comparison.get("speed_traces"),
+        skill_dimensions=comparison.get("skill_dimensions"),
+        ai_verdict=comparison.get("ai_verdict"),
     )
 
 
@@ -217,4 +220,7 @@ async def get_share_comparison(
         distance_m=data.get("distance_m", []),
         delta_time_s=data.get("delta_time_s", []),
         corner_deltas=data.get("corner_deltas", []),
+        speed_traces=data.get("speed_traces"),
+        skill_dimensions=data.get("skill_dimensions"),
+        ai_verdict=data.get("ai_verdict"),
     )

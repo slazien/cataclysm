@@ -46,3 +46,6 @@ class ShareComparisonResponse(BaseModel):
     distance_m: list[float]
     delta_time_s: list[float]
     corner_deltas: list[dict[str, object]]
+    speed_traces: dict[str, object] | None = None
+    skill_dimensions: dict[str, object] | None = None
+    ai_verdict: str | None = None

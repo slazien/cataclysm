@@ -3,13 +3,50 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any
 
 from cataclysm.constants import MPS_TO_MPH
 from cataclysm.corners import Corner
 from cataclysm.delta import compute_delta
 
+from backend.api.schemas.coaching import CoachingReportResponse, CornerGradeSchema
+from backend.api.services.coaching_store import get_coaching_report
 from backend.api.services.session_store import SessionData
+
+logger = logging.getLogger(__name__)
+
+# Map letter grades to numeric scores for skill dimension aggregation
+GRADE_SCORES: dict[str, float] = {"A": 100, "B": 80, "C": 60, "D": 40, "F": 20}
+
+
+def _compute_skill_dims(grades: list[CornerGradeSchema]) -> dict[str, float]:
+    """Aggregate per-corner letter grades into skill dimension scores (0-100)."""
+    dims: dict[str, list[float]] = {
+        "braking": [],
+        "trail_braking": [],
+        "throttle": [],
+        "line": [],
+    }
+    for g in grades:
+        for dim_key, grade_field in [
+            ("braking", "braking"),
+            ("trail_braking", "trail_braking"),
+            ("throttle", "throttle"),
+            ("line", "min_speed"),
+        ]:
+            letter = getattr(g, grade_field, "C")
+            score = GRADE_SCORES.get(letter, 60.0)
+            dims[dim_key].append(score)
+    return {k: round(sum(v) / len(v), 1) if v else 60.0 for k, v in dims.items()}
+
+
+async def _get_skill_dimensions(session_id: str) -> dict[str, float] | None:
+    """Extract skill dimensions from a session's coaching report, if available."""
+    report: CoachingReportResponse | None = await get_coaching_report(session_id)
+    if report is None or not report.corner_grades:
+        return None
+    return _compute_skill_dims(report.corner_grades)
 
 
 async def compare_sessions(sd_a: SessionData, sd_b: SessionData) -> dict[str, Any]:
@@ -65,6 +102,31 @@ async def compare_sessions(sd_a: SessionData, sd_b: SessionData) -> dict[str, An
             best_time_b = ls.lap_time_s
             break
 
+    # Speed traces — speed vs distance for both best laps
+    speed_traces: dict[str, dict[str, list[float]]] = {
+        "a": {
+            "distance_m": df_a["lap_distance_m"].tolist(),
+            "speed_mph": (df_a["speed_mps"] * MPS_TO_MPH).tolist(),
+        },
+        "b": {
+            "distance_m": df_b["lap_distance_m"].tolist(),
+            "speed_mph": (df_b["speed_mps"] * MPS_TO_MPH).tolist(),
+        },
+    }
+
+    # Skill dimensions from coaching reports (if available)
+    skill_dims_a, skill_dims_b = await asyncio.gather(
+        _get_skill_dimensions(sd_a.session_id),
+        _get_skill_dimensions(sd_b.session_id),
+    )
+    skill_dimensions: dict[str, dict[str, float]] | None = None
+    if skill_dims_a is not None or skill_dims_b is not None:
+        skill_dimensions = {}
+        if skill_dims_a is not None:
+            skill_dimensions["a"] = skill_dims_a
+        if skill_dims_b is not None:
+            skill_dimensions["b"] = skill_dims_b
+
     # Weather conditions for mismatch detection
     weather_a = sd_a.weather
     weather_b = sd_b.weather
@@ -80,6 +142,9 @@ async def compare_sessions(sd_a: SessionData, sd_b: SessionData) -> dict[str, An
         "distance_m": delta_result.distance_m.tolist(),
         "delta_time_s": delta_result.delta_time_s.tolist(),
         "corner_deltas": corner_deltas,
+        "speed_traces": speed_traces,
+        "skill_dimensions": skill_dimensions,
+        "ai_verdict": None,  # populated by AI narrative endpoint (Task 4)
         "session_a_weather_condition": weather_a.track_condition.value if weather_a else None,
         "session_a_weather_temp_c": weather_a.ambient_temp_c if weather_a else None,
         "session_b_weather_condition": weather_b.track_condition.value if weather_b else None,
