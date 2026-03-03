@@ -520,6 +520,7 @@ async def test_upload_file_with_no_name(client: AsyncClient) -> None:
 
     nameless_file = MagicMock(spec=_UploadFile)
     nameless_file.filename = None  # triggers "if not f.filename" guard
+    nameless_file.size = None
     nameless_file.read = AsyncMock(return_value=b"some bytes")
 
     # Build a fully async-capable mock DB session
@@ -1559,6 +1560,7 @@ async def test_upload_inner_csv_bytes_persist_path() -> None:
 
     named_file = MagicMock(spec=_UploadFile)
     named_file.filename = "direct_test.csv"
+    named_file.size = None
     named_file.read = AsyncMock(return_value=csv_bytes)
 
     # Mock db with all needed async ops
@@ -1572,6 +1574,7 @@ async def test_upload_inner_csv_bytes_persist_path() -> None:
     mock_db.rollback = AsyncMock()
 
     mock_settings = MagicMock(spec=Settings)
+    mock_settings.max_upload_size_mb = 50
 
     with (
         patch(
@@ -1592,6 +1595,7 @@ async def test_upload_inner_csv_bytes_persist_path() -> None:
         ),
     ):
         result = await upload_sessions(
+            request=MagicMock(),
             files=[named_file],
             settings=mock_settings,
             current_user=_TEST_USER,  # type: ignore[arg-type]
@@ -1616,6 +1620,7 @@ async def test_upload_inner_csv_bytes_sqlalchemy_error_path() -> None:
 
     named_file = MagicMock(spec=_UploadFile)
     named_file.filename = "direct_test2.csv"
+    named_file.size = None
     named_file.read = AsyncMock(return_value=csv_bytes)
 
     mock_db = AsyncMock()
@@ -1628,6 +1633,7 @@ async def test_upload_inner_csv_bytes_sqlalchemy_error_path() -> None:
     mock_db.rollback = AsyncMock()
 
     mock_settings = MagicMock(spec=Settings)
+    mock_settings.max_upload_size_mb = 50
 
     with (
         patch("backend.api.routers.sessions.ensure_user_exists", new_callable=AsyncMock),
@@ -1636,6 +1642,7 @@ async def test_upload_inner_csv_bytes_sqlalchemy_error_path() -> None:
         patch("backend.api.routers.sessions._auto_fetch_weather", new_callable=AsyncMock),
     ):
         result = await upload_sessions(
+            request=MagicMock(),
             files=[named_file],
             settings=mock_settings,
             current_user=_TEST_USER,  # type: ignore[arg-type]
@@ -1659,6 +1666,7 @@ async def test_upload_inner_coaching_value_error_path() -> None:
 
     named_file = MagicMock(spec=_UploadFile)
     named_file.filename = "coaching_err.csv"
+    named_file.size = None
     named_file.read = AsyncMock(return_value=csv_bytes)
 
     mock_db = AsyncMock()
@@ -1680,9 +1688,12 @@ async def test_upload_inner_coaching_value_error_path() -> None:
         ),
         patch("backend.api.routers.sessions._auto_fetch_weather", new_callable=AsyncMock),
     ):
+        mock_settings = MagicMock(spec=Settings)
+        mock_settings.max_upload_size_mb = 50
         result = await upload_sessions(
+            request=MagicMock(),
             files=[named_file],
-            settings=MagicMock(spec=Settings),
+            settings=mock_settings,
             current_user=_TEST_USER,  # type: ignore[arg-type]
             db=mock_db,
         )
