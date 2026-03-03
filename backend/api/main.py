@@ -81,14 +81,10 @@ async def _reload_sessions_from_db() -> int:
                     if sd is not None and sess_meta:
                         # Tag session with owner for access control
                         sd.user_id = sess_meta.user_id
-                        logger.info(
-                            "Reload: %s → user_id=%s", sid, sess_meta.user_id
-                        )
                     elif sd is not None:
                         logger.warning(
-                            "Reload: %s → NO sess_meta (user_id stays %s)",
+                            "Reload: %s has no session metadata — user_id unset",
                             sid,
-                            sd.user_id,
                         )
                         if sess_meta.snapshot_json:
                             weather = restore_weather_from_snapshot(sess_meta.snapshot_json)
