@@ -224,7 +224,10 @@ async def test_comparison_skill_dimensions_with_coaching(client: AsyncClient) ->
 async def test_comparison_skill_dimensions_partial_coaching(
     client: AsyncClient,
 ) -> None:
-    """Skill dimensions should include only sessions with coaching reports."""
+    """Skill dimensions should be None when only one driver has coaching data.
+
+    The radar chart requires both datasets — partial data would crash the frontend.
+    """
     sid_a = await _upload_session(client, filename="a.csv")
     sid_b = await _upload_session(client, filename="b.csv")
 
@@ -243,10 +246,7 @@ async def test_comparison_skill_dimensions_partial_coaching(
 
     assert resp.status_code == 200
     data = resp.json()
-    dims = data["skill_dimensions"]
-    assert dims is not None
-    assert "a" in dims
-    assert "b" not in dims
+    assert data["skill_dimensions"] is None
 
 
 @pytest.mark.asyncio

@@ -119,13 +119,11 @@ async def compare_sessions(sd_a: SessionData, sd_b: SessionData) -> dict[str, An
         _get_skill_dimensions(sd_a.session_id),
         _get_skill_dimensions(sd_b.session_id),
     )
+    # Only include skill_dimensions when BOTH drivers have coaching data
+    # (radar chart requires both datasets; partial data would crash frontend)
     skill_dimensions: dict[str, dict[str, float]] | None = None
-    if skill_dims_a is not None or skill_dims_b is not None:
-        skill_dimensions = {}
-        if skill_dims_a is not None:
-            skill_dimensions["a"] = skill_dims_a
-        if skill_dims_b is not None:
-            skill_dimensions["b"] = skill_dims_b
+    if skill_dims_a is not None and skill_dims_b is not None:
+        skill_dimensions = {"a": skill_dims_a, "b": skill_dims_b}
 
     # Weather conditions for mismatch detection
     weather_a = sd_a.weather

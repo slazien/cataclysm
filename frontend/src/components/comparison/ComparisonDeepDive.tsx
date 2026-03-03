@@ -35,12 +35,12 @@ export function ComparisonDeepDive({
       setAiLoading(true);
       setAiError(null);
       try {
-        const result = await fetchApi<{ narrative: string }>(
+        const result = await fetchApi<{ ai_comparison_text: string }>(
           `/api/sharing/${token}/ai-comparison`,
           { method: 'POST' },
         );
         if (!cancelled) {
-          setAiNarrative(result.narrative);
+          setAiNarrative(result.ai_comparison_text);
         }
       } catch {
         if (!cancelled) {

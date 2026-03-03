@@ -80,12 +80,7 @@ export function SpeedTraceOverlay({
       context.stroke();
     }
 
-    // Draw reference trace (A)
-    drawTrace(ctx, traceA.distance_m, traceA.speed_mph, colors.comparison.reference);
-    // Draw compare trace (B)
-    drawTrace(ctx, traceB.distance_m, traceB.speed_mph, colors.comparison.compare);
-
-    // Y-axis ticks
+    // Y-axis gridlines + tick labels (drawn BEFORE traces so lines appear behind)
     const yTicks = yScale.ticks(6);
     ctx.font = `10px ${fonts.mono}`;
     ctx.textAlign = 'right';
@@ -101,6 +96,11 @@ export function SpeedTraceOverlay({
       ctx.fillStyle = colors.axis;
       ctx.fillText(`${tick}`, MARGINS.left - 6, y);
     }
+
+    // Draw reference trace (A) — on top of gridlines
+    drawTrace(ctx, traceA.distance_m, traceA.speed_mph, colors.comparison.reference);
+    // Draw compare trace (B)
+    drawTrace(ctx, traceB.distance_m, traceB.speed_mph, colors.comparison.compare);
 
     // X-axis ticks
     const xTicks = xScale.ticks(8);

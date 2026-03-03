@@ -24,6 +24,7 @@ export function ComparisonSummary({
 }: ComparisonSummaryProps) {
   const [expanded, setExpanded] = useState(false);
 
+  const isTie = comparison.delta_s === 0;
   const aFaster = comparison.delta_s > 0;
   const deltaAbs = Math.abs(comparison.delta_s);
   const winnerName = aFaster ? inviterName : challengerName;
@@ -41,12 +42,16 @@ export function ComparisonSummary({
           <Trophy className="h-6 w-6 text-emerald-400" />
           <div className="text-center">
             <p className="text-base font-semibold text-[var(--text-primary)]">
-              {winnerName} wins!
+              {isTie ? "It's a tie!" : `${winnerName} wins!`}
             </p>
-            <p className="mt-0.5 text-sm text-emerald-300/80">
-              Faster by{' '}
-              <span className="font-mono font-semibold">{deltaAbs.toFixed(3)}s</span>
-            </p>
+            {!isTie && (
+              <p className="mt-0.5 text-sm text-emerald-300/80">
+                Faster by{' '}
+                <span className="font-mono font-semibold">
+                  {deltaAbs.toFixed(3)}s
+                </span>
+              </p>
+            )}
           </div>
         </div>
       </div>

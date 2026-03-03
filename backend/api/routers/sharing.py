@@ -8,15 +8,17 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from backend.api.config import Settings
 from backend.api.db.database import get_db
 from backend.api.db.models import ShareComparisonReport, SharedSession
-from backend.api.dependencies import AuthenticatedUser, get_current_user
+from backend.api.dependencies import AuthenticatedUser, get_current_user, get_settings
+from backend.api.rate_limit import limiter
 from backend.api.schemas.sharing import (
     ShareComparisonResponse,
     ShareCreateRequest,
@@ -120,6 +122,7 @@ async def get_share_metadata(
 async def upload_to_share(
     token: str,
     files: list[UploadFile],
+    settings: Annotated[Settings, Depends(get_settings)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ShareComparisonResponse:
     """Upload a CSV to a share link and get a comparison result (no auth required)."""
@@ -145,7 +148,18 @@ async def upload_to_share(
     if not f.filename:
         raise HTTPException(status_code=400, detail="File has no name")
 
+    max_bytes = settings.max_upload_size_mb * 1024 * 1024
+    if f.size is not None and f.size > max_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File exceeds {settings.max_upload_size_mb}MB limit",
+        )
     file_bytes = await f.read()
+    if len(file_bytes) > max_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File exceeds {settings.max_upload_size_mb}MB limit",
+        )
     upload_result = await process_upload(file_bytes, f.filename)
     challenger_sid = str(upload_result["session_id"])
 
@@ -245,8 +259,10 @@ class AiComparisonResponse(BaseModel):
 
 def _build_comparison_prompt(data: dict[str, object]) -> str:
     """Build a prompt for Haiku from comparison data."""
-    session_a_best = float(data.get("session_a_best_lap", 0) or 0)
-    session_b_best = float(data.get("session_b_best_lap", 0) or 0)
+    raw_a = data.get("session_a_best_lap", 0)
+    raw_b = data.get("session_b_best_lap", 0)
+    session_a_best = float(raw_a) if raw_a else 0.0  # type: ignore[arg-type]
+    session_b_best = float(raw_b) if raw_b else 0.0  # type: ignore[arg-type]
     corner_deltas = data.get("corner_deltas", [])
 
     lines = [
@@ -314,7 +330,8 @@ async def _get_or_generate_ai_comparison(
     db: AsyncSession,
 ) -> str:
     """Return cached AI comparison text, or generate and persist it."""
-    if report.ai_comparison_text:
+    # Treat empty string as cache miss (failed prior generation)
+    if report.ai_comparison_text is not None and report.ai_comparison_text != "":
         return report.ai_comparison_text
 
     comparison_data = report.report_json or {}
@@ -330,7 +347,9 @@ async def _get_or_generate_ai_comparison(
 
 
 @router.post("/{token}/ai-comparison", response_model=AiComparisonResponse)
+@limiter.limit("5/minute")
 async def generate_ai_comparison(
+    request: Request,
     token: str,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AiComparisonResponse:
