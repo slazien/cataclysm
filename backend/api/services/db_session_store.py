@@ -43,8 +43,11 @@ async def ensure_user_exists(db: AsyncSession, user: AuthenticatedUser) -> None:
         old_id = by_email.id
         # Evict ORM object before raw SQL to avoid identity-map conflicts
         db.expunge(by_email)
-        # Update all FK references to the old user ID across every table
-        # (no ON UPDATE CASCADE on these FKs, so we migrate manually)
+
+        # Migration strategy: insert new user with temp email, migrate FKs,
+        # delete old user, then fix email. This avoids FK violations (can't
+        # UPDATE FKs to new_id before new_id exists) and email uniqueness
+        # conflicts (can't have two rows with same email).
         _fk_refs = [
             ("user_id", "sessions"),
             ("user_id", "equipment_profiles"),
@@ -56,18 +59,39 @@ async def ensure_user_exists(db: AsyncSession, user: AuthenticatedUser) -> None:
             ("student_id", "student_flags"),
             ("user_id", "org_memberships"),
         ]
+
+        # 1. Insert new user row with temporary email (FK target must exist first)
+        temp_email = f"migrating-{user.user_id}"
+        await db.execute(
+            text(
+                "INSERT INTO users (id, email, name, avatar_url) "
+                "VALUES (:new_id, :temp_email, :name, :avatar)"
+            ),
+            {
+                "new_id": user.user_id,
+                "temp_email": temp_email,
+                "name": user.name,
+                "avatar": user.picture,
+            },
+        )
+
+        # 2. Migrate all FK references from old_id to new_id
         for col, table in _fk_refs:
             await db.execute(
                 text(f"UPDATE {table} SET {col} = :new_id WHERE {col} = :old_id"),
                 {"new_id": user.user_id, "old_id": old_id},
             )
-        # Now update the user PK itself
+
+        # 3. Delete old user row (no FKs point to it now)
         await db.execute(
-            text(
-                "UPDATE users SET id = :new_id, name = :name, avatar_url = :avatar "
-                "WHERE id = :old_id"
-            ),
-            {"new_id": user.user_id, "name": user.name, "avatar": user.picture, "old_id": old_id},
+            text("DELETE FROM users WHERE id = :old_id"),
+            {"old_id": old_id},
+        )
+
+        # 4. Set correct email on new user row
+        await db.execute(
+            text("UPDATE users SET email = :email WHERE id = :new_id"),
+            {"email": user.email, "new_id": user.user_id},
         )
         await db.flush()
         return
