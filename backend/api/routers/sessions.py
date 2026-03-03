@@ -326,6 +326,10 @@ async def list_sessions(
         # Try in-memory store for richer data (e.g. after upload)
         sd = session_store.get_session(row.session_id)
         if sd is not None:
+            # Sync in-memory user_id after ensure_user_exists migration.
+            # DB is already migrated; update memory so get_session_for_user works.
+            if sd.user_id != current_user.user_id:
+                sd.user_id = current_user.user_id
             # Backfill weather from DB snapshot for sessions uploaded before auto-fetch
             if sd.weather is None and row.snapshot_json:
                 restored = restore_weather_from_snapshot(row.snapshot_json)
