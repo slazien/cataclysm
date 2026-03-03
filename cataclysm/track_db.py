@@ -552,6 +552,24 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
 # ---------------------------------------------------------------------------
 # Roebling Road Raceway visual landmarks
 # ---------------------------------------------------------------------------
+# Corner numbering consensus (5 sources compared, all agree on 9-turn layout):
+#   - Official Roebling Road track map: 9 turns, T7 = RIGHT (loop apex)
+#   - SVRA Roebling Road map: 9 turns, T7 = RIGHT (loop apex)
+#   - racingcircuits.info map: 9 turns, T7 = RIGHT
+#   - racetrackdriving.com guide: 9 turns (but their T7 text describes a left kink
+#     AFTER the loop — numbering offset from official; use map, not prose)
+#   - na-motorsports.com: 10 turns (splits T5/T6 differently) — noted, not used
+#
+# T7 fix (2026-03-02): Changed direction LEFT→RIGHT, name "Uphill Left"→
+#   "Uphill Right". Root cause: original profile mixed racetrackdriving.com's
+#   prose description (which shifts numbering) with the official 9-turn map.
+#   The physical corner at fraction 0.656 is the apex of the big right loop
+#   on the east side of the circuit.
+#
+# T5 name fix (2026-03-02): Changed "The Hairpin"→"Slow Left". No source uses
+#   "The Hairpin" for T5. racetrackdriving.com: "the slowest turn";
+#   na-motorsports: "Left 120°"; Paddock Pal: "one of the most difficult turns".
+#
 # Verification:
 #   - GPS centroid from real telemetry: (32.1682, -81.3218)
 #   - Median lap distance (44 laps across 8 sessions): 3200.4m
@@ -657,7 +675,7 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
         ),
         OfficialCorner(
             5,
-            "The Hairpin",
+            "Slow Left",
             0.466,
             lat=32.169784,
             lon=-81.321494,
@@ -687,17 +705,17 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
         ),
         OfficialCorner(
             7,
-            "Uphill Left",
+            "Uphill Right",
             0.656,
             lat=32.170034,
             lon=-81.318406,
-            direction="left",
+            direction="right",
             corner_type="sweeper",
             elevation_trend="uphill",
             camber="positive",
             coaching_notes=(
-                "Uphill recovers elevation from T6. Late apex — becomes a non-event "
-                "when T6 is nailed. Use the exit curb."
+                "Uphill continuation of T6. Tighter radius than entry — don't let "
+                "the car drift wide. Use the exit curb."
             ),
         ),
         OfficialCorner(

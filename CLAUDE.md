@@ -127,6 +127,7 @@ For Railway configuration, environment variables, Docker setup, and troubleshoot
 - Always commit and push after making changes. Do not wait to be asked.
 - Dev branch: `nextjs-rewrite`. Production: `main`.
 - When pushing to GitHub, confirm remote URL — personal repo is github.com, NOT github.intuit.com.
+- **Image viewing**: When a URL points to an image that WebFetch can't render, download it locally (`curl -sL -o /tmp/filename.ext "URL"`), view with the Read tool, then delete when done. Never give up on viewing an image — always try the download approach.
 
 ## Agent Playbook
 

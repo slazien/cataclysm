@@ -113,6 +113,8 @@ Record: total GPS point count, total lap distance, which lap number.
    - NA-Motorsports / Chris Ingle corner notes
    - Private instructor notes if available
 
+**Tip**: When a track map or satellite image URL can't be viewed via WebFetch, download it locally (`curl -sL -o /tmp/filename.ext "URL"`), view with the Read tool, then delete when done. Visual comparison of track maps is essential for the consensus table — don't rely on AI text summaries of images.
+
 **Nice-to-have sources:**
 4. **Onboard video** from the track (YouTube, personal footage)
 5. **ESRI satellite imagery** (sometimes higher resolution than Google in rural areas)
