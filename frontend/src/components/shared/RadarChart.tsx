@@ -7,6 +7,12 @@ interface RadarDataset {
   label: string;
   values: number[];
   color: string;
+  /** Override fill opacity (default 0.15). */
+  fillOpacity?: number;
+  /** Override stroke opacity (default 1). */
+  strokeOpacity?: number;
+  /** Whether to render data-point circles (default true). */
+  showDots?: boolean;
 }
 
 interface RadarChartProps {
@@ -98,46 +104,57 @@ export function RadarChart({ axes, datasets, size = 200, maxValue = 100 }: Radar
       ))}
 
       {/* Data polygons — animated stroke draw + fill fade */}
-      {dataPolygons.map((dp, i) => (
-        <g key={i}>
-          {/* Fill area — fades in after stroke draws */}
-          <motion.polygon
-            points={dp.polygon}
-            fill={dp.color}
-            fillOpacity={0.15}
-            stroke="none"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3, delay: 0.35 + i * 0.15, ease: 'easeOut' }}
-          />
-          {/* Stroke — draws itself via pathLength */}
-          <motion.path
-            d={dp.pathD}
-            fill="none"
-            stroke={dp.color}
-            strokeWidth={1.5}
-            pathLength={1}
-            strokeDasharray="1"
-            strokeDashoffset="0"
-            initial={{ pathLength: 0, opacity: 0 }}
-            animate={{ pathLength: 1, opacity: 1 }}
-            transition={{ duration: 0.5, delay: i * 0.15, ease: 'easeOut' }}
-          />
-          {/* Data points — pop in after stroke completes */}
-          {dp.coords.map((c, j) => (
-            <motion.circle
-              key={j}
-              cx={c.x}
-              cy={c.y}
-              r={3}
+      {dataPolygons.map((dp, i) => {
+        const fillOp = dp.fillOpacity ?? 0.15;
+        const strokeOp = dp.strokeOpacity ?? 1;
+        const dots = dp.showDots !== false;
+        return (
+          <g key={i}>
+            {/* Fill area — fades in after stroke draws */}
+            <motion.polygon
+              points={dp.polygon}
               fill={dp.color}
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.25, delay: 0.4 + i * 0.15 + j * 0.04, ease: 'easeOut' }}
+              fillOpacity={fillOp}
+              stroke="none"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3, delay: 0.35 + i * 0.15, ease: 'easeOut' }}
             />
-          ))}
-        </g>
-      ))}
+            {/* Stroke — draws itself via pathLength */}
+            <motion.path
+              d={dp.pathD}
+              fill="none"
+              stroke={dp.color}
+              strokeWidth={dots ? 1.5 : 1}
+              strokeOpacity={strokeOp}
+              pathLength={1}
+              strokeDasharray="1"
+              strokeDashoffset="0"
+              initial={{ pathLength: 0, opacity: 0 }}
+              animate={{ pathLength: 1, opacity: strokeOp }}
+              transition={{ duration: 0.5, delay: i * 0.15, ease: 'easeOut' }}
+            />
+            {/* Data points — pop in after stroke completes (skip for ghost layers) */}
+            {dots &&
+              dp.coords.map((c, j) => (
+                <motion.circle
+                  key={j}
+                  cx={c.x}
+                  cy={c.y}
+                  r={3}
+                  fill={dp.color}
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{
+                    duration: 0.25,
+                    delay: 0.4 + i * 0.15 + j * 0.04,
+                    ease: 'easeOut',
+                  }}
+                />
+              ))}
+          </g>
+        );
+      })}
 
       {/* Axis labels */}
       {axes.map((label, i) => (
