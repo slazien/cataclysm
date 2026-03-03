@@ -75,6 +75,13 @@
 - **Pattern**: `_find_brake_point(..., prev_exit_idx=prev_exit)` — callers must track the previous corner's exit index and pass it through.
 - **Companion fix**: Flat-out corners need explicit `character="flat"` annotations in `track_db.py` OfficialCorner definitions, which suppress brake recommendations in `CornerRecommendation` and signal the LLM not to coach braking. Even with correct brake detection, the LLM will fixate on tiny deceleration events without this hint.
 
+## Visual Verification of Track Corner Directions Is Mandatory
+- **When**: Creating or modifying corner directions in `track_db.py`
+- **Rule**: NEVER trust algorithm-derived directions (heading-rate sign analysis) as the sole source. Always visually compare against a reference track map image (e.g., racingcircuits.info). Download the image locally if WebFetch can't render it. Compare EVERY corner's direction against the map — not just the ones you think are ambiguous.
+- **Pattern**: After setting directions, print the corner table (`T#, Name, Direction`) and visually walk around the reference map corner by corner. Does T1 go right on the map? Check. Does T2 go right? Check. All 9 corners.
+- **Why**: Roebling Road had 4 of 9 corners with wrong directions (T4, T5, T6, T7). The heading-rate algorithm got the sign wrong at complex curves where approach curvature differs from the main arc. A single visual comparison against the reference map would have caught all four errors immediately. The first "fix" only caught T7 because it didn't verify the other corners against the image.
+- **Anti-pattern**: "I'll just fix the one corner that was reported wrong" — NO. When one direction is wrong, assume others might be too and verify ALL of them.
+
 ## Always Run Code Reviewer After Implementation
 - **When**: After finishing ANY implementation task — features, bug fixes, refactors
 - **Rule**: Dispatch the code reviewer agent (`superpowers:code-reviewer` or `code-review:code-review`) to review all changed files. This is in ADDITION to automated checks (ruff, mypy, tests), not a replacement.
