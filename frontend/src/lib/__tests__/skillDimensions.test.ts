@@ -34,4 +34,10 @@ describe('getIdentityLabel', () => {
   it('returns fallback for null input', () => {
     expect(getIdentityLabel(null)).toBe('TRACK WARRIOR');
   });
+
+  it('picks first dimension on tie (braking wins over trailBraking)', () => {
+    const dims = { braking: 90, trailBraking: 90, throttle: 60, line: 55 };
+    const label = getIdentityLabel(dims);
+    expect(['LATE BRAKER', 'BRAKE BOSS']).toContain(label);
+  });
 });

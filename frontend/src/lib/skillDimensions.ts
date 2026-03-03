@@ -71,13 +71,13 @@ export function getIdentityLabel(dims: SkillDimensions | null): string {
   const max = Math.max(...entries.map(([, v]) => v));
   const min = Math.min(...entries.map(([, v]) => v));
 
-  // If all dimensions within 10 points, driver is balanced
-  const key = max - min <= 10
-    ? 'balanced'
-    : entries.find(([, v]) => v === max)![0];
+  // If all dimensions within 10 points, driver is balanced.
+  // On tie, first dimension in declaration order wins (braking > trailBraking > throttle > line).
+  const dominant = entries.find(([, v]) => v === max);
+  const key = max - min <= 10 ? 'balanced' : (dominant?.[0] ?? 'balanced');
 
   const pool = IDENTITY_LABELS[key];
-  // Deterministic pick based on dimension values (not random, so same data = same label)
-  const hash = Math.round(dims.braking + dims.throttle * 3 + dims.line * 7);
+  // Deterministic pick based on all dimension values (not random, so same data = same label)
+  const hash = Math.round(dims.braking + dims.trailBraking * 2 + dims.throttle * 3 + dims.line * 7);
   return pool[hash % pool.length];
 }
