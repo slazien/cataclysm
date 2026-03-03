@@ -184,6 +184,7 @@ export function HeroTrackMap({ sessionId, bestLapNumber }: HeroTrackMapProps) {
   const { data: report } = useCoachingReport(sessionId);
   const setActiveView = useUiStore((s) => s.setActiveView);
   const selectCorner = useAnalysisStore((s) => s.selectCorner);
+  const setMode = useAnalysisStore((s) => s.setMode);
 
   const { segments, labels, projected, sfLine } = useMemo(() => {
     if (!lapData || !corners) {
@@ -225,6 +226,7 @@ export function HeroTrackMap({ sessionId, bestLapNumber }: HeroTrackMapProps) {
 
   const handleCornerClick = (cornerNumber: number) => {
     selectCorner(`T${cornerNumber}`);
+    setMode('corner');
     setActiveView('deep-dive');
   };
 
