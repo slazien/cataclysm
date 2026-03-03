@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Providers } from '@/components/Providers';
 import { NetworkStatus } from '@/components/shared/NetworkStatus';
+import { TestUserSwitcher } from '@/components/dev/TestUserSwitcher';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <NetworkStatus />
           {children}
+          {process.env.NEXT_PUBLIC_TEST_AUTH === 'true' && <TestUserSwitcher />}
         </Providers>
       </body>
     </html>

@@ -50,6 +50,13 @@ export async function fetchApi<T>(
   if (!options?.body || !(options.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
   }
+  // Test user switching: send X-Test-User-Id header when set in localStorage
+  if (typeof window !== "undefined") {
+    const testUserId = localStorage.getItem("testUserId");
+    if (testUserId) {
+      headers["X-Test-User-Id"] = testUserId;
+    }
+  }
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
@@ -71,6 +78,11 @@ export async function uploadSessions(
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `${API_BASE}/api/sessions/upload`);
     xhr.withCredentials = true;
+    // Test user switching for upload path
+    const testUserId = localStorage.getItem("testUserId");
+    if (testUserId) {
+      xhr.setRequestHeader("X-Test-User-Id", testUserId);
+    }
 
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onUploadProgress) {
