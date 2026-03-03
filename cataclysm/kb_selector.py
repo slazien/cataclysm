@@ -9,7 +9,7 @@ from cataclysm.corners import Corner
 from cataclysm.gains import GainEstimate
 
 # Maximum tokens of KB context to inject into the prompt.
-MAX_INJECTION_TOKENS = 2000
+MAX_INJECTION_TOKENS = 3000
 # Approximate tokens-per-character ratio for English text.
 CHARS_PER_TOKEN = 4.0
 
@@ -122,15 +122,90 @@ KB_SNIPPETS: dict[str, str] = {
         "between turn-in and throttle allows using the early corner portion to slow the car while "
         "turning."
     ),
+    # --- Load Transfer (LT) ---
+    "LT.1": (
+        "Load transfer under braking: at 1g braking in a typical 3000lb track car, approximately "
+        "625 lbs transfers to the front tires — the front carries 71% of total vehicle weight. "
+        "This is why front tire grip increases dramatically under braking, enabling trail braking "
+        "to tighten your line."
+    ),
+    "LT.2": (
+        "Lateral load transfer: at 1g cornering, the outside tires carry approximately 65-70% of "
+        "total weight. Higher CG = more transfer = less total grip. Lowering the car or adding "
+        "wider tires reduces this effect."
+    ),
+    # --- Brake Trace Patterns (BR) ---
+    "BR.1": (
+        "Optimal brake trace has 4 phases: (1) rapid initial application (0.1-0.2s), (2) peak "
+        "maintenance near threshold, (3) progressive release as speed drops, (4) trail braking at "
+        "5-10% pressure into the corner. Common problems: 'staircase' pattern (fear of lockup), "
+        "plateau too low (not reaching max decel), abrupt release (no trail braking, causes weight "
+        "shift instability)."
+    ),
+    # --- Survival Reactions (SR) ---
+    "SR.1": (
+        "Throttle lift mid-corner is the most dangerous survival reaction. If speed through a "
+        "corner feels scary, the instinct is to lift — but this transfers weight forward, unloads "
+        "the rear, and can cause snap oversteer. A small, deliberate breathe is safe; an abrupt "
+        "panic lift is not. If you notice yourself lifting, the root issue is usually entering too "
+        "fast. Address it at the brake point, not mid-corner."
+    ),
+    "SR.2": (
+        "The $10 attention budget: you have limited mental bandwidth. If $8 goes to fear "
+        "and survival reactions, only $2 is available for driving technique. As corners "
+        "become automatic through practice, attention frees up for refinement. Focus on "
+        "mastering one corner at a time rather than trying to be fast everywhere."
+    ),
+    # --- Drivetrain-Specific (DT) ---
+    "DT.1": (
+        "FWD-specific: understeer is the natural limit behavior. Throttle mid-corner "
+        "pulls the front tires toward the exit, increasing understeer. Technique: "
+        "throttle application should be earlier and more progressive than RWD. Trail "
+        "braking is the primary rotation tool since throttle doesn't create oversteer."
+    ),
+    "DT.2": (
+        "RWD-specific: oversteer is the natural limit behavior on throttle. Too much throttle too "
+        "early causes the rear to step out. Technique: wait for the car to rotate, then apply "
+        "throttle progressively as steering unwinds. The throttle-to-steering relationship is your "
+        "primary balance control."
+    ),
+    "DT.3": (
+        "AWD-specific: behaves like FWD at entry (front-biased torque split) and like RWD at exit "
+        "(rear receives more torque under acceleration). Technique: can be more aggressive with "
+        "entry speed but must manage understeer on initial throttle. Trail braking window is "
+        "shorter because AWD rotates less under braking."
+    ),
+    # --- Wet Weather (WET) ---
+    "WET.1": (
+        "Wet line differs from dry line: avoid rubber-laid racing line (it's the most slippery "
+        "surface when wet). Drive off-line on rougher pavement for more grip. Brake points move "
+        "50-100m earlier. Steering and throttle inputs must be 30-50% more gradual. All grip "
+        "thresholds drop to 40-60% of dry levels."
+    ),
+    # --- Vision & Mental Focus (VIS) ---
+    "VIS.1": (
+        "Look where you want to go, not where you are. Expert drivers show 2x more head rotation "
+        "than novices (van Leeuwen 2017). At corner entry, eyes should already be on the apex. At "
+        "the apex, eyes should be on the exit. Vision leads the car by 1-2 seconds. If you're "
+        "looking at the apex when you arrive there, you're late."
+    ),
+    # --- Aero effects at high speed ---
+    "AERO.1": (
+        "Above 80 mph, aerodynamic forces become significant. Downforce increases grip "
+        "quadratically with speed — a car with modest aero produces 50-100 lbs of "
+        "downforce at 80 mph but 200-400 lbs at 120 mph. In fast corners, trust the "
+        "grip from aero: reduce steering input and carry speed. Abrupt speed changes in "
+        "aero-dependent corners cause sudden grip loss."
+    ),
 }
 
 # ---------------------------------------------------------------------------
 # Trigger mappings
 # ---------------------------------------------------------------------------
 _SKILL_SNIPPETS: dict[str, list[str]] = {
-    "novice": ["8.4", "8.5", "8.10", "1.1"],
-    "intermediate": ["2.5", "3.6", "5.2"],
-    "advanced": ["5.4", "5.5", "A.1"],
+    "novice": ["8.4", "8.5", "8.10", "1.1", "VIS.1", "SR.2"],
+    "intermediate": ["2.5", "3.6", "5.2", "LT.1", "BR.1"],
+    "advanced": ["5.4", "5.5", "A.1", "LT.2"],
 }
 
 # Per-corner pattern thresholds
@@ -143,10 +218,82 @@ _LARGE_GAIN_S = 0.3  # gain_s threshold for consistency gain
 _SHORT_CORNER_MPH = 8.0  # entry - min speed < this
 _LONG_CORNER_MPH = 25.0  # entry - min speed > this
 
+# Session-level pattern thresholds
+_SURVIVAL_SPEED_DROP_MPH = 3.0  # sudden speed drop apex-to-exit
+_LOW_COMBINED_G = 0.7  # peak combined G threshold
+_SHORT_BRAKE_ZONE_M = 30.0  # brake-to-apex distance threshold
+_HIGH_SPEED_CORNER_MPH = 80.0  # aero effects become relevant
+
 
 def _estimate_char_budget() -> int:
     """Return the character budget corresponding to MAX_INJECTION_TOKENS."""
     return int(MAX_INJECTION_TOKENS * CHARS_PER_TOKEN)
+
+
+def _session_level_snippets(
+    all_lap_corners: dict[int, list[Corner]],
+) -> list[tuple[str, float]]:
+    """Detect session-wide telemetry patterns and return (snippet_id, priority) pairs.
+
+    These patterns look at aggregate data across all corners and all laps,
+    rather than per-corner analysis.  Priority is set to 0.15 (above default
+    0.1 but below gain-driven corner triggers).
+    """
+    if not all_lap_corners:
+        return []
+
+    results: list[tuple[str, float]] = []
+    session_priority = 0.15
+
+    # Collect all corners across all laps
+    all_corners: list[Corner] = [c for lap_corners in all_lap_corners.values() for c in lap_corners]
+
+    if not all_corners:
+        return []
+
+    # --- Survival reaction: throttle lift mid-corner ---
+    # Detect if any corner shows speed dropping >3 mph between apex and exit.
+    # We approximate exit speed from the next corner's entry or use min_speed
+    # as a proxy — if the apex speed is significantly higher than what kinematic
+    # models predict for the corner geometry, it suggests a mid-corner lift.
+    # Simpler proxy: look for corners where brake data shows braking *after* the apex.
+    for _lap_num, lap_corners in all_lap_corners.items():
+        for c in lap_corners:
+            if c.throttle_commit_m is None:
+                continue
+            # If throttle commit is significantly past exit, the driver likely lifted
+            if c.throttle_commit_m > c.exit_distance_m:
+                results.append(("SR.1", session_priority))
+                break
+        else:
+            continue
+        break
+
+    # --- Low grip utilization: peak combined G < 0.7g across session ---
+    brake_gs = [abs(c.peak_brake_g) for c in all_corners if c.peak_brake_g is not None]
+    if brake_gs and max(brake_gs) < _LOW_COMBINED_G:
+        results.append(("LT.1", session_priority))
+
+    # --- Short braking zone: brake-to-apex < 30m ---
+    short_brake_count = 0
+    total_brake_count = 0
+    for c in all_corners:
+        if c.brake_point_m is not None:
+            total_brake_count += 1
+            brake_to_apex = c.apex_distance_m - c.brake_point_m
+            if 0 < brake_to_apex < _SHORT_BRAKE_ZONE_M:
+                short_brake_count += 1
+    if total_brake_count > 0 and short_brake_count / total_brake_count > 0.3:
+        results.append(("BR.1", session_priority))
+
+    # --- High speed corners: >80 mph min speed (aero effects relevant) ---
+    high_speed_count = sum(
+        1 for c in all_corners if c.min_speed_mps * MPS_TO_MPH > _HIGH_SPEED_CORNER_MPH
+    )
+    if high_speed_count > 0:
+        results.append(("AERO.1", session_priority))
+
+    return results
 
 
 def _corner_pattern_snippets(
@@ -257,26 +404,59 @@ def select_kb_snippets(
     """Select relevant Going Faster KB sections based on telemetry patterns.
 
     Returns a formatted string to append to the system prompt.
-    Caps total injection at ~2,000 tokens to avoid prompt bloat.
+    Caps total injection at ~3,000 tokens to avoid prompt bloat.
+
+    Priority system when total snippets exceed the token budget:
+    1. Top-3-gain corner snippets (highest priority)
+    2. Skill-level base snippets
+    3. Pattern-triggered snippets (per-corner, sorted by gain)
+    4. Session-level pattern snippets (supplementary context)
     """
     char_budget = _estimate_char_budget()
-    selected_ids: list[str] = []
 
-    # 1. Skill-level snippets (always first priority)
-    skill_ids = _SKILL_SNIPPETS.get(skill_level, _SKILL_SNIPPETS["intermediate"])
-    for sid in skill_ids:
-        if sid not in selected_ids:
-            selected_ids.append(sid)
-
-    # 2. Per-corner pattern triggers, sorted by gain (biggest opportunity first)
+    # --- Phase 1: Collect top-3-gain corner snippets (highest priority) ---
+    top_gain_ids: list[str] = []
     pattern_triggers = _corner_pattern_snippets(all_lap_corners, gains)
-    # Sort by priority descending, deduplicate
+    # Sort by priority descending (gain in seconds)
     pattern_triggers.sort(key=lambda x: x[1], reverse=True)
-    for snippet_id, _ in pattern_triggers:
-        if snippet_id not in selected_ids:
-            selected_ids.append(snippet_id)
+    # Take the top 3 unique snippet IDs from the highest-gain corners
+    seen_top: set[str] = set()
+    for snippet_id, _priority in pattern_triggers[:6]:  # scan extra for dedup
+        if snippet_id not in seen_top:
+            top_gain_ids.append(snippet_id)
+            seen_top.add(snippet_id)
+        if len(top_gain_ids) >= 3:
+            break
 
-    # 3. Build output within token budget
+    # --- Phase 2: Skill-level base snippets ---
+    skill_ids = _SKILL_SNIPPETS.get(skill_level, _SKILL_SNIPPETS["intermediate"])
+
+    # --- Phase 3: Remaining pattern-triggered snippets ---
+    remaining_pattern_ids: list[str] = []
+    for snippet_id, _ in pattern_triggers:
+        if snippet_id not in seen_top:
+            remaining_pattern_ids.append(snippet_id)
+
+    # --- Phase 4: Session-level pattern snippets ---
+    session_triggers = _session_level_snippets(all_lap_corners)
+    session_ids = [sid for sid, _ in session_triggers]
+
+    # --- Assemble final ordered list with deduplication ---
+    selected_ids: list[str] = []
+    seen: set[str] = set()
+
+    def _add_unique(ids: list[str]) -> None:
+        for sid in ids:
+            if sid not in seen:
+                selected_ids.append(sid)
+                seen.add(sid)
+
+    _add_unique(top_gain_ids)
+    _add_unique(skill_ids)
+    _add_unique(remaining_pattern_ids)
+    _add_unique(session_ids)
+
+    # --- Build output within token budget ---
     sections: list[str] = []
     total_chars = 0
     header = "## Additional Coaching Knowledge (from Going Faster! reference)\n"

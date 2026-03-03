@@ -20,6 +20,7 @@ from cataclysm.kb_selector import (
     MAX_INJECTION_TOKENS,
     _corner_pattern_snippets,
     _estimate_char_budget,
+    _session_level_snippets,
     select_kb_snippets,
 )
 
@@ -491,18 +492,34 @@ class TestCoachingIntegration:
 # Tests: Priority ordering
 # ---------------------------------------------------------------------------
 class TestPriorityOrdering:
-    def test_skill_snippets_come_first(self) -> None:
-        """Skill-level snippets should appear before pattern-triggered ones."""
+    def test_top_gain_snippets_come_first(self) -> None:
+        """Top-gain corner snippets should appear before skill-level ones."""
+        gains = _make_gains({1: 0.8})
         all_corners: dict[int, list[Corner]] = {
             1: [_make_corner(apex_type="early")],
             2: [_make_corner(apex_type="early")],
             3: [_make_corner(apex_type="early")],
         }
-        result = select_kb_snippets(all_corners, "novice")
-        # 8.4 (skill) should appear before 4.1 (pattern)
-        pos_skill = result.index("[8.4]")
+        result = select_kb_snippets(all_corners, "novice", gains=gains)
+        # 4.1 (top-gain pattern) should appear before 8.4 (skill)
         pos_pattern = result.index("[4.1]")
-        assert pos_skill < pos_pattern
+        pos_skill = result.index("[8.4]")
+        assert pos_pattern < pos_skill
+
+    def test_skill_snippets_before_remaining_patterns(self) -> None:
+        """Skill-level snippets come after top-3-gain but before remaining patterns."""
+        gains = _make_gains({1: 0.5})
+        # Early apex triggers 4.1, low brake G triggers 2.5, late throttle triggers 3.5+5.3
+        all_corners: dict[int, list[Corner]] = {
+            1: [_make_corner(apex_type="early", peak_g=-0.3, throttle=320.0, apex=280.0)],
+            2: [_make_corner(apex_type="early", peak_g=-0.3, throttle=315.0, apex=280.0)],
+            3: [_make_corner(apex_type="early", peak_g=-0.3, throttle=325.0, apex=280.0)],
+        }
+        result = select_kb_snippets(all_corners, "novice", gains=gains)
+        # All pattern-triggered snippets should be present
+        assert "[4.1]" in result
+        # Novice skill snippet should also be present
+        assert "[8.4]" in result
 
     def test_higher_gain_patterns_prioritized(self) -> None:
         """Pattern triggers for corners with larger gains should come first."""
@@ -589,3 +606,199 @@ class TestSelectKbSnippetsFormatEdgeCases:
             result = select_kb_snippets(all_corners, "novice")
         # With only 4 chars budget, nothing fits after the header
         assert result == ""
+
+
+# ---------------------------------------------------------------------------
+# Tests: New snippet categories (Wave 1B)
+# ---------------------------------------------------------------------------
+
+
+class TestNewSnippetCategories:
+    """Verify all new snippet categories exist and are well-formed."""
+
+    def test_load_transfer_snippets_exist(self) -> None:
+        assert "LT.1" in KB_SNIPPETS
+        assert "LT.2" in KB_SNIPPETS
+        assert "load transfer" in KB_SNIPPETS["LT.1"].lower()
+        assert "lateral" in KB_SNIPPETS["LT.2"].lower()
+
+    def test_brake_trace_snippet_exists(self) -> None:
+        assert "BR.1" in KB_SNIPPETS
+        assert "brake trace" in KB_SNIPPETS["BR.1"].lower()
+
+    def test_survival_reaction_snippets_exist(self) -> None:
+        assert "SR.1" in KB_SNIPPETS
+        assert "SR.2" in KB_SNIPPETS
+        assert "survival reaction" in KB_SNIPPETS["SR.1"].lower()
+        assert "attention" in KB_SNIPPETS["SR.2"].lower()
+
+    def test_drivetrain_snippets_exist(self) -> None:
+        assert "DT.1" in KB_SNIPPETS
+        assert "DT.2" in KB_SNIPPETS
+        assert "DT.3" in KB_SNIPPETS
+        assert "fwd" in KB_SNIPPETS["DT.1"].lower()
+        assert "rwd" in KB_SNIPPETS["DT.2"].lower()
+        assert "awd" in KB_SNIPPETS["DT.3"].lower()
+
+    def test_wet_weather_snippet_exists(self) -> None:
+        assert "WET.1" in KB_SNIPPETS
+        assert "wet" in KB_SNIPPETS["WET.1"].lower()
+
+    def test_vision_snippet_exists(self) -> None:
+        assert "VIS.1" in KB_SNIPPETS
+        assert "look" in KB_SNIPPETS["VIS.1"].lower()
+
+    def test_aero_snippet_exists(self) -> None:
+        assert "AERO.1" in KB_SNIPPETS
+        assert "aerodynamic" in KB_SNIPPETS["AERO.1"].lower()
+
+    def test_total_snippet_count_expanded(self) -> None:
+        """KB should now have 28+ snippets (was 18)."""
+        assert len(KB_SNIPPETS) >= 28
+
+
+class TestExpandedSkillSnippets:
+    """Verify new skill-level snippet assignments."""
+
+    def test_novice_includes_vision_and_survival(self) -> None:
+        corners: dict[int, list[Corner]] = {}
+        result = select_kb_snippets(corners, "novice")
+        assert "VIS.1" in result
+        assert "SR.2" in result
+
+    def test_intermediate_includes_load_transfer_and_brake_trace(self) -> None:
+        corners: dict[int, list[Corner]] = {}
+        result = select_kb_snippets(corners, "intermediate")
+        assert "LT.1" in result
+        assert "BR.1" in result
+
+    def test_advanced_includes_lateral_load_transfer(self) -> None:
+        corners: dict[int, list[Corner]] = {}
+        result = select_kb_snippets(corners, "advanced")
+        assert "LT.2" in result
+
+
+# ---------------------------------------------------------------------------
+# Tests: Session-level pattern triggers (Wave 1B)
+# ---------------------------------------------------------------------------
+
+
+class TestSessionLevelSnippets:
+    """Tests for _session_level_snippets function."""
+
+    def test_empty_corners_returns_empty(self) -> None:
+        result = _session_level_snippets({})
+        assert result == []
+
+    def test_survival_reaction_throttle_past_exit(self) -> None:
+        """When throttle commit is past exit distance, trigger SR.1."""
+        # throttle_commit_m=400 > exit_distance_m=350 -> survival reaction
+        all_corners: dict[int, list[Corner]] = {
+            1: [_make_corner(throttle=400.0, exit_m=350.0)],
+        }
+        triggers = _session_level_snippets(all_corners)
+        snippet_ids = [sid for sid, _ in triggers]
+        assert "SR.1" in snippet_ids
+
+    def test_no_survival_reaction_when_throttle_before_exit(self) -> None:
+        """Normal throttle commit should not trigger SR.1."""
+        all_corners: dict[int, list[Corner]] = {
+            1: [_make_corner(throttle=320.0, exit_m=350.0)],
+        }
+        triggers = _session_level_snippets(all_corners)
+        snippet_ids = [sid for sid, _ in triggers]
+        assert "SR.1" not in snippet_ids
+
+    def test_low_grip_utilization(self) -> None:
+        """When max peak brake G across session < 0.7g, trigger LT.1."""
+        all_corners: dict[int, list[Corner]] = {
+            1: [_make_corner(peak_g=-0.3)],
+            2: [_make_corner(peak_g=-0.5)],
+            3: [_make_corner(peak_g=-0.4)],
+        }
+        triggers = _session_level_snippets(all_corners)
+        snippet_ids = [sid for sid, _ in triggers]
+        assert "LT.1" in snippet_ids
+
+    def test_no_low_grip_when_high_g(self) -> None:
+        """When peak brake G > 0.7g, LT.1 should not trigger."""
+        all_corners: dict[int, list[Corner]] = {
+            1: [_make_corner(peak_g=-0.9)],
+            2: [_make_corner(peak_g=-0.8)],
+        }
+        triggers = _session_level_snippets(all_corners)
+        snippet_ids = [sid for sid, _ in triggers]
+        assert "LT.1" not in snippet_ids
+
+    def test_short_braking_zone(self) -> None:
+        """When >30% of corners have brake-to-apex < 30m, trigger BR.1."""
+        # apex=280, brake=260 -> 20m (short), all corners short
+        all_corners: dict[int, list[Corner]] = {
+            1: [_make_corner(brake_pt=260.0, apex=280.0)],
+            2: [_make_corner(brake_pt=265.0, apex=280.0)],
+            3: [_make_corner(brake_pt=270.0, apex=280.0)],
+        }
+        triggers = _session_level_snippets(all_corners)
+        snippet_ids = [sid for sid, _ in triggers]
+        assert "BR.1" in snippet_ids
+
+    def test_no_short_braking_when_long_zones(self) -> None:
+        """Normal braking zones should not trigger BR.1."""
+        # apex=280, brake=150 -> 130m (long)
+        all_corners: dict[int, list[Corner]] = {
+            1: [_make_corner(brake_pt=150.0, apex=280.0)],
+            2: [_make_corner(brake_pt=140.0, apex=280.0)],
+        }
+        triggers = _session_level_snippets(all_corners)
+        snippet_ids = [sid for sid, _ in triggers]
+        assert "BR.1" not in snippet_ids
+
+    def test_high_speed_corner_triggers_aero(self) -> None:
+        """When any corner has min_speed > 80 mph, trigger AERO.1."""
+        # 80 mph = 35.76 m/s
+        all_corners: dict[int, list[Corner]] = {
+            1: [_make_corner(min_speed=36.0)],  # ~80.5 mph
+        }
+        triggers = _session_level_snippets(all_corners)
+        snippet_ids = [sid for sid, _ in triggers]
+        assert "AERO.1" in snippet_ids
+
+    def test_no_aero_when_low_speed(self) -> None:
+        """Low-speed corners should not trigger AERO.1."""
+        all_corners: dict[int, list[Corner]] = {
+            1: [_make_corner(min_speed=22.0)],  # ~49 mph
+        }
+        triggers = _session_level_snippets(all_corners)
+        snippet_ids = [sid for sid, _ in triggers]
+        assert "AERO.1" not in snippet_ids
+
+    def test_no_brake_data_does_not_crash(self) -> None:
+        """Corners with no brake data should not crash session-level detection."""
+        all_corners: dict[int, list[Corner]] = {
+            1: [_make_corner(brake_pt=None, peak_g=None, throttle=None)],
+        }
+        triggers = _session_level_snippets(all_corners)
+        assert isinstance(triggers, list)
+
+    def test_session_snippets_integrated_into_select(self) -> None:
+        """Session-level snippets should appear in select_kb_snippets output."""
+        # High-speed corner triggers AERO.1 at session level
+        all_corners: dict[int, list[Corner]] = {
+            1: [_make_corner(min_speed=36.0)],
+        }
+        result = select_kb_snippets(all_corners, "intermediate")
+        assert "AERO.1" in result
+
+
+# ---------------------------------------------------------------------------
+# Tests: Token budget with new MAX_INJECTION_TOKENS
+# ---------------------------------------------------------------------------
+
+
+class TestUpdatedTokenBudget:
+    def test_max_injection_tokens_is_3000(self) -> None:
+        assert MAX_INJECTION_TOKENS == 3000
+
+    def test_char_budget_is_12000(self) -> None:
+        budget = _estimate_char_budget()
+        assert budget == 12000  # 3000 * 4.0
