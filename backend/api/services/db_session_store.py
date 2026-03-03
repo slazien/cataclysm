@@ -21,18 +21,42 @@ from backend.api.services.session_store import SessionData
 
 
 async def ensure_user_exists(db: AsyncSession, user: AuthenticatedUser) -> None:
-    """Create the User row if it doesn't already exist (FK target for sessions)."""
+    """Create or update the User row (FK target for sessions).
+
+    Handles the case where a user already exists with the same email but a
+    different ID (e.g. dev-user row from DEV_AUTH_BYPASS, or OAuth provider
+    returning a different ``sub`` claim).
+    """
+    # Check by primary key first
     result = await db.execute(select(UserModel).where(UserModel.id == user.user_id))
-    if result.scalar_one_or_none() is None:
-        db.add(
-            UserModel(
-                id=user.user_id,
-                email=user.email,
-                name=user.name,
-                avatar_url=user.picture,
-            )
-        )
+    existing = result.scalar_one_or_none()
+    if existing is not None:
+        # Update name/avatar in case they changed
+        existing.name = user.name
+        existing.avatar_url = user.picture
+        return
+
+    # Not found by ID — check if email already exists under a different ID
+    result = await db.execute(select(UserModel).where(UserModel.email == user.email))
+    by_email = result.scalar_one_or_none()
+    if by_email is not None:
+        # Update the existing row to use the new OAuth ID
+        by_email.id = user.user_id
+        by_email.name = user.name
+        by_email.avatar_url = user.picture
         await db.flush()
+        return
+
+    # Truly new user
+    db.add(
+        UserModel(
+            id=user.user_id,
+            email=user.email,
+            name=user.name,
+            avatar_url=user.picture,
+        )
+    )
+    await db.flush()
 
 
 async def store_session_db(
