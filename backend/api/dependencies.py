@@ -84,6 +84,7 @@ def get_current_user(
     authorization: str | None = Header(None),
     session_token: str | None = Cookie(None, alias="authjs.session-token"),
     secure_session_token: str | None = Cookie(None, alias="__Secure-authjs.session-token"),
+    x_test_user_id: str | None = Header(None, alias="X-Test-User-Id"),
 ) -> AuthenticatedUser:
     """Extract and validate user from NextAuth.js JWT.
 
@@ -96,11 +97,15 @@ def get_current_user(
     """
     # QA bypass: skip all auth when DEV_AUTH_BYPASS=true
     if settings.dev_auth_bypass:
-        return AuthenticatedUser(
-            user_id="dev-user",
-            email="dev@localhost",
-            name="QA Test User",
-        )
+        user_id = x_test_user_id or settings.test_auth_user_id or "dev-user"
+        test_users = {
+            "test-alex": ("alex@test.cataclysm.dev", "Alex Racer"),
+            "test-jordan": ("jordan@test.cataclysm.dev", "Jordan Swift"),
+            "test-morgan": ("morgan@test.cataclysm.dev", "Morgan Apex"),
+            "dev-user": ("dev@localhost", "QA Test User"),
+        }
+        email, name = test_users.get(user_id, ("dev@localhost", "QA Test User"))
+        return AuthenticatedUser(user_id=user_id, email=email, name=name)
 
     if not settings.nextauth_secret:
         raise HTTPException(status_code=503, detail="Auth not configured")
@@ -151,17 +156,17 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="Invalid token") from None
 
     # NextAuth.js JWT stores user info in ``sub``, ``email``, ``name``, ``picture``
-    user_id = payload.get("sub")
-    email = payload.get("email")
-    name = payload.get("name", "")
+    jwt_user_id = payload.get("sub")
+    jwt_email = payload.get("email")
+    jwt_name = payload.get("name", "")
 
-    if not user_id or not email:
+    if not jwt_user_id or not jwt_email:
         raise HTTPException(status_code=401, detail="Invalid token claims")
 
     return AuthenticatedUser(
-        user_id=user_id,
-        email=email,
-        name=name,
+        user_id=jwt_user_id,
+        email=jwt_email,
+        name=jwt_name,
         picture=payload.get("picture"),
     )
 
@@ -177,11 +182,17 @@ async def authenticate_websocket(websocket: WebSocket) -> AuthenticatedUser | No
 
     # QA bypass: skip all auth when DEV_AUTH_BYPASS=true
     if settings.dev_auth_bypass:
-        return AuthenticatedUser(
-            user_id="dev-user",
-            email="dev@localhost",
-            name="QA Test User",
+        user_id = (
+            websocket.headers.get("x-test-user-id") or settings.test_auth_user_id or "dev-user"
         )
+        test_users = {
+            "test-alex": ("alex@test.cataclysm.dev", "Alex Racer"),
+            "test-jordan": ("jordan@test.cataclysm.dev", "Jordan Swift"),
+            "test-morgan": ("morgan@test.cataclysm.dev", "Morgan Apex"),
+            "dev-user": ("dev@localhost", "QA Test User"),
+        }
+        email, name = test_users.get(user_id, ("dev@localhost", "QA Test User"))
+        return AuthenticatedUser(user_id=user_id, email=email, name=name)
 
     if not settings.nextauth_secret:
         return None
@@ -218,14 +229,14 @@ async def authenticate_websocket(websocket: WebSocket) -> AuthenticatedUser | No
             )
         return None
 
-    user_id = payload.get("sub")
-    email = payload.get("email")
-    if not user_id or not email:
+    jwt_user_id = payload.get("sub")
+    jwt_email = payload.get("email")
+    if not jwt_user_id or not jwt_email:
         return None
 
     return AuthenticatedUser(
-        user_id=user_id,
-        email=email,
+        user_id=jwt_user_id,
+        email=jwt_email,
         name=payload.get("name", ""),
         picture=payload.get("picture"),
     )

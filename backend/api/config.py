@@ -68,6 +68,7 @@ class Settings(BaseSettings):
 
     # QA testing: bypass OAuth entirely, return a fake dev user for all requests
     dev_auth_bypass: bool = False
+    test_auth_user_id: str = "dev-user"
 
     @property
     def cors_origins(self) -> list[str]:
