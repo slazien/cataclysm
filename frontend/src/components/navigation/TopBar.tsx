@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { useSession as useAuthSession, signOut } from 'next-auth/react';
-import { FileText, Plus, Settings, ChevronRight, LogOut, Sparkles, Award } from 'lucide-react';
+import { FileText, Upload, Settings, ChevronRight, LogOut, Sparkles, Award } from 'lucide-react';
 import { useUiStore, useSessionStore } from '@/stores';
 import { useSession, useUploadSessions } from '@/hooks/useSession';
 import { cn } from '@/lib/utils';
@@ -94,7 +94,7 @@ export function TopBar() {
             title="Upload CSV"
             className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           >
-            <Plus className="h-4 w-4" />
+            <Upload className="h-4 w-4" />
           </Button>
           <input
             ref={fileInputRef}
