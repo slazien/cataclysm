@@ -539,6 +539,15 @@ export interface ShareComparisonResult {
     a_min_speed_mph: number;
     b_min_speed_mph: number;
   }[];
+  speed_traces?: {
+    a: { distance_m: number[]; speed_mph: number[] };
+    b: { distance_m: number[]; speed_mph: number[] };
+  };
+  skill_dimensions?: {
+    a: { braking: number; trail_braking: number; throttle: number; line: number };
+    b: { braking: number; trail_braking: number; throttle: number; line: number };
+  };
+  ai_verdict?: string;
 }
 
 // --- Instructor Types ---

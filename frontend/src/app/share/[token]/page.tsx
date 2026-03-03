@@ -3,11 +3,11 @@
 import { useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Upload, MapPin, Clock, Trophy, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, MapPin, AlertCircle, Loader2 } from 'lucide-react';
 import { getShareMetadata, uploadToShare } from '@/lib/api';
 import { formatLapTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
-import { DeltaTimeChart } from '@/components/comparison/DeltaTimeChart';
+import { ComparisonSummary } from '@/components/comparison/ComparisonSummary';
 import type { ShareComparisonResult } from '@/lib/types';
 
 export default function SharePage() {
@@ -102,9 +102,6 @@ export default function SharePage() {
 
   // Comparison result view
   if (comparison) {
-    const aFaster = comparison.delta_s > 0;
-    const deltaAbs = Math.abs(comparison.delta_s);
-
     return (
       <div className="min-h-screen bg-[var(--bg-primary)]">
         <div className="mx-auto flex max-w-4xl flex-col gap-6 p-4 lg:p-8">
@@ -116,166 +113,13 @@ export default function SharePage() {
               {meta.track_name}
             </p>
           </div>
-
-          {/* Winner Banner */}
-          <div
-            className={cn(
-              'rounded-lg border px-5 py-4',
-              aFaster
-                ? 'border-[var(--color-throttle)]/30 bg-[var(--color-throttle)]/5'
-                : 'border-[var(--color-brake)]/30 bg-[var(--color-brake)]/5',
-            )}
-          >
-            <div className="flex items-center justify-center gap-3">
-              <Trophy
-                className={cn(
-                  'h-5 w-5',
-                  aFaster ? 'text-[var(--color-throttle)]' : 'text-[var(--color-brake)]',
-                )}
-              />
-              <p className="text-sm font-medium text-[var(--text-primary)]">
-                {aFaster ? meta.inviter_name : 'You'}{aFaster ? '' : ''} {aFaster ? 'is' : 'are'} faster by{' '}
-                <span className="font-mono font-semibold">{deltaAbs.toFixed(3)}s</span>
-              </p>
-            </div>
-          </div>
-
-          {/* Session Cards */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div
-              className={cn(
-                'rounded-lg border px-5 py-4',
-                aFaster
-                  ? 'border-[var(--color-throttle)]/30 bg-[var(--bg-surface)]'
-                  : 'border-[var(--cata-border)] bg-[var(--bg-surface)]',
-              )}
-            >
-              <div className="mb-3 flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                  {meta.inviter_name}
-                </span>
-                {aFaster && (
-                  <span className="rounded-full bg-[var(--color-throttle)]/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-[var(--color-throttle)]">
-                    Faster
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Clock className="h-3.5 w-3.5 text-[var(--text-muted)]" />
-                <span className="font-mono text-lg font-semibold text-[var(--text-primary)]">
-                  {comparison.session_a_best_lap !== null
-                    ? formatLapTime(comparison.session_a_best_lap)
-                    : '--:--'}
-                </span>
-              </div>
-            </div>
-
-            <div
-              className={cn(
-                'rounded-lg border px-5 py-4',
-                !aFaster
-                  ? 'border-[var(--color-throttle)]/30 bg-[var(--bg-surface)]'
-                  : 'border-[var(--cata-border)] bg-[var(--bg-surface)]',
-              )}
-            >
-              <div className="mb-3 flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                  Your Session
-                </span>
-                {!aFaster && (
-                  <span className="rounded-full bg-[var(--color-throttle)]/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-[var(--color-throttle)]">
-                    Faster
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Clock className="h-3.5 w-3.5 text-[var(--text-muted)]" />
-                <span className="font-mono text-lg font-semibold text-[var(--text-primary)]">
-                  {comparison.session_b_best_lap !== null
-                    ? formatLapTime(comparison.session_b_best_lap)
-                    : '--:--'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Delta-T Chart */}
-          {comparison.distance_m.length > 0 && (
-            <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-              <h2 className="mb-3 text-sm font-medium text-[var(--text-primary)]">
-                Delta-T Over Distance
-              </h2>
-              <div className="h-64">
-                <DeltaTimeChart
-                  distance_m={comparison.distance_m}
-                  delta_time_s={comparison.delta_time_s}
-                  totalDelta={comparison.delta_s}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Corner Deltas */}
-          {comparison.corner_deltas.length > 0 && (
-            <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-              <h2 className="mb-4 text-sm font-medium text-[var(--text-primary)]">
-                Corner-by-Corner Comparison
-              </h2>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-[var(--cata-border)]">
-                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                        Corner
-                      </th>
-                      <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                        {meta.inviter_name}
-                      </th>
-                      <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                        You
-                      </th>
-                      <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                        Delta
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {comparison.corner_deltas.map((cd) => {
-                      const isPositive = cd.speed_diff_mph > 0;
-                      const isNegative = cd.speed_diff_mph < 0;
-                      return (
-                        <tr
-                          key={cd.corner_number}
-                          className="border-b border-[var(--cata-border)]/50 transition-colors hover:bg-[var(--bg-elevated)]"
-                        >
-                          <td className="px-3 py-2 font-medium text-[var(--text-primary)]">
-                            T{cd.corner_number}
-                          </td>
-                          <td className="px-3 py-2 text-right font-mono text-[var(--text-secondary)]">
-                            {cd.a_min_speed_mph.toFixed(1)} mph
-                          </td>
-                          <td className="px-3 py-2 text-right font-mono text-[var(--text-secondary)]">
-                            {cd.b_min_speed_mph.toFixed(1)} mph
-                          </td>
-                          <td
-                            className={cn(
-                              'px-3 py-2 text-right font-mono font-medium',
-                              isPositive && 'text-[var(--color-throttle)]',
-                              isNegative && 'text-[var(--color-brake)]',
-                              !isPositive && !isNegative && 'text-[var(--text-muted)]',
-                            )}
-                          >
-                            {isPositive ? '+' : ''}
-                            {cd.speed_diff_mph.toFixed(1)} mph
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+          <ComparisonSummary
+            comparison={comparison}
+            inviterName={meta.inviter_name ?? 'Driver A'}
+            challengerName="You"
+            trackName={meta.track_name}
+            token={token}
+          />
         </div>
       </div>
     );
