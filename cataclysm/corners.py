@@ -587,7 +587,7 @@ def extract_corner_kpis_for_lap(
                 number=ref.number,
                 entry_distance_m=ref.entry_distance_m,
                 exit_distance_m=ref.exit_distance_m,
-                apex_distance_m=round(float(distance[apex_idx]), 1),
+                apex_distance_m=ref.apex_distance_m,
                 min_speed_mps=round(float(corner_speed[apex_local]), 2),
                 brake_point_m=brake_m,
                 peak_brake_g=(round(peak_g, 3) if peak_g is not None else None),
