@@ -103,7 +103,8 @@ Ross Bentley's simulation: 1 mph more through a corner ≈ 0.5s/lap. This makes 
 **Implementation:**
 - In `gains.py` or new `stagnation.py`: compare last 3 sessions at the same track
 - If best lap time improvement < 0.3s across 3+ sessions: trigger stagnation coaching
-- Coaching prompt variant: "The driver has plateaued at [time] for [N] sessions. Identify the specific corners where their technique has become habitual rather than optimal. Suggest ONE new approach to break through."
+- Coaching prompt variant: "The driver has plateaued at [time] for [N] sessions. Their per-corner times for the last [N] sessions are: [corner-level data]. Identify corners where times have NOT improved while others have. For each stagnant corner, describe the measurable telemetry pattern (brake point, min speed, throttle application point) and how it differs from the driver's own best performance at that corner. Do NOT prescribe physical technique changes — only surface the data patterns the driver should investigate."
+- **Key constraint:** The AI must never fabricate coaching interventions (e.g., "try trail braking deeper") because GPS telemetry cannot observe what the driver is physically doing. It can only compare the driver's current data against their own historical best and highlight where the numbers diverge. This aligns with data honesty guardrails 9-11.
 
 ---
 
@@ -235,6 +236,78 @@ Add to `_corner_pattern_snippets()` in `kb_selector.py`:
 2. Skill-level base snippets
 3. Pattern-triggered snippets
 4. Remaining budget for supplementary context
+
+### 3.5 Vehicle Specs Database
+
+**Problem:** Load transfer formulas, power-to-weight context, and drivetrain-specific coaching all need actual car specs. Currently `VehicleParams` in `equipment.py` has tire-derived grip limits but no vehicle mass, wheelbase, track width, or CG height. The KB snippets (LT.1, LT.2) hardcode "a typical 3000lb track car" — useless for a 2400lb Miata or a 4200lb M5.
+
+**What feeds from this:**
+- **Load transfer quantification** — `ΔW_lat = (W × Ay × h) / t` needs actual W, h, t
+- **Braking performance context** — weight affects stopping distance, brake fade onset
+- **Power-to-weight coaching** — "your car has 180hp/ton, so corner exit speed matters more than raw power"
+- **Drivetrain coaching** — FWD/RWD/AWD already has KB snippets (DT.1-DT.3) but selection is manual
+- **Aero relevance** — cars with splitters/wings get aero snippets; NA Miatas don't
+
+**Architecture:**
+
+1. **Curated vehicle database** — `cataclysm/vehicle_db.py`, following the `tire_db.py` pattern. Start with ~40-50 common HPDE cars (Miata NA/NB/NC/ND, Civic Si/Type R, BRZ/86, Corvette C5-C8, M3 E46/F80/G80, Mustang GT/S550, Cayman 987/718, GT3 991/992, S2000, 370Z, WRX STI, etc.). Each entry is a dataclass:
+
+```python
+@dataclass
+class VehicleSpec:
+    """Manufacturer specs for a car model."""
+    make: str
+    model: str
+    generation: str              # "ND" for Miata, "E46" for M3, etc.
+    year_range: tuple[int, int]  # (2016, 2025)
+    weight_kg: float             # curb weight
+    wheelbase_m: float
+    track_width_front_m: float
+    track_width_rear_m: float
+    cg_height_m: float           # estimated — hardest to get, ~0.45-0.55m for sports cars
+    weight_dist_front_pct: float # e.g., 52.0 for front-heavy
+    drivetrain: str              # "RWD" | "FWD" | "AWD"
+    hp: int
+    torque_nm: int
+    has_aero: bool               # factory splitter/wing (aftermarket = user override)
+    notes: str | None = None     # "S-package adds LSD", etc.
+```
+
+2. **Data sources** — manufacturer specs cover weight, wheelbase, HP, torque, drivetrain easily. Track width is in spec sheets. CG height is the hard one — use published estimates (typically 0.45-0.55m for sports cars, 0.55-0.65m for sedans/SUVs). Weight distribution from published specs or auto-journalist measurements.
+
+3. **User setup flow** — when creating an equipment profile, user picks their car from a searchable dropdown (make → model → generation). This populates vehicle specs as defaults. User can then override any field for modified cars:
+   - Weight: "I stripped 200lbs" → override to 1100kg
+   - CG height: "I lowered it 2 inches" → user can adjust
+   - Aero: "I added a wing" → toggle has_aero
+   - Suspension changes already covered by existing `SuspensionSpec`
+
+4. **Integration into equipment profile** — add a `vehicle` field to `EquipmentProfile`:
+```python
+@dataclass
+class EquipmentProfile:
+    id: str
+    name: str
+    vehicle: VehicleSpec          # NEW — the car itself
+    tires: TireSpec               # what's ON the car
+    brakes: BrakeSpec | None
+    suspension: SuspensionSpec | None
+    vehicle_overrides: dict[str, float] = field(default_factory=dict)  # user mods
+    notes: str | None = None
+```
+
+5. **Integration into coaching pipeline** — `equipment_to_vehicle_params()` gets actual weight and dimensions. Load transfer KB snippets become dynamic:
+```python
+# Instead of hardcoded "3000lb car":
+f"Load transfer under braking at 1g: {delta_w_front:.0f} lbs transfers to the front tires — "
+f"the front carries {front_pct:.0f}% of total weight. "
+f"(Computed for your {vehicle.make} {vehicle.model} at {vehicle.weight_kg:.0f}kg)"
+```
+
+6. **Drivetrain auto-selection** — DT.1/DT.2/DT.3 snippets get selected automatically based on `vehicle.drivetrain` instead of requiring manual specification.
+
+**Scope control:** Start with the curated DB + dropdown + coaching integration. Do NOT build: gear ratio tables, engine dyno curves, or suspension geometry calculators. Those are future scope if the vehicle DB proves valuable.
+
+**Effort:** ~3 days (1 day DB + dataclass, 1 day frontend dropdown + profile integration, 1 day coaching pipeline integration + tests)
 
 ---
 
@@ -607,8 +680,11 @@ Quick wins — unblock social features that already exist but are inaccessible.
 | 1.6 | Add new pattern detection triggers | `kb_selector.py` | 1 day |
 | 1.7 | Implement stagnation detection | New `stagnation.py` or in `gains.py` | 1 day |
 | 1.8 | Corner geometry classification | `corner_analysis.py` or new module | 2 days |
-| 1.9 | Tests for all new modules | `tests/` | 2 days |
-| 1.10 | Validate coaching quality (sample prompts, check output) | Manual + validator | 1 day |
+| 1.9 | Vehicle specs DB (~40-50 common HPDE cars) | New `vehicle_db.py` | 1 day |
+| 1.10 | Vehicle selection UI + equipment profile integration | Frontend + backend | 1 day |
+| 1.11 | Dynamic load transfer + drivetrain KB snippet integration | `kb_selector.py`, `coaching.py` | 1 day |
+| 1.12 | Tests for all new modules | `tests/` | 2 days |
+| 1.13 | Validate coaching quality (sample prompts, check output) | Manual + validator | 1 day |
 
 **Outcome:** Coaching goes from "generic report" to "intelligent, prioritized, skill-adapted coach."
 
