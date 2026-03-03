@@ -14,6 +14,8 @@ import type {
   GPSQualityReport,
   MiniSectorData,
   DegradationData,
+  OptimalComparisonData,
+  GGDiagramData,
   WrappedData,
   AchievementListData,
   NewAchievementsData,
@@ -236,6 +238,14 @@ export async function getMiniSectors(sessionId: string, nSectors: number = 20, l
 export async function getDegradation(sessionId: string) {
   return fetchApi<DegradationData>(
     `/api/sessions/${sessionId}/degradation`,
+  );
+}
+
+// --- Optimal Comparison API ---
+
+export async function getOptimalComparison(sessionId: string) {
+  return fetchApi<OptimalComparisonData>(
+    `/api/sessions/${sessionId}/optimal-comparison`,
   );
 }
 

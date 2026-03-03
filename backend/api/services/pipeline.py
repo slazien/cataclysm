@@ -31,6 +31,7 @@ from cataclysm.gains import (
 )
 from cataclysm.gps_quality import GPSQualityReport, assess_gps_quality
 from cataclysm.grip import estimate_grip_limit
+from cataclysm.optimal_comparison import compare_with_optimal
 from cataclysm.parser import ParsedSession, parse_racechrono_csv
 from cataclysm.track_db import locate_official_corners
 from cataclysm.track_match import detect_track_or_lookup
@@ -293,6 +294,49 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
                 "top_speed_mps": optimal.vehicle_params.top_speed_mps,
             },
             "equipment_profile_id": profile_id,
+        }
+
+    return await asyncio.to_thread(_compute)
+
+
+async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, object]:
+    """Compare the best lap against the physics-optimal profile per-corner.
+
+    Returns per-corner opportunity gaps sorted by time cost descending,
+    plus aggregate lap-time data.
+    """
+    session_id = session_data.session_id
+
+    def _compute() -> dict[str, object]:
+        processed = session_data.processed
+        best_lap_df = processed.resampled_laps[processed.best_lap]
+        corners = session_data.corners
+
+        # Build the optimal profile
+        curvature_result = compute_curvature(best_lap_df)
+        vehicle_params = resolve_vehicle_params(session_id)
+        optimal = compute_optimal_profile(curvature_result, params=vehicle_params)
+
+        # Run the full comparison
+        result = compare_with_optimal(best_lap_df, corners, optimal)
+
+        return {
+            "corner_opportunities": [
+                {
+                    "corner_number": opp.corner_number,
+                    "actual_min_speed_mph": round(opp.actual_min_speed_mps * MPS_TO_MPH, 2),
+                    "optimal_min_speed_mph": round(opp.optimal_min_speed_mps * MPS_TO_MPH, 2),
+                    "speed_gap_mph": round(opp.speed_gap_mph, 2),
+                    "brake_gap_m": (
+                        round(opp.brake_gap_m, 2) if opp.brake_gap_m is not None else None
+                    ),
+                    "time_cost_s": round(opp.time_cost_s, 3),
+                }
+                for opp in result.corner_opportunities
+            ],
+            "actual_lap_time_s": round(result.actual_lap_time_s, 3),
+            "optimal_lap_time_s": round(result.optimal_lap_time_s, 3),
+            "total_gap_s": round(result.total_gap_s, 3),
         }
 
     return await asyncio.to_thread(_compute)

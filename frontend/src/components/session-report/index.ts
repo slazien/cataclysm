@@ -6,3 +6,4 @@ export { HeroTrackMapSection } from './HeroTrackMapSection';
 export { CornerGradesSection } from './CornerGradesSection';
 export { PatternsAndDrillsSection } from './PatternsAndDrillsSection';
 export { MetricsGrid } from './MetricsGrid';
+export { OptimalGapChart } from './OptimalGapChart';

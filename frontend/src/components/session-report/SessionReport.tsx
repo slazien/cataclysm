@@ -6,6 +6,7 @@ import { useSession, useSessionLaps } from '@/hooks/useSession';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useCorners, useConsistency, useGPSQuality } from '@/hooks/useAnalysis';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
+import { OptimalGapChart } from './OptimalGapChart';
 import { SessionReportHeader } from './SessionReportHeader';
 import { CoachingSummaryHero } from './CoachingSummaryHero';
 import { PriorityCardsSection } from './PriorityCardsSection';
@@ -26,7 +27,7 @@ export function SessionReport() {
   const { data: report } = useCoachingReport(activeSessionId);
   const { data: consistency } = useConsistency(activeSessionId);
   const { data: gpsQuality } = useGPSQuality(activeSessionId);
-  const { isNovice, isAdvanced } = useSkillLevel();
+  const { isNovice, isAdvanced, showFeature } = useSkillLevel();
 
   const bestLapNumber = useMemo(() => {
     if (!laps || laps.length === 0) return 1;
@@ -70,6 +71,10 @@ export function SessionReport() {
             sessionId={activeSessionId}
             bestLapNumber={bestLapNumber}
           />
+        )}
+
+        {activeSessionId && showFeature('optimal_comparison') && (
+          <OptimalGapChart sessionId={activeSessionId} />
         )}
 
         {report?.corner_grades && report.corner_grades.length > 0 && (

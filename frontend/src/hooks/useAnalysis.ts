@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery, useQueries } from "@tanstack/react-query";
-import { getCorners, getAllLapCorners, getConsistency, getGains, getGrip, getDelta, getLapData, getGPSQuality, getMiniSectors, getDegradation } from "@/lib/api";
-import type { Corner, SessionConsistency, DeltaData, LapData, GPSQualityReport, MiniSectorData, DegradationData } from "@/lib/types";
+import { getCorners, getAllLapCorners, getConsistency, getGains, getGrip, getDelta, getLapData, getGPSQuality, getMiniSectors, getDegradation, getOptimalComparison } from "@/lib/api";
+import type { Corner, SessionConsistency, DeltaData, LapData, GPSQualityReport, MiniSectorData, DegradationData, OptimalComparisonData } from "@/lib/types";
 
 export function useCorners(sessionId: string | null) {
   return useQuery<Corner[]>({
@@ -100,6 +100,14 @@ export function useDegradation(sessionId: string | null) {
   return useQuery<DegradationData>({
     queryKey: ["degradation", sessionId],
     queryFn: () => getDegradation(sessionId!),
+    enabled: !!sessionId,
+  });
+}
+
+export function useOptimalComparison(sessionId: string | null) {
+  return useQuery<OptimalComparisonData>({
+    queryKey: ["optimal-comparison", sessionId],
+    queryFn: () => getOptimalComparison(sessionId!),
     enabled: !!sessionId,
   });
 }

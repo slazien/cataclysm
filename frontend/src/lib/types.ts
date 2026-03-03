@@ -241,6 +241,25 @@ export interface ComparisonResult {
   session_b_weather_temp_c?: number | null;
 }
 
+// --- Optimal Comparison Types ---
+
+export interface CornerOpportunity {
+  corner_number: number;
+  actual_min_speed_mph: number;
+  optimal_min_speed_mph: number;
+  speed_gap_mph: number; // optimal - actual (positive = driver is slower)
+  brake_gap_m: number | null; // positive = driver brakes later than optimal
+  time_cost_s: number; // time lost vs optimal in this corner zone
+}
+
+export interface OptimalComparisonData {
+  session_id: string;
+  corner_opportunities: CornerOpportunity[];
+  actual_lap_time_s: number;
+  optimal_lap_time_s: number;
+  total_gap_s: number; // actual - optimal (positive = driver is slower)
+}
+
 // --- Equipment Types ---
 
 export interface TireSpec {
@@ -564,6 +583,32 @@ export interface StudentSessionWithFlags {
 
 export interface StudentSessionsData {
   sessions: StudentSessionWithFlags[];
+}
+
+// --- G-G Diagram Types ---
+
+export interface GGPoint {
+  lat_g: number;
+  lon_g: number;
+  distance_m: number;
+  corner_number: number | null;
+}
+
+export interface CornerGGSummary {
+  corner_number: number;
+  utilization_pct: number;
+  max_lat_g: number;
+  max_lon_g: number;
+  point_count: number;
+}
+
+export interface GGDiagramData {
+  session_id: string;
+  lap_number: number;
+  points: GGPoint[];
+  overall_utilization_pct: number;
+  observed_max_g: number;
+  per_corner: CornerGGSummary[];
 }
 
 // --- Organization (HPDE Club) types ---
