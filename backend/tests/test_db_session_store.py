@@ -194,7 +194,9 @@ class TestStoreSessionDb:
         async with _test_session_factory() as db:
             rows = await list_sessions_for_user(db, _TEST_USER.user_id)
 
-        centroid = rows[0].snapshot_json["gps_centroid"]
+        snap = rows[0].snapshot_json
+        assert snap is not None
+        centroid = snap["gps_centroid"]
         assert centroid["lat"] == pytest.approx(33.53, abs=0.001)
         assert centroid["lon"] == pytest.approx(-86.62, abs=0.001)
 
@@ -211,7 +213,9 @@ class TestStoreSessionDb:
         async with _test_session_factory() as db:
             rows = await list_sessions_for_user(db, _TEST_USER.user_id)
 
-        q = rows[0].snapshot_json["gps_quality"]
+        snap2 = rows[0].snapshot_json
+        assert snap2 is not None
+        q = snap2["gps_quality"]
         assert q["overall_score"] == pytest.approx(88.5)
         assert q["grade"] == "B"
         assert q["is_usable"] is True

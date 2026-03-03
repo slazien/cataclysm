@@ -21,6 +21,7 @@ import pytest
 from backend.api.services import equipment_store
 from backend.api.services import pipeline as pipeline_module
 from backend.api.services.pipeline import _resolve_vehicle_params
+from backend.api.services.session_store import SessionData
 
 # ---------------------------------------------------------------------------
 # Helpers — build minimal mocks that satisfy _run_pipeline_sync's interface
@@ -128,7 +129,9 @@ def _apply_base_mocks(
 class TestRunPipelineSyncErrorPaths:
     """Each test injects a failure into one pipeline stage and checks recovery."""
 
-    def _run_with_patches(self, extra_setup: object = None) -> dict[str, MagicMock]:
+    def _run_with_patches(
+        self, extra_setup: object = None
+    ) -> tuple[SessionData, dict[str, MagicMock]]:
         """Run _run_pipeline_sync under full patch, returning all mocks.
 
         Also patches _fallback_lap_consistency to avoid needing real LapSummary objects

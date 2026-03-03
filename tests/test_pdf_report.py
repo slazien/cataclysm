@@ -326,9 +326,7 @@ class TestAddChartErrorPath:
 class TestAddChartPageBreak:
     """Tests for line 322: page break when image doesn't fit on current page."""
 
-    def test_multiple_charts_trigger_page_breaks(
-        self, sample_summaries: list[LapSummary]
-    ) -> None:
+    def test_multiple_charts_trigger_page_breaks(self, sample_summaries: list[LapSummary]) -> None:
         """Multiple tall charts that overflow the page should trigger page breaks (line 322)."""
         # Use a very tall aspect-ratio figure to force overflow
         fig = go.Figure(data=[go.Scatter(x=list(range(10)), y=list(range(10)))])

@@ -335,9 +335,11 @@ class TestProcessSessionEdgeCases:
         df = pd.DataFrame(rows)
 
         # Mock _filter_short_laps to return empty (simulating all laps filtered)
-        with patch("cataclysm.engine._filter_short_laps", return_value={}):
-            with pytest.raises(ValueError, match="filtered out"):
-                process_session(df)
+        with (
+            patch("cataclysm.engine._filter_short_laps", return_value={}),
+            pytest.raises(ValueError, match="filtered out"),
+        ):
+            process_session(df)
 
     def test_no_laps_resampled_raises(self) -> None:
         """All laps fail resampling → ValueError (line 216)."""
@@ -360,9 +362,11 @@ class TestProcessSessionEdgeCases:
         df = pd.DataFrame(rows)
 
         # Mock _resample_lap to always return empty
-        with patch("cataclysm.engine._resample_lap", return_value=pd.DataFrame()):
-            with pytest.raises(ValueError, match="resampled"):
-                process_session(df)
+        with (
+            patch("cataclysm.engine._resample_lap", return_value=pd.DataFrame()),
+            pytest.raises(ValueError, match="resampled"),
+        ):
+            process_session(df)
 
     def test_lap_not_in_resampled_skipped_in_summaries(self) -> None:
         """Lap that fails resampling → not in summaries (line 223)."""

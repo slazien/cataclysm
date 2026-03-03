@@ -680,8 +680,13 @@ class TestMultiLapCornerMissing:
         """Line 261: corner number not found in a lap → continue."""
         # Lap 1 has corners 1 and 2, lap 2 has only corner 1
         c1_lap1 = _make_corner(1, min_speed_mps=20.0)
-        c2_lap1 = _make_corner(2, min_speed_mps=15.0, entry_distance_m=800.0,
-                                exit_distance_m=1100.0, apex_distance_m=950.0)
+        c2_lap1 = _make_corner(
+            2,
+            min_speed_mps=15.0,
+            entry_distance_m=800.0,
+            exit_distance_m=1100.0,
+            apex_distance_m=950.0,
+        )
         c1_lap2 = _make_corner(1, min_speed_mps=21.0)
 
         all_corners = {1: [c1_lap1, c2_lap1], 2: [c1_lap2]}
@@ -708,10 +713,20 @@ class TestMultiLapCornerMissing:
         c1_lap1 = _make_corner(1, min_speed_mps=20.0)
         c1_lap2 = _make_corner(1, min_speed_mps=22.0)
         c1_lap3 = _make_corner(1, min_speed_mps=21.0)
-        c2_lap1 = _make_corner(2, min_speed_mps=15.0, entry_distance_m=800.0,
-                                exit_distance_m=1100.0, apex_distance_m=950.0)
-        c2_lap3 = _make_corner(2, min_speed_mps=16.0, entry_distance_m=800.0,
-                                exit_distance_m=1100.0, apex_distance_m=950.0)
+        c2_lap1 = _make_corner(
+            2,
+            min_speed_mps=15.0,
+            entry_distance_m=800.0,
+            exit_distance_m=1100.0,
+            apex_distance_m=950.0,
+        )
+        c2_lap3 = _make_corner(
+            2,
+            min_speed_mps=16.0,
+            entry_distance_m=800.0,
+            exit_distance_m=1100.0,
+            apex_distance_m=950.0,
+        )
 
         all_corners = {1: [c1_lap1, c2_lap1], 2: [c1_lap2], 3: [c1_lap3, c2_lap3]}
         result = compute_corner_analysis(all_corners, None, None, None, best_lap=2)

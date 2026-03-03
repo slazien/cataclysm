@@ -339,9 +339,12 @@ async def test_trigger_auto_coaching_fires_task_when_no_report(client: AsyncClie
     sd = session_store.get_session(session_id)
     assert sd is not None
 
-    with patch("backend.api.routers.coaching._track_task") as mock_track, patch(
-        "cataclysm.coaching.generate_coaching_report",
-        return_value=_mock_coaching_report(),
+    with (
+        patch("backend.api.routers.coaching._track_task") as mock_track,
+        patch(
+            "cataclysm.coaching.generate_coaching_report",
+            return_value=_mock_coaching_report(),
+        ),
     ):
         await trigger_auto_coaching(session_id, sd)
         mock_track.assert_called_once()
@@ -576,12 +579,15 @@ async def test_coaching_chat_http_returns_answer(client: AsyncClient) -> None:
     )
     await store_coaching_report(session_id, report)
 
-    with patch(
-        "backend.api.routers.coaching.classify_topic",
-        return_value=TopicClassification(on_topic=True, source="no_api_key"),
-    ), patch(
-        "cataclysm.coaching.ask_followup",
-        return_value="Try braking 10m earlier at T3.",
+    with (
+        patch(
+            "backend.api.routers.coaching.classify_topic",
+            return_value=TopicClassification(on_topic=True, source="no_api_key"),
+        ),
+        patch(
+            "cataclysm.coaching.ask_followup",
+            return_value="Try braking 10m earlier at T3.",
+        ),
     ):
         response = await client.post(
             f"/api/coaching/{session_id}/chat",
@@ -612,12 +618,15 @@ async def test_coaching_chat_http_creates_context_on_first_message(
     # No context yet
     assert await get_coaching_context(session_id) is None
 
-    with patch(
-        "backend.api.routers.coaching.classify_topic",
-        return_value=TopicClassification(on_topic=True, source="no_api_key"),
-    ), patch(
-        "cataclysm.coaching.ask_followup",
-        return_value="Good question!",
+    with (
+        patch(
+            "backend.api.routers.coaching.classify_topic",
+            return_value=TopicClassification(on_topic=True, source="no_api_key"),
+        ),
+        patch(
+            "cataclysm.coaching.ask_followup",
+            return_value="Good question!",
+        ),
     ):
         response = await client.post(
             f"/api/coaching/{session_id}/chat",
@@ -653,12 +662,15 @@ async def test_coaching_chat_http_reuses_existing_context(client: AsyncClient) -
         captured_ctx.append(ctx)
         return "Captured answer"
 
-    with patch(
-        "backend.api.routers.coaching.classify_topic",
-        return_value=TopicClassification(on_topic=True, source="no_api_key"),
-    ), patch(
-        "cataclysm.coaching.ask_followup",
-        side_effect=_capture_ask_followup,
+    with (
+        patch(
+            "backend.api.routers.coaching.classify_topic",
+            return_value=TopicClassification(on_topic=True, source="no_api_key"),
+        ),
+        patch(
+            "cataclysm.coaching.ask_followup",
+            side_effect=_capture_ask_followup,
+        ),
     ):
         response = await client.post(
             f"/api/coaching/{session_id}/chat",
@@ -713,12 +725,15 @@ async def test_websocket_chat_session_not_found_sends_error() -> None:
     mock_ws.send_json = AsyncMock()
     mock_ws.close = AsyncMock()
 
-    with patch(
-        "backend.api.routers.coaching.authenticate_websocket",
-        new=AsyncMock(return_value=mock_user),
-    ), patch(
-        "backend.api.routers.coaching.session_store.get_session",
-        return_value=None,
+    with (
+        patch(
+            "backend.api.routers.coaching.authenticate_websocket",
+            new=AsyncMock(return_value=mock_user),
+        ),
+        patch(
+            "backend.api.routers.coaching.session_store.get_session",
+            return_value=None,
+        ),
     ):
         await coaching_chat(mock_ws, "nonexistent-session")
 
@@ -752,15 +767,19 @@ async def test_websocket_chat_no_report_sends_error(client: AsyncClient) -> None
     mock_ws.send_json = AsyncMock()
     mock_ws.close = AsyncMock()
 
-    with patch(
-        "backend.api.routers.coaching.authenticate_websocket",
-        new=AsyncMock(return_value=mock_user),
-    ), patch(
-        "backend.api.routers.coaching.session_store.get_session",
-        return_value=sd,
-    ), patch(
-        "backend.api.routers.coaching.get_coaching_report",
-        new=AsyncMock(return_value=None),
+    with (
+        patch(
+            "backend.api.routers.coaching.authenticate_websocket",
+            new=AsyncMock(return_value=mock_user),
+        ),
+        patch(
+            "backend.api.routers.coaching.session_store.get_session",
+            return_value=sd,
+        ),
+        patch(
+            "backend.api.routers.coaching.get_coaching_report",
+            new=AsyncMock(return_value=None),
+        ),
     ):
         await coaching_chat(mock_ws, session_id)
 
@@ -807,21 +826,27 @@ async def test_websocket_chat_handles_message_exchange(client: AsyncClient) -> N
         side_effect=[{"content": "How do I improve T3?"}, WebSocketDisconnect()]
     )
 
-    with patch(
-        "backend.api.routers.coaching.authenticate_websocket",
-        new=AsyncMock(return_value=mock_user),
-    ), patch(
-        "backend.api.routers.coaching.session_store.get_session",
-        return_value=sd,
-    ), patch(
-        "backend.api.routers.coaching.get_coaching_report",
-        new=AsyncMock(return_value=stored_report),
-    ), patch(
-        "backend.api.routers.coaching.classify_topic",
-        return_value=TopicClassification(on_topic=True, source="no_api_key"),
-    ), patch(
-        "cataclysm.coaching.ask_followup",
-        return_value="Brake 10m earlier.",
+    with (
+        patch(
+            "backend.api.routers.coaching.authenticate_websocket",
+            new=AsyncMock(return_value=mock_user),
+        ),
+        patch(
+            "backend.api.routers.coaching.session_store.get_session",
+            return_value=sd,
+        ),
+        patch(
+            "backend.api.routers.coaching.get_coaching_report",
+            new=AsyncMock(return_value=stored_report),
+        ),
+        patch(
+            "backend.api.routers.coaching.classify_topic",
+            return_value=TopicClassification(on_topic=True, source="no_api_key"),
+        ),
+        patch(
+            "cataclysm.coaching.ask_followup",
+            return_value="Brake 10m earlier.",
+        ),
     ):
         await coaching_chat(mock_ws, session_id)
 
@@ -864,18 +889,23 @@ async def test_websocket_chat_off_topic_question(client: AsyncClient) -> None:
         side_effect=[{"content": "What is the weather in Paris?"}, WebSocketDisconnect()]
     )
 
-    with patch(
-        "backend.api.routers.coaching.authenticate_websocket",
-        new=AsyncMock(return_value=mock_user),
-    ), patch(
-        "backend.api.routers.coaching.session_store.get_session",
-        return_value=sd,
-    ), patch(
-        "backend.api.routers.coaching.get_coaching_report",
-        new=AsyncMock(return_value=stored_report),
-    ), patch(
-        "backend.api.routers.coaching.classify_topic",
-        return_value=TopicClassification(on_topic=False, source="classifier"),
+    with (
+        patch(
+            "backend.api.routers.coaching.authenticate_websocket",
+            new=AsyncMock(return_value=mock_user),
+        ),
+        patch(
+            "backend.api.routers.coaching.session_store.get_session",
+            return_value=sd,
+        ),
+        patch(
+            "backend.api.routers.coaching.get_coaching_report",
+            new=AsyncMock(return_value=stored_report),
+        ),
+        patch(
+            "backend.api.routers.coaching.classify_topic",
+            return_value=TopicClassification(on_topic=False, source="classifier"),
+        ),
     ):
         await coaching_chat(mock_ws, session_id)
 
@@ -913,15 +943,19 @@ async def test_websocket_chat_empty_question(client: AsyncClient) -> None:
     mock_ws.close = AsyncMock()
     mock_ws.receive_json = AsyncMock(side_effect=[{"content": "   "}, WebSocketDisconnect()])
 
-    with patch(
-        "backend.api.routers.coaching.authenticate_websocket",
-        new=AsyncMock(return_value=mock_user),
-    ), patch(
-        "backend.api.routers.coaching.session_store.get_session",
-        return_value=sd,
-    ), patch(
-        "backend.api.routers.coaching.get_coaching_report",
-        new=AsyncMock(return_value=stored_report),
+    with (
+        patch(
+            "backend.api.routers.coaching.authenticate_websocket",
+            new=AsyncMock(return_value=mock_user),
+        ),
+        patch(
+            "backend.api.routers.coaching.session_store.get_session",
+            return_value=sd,
+        ),
+        patch(
+            "backend.api.routers.coaching.get_coaching_report",
+            new=AsyncMock(return_value=stored_report),
+        ),
     ):
         await coaching_chat(mock_ws, session_id)
 

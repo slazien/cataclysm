@@ -355,9 +355,11 @@ def test_save_exception_cleans_temp_file(state_path: Path) -> None:
     v = CoachingValidator(state_path=state_path)
     v.state.total_outputs = 10
 
-    with patch("json.dump", side_effect=OSError("Disk full")):
-        with pytest.raises(OSError, match="Disk full"):
-            v._save()
+    with (
+        patch("json.dump", side_effect=OSError("Disk full")),
+        pytest.raises(OSError, match="Disk full"),
+    ):
+        v._save()
 
 
 # ── _create_client (lines 261-266) ──────────────────────────────────

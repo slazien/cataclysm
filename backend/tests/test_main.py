@@ -3,24 +3,22 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import FastAPI, Request
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.exc import OperationalError, SQLAlchemyError
+from httpx import AsyncClient
+from sqlalchemy.exc import OperationalError
 
 from backend.api.main import (
-    CacheControlMiddleware,
     _CACHE_RULES,
+    CacheControlMiddleware,
     _reload_sessions_from_db,
     _reload_sessions_from_disk,
     app,
     generic_exception_handler,
     value_error_handler,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helper: run the lifespan context manager directly
@@ -120,9 +118,7 @@ class TestCacheControlMiddleware:
         assert response.headers.get("cache-control") == "no-cache"
 
     @pytest.mark.asyncio
-    async def test_post_request_gets_no_cache_header_applied(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_post_request_gets_no_cache_header_applied(self, client: AsyncClient) -> None:
         """POST requests are not modified by middleware (non-GET bypass)."""
         # POST /api/orgs returns 422 for empty body — middleware skips non-GET
         response = await client.post("/api/orgs", json={})
@@ -267,12 +263,18 @@ class TestReloadSessionsFromDb:
         mock_factory = MagicMock()
         mock_cm = AsyncMock()
         mock_cm.__aenter__ = AsyncMock(
-            side_effect=OperationalError("connection refused", params=None, orig=None)
+            side_effect=OperationalError(
+                "connection refused", params=None, orig=Exception("connection refused")
+            )
         )
         mock_cm.__aexit__ = AsyncMock(return_value=False)
         mock_factory.return_value = mock_cm
 
-        with patch("backend.api.main.async_session_factory" if False else "backend.api.db.database.async_session_factory"):
+        with patch(
+            "backend.api.main.async_session_factory"
+            if False
+            else "backend.api.db.database.async_session_factory"
+        ):
             # We test by calling the function with mocked internals via a fresh patch
             pass
 
@@ -414,7 +416,17 @@ class TestLifespan:
     async def test_lifespan_startup_runs_without_error(self) -> None:
         """The lifespan handler completes startup + shutdown without raising."""
         patches = _base_lifespan_patches()
-        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6], patches[7], patches[8]:
+        with (
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3],
+            patches[4],
+            patches[5],
+            patches[6],
+            patches[7],
+            patches[8],
+        ):
             await _run_lifespan()  # must not raise
 
     @pytest.mark.asyncio

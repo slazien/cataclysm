@@ -254,9 +254,7 @@ class TestAddOrgMember:
             db.add(Organization(id=org_id, name="Student Club", slug="student-club"))
             await db.flush()
             # TEST_USER is only a student here
-            db.add(
-                OrgMembership(org_id=org_id, user_id=_TEST_USER.user_id, role="student")
-            )
+            db.add(OrgMembership(org_id=org_id, user_id=_TEST_USER.user_id, role="student"))
             await db.commit()
 
         response = await client.post(
@@ -333,12 +331,10 @@ class TestRemoveOrgMember:
         async with _test_session_factory() as db:
             db.add(Organization(id=org_id, name="Instr Club", slug="instr-club"))
             await db.flush()
-            db.add(
-                OrgMembership(org_id=org_id, user_id=_TEST_USER.user_id, role="instructor")
-            )
+            db.add(OrgMembership(org_id=org_id, user_id=_TEST_USER.user_id, role="instructor"))
             await db.commit()
 
-        response = await client.delete(f"/api/orgs/instr-club/members/anyone")
+        response = await client.delete("/api/orgs/instr-club/members/anyone")
         assert response.status_code == 403
         assert "only org owners" in response.json()["detail"].lower()
 
@@ -394,17 +390,13 @@ class TestCreateOrgEvent:
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_create_event_without_permission_returns_403(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_create_event_without_permission_returns_403(self, client: AsyncClient) -> None:
         """A student cannot create events."""
         org_id = "org-student-ev-01"
         async with _test_session_factory() as db:
             db.add(Organization(id=org_id, name="Student Ev Club", slug="student-ev-club"))
             await db.flush()
-            db.add(
-                OrgMembership(org_id=org_id, user_id=_TEST_USER.user_id, role="student")
-            )
+            db.add(OrgMembership(org_id=org_id, user_id=_TEST_USER.user_id, role="student"))
             await db.commit()
 
         response = await client.post(
@@ -522,17 +514,13 @@ class TestDeleteOrgEvent:
         assert response.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_delete_event_without_permission_returns_403(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_delete_event_without_permission_returns_403(self, client: AsyncClient) -> None:
         """A student cannot delete events."""
         org_id = "org-del-ev-01"
         async with _test_session_factory() as db:
             db.add(Organization(id=org_id, name="Del Ev Club", slug="del-ev-club"))
             await db.flush()
-            db.add(
-                OrgMembership(org_id=org_id, user_id=_TEST_USER.user_id, role="student")
-            )
+            db.add(OrgMembership(org_id=org_id, user_id=_TEST_USER.user_id, role="student"))
             await db.commit()
 
         response = await client.delete("/api/orgs/del-ev-club/events/some-event-id")
@@ -553,9 +541,7 @@ class TestDeleteOrgEvent:
         async with _test_session_factory() as db:
             db.add(Organization(id=org_id, name="Instr Del Club", slug="instr-del-club"))
             await db.flush()
-            db.add(
-                OrgMembership(org_id=org_id, user_id=_TEST_USER.user_id, role="instructor")
-            )
+            db.add(OrgMembership(org_id=org_id, user_id=_TEST_USER.user_id, role="instructor"))
             await db.commit()
 
         create_resp = await client.post(

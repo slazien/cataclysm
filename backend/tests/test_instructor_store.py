@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any, cast
 
 import pytest
 import pytest_asyncio
@@ -58,7 +59,7 @@ _STUDENT2_ID = "student-2"
 
 
 @pytest_asyncio.fixture(autouse=True)
-async def _setup_db() -> None:  # type: ignore[misc]
+async def _setup_db():  # type: ignore[misc,no-untyped-def]
     """Create tables and seed test users before each test."""
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -88,7 +89,7 @@ async def _setup_db() -> None:  # type: ignore[misc]
 
 
 @pytest_asyncio.fixture
-async def db() -> AsyncSession:  # type: ignore[misc]
+async def db():  # type: ignore[misc,no-untyped-def]
     """Yield a fresh database session for each test."""
     async with _session_factory() as session:
         yield session  # type: ignore[misc]
@@ -257,7 +258,7 @@ class TestGetStudents:
         students = await get_students(db, _INSTRUCTOR_ID)
         assert len(students) == 1
         assert "recent_flags" in students[0]
-        recent = students[0]["recent_flags"]
+        recent = cast(list[Any], students[0]["recent_flags"])
         assert "attention" in recent
         assert "improvement" in recent
 
@@ -294,7 +295,7 @@ class TestGetStudents:
         await db.commit()
 
         students = await get_students(db, _INSTRUCTOR_ID)
-        assert len(students[0]["recent_flags"]) == 20
+        assert len(cast(list[Any], students[0]["recent_flags"])) == 20
 
 
 # ---------------------------------------------------------------------------
@@ -548,7 +549,7 @@ class TestGetStudentSessions:
         await db.commit()
 
         sessions = await get_student_sessions(db, _STUDENT_ID)
-        flags = sessions[0]["flags"]
+        flags = cast(list[dict[str, Any]], sessions[0]["flags"])
         assert len(flags) == 1
         assert flags[0]["flag_type"] == "attention"
 

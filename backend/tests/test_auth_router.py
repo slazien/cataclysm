@@ -8,7 +8,6 @@ from httpx import AsyncClient
 from backend.api.db.models import User
 from backend.tests.conftest import _TEST_USER, _test_session_factory
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -90,9 +89,7 @@ class TestGetMe:
         assert response.json()["name"] == _TEST_USER.name  # updated from JWT
 
     @pytest.mark.asyncio
-    async def test_get_me_default_skill_level_is_intermediate(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_get_me_default_skill_level_is_intermediate(self, client: AsyncClient) -> None:
         """A newly created user has skill_level='intermediate' by default."""
         # Remove the test user so it gets created fresh
         async with _test_session_factory() as db:
@@ -123,9 +120,7 @@ class TestUpdateMe:
         assert response.json()["skill_level"] == "novice"
 
     @pytest.mark.asyncio
-    async def test_patch_me_updates_skill_level_to_intermediate(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_patch_me_updates_skill_level_to_intermediate(self, client: AsyncClient) -> None:
         """PATCH /api/auth/me sets skill_level to 'intermediate'."""
         response = await client.patch("/api/auth/me", json={"skill_level": "intermediate"})
         assert response.status_code == 200

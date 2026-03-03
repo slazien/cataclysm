@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, _patch, patch
 
 import pytest
 from cataclysm.coaching import CoachingContext
@@ -146,7 +146,7 @@ def _make_lazy_db_factory(
     context_return: list[dict[str, str]] | None = None,
     report_side_effect: object = None,
     context_side_effect: object = None,
-) -> Iterator[dict[str, AsyncMock]]:
+) -> tuple[_patch[MagicMock], _patch[AsyncMock], _patch[AsyncMock]]:
     """Patch async_session_factory + DB getters for lazy-load tests."""
     db_session = AsyncMock()
     db_session.commit = AsyncMock()

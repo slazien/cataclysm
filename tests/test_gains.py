@@ -703,7 +703,7 @@ class TestSegmentTimesEdgeCases:
         # clean_laps includes lap 2, but it's not in resampled
         result = compute_segment_times(resampled, segs, [1, 2])
         # Should still produce results for lap 1 only
-        for seg_name, times in result.items():
+        for _seg_name, times in result.items():
             assert 2 not in times
             assert 1 in times
 
@@ -780,9 +780,7 @@ class TestEstimateGainsPhysicsGap:
             LapSummary(lap_number=2, lap_time_s=24.98, lap_distance_m=699.3, max_speed_mps=28.0),
         ]
         corners = [_make_corner(1, entry=100.0, exit=200.0)]
-        result = estimate_gains(
-            laps, corners, summaries, [1, 2], 1, optimal_lap_time_s=20.0
-        )
+        result = estimate_gains(laps, corners, summaries, [1, 2], 1, optimal_lap_time_s=20.0)
         assert result.physics_gap is not None
         assert result.physics_gap.optimal_lap_time_s == 20.0
         assert result.physics_gap.gap_s >= 0
