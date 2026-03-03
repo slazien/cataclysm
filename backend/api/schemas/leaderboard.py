@@ -12,6 +12,8 @@ class CornerRecordInput(BaseModel):
     min_speed_mps: float
     sector_time_s: float
     lap_number: int
+    brake_point_m: float | None = None
+    consistency_cv: float | None = None
 
 
 class CornerRecordEntry(BaseModel):
@@ -23,6 +25,8 @@ class CornerRecordEntry(BaseModel):
     min_speed_mps: float
     session_date: str
     is_king: bool = False
+    brake_point_m: float | None = None
+    consistency_cv: float | None = None
 
 
 class CornerKingEntry(BaseModel):

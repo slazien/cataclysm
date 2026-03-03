@@ -1,10 +1,11 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useSessionStore } from '@/stores';
 import { useSession, useSessionLaps } from '@/hooks/useSession';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useCorners, useConsistency, useGPSQuality } from '@/hooks/useAnalysis';
+import { useRecentAchievements } from '@/hooks/useAchievements';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
 import { OptimalGapChart } from './OptimalGapChart';
 import { SessionReportHeader } from './SessionReportHeader';
@@ -13,11 +14,13 @@ import { PriorityCardsSection } from './PriorityCardsSection';
 import { HeroTrackMapSection } from './HeroTrackMapSection';
 import { CornerGradesSection } from './CornerGradesSection';
 import { PatternsAndDrillsSection } from './PatternsAndDrillsSection';
+import { NewAchievementCard } from './NewAchievementCard';
 import { MetricsGrid } from './MetricsGrid';
 import { LapTimesBar } from '@/components/dashboard/LapTimesBar';
 import { RawDataTable } from './RawDataTable';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TrackWatermark } from '@/components/shared/TrackWatermark';
+import { BadgeGrid } from '@/components/achievements/BadgeGrid';
 
 export function SessionReport() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
@@ -27,7 +30,11 @@ export function SessionReport() {
   const { data: report } = useCoachingReport(activeSessionId);
   const { data: consistency } = useConsistency(activeSessionId);
   const { data: gpsQuality } = useGPSQuality(activeSessionId);
+  const { data: recentAchievementsData } = useRecentAchievements(!!activeSessionId);
   const { isNovice, isAdvanced, showFeature } = useSkillLevel();
+  const [badgesOpen, setBadgesOpen] = useState(false);
+
+  const recentAchievements = recentAchievementsData?.newly_unlocked ?? [];
 
   const bestLapNumber = useMemo(() => {
     if (!laps || laps.length === 0) return 1;
@@ -39,6 +46,7 @@ export function SessionReport() {
   }, [laps]);
 
   return (
+    <>
     <ScrollArea className="h-full">
       <div className="relative mx-auto flex max-w-5xl flex-col gap-6 p-4 lg:p-6">
         <TrackWatermark />
@@ -90,6 +98,14 @@ export function SessionReport() {
           />
         )}
 
+        {/* New achievements */}
+        {recentAchievements.length > 0 && (
+          <NewAchievementCard
+            achievements={recentAchievements}
+            onViewAll={() => setBadgesOpen(true)}
+          />
+        )}
+
         {activeSessionId && laps && laps.length > 0 && (
           <div>
             <h3 className="mb-3 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Lap Times</h3>
@@ -100,5 +116,7 @@ export function SessionReport() {
         <RawDataTable />
       </div>
     </ScrollArea>
+    <BadgeGrid open={badgesOpen} onClose={() => setBadgesOpen(false)} />
+    </>
   );
 }

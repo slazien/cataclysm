@@ -12,10 +12,11 @@ export function useCornerLeaderboard(
   trackName: string | undefined,
   cornerNumber: number,
   limit: number = 10,
+  category: string = 'sector_time',
 ) {
   return useQuery<LeaderboardData>({
-    queryKey: ['leaderboard', trackName, cornerNumber, limit],
-    queryFn: () => getCornerLeaderboard(trackName!, cornerNumber, limit),
+    queryKey: ['leaderboard', trackName, cornerNumber, limit, category],
+    queryFn: () => getCornerLeaderboard(trackName!, cornerNumber, limit, category),
     enabled: !!trackName,
     staleTime: 30_000,
   });

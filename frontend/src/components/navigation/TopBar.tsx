@@ -184,6 +184,20 @@ export function TopBar() {
             className="flex items-center gap-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
           >
             <span className="max-w-[120px] truncate font-medium sm:max-w-none">{session?.track_name ?? 'Loading...'}</span>
+            {session?.session_score != null && (
+              <span
+                className={cn(
+                  'ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums text-white',
+                  (session.session_score ?? 0) >= 80
+                    ? 'bg-emerald-500'
+                    : (session.session_score ?? 0) >= 60
+                      ? 'bg-amber-500'
+                      : 'bg-red-500',
+                )}
+              >
+                {Math.round(session.session_score)}
+              </span>
+            )}
             <ChevronRight className="h-3 w-3 text-[var(--text-muted)]" />
             <span className="hidden text-[var(--text-muted)] sm:inline">{session?.session_date ?? ''}</span>
           </button>

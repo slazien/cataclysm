@@ -52,16 +52,49 @@ export function useShareCard(sessionId: string | null): UseShareCardReturn {
         sessionScore = Math.min(100, Math.max(0, consistency.lap_consistency.consistency_score));
       }
 
+      // Compute identity framing stats
+      let heroStat: string | null = null;
+      let consistencyLabel: string | null = null;
+      let cornersGraded: { mastered: number; total: number } | null = null;
+
+      if (report?.corner_grades) {
+        const mastered = report.corner_grades.filter(
+          (g: { braking?: string; min_speed?: string }) =>
+            g.braking !== 'F' && g.min_speed !== 'F',
+        ).length;
+        cornersGraded = { mastered, total: report.corner_grades.length };
+      }
+
+      // TODO: compute from trends data once available
+      const improvementDelta: number | null = null as number | null;
+
+      // Priority: improvement > consistency > corners mastered
+      if (improvementDelta != null && improvementDelta > 0.3) {
+        heroStat = `Improved ${improvementDelta.toFixed(1)}s`;
+      } else if (
+        consistency?.lap_consistency?.consistency_score != null &&
+        consistency.lap_consistency.consistency_score > 80
+      ) {
+        const cleanLaps = laps?.filter((l) => l.is_clean)?.length ?? 0;
+        consistencyLabel = `${cleanLaps} clean laps`;
+        heroStat = 'Consistency machine';
+      } else if (cornersGraded && cornersGraded.mastered > cornersGraded.total * 0.7) {
+        heroStat = `Mastered ${cornersGraded.mastered} of ${cornersGraded.total} corners`;
+      }
+
       const data: ShareCardData = {
         trackName: session.track_name ?? 'Unknown Track',
         sessionDate: session.session_date ?? '',
         bestLapTime: session.best_lap_time_s ?? 0,
         sessionScore,
-        improvementDelta: null, // TODO: compute from trends
+        improvementDelta,
         topInsight: report?.priority_corners?.[0]
           ? `Focus on ${report.priority_corners[0].issue} at T${report.priority_corners[0].corner}`
           : report?.summary?.substring(0, 100) ?? null,
         gpsCoords,
+        heroStat,
+        consistencyLabel,
+        cornersGraded,
       };
 
       // Render to offscreen canvas
@@ -92,7 +125,7 @@ export function useShareCard(sessionId: string | null): UseShareCardReturn {
     } finally {
       setIsRendering(false);
     }
-  }, [session, report, consistency, bestLapData]);
+  }, [session, report, consistency, laps, bestLapData]);
 
   return { share, isRendering };
 }

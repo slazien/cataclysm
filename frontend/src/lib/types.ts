@@ -462,6 +462,8 @@ export interface CornerRecordEntry {
   min_speed_mps: number;
   session_date: string;
   is_king: boolean;
+  brake_point_m: number | null;
+  consistency_cv: number | null;
 }
 
 export interface CornerKingEntry {

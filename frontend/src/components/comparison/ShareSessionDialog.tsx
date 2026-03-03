@@ -63,6 +63,20 @@ export function ShareSessionDialog({ sessionId }: ShareSessionDialogProps) {
     }
   }, [shareUrl, addToast]);
 
+  const handleNativeShare = useCallback(async () => {
+    if (!shareUrl) return;
+    try {
+      await navigator.share({
+        title: `Compare laps at ${trackName}`,
+        text: `I just ran ${trackName} — upload your session and let's see who's faster!`,
+        url: shareUrl,
+      });
+    } catch {
+      // User cancelled or not supported — fall back to copy
+      handleCopy();
+    }
+  }, [shareUrl, trackName, handleCopy]);
+
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
     if (!nextOpen) {
@@ -90,16 +104,17 @@ export function ShareSessionDialog({ sessionId }: ShareSessionDialogProps) {
           className="gap-1.5 border-[var(--cata-border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
         >
           <Link2 className="h-3.5 w-3.5" />
-          Share for Comparison
+          Challenge a Friend
         </Button>
       </DialogTrigger>
       <DialogContent className="border-[var(--cata-border)] bg-[var(--bg-surface)]">
         <DialogHeader>
           <DialogTitle className="text-[var(--text-primary)]">
-            Share Session for Comparison
+            Challenge a Friend
           </DialogTitle>
           <DialogDescription className="text-[var(--text-secondary)]">
-            Generate a link your friend can use to upload their session and compare lap times.
+            Send a link — your friend uploads their session and you both get a side-by-side
+            comparison with AI coaching.
           </DialogDescription>
         </DialogHeader>
 
@@ -151,6 +166,17 @@ export function ShareSessionDialog({ sessionId }: ShareSessionDialogProps) {
                 )}
               </Button>
             </div>
+
+            {typeof navigator !== 'undefined' && 'share' in navigator && (
+              <Button
+                onClick={handleNativeShare}
+                size="sm"
+                className="gap-1.5"
+              >
+                <Link2 className="h-3.5 w-3.5" />
+                Share Challenge
+              </Button>
+            )}
 
             {expiresDate && (
               <p className="text-xs text-[var(--text-muted)]">

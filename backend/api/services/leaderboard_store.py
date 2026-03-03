@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import asc, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.db.models import CornerKing, CornerRecord, Session, User
@@ -35,6 +36,8 @@ async def record_corner_times(
             min_speed_mps=cd.min_speed_mps,
             sector_time_s=cd.sector_time_s,
             lap_number=cd.lap_number,
+            brake_point_m=cd.brake_point_m,
+            consistency_cv=cd.consistency_cv,
         )
         db.add(record)
         count += 1
@@ -47,31 +50,70 @@ async def get_corner_leaderboard(
     track_name: str,
     corner_number: int,
     limit: int = 10,
+    category: str = "sector_time",
 ) -> list[CornerRecordEntry]:
-    """Get top N users for a specific corner, ranked by best sector time.
+    """Get top N users for a specific corner, ranked by the chosen category.
 
     Only includes users who have opted in to leaderboards.
     Returns the best record per user (deduped).
+
+    Categories:
+      - sector_time: fastest sector time (ASC)
+      - min_speed: highest apex speed (DESC)
+      - brake_point: latest braking (ASC brake_point_m)
+      - consistency: lowest CV (ASC)
     """
     from sqlalchemy import func as sa_func
 
-    # Subquery: best sector_time per opted-in user for this corner
+    # Determine which column to aggregate and how to sort
+    sort_config: dict[str, tuple[Any, Any]] = {
+        "sector_time": (sa_func.min(CornerRecord.sector_time_s), asc),
+        "min_speed": (sa_func.max(CornerRecord.min_speed_mps), desc),
+        "brake_point": (sa_func.min(CornerRecord.brake_point_m), asc),
+        "consistency": (sa_func.min(CornerRecord.consistency_cv), asc),
+    }
+
+    agg_func, sort_fn = sort_config.get(category, sort_config["sector_time"])
+
+    # Map category to the raw column for the join-back WHERE clause
+    metric_col_map = {
+        "sector_time": CornerRecord.sector_time_s,
+        "min_speed": CornerRecord.min_speed_mps,
+        "brake_point": CornerRecord.brake_point_m,
+        "consistency": CornerRecord.consistency_cv,
+    }
+    metric_col = metric_col_map.get(category, CornerRecord.sector_time_s)
+
+    # Base filter conditions
+    base_filters = [
+        CornerRecord.track_name == track_name,
+        CornerRecord.corner_number == corner_number,
+        User.leaderboard_opt_in.is_(True),
+    ]
+
+    # For nullable columns, filter out NULL values
+    if category in ("brake_point", "consistency"):
+        base_filters.append(metric_col.isnot(None))
+
+    # Subquery: best metric per opted-in user for this corner
     best_per_user = (
         select(
             CornerRecord.user_id,
-            sa_func.min(CornerRecord.sector_time_s).label("best_time"),
+            agg_func.label("best_metric"),
         )
         .join(User, CornerRecord.user_id == User.id)
-        .where(
-            CornerRecord.track_name == track_name,
-            CornerRecord.corner_number == corner_number,
-            User.leaderboard_opt_in.is_(True),
-        )
+        .where(*base_filters)
         .group_by(CornerRecord.user_id)
         .subquery()
     )
 
-    # Join back to get the actual record details for each user's best time
+    # Join back to get the actual record details for each user's best metric
+    join_filters = [
+        CornerRecord.track_name == track_name,
+        CornerRecord.corner_number == corner_number,
+        metric_col == best_per_user.c.best_metric,
+    ]
+
     stmt = (
         select(
             CornerRecord,
@@ -81,12 +123,8 @@ async def get_corner_leaderboard(
         .join(best_per_user, CornerRecord.user_id == best_per_user.c.user_id)
         .join(User, CornerRecord.user_id == User.id)
         .join(Session, CornerRecord.session_id == Session.session_id)
-        .where(
-            CornerRecord.track_name == track_name,
-            CornerRecord.corner_number == corner_number,
-            CornerRecord.sector_time_s == best_per_user.c.best_time,
-        )
-        .order_by(CornerRecord.sector_time_s.asc())
+        .where(*join_filters)
+        .order_by(sort_fn(metric_col))
         .limit(limit)
     )
 
@@ -118,6 +156,8 @@ async def get_corner_leaderboard(
                 min_speed_mps=record.min_speed_mps,
                 session_date=session_date.isoformat(),
                 is_king=(record.user_id == king_user_id),
+                brake_point_m=record.brake_point_m,
+                consistency_cv=record.consistency_cv,
             )
         )
 

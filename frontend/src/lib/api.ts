@@ -311,10 +311,12 @@ export async function getCornerLeaderboard(
   trackName: string,
   cornerNumber: number,
   limit: number = 10,
+  category: string = 'sector_time',
 ) {
   const params = new URLSearchParams({
     corner: cornerNumber.toString(),
     limit: limit.toString(),
+    category,
   });
   return fetchApi<LeaderboardData>(
     `/api/leaderboards/${encodeURIComponent(trackName)}/corners?${params}`,

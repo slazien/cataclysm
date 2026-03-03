@@ -8,6 +8,10 @@ export interface ShareCardData {
   improvementDelta: number | null; // seconds faster than previous session
   topInsight: string | null;
   gpsCoords: Array<{ lat: number; lon: number }> | null;
+  // Identity framing additions
+  heroStat: string | null;
+  consistencyLabel: string | null;
+  cornersGraded: { mastered: number; total: number } | null;
 }
 
 const CARD_W = 1080;
@@ -136,8 +140,54 @@ export function renderSessionCard(
   ctx.font = '20px Inter, system-ui, sans-serif';
   ctx.fillText('BEST LAP', CARD_W / 2, lapY + 40);
 
+  // Identity framing: hero stat, consistency label, corners graded
+  let identityOffset = 0;
+
+  if (data.heroStat) {
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 36px Inter, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(data.heroStat, CARD_W / 2, lapY + 90);
+    identityOffset += 50;
+  }
+
+  if (data.consistencyLabel) {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.font = '22px Inter, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(data.consistencyLabel, CARD_W / 2, lapY + 90 + identityOffset);
+    identityOffset += 40;
+  }
+
+  if (data.cornersGraded) {
+    const badgeText = `Mastered ${data.cornersGraded.mastered}/${data.cornersGraded.total} corners`;
+    const badgeY = lapY + 90 + identityOffset;
+    ctx.font = '18px Inter, system-ui, sans-serif';
+    const badgeW = ctx.measureText(badgeText).width + 40;
+    const badgeX = CARD_W / 2 - badgeW / 2;
+
+    // Badge background
+    ctx.fillStyle = 'rgba(99, 102, 241, 0.25)';
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY - 18, badgeW, 36, 18);
+    ctx.fill();
+
+    // Badge border
+    ctx.strokeStyle = 'rgba(99, 102, 241, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY - 18, badgeW, 36, 18);
+    ctx.stroke();
+
+    // Badge text
+    ctx.fillStyle = '#a5b4fc';
+    ctx.textAlign = 'center';
+    ctx.fillText(badgeText, CARD_W / 2, badgeY + 6);
+    identityOffset += 50;
+  }
+
   // Score + improvement row
-  const rowY = lapY + 100;
+  const rowY = lapY + 100 + identityOffset;
   if (data.sessionScore !== null) {
     drawScoreRing(ctx, data.sessionScore, CARD_W / 2 - 100, rowY, 30);
   }

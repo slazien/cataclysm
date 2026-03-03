@@ -238,6 +238,8 @@ class CornerRecord(Base):
     min_speed_mps: Mapped[float] = mapped_column(Float, nullable=False)
     sector_time_s: Mapped[float] = mapped_column(Float, nullable=False)
     lap_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    brake_point_m: Mapped[float | None] = mapped_column(Float, nullable=True)
+    consistency_cv: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (

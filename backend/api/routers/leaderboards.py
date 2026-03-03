@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
@@ -32,9 +32,13 @@ async def corner_leaderboard(
     db: Annotated[AsyncSession, Depends(get_db)],
     corner: Annotated[int, Query(description="Corner number", ge=1)],
     limit: Annotated[int, Query(description="Max entries", ge=1, le=50)] = 10,
+    category: Annotated[
+        Literal["sector_time", "min_speed", "brake_point", "consistency"],
+        Query(description="Ranking metric"),
+    ] = "sector_time",
 ) -> LeaderboardResponse:
     """Get per-corner rankings for a track."""
-    entries = await get_corner_leaderboard(db, track, corner, limit=limit)
+    entries = await get_corner_leaderboard(db, track, corner, limit=limit, category=category)
     return LeaderboardResponse(
         track_name=track,
         corner_number=corner,
