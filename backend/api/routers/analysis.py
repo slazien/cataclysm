@@ -12,6 +12,8 @@ from backend.api.dependencies import AuthenticatedUser, get_current_user
 from backend.api.schemas.analysis import (
     AllLapsCornerResponse,
     ConsistencyResponse,
+    CornerGGSummarySchema,
+    CornerOpportunitySchema,
     CornerResponse,
     CornerSchema,
     CornerSensitivitySchema,
@@ -19,11 +21,14 @@ from backend.api.schemas.analysis import (
     DegradationResponse,
     DeltaResponse,
     GainsResponse,
+    GGDiagramResponse,
+    GGPointSchema,
     GPSQualityResponse,
     GripResponse,
     IdealLapResponse,
     LapSectorSplitsSchema,
     LinkedChartResponse,
+    OptimalComparisonResponse,
     OptimalProfileResponse,
     SectorResponse,
     SectorSplitSchema,
@@ -31,7 +36,11 @@ from backend.api.schemas.analysis import (
     VehicleParamsSchema,
 )
 from backend.api.services import session_store
-from backend.api.services.pipeline import get_ideal_lap_data, get_optimal_profile_data
+from backend.api.services.pipeline import (
+    get_ideal_lap_data,
+    get_optimal_comparison_data,
+    get_optimal_profile_data,
+)
 from backend.api.services.serializers import dataclass_to_dict
 
 router = APIRouter()
@@ -201,6 +210,32 @@ async def get_optimal_profile(
         lap_time_s=result["lap_time_s"],  # type: ignore[arg-type]
         vehicle_params=VehicleParamsSchema(**vp),
         equipment_profile_id=result.get("equipment_profile_id"),  # type: ignore[arg-type]
+    )
+
+
+@router.get(
+    "/{session_id}/optimal-comparison",
+    response_model=OptimalComparisonResponse,
+)
+async def get_optimal_comparison(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> OptimalComparisonResponse:
+    """Compare actual best-lap speeds against the physics-optimal profile per-corner.
+
+    Returns per-corner speed gaps sorted by time cost descending, indicating
+    where the driver is leaving the most time on the table.
+    """
+    sd = _get_session_or_404(session_id, current_user.user_id)
+    result = await get_optimal_comparison_data(sd)
+    opps = result["corner_opportunities"]
+    assert isinstance(opps, list)
+    return OptimalComparisonResponse(
+        session_id=session_id,
+        corner_opportunities=[CornerOpportunitySchema(**opp) for opp in opps],
+        actual_lap_time_s=result["actual_lap_time_s"],  # type: ignore[arg-type]
+        optimal_lap_time_s=result["optimal_lap_time_s"],  # type: ignore[arg-type]
+        total_gap_s=result["total_gap_s"],  # type: ignore[arg-type]
     )
 
 
@@ -428,6 +463,61 @@ async def get_degradation(
         ],
         has_brake_fade=analysis.has_brake_fade,
         has_tire_degradation=analysis.has_tire_degradation,
+    )
+
+
+@router.get("/{session_id}/gg-diagram", response_model=GGDiagramResponse)
+async def get_gg_diagram(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    corner: int | None = Query(default=None, description="Filter to a specific corner number"),
+) -> GGDiagramResponse:
+    """Compute the G-G diagram (lateral vs longitudinal G scatter) for the best lap.
+
+    Returns the full scatter of (lat_g, lon_g) points, overall traction-circle
+    utilization percentage, observed max combined G, and per-corner breakdowns.
+    Optionally filter to a single corner via the ``corner`` query parameter.
+    """
+    sd = _get_session_or_404(session_id, current_user.user_id)
+
+    best_lap = sd.processed.best_lap
+    if best_lap not in sd.processed.resampled_laps:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Best lap {best_lap} not found in resampled data",
+        )
+
+    from cataclysm.gg_diagram import compute_gg_diagram
+
+    resampled = sd.processed.resampled_laps[best_lap]
+    corners = sd.corners
+
+    result = await asyncio.to_thread(compute_gg_diagram, resampled, corners, corner)
+
+    return GGDiagramResponse(
+        session_id=session_id,
+        lap_number=best_lap,
+        points=[
+            GGPointSchema(
+                lat_g=p.lat_g,
+                lon_g=p.lon_g,
+                distance_m=p.distance_m,
+                corner_number=p.corner_number,
+            )
+            for p in result.points
+        ],
+        overall_utilization_pct=result.overall_utilization_pct,
+        observed_max_g=result.observed_max_g,
+        per_corner=[
+            CornerGGSummarySchema(
+                corner_number=c.corner_number,
+                utilization_pct=c.utilization_pct,
+                max_lat_g=c.max_lat_g,
+                max_lon_g=c.max_lon_g,
+                point_count=c.point_count,
+            )
+            for c in result.per_corner
+        ],
     )
 
 

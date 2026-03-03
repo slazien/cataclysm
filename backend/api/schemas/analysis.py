@@ -191,3 +191,54 @@ class SpeedSensitivityResponse(BaseModel):
     session_id: str
     corners: list[CornerSensitivitySchema]
     vehicle_params: VehicleParamsSchema
+
+
+class GGPointSchema(BaseModel):
+    """A single point in the G-G diagram."""
+
+    lat_g: float
+    lon_g: float
+    distance_m: float
+    corner_number: int | None = None
+
+
+class CornerGGSummarySchema(BaseModel):
+    """G-G utilization summary for a single corner."""
+
+    corner_number: int
+    utilization_pct: float
+    max_lat_g: float
+    max_lon_g: float
+    point_count: int
+
+
+class GGDiagramResponse(BaseModel):
+    """G-G diagram data with traction circle utilization."""
+
+    session_id: str
+    lap_number: int
+    points: list[GGPointSchema]
+    overall_utilization_pct: float
+    observed_max_g: float
+    per_corner: list[CornerGGSummarySchema]
+
+
+class CornerOpportunitySchema(BaseModel):
+    """Speed gap for a single corner vs the physics-optimal profile."""
+
+    corner_number: int
+    actual_min_speed_mph: float
+    optimal_min_speed_mph: float
+    speed_gap_mph: float  # optimal - actual (positive = driver is slower)
+    brake_gap_m: float | None = None  # positive = driver brakes later than optimal
+    time_cost_s: float  # time lost vs optimal in this corner zone
+
+
+class OptimalComparisonResponse(BaseModel):
+    """Per-corner speed gap comparison against the physics-optimal profile."""
+
+    session_id: str
+    corner_opportunities: list[CornerOpportunitySchema]
+    actual_lap_time_s: float
+    optimal_lap_time_s: float
+    total_gap_s: float  # actual - optimal (positive = driver is slower)
