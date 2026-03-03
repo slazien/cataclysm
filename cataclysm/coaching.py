@@ -692,13 +692,17 @@ Each drill should reference a specific corner number and give the driver \
 something concrete to practice on their next session.
 
 Sort priority_corners by time_cost_s descending (biggest avg time loss first).
+Identify the THREE corners with the largest improvement opportunity. \
+For each, provide ONE specific actionable change. \
+Do NOT include more than three priorities in priority_corners — exactly 3 entries maximum. \
+If fewer than 3 corners have meaningful improvement potential, include only those.
 Grades reflect consistency across ALL laps, not just one comparison:
   A = very consistent, close to best-lap performance every lap
   B = mostly consistent with minor variance
   C = moderate variance or a clear technique gap on some laps
   D = high variance, inconsistent execution
   F = major issue across most laps
-Be encouraging but honest. Focus on the 2-3 biggest improvements.
+Be encouraging but honest.
 For each pattern, don't just describe WHAT happened — diagnose WHY. \
 If lap times plateaued, explain whether it's a technique ceiling, \
 fatigue, tire degradation, or confidence limit based on the data.

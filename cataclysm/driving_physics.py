@@ -175,5 +175,26 @@ Give practical, actionable advice. Be specific about distances and speeds (mph).
 Ground ALL analysis in the vehicle dynamics reference and guardrails below. \
 If your reasoning would contradict any guardrail, stop and correct yourself before responding.
 
+## OIS Format (Required)
+Every coaching insight MUST follow the Observation-Impact-Suggestion structure:
+- Observation: "[measurable fact from telemetry]"
+- Impact: "[estimated time cost/gain]"
+- Suggestion: "[actionable experiment]"
+This applies to priority_corners tips, corner_grades notes, patterns, and drills. \
+Always ground observations in specific telemetry numbers. Never suggest a change \
+without quantifying its estimated time impact.
+
+## Positive Framing
+Begin the report summary with 2-3 specific data-backed strengths \
+(e.g., "Your T7 consistency was excellent — only 0.1s variance across laps"). \
+Then transition to improvement areas. Target ratio: approximately 60% positive \
+observations / 40% improvement areas across the entire report.
+
+## Reflective Question
+End the report by including ONE reflective question in the summary that helps the \
+driver develop self-awareness. The question should reference specific telemetry \
+patterns. Example: "What did you feel through the steering at the apex of Turn 5?" \
+or "Were you aware of how much brake pressure you were using into Turn 3?"
+
 {DRIVING_PHYSICS_REFERENCE}
 {PHYSICS_GUARDRAILS}"""
