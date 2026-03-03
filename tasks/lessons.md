@@ -1,5 +1,17 @@
 # Lessons Learned
 
+## ⛔ QA Frontend Changes BEFORE Merging — #1 PRIORITY RULE
+- **When**: After implementing ANY frontend changes, BEFORE merging to main
+- **Rule**: Use Playwright MCP to visually verify every affected tab/component BEFORE merging to main. The mandatory sequence is:
+  1. Implement on feature branch
+  2. Run quality gates (ruff, mypy, tests, build)
+  3. **QA with Playwright MCP** — verify every affected component
+  4. Fix any issues found
+  5. THEN merge to main
+- **Anti-pattern**: Implement → merge to main → "Ready for feedback" → user asks "did you QA?" — This has happened TWICE (Batch 1 and Batch 2). NEVER AGAIN.
+- **What to verify**: New components render with actual data, interactive elements work (click, hover, expand), new charts show data points, badges/labels display correct values, mobile layout doesn't break.
+- **Why**: User called this out TWICE. This is a BLOCKING workflow step. CLAUDE.md Quality Gates item 7 now enforces this.
+
 ## Always Use Venv
 - **When**: Every session, before any pip install or running any Python command
 - **Rule**: `source .venv/bin/activate` before doing anything. Never install packages globally.
@@ -92,3 +104,4 @@
 - **When**: After finishing ANY implementation task — features, bug fixes, refactors
 - **Rule**: Dispatch the code reviewer agent (`superpowers:code-reviewer` or `code-review:code-review`) to review all changed files. This is in ADDITION to automated checks (ruff, mypy, tests), not a replacement.
 - **Why**: User explicitly requested this. Code reviewers catch logic errors, architectural issues, and subtle bugs that linters and tests miss. Added to CLAUDE.md Quality Gates (item 6) and Verification Before Done section.
+
