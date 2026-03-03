@@ -122,9 +122,45 @@ Record: total GPS point count, total lap distance, which lap number.
 
 ### Phase 2: Determine Corner Fractions
 
-#### 2.1 Identify Official Corner Numbering
-- Use the official track map as the single source of truth for corner *numbers* and *names*
-- Note: some tracks number differently across organizations. Pick one canonical numbering and document which source you used.
+#### 2.1 Identify Official Corner Numbering via Multi-Source Consensus
+
+**CRITICAL**: Do NOT rely on a single source for corner numbering or directions. Tracks frequently have conflicting numbering across organizations (e.g., Roebling Road has at least 3 different numbering schemes in circulation). A single-source approach led to T5 being labelled LEFT when every other source says RIGHT.
+
+**Step 1: Gather 4–6 independent track maps/guides.** Good sources:
+- Official track website map
+- racingcircuits.info map
+- racetrackdriving.com / trackpedia guide
+- PCA / SCCA / NASA regional guides
+- Driving school guides (Paradigm Shift, Skip Barber, etc.)
+- na-motorsports.com corner notes
+- Paddock Pal / OpenTrack guides
+
+**Step 2: Build a consensus table.** For each physical corner (identified by position on the map), record what each source calls it:
+
+| Physical Corner | Source A | Source B | Source C | Source D | **Consensus** |
+|----------------|---------|---------|---------|---------|---------------|
+| First right after S/F | T1 R | T1 R | T1 R | T1 R | **T1 RIGHT** |
+| Second right | T2 R | T2 R | T2 R | T2 R | **T2 RIGHT** |
+| Fast left sweeper | T3 L | T3 L | T3 L | T3 L | **T3 LEFT** |
+| ... | ... | ... | ... | ... | ... |
+
+**Step 3: Majority vote.** For each corner's number and direction:
+- If 4/6 sources agree → use that numbering/direction
+- If sources are split (e.g., 3/6 vs 3/6) → flag as ambiguous, investigate further
+- If a source uses a completely different total count (e.g., 10 turns vs 9), note this but still match physical corners by position
+
+**Step 4: Document the consensus.** In the verification comment block, list which sources were compared and any disagreements:
+```python
+# Corner numbering consensus (4/5 sources agree on 9-turn layout):
+#   - racetrackdriving.com: 9 turns ✓
+#   - racingcircuits.info map: 9 turns ✓
+#   - PCA Beginner's Guide: 9 turns ✓
+#   - na-motorsports.com: 10 turns (splits T6/T7 differently) — noted
+#   - Paradigm Shift Racing: 9 turns ✓
+# T5 direction: RIGHT per 4/5 sources. na-motorsports says LEFT (different numbering).
+```
+
+**Never trust algorithm-derived directions over source consensus.** Heading-rate analysis can suggest directions, but if the consensus table says a corner is RIGHT and the algorithm says LEFT, the consensus wins. The algorithm is a disambiguation tool for ambiguous cases, not a primary source.
 
 #### 2.2 Locate Apex Positions in Telemetry
 Corner fractions are the **apex position as a fraction of total lap distance** (0.0–1.0).
@@ -446,19 +482,28 @@ mypy cataclysm/track_db.py
 pytest tests/ -k track -v
 ```
 
-#### 6.2 Fraction Sanity Checks
+#### 6.2 Corner Identity Verification (MANDATORY)
+For **every** corner, verify against the consensus table from Step 2.1:
+- [ ] Corner number matches consensus
+- [ ] Corner direction (left/right) matches consensus
+- [ ] Corner name is consistent with source descriptions (don't invent names not used by any source)
+- [ ] If algorithm-derived direction disagrees with consensus, consensus wins (document the discrepancy)
+
+This step catches the most damaging class of errors — a wrong direction means coaching tells the driver to turn the wrong way.
+
+#### 6.3 Fraction Sanity Checks
 - All fractions between 0.0 and 1.0
 - Fractions are monotonically increasing
 - No two corners have the same fraction
 - Spacing is reasonable (no two corners within 0.01 fraction of each other unless they're a tight complex)
 
-#### 6.3 Landmark Distance Checks
+#### 6.4 Landmark Distance Checks
 - All distances between 0.0 and `length_m`
 - Distances are roughly increasing (landmarks are listed in track order)
 - Distances near corner apexes should be near `fraction * length_m`
 - No duplicate distances (suggests copy-paste errors)
 
-#### 6.4 Coaching Integration Test
+#### 6.5 Coaching Integration Test
 Upload a session at the new track and verify:
 1. Track auto-detection works (GPS centroid matches within 5km)
 2. Corner numbering matches official numbering
@@ -543,10 +588,13 @@ Not every track needs the full Barber-level treatment. Here's a tiered approach:
 - [ ] Telemetry session available with 5+ clean laps
 - [ ] GPS centroid computed
 - [ ] Median lap distance computed
-- [ ] Official corner map obtained (corner numbers + names)
+- [ ] 4–6 independent track maps/guides gathered
+- [ ] Consensus table built (corner number + direction from each source)
+- [ ] Majority-vote numbering and directions determined
+- [ ] Disagreements documented in verification comment block
 - [ ] Corner fractions derived from speed trace minimums
 - [ ] Fractions validated (monotonic, reasonable spacing)
-- [ ] Corner directions filled (all corners)
+- [ ] Corner directions verified against consensus table (every corner)
 - [ ] Corner types filled (all corners)
 - [ ] Elevation trends filled (all corners)
 - [ ] Camber noted for off-camber corners
@@ -584,12 +632,18 @@ Not every track needs the full Barber-level treatment. Here's a tiered approach:
 ### Roebling Road Raceway
 - **Tier 2 profile** built from 8 sessions (44 laps) with corner fractions from speed-trace + heading-rate analysis.
 - **Key challenge**: Roebling's sweeping corners have low heading rates (max 1.4 deg/m smoothed vs Barber's 2.0). The auto-detection threshold of 1.0 deg/m finds 0 corners on Roebling, making the track map invisible. This was the primary motivation for adding the profile.
-- **Multiple track guides combined**: racetrackdriving.com (most detailed, wet/dry line info), PCA Beginner's Guide (general tips), Paradigm Shift Racing (track map). No single source covered all 9 turns completely.
+- **POSTMORTEM — Corner misidentification (T5 direction wrong)**:
+  - T5 was labelled LEFT "The Hairpin" but racetrackdriving.com, Paddock Pal, and racingcircuits.info all say T5 is RIGHT. The name "The Hairpin" doesn't appear in any source either.
+  - **Root cause 1 — No consensus table**: Multiple guides were "cross-referenced" but no structured comparison was done. Different sources use different numbering (na-motorsports uses 10 turns, others use 9), so casually reading multiple guides without a side-by-side table leads to mixing numbering systems.
+  - **Root cause 2 — Algorithm-derived directions trusted over sources**: The heading-rate sign was likely used as the primary direction source instead of track guides. At complex corners where the approach has a different curvature than the main arc, the algorithm can get the sign wrong.
+  - **Root cause 3 — No direction verification step**: The validation phase checked fractions (monotonic, spacing) but never checked each corner's direction and name against the source material.
+  - **Fix applied**: Process now requires a multi-source consensus table (Step 2.1) and an explicit corner identity verification step (Step 6.2) before any profile is considered complete.
 - **T1-T2 inseparable in speed trace**: Both are right-handers with a single combined speed minimum at 93 km/h. Heading-rate curvature peaks were used to separate T1 apex (~530m, rate 1.03 deg/m) from T2 apex (~720m, rate 1.22 deg/m).
 - **T8-T9 combo**: Guides describe "one corner" with left-to-right transition. Heading rate confirms brief L-direction (T8) then sustained R-direction (T9). Speed remains >120 km/h — among the fastest corners.
 - **Flat track challenge**: Only 8m elevation range means elevation_trend is "flat" for 7 of 9 corners. T6 (downhill) and T7 (uphill) are the only exceptions — verified by both altitude data and track guides.
 - **Landmarks are sparse** (Tier 2 level): No brake boards identified from guides; curbing locations estimated. Can be upgraded to Tier 3 with satellite imagery verification.
 - **Name aliasing**: RaceChrono stores as "Roebling Road" — registry includes both "roebling road" and "roebling road raceway".
+- **Multiple numbering schemes exist**: racetrackdriving.com uses 9 turns; na-motorsports.com uses 10 (splits corners differently around T5–T7). Paddock Pal groups T6/T7 together. Always build the consensus table to resolve these.
 
 ### General Lessons
 - Track guides from driving schools are 10x more valuable than Wikipedia for coaching metadata
@@ -599,3 +653,5 @@ Not every track needs the full Barber-level treatment. Here's a tiered approach:
 - Start/finish gantry at distance 0.0 is a universal landmark — always include it
 - **Auto-detection fails on sweeping tracks**: The heading-rate threshold (1.0 deg/m) is calibrated for tight tracks (Barber, AMP). Tracks with all-sweeper layouts (Roebling) may never exceed this threshold. Adding a track profile is the reliable fix.
 - **Heading-rate direction analysis** can disambiguate adjacent same-direction corners (like Roebling T1-T2) by finding curvature dips between them — even when the speed trace shows a single combined minimum.
+- **Never trust a single source for corner numbering.** Tracks routinely have 2–3 different numbering schemes in circulation (different total counts, different groupings). Build a consensus table from 4–6 sources and majority-vote. This is the #1 source of profile errors.
+- **Algorithm-derived directions are a tool, not a source.** Heading-rate sign analysis can suggest LEFT/RIGHT, but complex corners (approach curvature differs from main arc) can fool it. Always verify against the multi-source consensus. If they disagree, the human sources win.
