@@ -17,6 +17,7 @@ from cataclysm.equipment import (
     TireSpec,
     TrackCondition,
 )
+from cataclysm.vehicle_db import VehicleSpec
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -32,6 +33,8 @@ from backend.api.schemas.equipment import (
     SessionEquipmentSet,
     SuspensionSpecSchema,
     TireSpecSchema,
+    VehicleSearchResult,
+    VehicleSpecSchema,
 )
 from backend.api.services import equipment_store, session_store
 
@@ -92,6 +95,113 @@ async def search_brake_pads(
         )
         for p in curated
     ]
+
+
+# ---------------------------------------------------------------------------
+# Vehicle database (must be defined before /{session_id} routes)
+# ---------------------------------------------------------------------------
+
+
+def _vehicle_to_schema(v: VehicleSpec) -> VehicleSpecSchema:
+    """Convert a domain VehicleSpec to the API schema."""
+    return VehicleSpecSchema(
+        make=v.make,
+        model=v.model,
+        generation=v.generation,
+        year_range=list(v.year_range),
+        weight_kg=v.weight_kg,
+        wheelbase_m=v.wheelbase_m,
+        track_width_front_m=v.track_width_front_m,
+        track_width_rear_m=v.track_width_rear_m,
+        cg_height_m=v.cg_height_m,
+        weight_dist_front_pct=v.weight_dist_front_pct,
+        drivetrain=v.drivetrain,
+        hp=v.hp,
+        torque_nm=v.torque_nm,
+        has_aero=v.has_aero,
+        notes=v.notes,
+    )
+
+
+def _vehicle_to_search_result(slug: str, v: VehicleSpec) -> VehicleSearchResult:
+    """Convert a VehicleSpec to a lightweight search result."""
+    return VehicleSearchResult(
+        slug=slug,
+        make=v.make,
+        model=v.model,
+        generation=v.generation,
+        year_range=list(v.year_range),
+        hp=v.hp,
+        weight_kg=v.weight_kg,
+        drivetrain=v.drivetrain,
+    )
+
+
+@router.get("/vehicles/makes")
+async def get_vehicle_makes(
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> list[str]:
+    """List all available vehicle makes."""
+    from cataclysm.vehicle_db import list_makes
+
+    return list_makes()
+
+
+@router.get("/vehicles/search")
+async def search_vehicles_endpoint(
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    q: str = "",
+) -> list[VehicleSearchResult]:
+    """Search vehicles by make, model, or generation."""
+    from cataclysm.vehicle_db import VEHICLE_DATABASE, search_vehicles
+
+    if not q:
+        # Return all vehicles when no query
+        results: list[VehicleSearchResult] = []
+        for slug, spec in sorted(VEHICLE_DATABASE.items()):
+            results.append(_vehicle_to_search_result(slug, spec))
+        return results
+
+    matches = search_vehicles(q)
+    results = []
+    for spec in matches:
+        # Find slug for this spec
+        for slug, db_spec in VEHICLE_DATABASE.items():
+            if db_spec is spec:
+                results.append(_vehicle_to_search_result(slug, spec))
+                break
+    return results
+
+
+@router.get("/vehicles/{make}/models")
+async def get_vehicle_models(
+    make: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> list[str]:
+    """List all models for a given make."""
+    from cataclysm.vehicle_db import list_models
+
+    return list_models(make)
+
+
+@router.get("/vehicles/{make}/{model}")
+async def get_vehicle_spec(
+    make: str,
+    model: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    generation: str | None = None,
+) -> VehicleSpecSchema:
+    """Get vehicle spec by make/model, optionally filtered by generation."""
+    from cataclysm.vehicle_db import find_vehicle
+
+    spec = find_vehicle(make, model, generation)
+    if spec is None:
+        detail = f"Vehicle {make} {model}"
+        if generation:
+            detail += f" ({generation})"
+        detail += " not found"
+        raise HTTPException(status_code=404, detail=detail)
+    return _vehicle_to_schema(spec)
 
 
 # ---------------------------------------------------------------------------
@@ -256,14 +366,37 @@ def _suspension_to_schema(s: SuspensionSpec) -> SuspensionSpecSchema:
     )
 
 
+def _schema_to_vehicle(s: VehicleSpecSchema) -> VehicleSpec:
+    """Convert a VehicleSpecSchema to the domain VehicleSpec dataclass."""
+    return VehicleSpec(
+        make=s.make,
+        model=s.model,
+        generation=s.generation,
+        year_range=(s.year_range[0], s.year_range[1]),
+        weight_kg=s.weight_kg,
+        wheelbase_m=s.wheelbase_m,
+        track_width_front_m=s.track_width_front_m,
+        track_width_rear_m=s.track_width_rear_m,
+        cg_height_m=s.cg_height_m,
+        weight_dist_front_pct=s.weight_dist_front_pct,
+        drivetrain=s.drivetrain,
+        hp=s.hp,
+        torque_nm=s.torque_nm,
+        has_aero=s.has_aero,
+        notes=s.notes,
+    )
+
+
 def _profile_to_response(p: EquipmentProfile) -> EquipmentProfileResponse:
     """Convert a domain EquipmentProfile to the API response schema."""
     return EquipmentProfileResponse(
         id=p.id,
         name=p.name,
         tires=_tire_to_schema(p.tires),
+        vehicle=_vehicle_to_schema(p.vehicle) if p.vehicle else None,
         brakes=_brakes_to_schema(p.brakes) if p.brakes else None,
         suspension=_suspension_to_schema(p.suspension) if p.suspension else None,
+        vehicle_overrides=p.vehicle_overrides,
         notes=p.notes,
     )
 
@@ -298,8 +431,10 @@ async def create_profile(
         id=profile_id,
         name=body.name,
         tires=_schema_to_tire(body.tires),
+        vehicle=_schema_to_vehicle(body.vehicle) if body.vehicle else None,
         brakes=_schema_to_brakes(body.brakes) if body.brakes else None,
         suspension=_schema_to_suspension(body.suspension) if body.suspension else None,
+        vehicle_overrides=dict(body.vehicle_overrides),
         notes=body.notes,
     )
     equipment_store.store_profile(profile)
@@ -344,8 +479,10 @@ async def update_profile(
         id=profile_id,
         name=body.name,
         tires=_schema_to_tire(body.tires),
+        vehicle=_schema_to_vehicle(body.vehicle) if body.vehicle else None,
         brakes=_schema_to_brakes(body.brakes) if body.brakes else None,
         suspension=_schema_to_suspension(body.suspension) if body.suspension else None,
+        vehicle_overrides=dict(body.vehicle_overrides),
         notes=body.notes,
     )
     equipment_store.store_profile(updated)

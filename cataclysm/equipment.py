@@ -16,6 +16,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from cataclysm.vehicle_db import VehicleSpec
     from cataclysm.velocity_profile import VehicleParams
 
 # ---------------------------------------------------------------------------
@@ -159,8 +160,10 @@ class EquipmentProfile:
     id: str
     name: str
     tires: TireSpec
+    vehicle: VehicleSpec | None = None
     brakes: BrakeSpec | None = None
     suspension: SuspensionSpec | None = None
+    vehicle_overrides: dict[str, float] = field(default_factory=dict)
     notes: str | None = None
 
 
@@ -200,20 +203,42 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
     - ``mu`` and ``max_lateral_g`` come directly from the tire's estimated_mu
       (lateral grip scales linearly with tire friction).
     - ``max_accel_g`` is looked up from a per-category table since acceleration
-      is drivetrain-limited, not purely grip-limited.
+      is drivetrain-limited, not purely grip-limited.  When a vehicle spec is
+      attached, we refine max_accel_g based on power-to-weight ratio.
     - ``max_decel_g`` is mu scaled by a brake efficiency factor (0.95) to
       account for real-world brake system losses.
     - ``top_speed_mps`` is fixed at 80 m/s (~179 mph).
+
+    Vehicle overrides (``vehicle_overrides``) can fine-tune the weight
+    (key ``"weight_kg"``) to account for driver weight, roll cage, etc.
     """
     from cataclysm.velocity_profile import VehicleParams
 
     mu = profile.tires.estimated_mu
     category = profile.tires.compound_category
+    base_accel_g = _CATEGORY_ACCEL_G[category]
+
+    # Refine acceleration estimate when vehicle specs are available.
+    # Higher power-to-weight ratio cars can accelerate harder.
+    # We scale the base category accel by a factor derived from hp/weight.
+    accel_g = base_accel_g
+    if profile.vehicle is not None:
+        weight_kg = profile.vehicle.weight_kg
+        # Apply user weight override if provided
+        if "weight_kg" in profile.vehicle_overrides:
+            weight_kg = profile.vehicle_overrides["weight_kg"]
+        hp = profile.vehicle.hp
+        # Power-to-weight ratio scaling: reference is ~250 hp/tonne
+        # (typical track-day car).  Scale proportionally but cap the bonus
+        # to avoid unrealistic values.
+        pw_ratio = hp / (weight_kg / 1000.0)  # hp per tonne
+        pw_factor = min(pw_ratio / 250.0, 1.5)  # cap at 1.5x
+        accel_g = base_accel_g * max(pw_factor, 0.7)  # floor at 0.7x
 
     return VehicleParams(
         mu=mu,
         max_lateral_g=mu,
-        max_accel_g=_CATEGORY_ACCEL_G[category],
+        max_accel_g=accel_g,
         max_decel_g=mu * _BRAKE_EFFICIENCY,
         top_speed_mps=80.0,
     )

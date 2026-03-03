@@ -5,6 +5,39 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
+class VehicleSpecSchema(BaseModel):
+    """Vehicle specification from the curated vehicle database."""
+
+    make: str
+    model: str
+    generation: str
+    year_range: list[int]  # [start_year, end_year]
+    weight_kg: float
+    wheelbase_m: float
+    track_width_front_m: float
+    track_width_rear_m: float
+    cg_height_m: float
+    weight_dist_front_pct: float
+    drivetrain: str  # "RWD" | "FWD" | "AWD"
+    hp: int
+    torque_nm: int
+    has_aero: bool
+    notes: str | None = None
+
+
+class VehicleSearchResult(BaseModel):
+    """Lightweight vehicle search result for autocomplete/dropdowns."""
+
+    slug: str
+    make: str
+    model: str
+    generation: str
+    year_range: list[int]
+    hp: int
+    weight_kg: float
+    drivetrain: str
+
+
 class TireSpecSchema(BaseModel):
     """Tire specification for an equipment profile."""
 
@@ -52,8 +85,10 @@ class EquipmentProfileCreate(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=100)
     tires: TireSpecSchema
+    vehicle: VehicleSpecSchema | None = None
     brakes: BrakeSpecSchema | None = None
     suspension: SuspensionSpecSchema | None = None
+    vehicle_overrides: dict[str, float] = Field(default_factory=dict)
     notes: str | None = None
 
 
@@ -63,8 +98,10 @@ class EquipmentProfileResponse(BaseModel):
     id: str
     name: str
     tires: TireSpecSchema
+    vehicle: VehicleSpecSchema | None = None
     brakes: BrakeSpecSchema | None = None
     suspension: SuspensionSpecSchema | None = None
+    vehicle_overrides: dict[str, float] = Field(default_factory=dict)
     notes: str | None = None
 
 
