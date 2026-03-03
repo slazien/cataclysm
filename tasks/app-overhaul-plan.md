@@ -634,105 +634,107 @@ Quick wins — unblock social features that already exist but are inaccessible.
 **Spec:** `docs/plans/2026-03-02-social-features-p0p1-implementation.md` Tasks 1-3.
 **Outcome:** Users can now see and use share buttons, achievements, and corner leaderboards.
 
-### Wave 1: Coaching Intelligence (1-2 weeks)
+### Wave 1: Coaching Intelligence
 
-*Skill-level prompts (1.2) already implemented. Focus on remaining coaching gaps.*
+*Skill-level prompts already implemented. Focus on remaining coaching gaps.*
 
-| # | Task | Files | Effort |
-|---|------|-------|--------|
-| ~~1.1~~ | ~~Staged coaching tone~~ | | ✅ DONE (`_SKILL_PROMPTS` in `coaching.py`) |
-| 1.2 | Add OIS format + harden 3-priority cap | `driving_physics.py`, `coaching.py` | 0.5 day |
-| 1.3 | Strengthen positive framing + add reflective questions | `driving_physics.py` | 0.5 day |
-| 1.4 | Compute corner speed sensitivity from telemetry | `velocity_profile.py`, `coaching.py` | 1 day |
-| 1.5 | Expand KB from 18 to 40+ snippets (load transfer, brake traces, survival reactions, drivetrain, wet, vision) | `kb_selector.py` | 2 days |
-| 1.6 | Add new pattern triggers (survival reaction, low grip, stagnation, short brake, aero) | `kb_selector.py` | 1 day |
-| 1.7 | Implement stagnation detection | New `stagnation.py` or in `gains.py` | 1 day |
-| 1.8 | Corner geometry auto-classification | `corner_analysis.py` or new module | 2 days |
-| 1.9 | Vehicle specs DB (~40-50 common HPDE cars) | New `vehicle_db.py` | 1 day |
-| 1.10 | Vehicle selection UI + equipment profile integration | Frontend + backend | 1 day |
-| 1.11 | Dynamic load transfer + drivetrain KB snippet integration | `kb_selector.py`, `coaching.py` | 1 day |
-| 1.12 | Tests for all new modules | `tests/` | 2 days |
-| 1.13 | Validate coaching quality (sample prompts, check output) | Manual + validator | 1 day |
+| # | Task | Files |
+|---|------|-------|
+| ~~1.1~~ | ~~Staged coaching tone~~ | ✅ DONE (`_SKILL_PROMPTS` in `coaching.py`) |
+| 1.2 | Add OIS format + harden 3-priority cap | `driving_physics.py`, `coaching.py` |
+| 1.3 | Strengthen positive framing + add reflective questions | `driving_physics.py` |
+| 1.4 | Compute corner speed sensitivity from telemetry | `velocity_profile.py`, `coaching.py` |
+| 1.5 | Expand KB from 18 to 40+ snippets (load transfer, brake traces, survival reactions, drivetrain, wet, vision) | `kb_selector.py` |
+| 1.6 | Add new pattern triggers (survival reaction, low grip, stagnation, short brake, aero) | `kb_selector.py` |
+| 1.7 | Implement stagnation detection | New `stagnation.py` or in `gains.py` |
+| 1.8 | Corner geometry auto-classification | `corner_analysis.py` or new module |
+| 1.9 | Vehicle specs DB (~40-50 common HPDE cars) | New `vehicle_db.py` |
+| 1.10 | Vehicle selection UI + equipment profile integration | Frontend + backend |
+| 1.11 | Dynamic load transfer + drivetrain KB snippet integration | `kb_selector.py`, `coaching.py` |
+| 1.12 | Tests for all new modules | `tests/` |
+| 1.13 | Validate coaching quality (sample prompts, check output) | Manual + validator |
+
+**Parallelizable:** 1.2-1.3 (prompt changes), 1.5-1.6 (KB work), 1.9-1.11 (vehicle DB) are independent streams — run with parallel agents.
 
 **Outcome:** Coaching gains OIS structure, data-grounded sensitivity numbers, 2x more KB depth, and vehicle-specific physics context.
 
-### Wave 2: Remaining Visualizations & Annotations (1 week)
+### Wave 2: Remaining Visualizations & Annotations
 
 *Most visualizations already done. Only G-G diagram and chart annotations remain.*
 
-| # | Task | Files | Effort |
-|---|------|-------|--------|
-| ~~2.1-2.3~~ | ~~Mini-sector (backend + API + frontend)~~ | | ✅ DONE |
-| ~~2.4~~ | ~~Time Gained per Corner~~ | | ✅ DONE |
-| ~~2.5-2.6~~ | ~~Session Score computation + frontend~~ | | ✅ DONE |
-| ~~2.7~~ | ~~Voice narration~~ | | ✅ DONE |
-| ~~2.10-2.11~~ | ~~Brake fade / tire degradation~~ | | ✅ DONE |
-| 2.1 | G-G diagram computation (normalize to observed max G) | New `gg_diagram.py` | 1 day |
-| 2.2 | G-G diagram frontend (D3 scatter + per-corner filter) | New component | 2 days |
-| 2.3 | Expand chart insight annotations to all major charts | Coaching pipeline + frontend | 2 days |
-| 2.4 | Tests | `tests/` | 1 day |
+| # | Task | Files |
+|---|------|-------|
+| ~~2.x~~ | ~~Mini-sector, Time Gained, Session Score, Voice, Degradation~~ | ✅ ALL DONE |
+| 2.1 | G-G diagram computation (normalize to observed max G) | New `gg_diagram.py` |
+| 2.2 | G-G diagram frontend (D3 scatter + per-corner filter) | New component |
+| 2.3 | Expand chart insight annotations to all major charts | Coaching pipeline + frontend |
+| 2.4 | Tests | `tests/` |
+
+**Parallelizable:** 2.1-2.2 (G-G) and 2.3 (annotations) are independent.
 
 **Outcome:** G-G diagram fills the last major visualization gap. Chart annotations add narrative context everywhere.
 
-### Wave 3: UX Polish & Social P0 (1 week)
+### Wave 3: UX Polish & Social P0
 
 *Core UX already done. Focus on polish, orphan fixes, and remaining gaps.*
 
-| # | Task | Files | Effort |
-|---|------|-------|--------|
-| ~~3.x~~ | ~~Progressive disclosure, hero card, persona-adaptive, debrief~~ | | ✅ ALL DONE |
-| 3.1 | Report→Deep Dive seamless corner click navigation | Frontend routing | 1 day |
-| 3.2 | Replay export via MediaRecorder (canvas → MP4 for sharing) | Frontend | 1 day |
-| 3.3 | Optimal comparison per-corner visualization (backend data exists) | Frontend component | 1 day |
-| 3.4 | Skill radar session-over-session overlay | Frontend component | 1 day |
-| 3.5 | P0: Move share buttons to SessionReportHeader | P0-1 | 0.5h |
-| 3.6 | P0: Unhide achievements/wrapped on mobile | P0-2 | 0.25h |
-| 3.7 | P0: Wire CornerLeaderboard into Deep Dive corner detail | P0-3 | 0.5h |
-| 3.8 | QA testing (desktop + mobile device emulation) | Playwright | 1 day |
+| # | Task | Files |
+|---|------|-------|
+| ~~3.x~~ | ~~Progressive disclosure, hero card, persona-adaptive, debrief~~ | ✅ ALL DONE |
+| 3.1 | Report→Deep Dive seamless corner click navigation | Frontend routing |
+| 3.2 | Replay export via MediaRecorder (canvas → MP4 for sharing) | Frontend |
+| 3.3 | Optimal comparison per-corner visualization (backend data exists) | Frontend component |
+| 3.4 | Skill radar session-over-session overlay | Frontend component |
+| 3.5 | P0: Move share buttons to SessionReportHeader | P0-1 |
+| 3.6 | P0: Unhide achievements/wrapped on mobile | P0-2 |
+| 3.7 | P0: Wire CornerLeaderboard into Deep Dive corner detail | P0-3 |
+| 3.8 | QA testing (desktop + mobile device emulation) | Playwright |
+
+**Parallelizable:** 3.1-3.4 are independent frontend tasks. P0 fixes (3.5-3.7) are trivial and can be done in one pass.
 
 **Outcome:** Polish remaining gaps, unlock orphaned social features, ship P0 fixes.
 
-### Wave 4: Social P1 Features (1-2 weeks)
+### Wave 4: Social P1 Features
 
-| # | Task | Spec | Effort |
-|---|------|------|--------|
-| 4.1 | Upgrade share card to identity-framed design | P1 Task 4 | 1 day |
-| 4.2 | Refine comparison dialog → "Challenge a Friend" + Web Share | P1 Task 5 | 0.5 day |
-| 4.3 | New achievement card in session report footer | P1 Task 6 | 0.5 day |
-| 4.4 | Session score badge in TopBar contextual bar | P1 Task 7 | 0.25 day |
-| 4.5 | Expand leaderboard to multi-category (Late Braker, Smooth Operator) | P1 Task 8 | 2 days |
-| 4.6 | Add leaderboard position sharing | P1 Task 9 | 0.5 day |
-| ~~4.7~~ | ~~Animated lap replay~~ | | ✅ DONE (`LapReplay.tsx`) |
+| # | Task | Spec |
+|---|------|------|
+| 4.1 | Upgrade share card to identity-framed design | P1 Task 4 |
+| 4.2 | Refine comparison dialog → "Challenge a Friend" + Web Share | P1 Task 5 |
+| 4.3 | New achievement card in session report footer | P1 Task 6 |
+| 4.4 | Session score badge in TopBar contextual bar | P1 Task 7 |
+| 4.5 | Expand leaderboard to multi-category (Late Braker, Smooth Operator) | P1 Task 8 |
+| 4.6 | Add leaderboard position sharing | P1 Task 9 |
+| ~~4.7~~ | ~~Animated lap replay~~ | ✅ DONE (`LapReplay.tsx`) |
 
 **Spec:** `docs/plans/2026-03-02-social-features-p0p1-implementation.md` Tasks 4-9.
 **Outcome:** Every session generates shareable, identity-framed content. Users become ambassadors.
 
-### Wave 5: Social P2 Features (2-3 weeks)
+### Wave 5: Social P2 Features
 
-| # | Task | Spec | Effort |
-|---|------|------|--------|
-| 5.1 | Three-layer comparison view (Tale of the Tape → Scorecard → Delta) | P2 Task 10 | 4 days |
-| 5.2 | Progress rate leaderboard backend | P2 Task 11 | 2 days |
-| 5.3 | Progress rate leaderboard frontend | P2 Task 12 | 2 days |
-| 5.4 | Track-level leaderboard summary card | P2 Task 13 | 1 day |
-| 5.5 | Tap-to-compare in leaderboards | P2 Task 14 | 1 day |
-| 5.6 | Achievements section in Progress tab | P2 Task 15 | 0.5 day |
-| 5.7 | Season Wrapped banner in Progress tab | P2 Task 16 | 0.5 day |
-| 5.8 | Corner King badge on track map | P2 Task 17 | 0.5 day |
+| # | Task | Spec |
+|---|------|------|
+| 5.1 | Three-layer comparison view (Tale of the Tape → Scorecard → Delta) | P2 Task 10 |
+| 5.2 | Progress rate leaderboard backend | P2 Task 11 |
+| 5.3 | Progress rate leaderboard frontend | P2 Task 12 |
+| 5.4 | Track-level leaderboard summary card | P2 Task 13 |
+| 5.5 | Tap-to-compare in leaderboards | P2 Task 14 |
+| 5.6 | Achievements section in Progress tab | P2 Task 15 |
+| 5.7 | Season Wrapped banner in Progress tab | P2 Task 16 |
+| 5.8 | Corner King badge on track map | P2 Task 17 |
 
 **Spec:** `docs/plans/2026-03-02-social-features-p2p3-implementation.md` Tasks 10-17.
 **Outcome:** Full competitive social layer — leaderboards, comparisons, crowns, progress ranking.
 
-### Wave 6: Advanced Analytics (Ongoing)
+### Wave 6: Advanced Analytics
 
-| # | Task | Effort |
-|---|------|--------|
-| 6.1 | Multi-session progress dashboard enhancement (per-corner trends, milestones, rolling averages) | 3 days |
+| # | Task | Files |
+|---|------|-------|
+| 6.1 | Multi-session progress dashboard enhancement (per-corner trends, milestones, rolling averages) | Frontend + backend |
 | ~~6.2~~ | ~~Skill radar chart~~ | ✅ DONE (`SkillRadar.tsx` + `skillDimensions.ts`) |
 | ~~6.3~~ | ~~Season Wrapped generator~~ | ✅ DONE (`SeasonWrapped.tsx`, 4 slides + personalities) |
-| 6.2 | Skill radar session-over-session evolution overlay | 1 day |
-| 6.3 | Corner type-specific coaching templates (hairpin, chicane, esses, etc.) | 2 days |
-| 6.4 | Optimal comparison per-corner speed gap visualization | 2 days |
+| 6.2 | Skill radar session-over-session evolution overlay | Frontend component |
+| 6.3 | Corner type-specific coaching templates (hairpin, chicane, esses, etc.) | `kb_selector.py` |
+| 6.4 | Optimal comparison per-corner speed gap visualization | Frontend component |
 
 ### Wave 7: Future Social (P3 — When User Density Justifies)
 

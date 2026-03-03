@@ -82,6 +82,12 @@
 - **Why**: Roebling Road had 4 of 9 corners with wrong directions (T4, T5, T6, T7). The heading-rate algorithm got the sign wrong at complex curves where approach curvature differs from the main arc. A single visual comparison against the reference map would have caught all four errors immediately. The first "fix" only caught T7 because it didn't verify the other corners against the image.
 - **Anti-pattern**: "I'll just fix the one corner that was reported wrong" — NO. When one direction is wrong, assume others might be too and verify ALL of them.
 
+## Never Use Time Estimates in Plans
+- **When**: Writing implementation plans, scoping work, describing waves/phases
+- **Rule**: NEVER use day/week/time estimates (e.g., "~2 days", "1-2 weeks") in plans or task descriptions. You are Claude Code with parallel agents — you implement in hours, not days or weeks. Instead, note which tasks are parallelizable so agents can be dispatched concurrently.
+- **Anti-pattern**: "Wave 1 (~1-2 weeks)", "Effort: ~2 days", "This phase takes 3 weeks". Replace with file counts and parallelization notes.
+- **Why**: User caught this directly. CLAUDE.md says: "NEVER say 'this is ambitious' or hedge about scope. You implement in hours, not weeks." Time estimates signal a human-pace mindset that contradicts the agent-parallel reality.
+
 ## Always Run Code Reviewer After Implementation
 - **When**: After finishing ANY implementation task — features, bug fixes, refactors
 - **Rule**: Dispatch the code reviewer agent (`superpowers:code-reviewer` or `code-review:code-review`) to review all changed files. This is in ADDITION to automated checks (ruff, mypy, tests), not a replacement.
