@@ -248,6 +248,19 @@ async def upload_sessions(
             if len(file_bytes) > max_bytes:
                 errors.append(f"{f.filename}: exceeds {settings.max_upload_size_mb}MB size limit")
                 continue
+
+            # Skip duplicate: compute session_id cheaply from CSV header
+            from backend.api.services.pipeline import compute_session_id_from_csv
+
+            try:
+                existing_sid = compute_session_id_from_csv(file_bytes, f.filename)
+            except (ValueError, KeyError, IndexError):
+                existing_sid = None
+            if existing_sid and session_store.get_session(existing_sid) is not None:
+                logger.info("Skipping duplicate upload: %s already in memory", existing_sid)
+                session_ids.append(existing_sid)
+                continue
+
             result = await process_upload(file_bytes, f.filename)
             sid = str(result["session_id"])
             session_ids.append(sid)

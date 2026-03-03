@@ -175,6 +175,21 @@ def _fallback_lap_consistency(summaries: list[LapSummary], anomalous: set[int]) 
     return compute_lap_consistency(summaries, anomalous)
 
 
+def compute_session_id_from_csv(file_bytes: bytes, filename: str) -> str:
+    """Cheaply compute the session_id from CSV header without full processing.
+
+    Parses only the first 8 metadata lines to extract track name and date,
+    then computes the deterministic session_id hash.
+    """
+    from cataclysm.parser import _parse_metadata
+    from cataclysm.trends import _compute_session_id
+
+    text = file_bytes.decode("utf-8", errors="replace")
+    lines = text.split("\n", 10)[:9]  # Only need first 8-9 lines
+    meta = _parse_metadata(lines)
+    return _compute_session_id(filename, meta.track_name, meta.session_date)
+
+
 async def process_upload(file_bytes: bytes, filename: str) -> dict[str, object]:
     """Parse a RaceChrono CSV and run the full processing pipeline.
 
