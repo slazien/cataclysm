@@ -61,11 +61,14 @@ async def ensure_user_exists(db: AsyncSession, user: AuthenticatedUser) -> None:
         ]
 
         # 1. Insert new user row with temporary email (FK target must exist first)
+        # Must include all NOT NULL columns — raw SQL bypasses ORM defaults.
         temp_email = f"migrating-{user.user_id}"
         await db.execute(
             text(
-                "INSERT INTO users (id, email, name, avatar_url) "
-                "VALUES (:new_id, :temp_email, :name, :avatar)"
+                "INSERT INTO users "
+                "(id, email, name, avatar_url, skill_level, role, leaderboard_opt_in) "
+                "VALUES (:new_id, :temp_email, :name, :avatar, "
+                "'intermediate', 'driver', false)"
             ),
             {
                 "new_id": user.user_id,
