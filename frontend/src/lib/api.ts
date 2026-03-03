@@ -258,6 +258,15 @@ export async function getGPSQuality(sessionId: string) {
   return resp.data;
 }
 
+// --- G-G Diagram API ---
+
+export async function getGGDiagram(sessionId: string, corner?: number) {
+  const params = corner !== undefined ? `?corner=${corner}` : "";
+  return fetchApi<GGDiagramData>(
+    `/api/sessions/${sessionId}/gg-diagram${params}`,
+  );
+}
+
 // --- Trends API ---
 
 export async function getTrends(trackName: string) {

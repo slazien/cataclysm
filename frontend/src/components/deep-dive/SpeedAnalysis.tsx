@@ -7,12 +7,14 @@ import { useUnits } from '@/hooks/useUnits';
 import { ChartErrorBoundary } from '@/components/shared/ChartErrorBoundary';
 import { AiInsight } from '@/components/shared/AiInsight';
 import { MarkdownText } from '@/components/shared/MarkdownText';
+import { useSkillLevel } from '@/hooks/useSkillLevel';
 import { SpeedTrace } from './charts/SpeedTrace';
 import { DeltaT } from './charts/DeltaT';
 import { BrakeThrottle } from './charts/BrakeThrottle';
 import { TrackMapContainer } from './charts/TrackMapContainer';
 import { CornerQuickCard } from './CornerQuickCard';
 import { ComparisonLegend } from './ComparisonLegend';
+import { GGDiagramChart } from './GGDiagramChart';
 
 export function SpeedAnalysis() {
   const sessionId = useSessionStore((s) => s.activeSessionId);
@@ -22,6 +24,7 @@ export function SpeedAnalysis() {
 
   const { data: report } = useCoachingReport(sessionId);
   const { resolveSpeed } = useUnits();
+  const { showFeature } = useSkillLevel();
 
   // Find the most relevant priority corner insight for the current view:
   // if a corner is selected, show that corner's tip; otherwise show the top priority
@@ -112,6 +115,15 @@ export function SpeedAnalysis() {
             <BrakeThrottle sessionId={sessionId} />
           </ChartErrorBoundary>
         </div>
+
+        {/* G-G Diagram (advanced skill level only) */}
+        {showFeature('gforce_analysis') && (
+          <div className="shrink-0">
+            <ChartErrorBoundary name="G-G Diagram">
+              <GGDiagramChart sessionId={sessionId} />
+            </ChartErrorBoundary>
+          </div>
+        )}
       </div>
 
       {/* Right column -- 35% on desktop, full width on mobile -- track map + corner quick card */}
