@@ -1,10 +1,11 @@
 'use client';
 
-import { useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import * as d3 from 'd3';
 import { useSessionStore, useAnalysisStore } from '@/stores';
 import { useLapData, useSessionLaps } from '@/hooks/useSession';
 import { useReplay } from '@/hooks/useReplay';
+import { useReplayRecorder } from '@/hooks/useReplayRecorder';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { ReplayTrackMap } from './ReplayTrackMap';
 import { SpeedGauge } from './SpeedGauge';
@@ -21,6 +22,10 @@ const G_TRAIL_LENGTH = 30; // number of recent g-force positions to show
  * - Controls bar at the bottom
  *
  * Uses the first selected lap, or the best lap if none selected.
+ *
+ * Supports video recording of the track map canvas via the MediaRecorder API.
+ * When recording, a red dot indicator appears in the top-left corner of the
+ * track map viewport.
  */
 export function LapReplay() {
   const sessionId = useSessionStore((s) => s.activeSessionId);
@@ -41,7 +46,50 @@ export function LapReplay() {
 
   const { data: lapData, isLoading } = useLapData(sessionId, replayLapNumber);
   const replay = useReplay(lapData);
+  const recorder = useReplayRecorder();
   const gTrailRef = useRef<Array<{ lat: number; lon: number }>>([]);
+  const trackCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Track whether we started recording (to auto-stop when replay ends)
+  const wasRecordingRef = useRef(false);
+
+  // Auto-stop recording when replay reaches the end
+  useEffect(() => {
+    if (recorder.isRecording && wasRecordingRef.current) {
+      // Replay stopped playing and we were recording -- replay has ended
+      if (!replay.isPlaying && replay.currentIndex >= (lapData?.distance_m.length ?? 1) - 1) {
+        recorder.stopRecording();
+        wasRecordingRef.current = false;
+      }
+    }
+  }, [replay.isPlaying, replay.currentIndex, recorder, lapData]);
+
+  // Handle start recording: reset to beginning, start recording, then play
+  const handleStartRecording = useCallback(() => {
+    const canvas = trackCanvasRef.current;
+    if (!canvas) return;
+
+    // Clear any previous download
+    recorder.clearRecording();
+
+    // Reset replay to beginning
+    replay.reset();
+
+    // Small delay to ensure reset takes effect before starting recording
+    requestAnimationFrame(() => {
+      recorder.startRecording(canvas);
+      wasRecordingRef.current = true;
+      // Start playback
+      replay.play();
+    });
+  }, [recorder, replay]);
+
+  // Handle stop recording manually
+  const handleStopRecording = useCallback(() => {
+    recorder.stopRecording();
+    wasRecordingRef.current = false;
+    replay.pause();
+  }, [recorder, replay]);
 
   // Derive current values from lap data + current index
   const current = useMemo(() => {
@@ -111,8 +159,23 @@ export function LapReplay() {
       {/* Main content area */}
       <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
         {/* Track map -- 60% on desktop */}
-        <div className="min-h-[300px] flex-[3] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:min-h-0">
-          <ReplayTrackMap lapData={lapData} currentIndex={replay.currentIndex} />
+        <div className="relative min-h-[300px] flex-[3] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:min-h-0">
+          <ReplayTrackMap
+            lapData={lapData}
+            currentIndex={replay.currentIndex}
+            canvasRef={trackCanvasRef}
+          />
+
+          {/* Recording indicator -- pulsing red dot */}
+          {recorder.isRecording && (
+            <div className="absolute left-3 top-3 flex items-center gap-1.5">
+              <span className="relative flex h-3 w-3">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
+                <span className="relative inline-flex h-3 w-3 rounded-full bg-red-500" />
+              </span>
+              <span className="text-xs font-medium text-red-400">REC</span>
+            </div>
+          )}
         </div>
 
         {/* Side panel -- 40% on desktop */}
@@ -156,6 +219,15 @@ export function LapReplay() {
         seek={replay.seek}
         setSpeed={replay.setSpeed}
         reset={replay.reset}
+        recording={{
+          isRecordingSupported: recorder.isSupported,
+          isRecording: recorder.isRecording,
+          downloadUrl: recorder.downloadUrl,
+          fileExtension: recorder.fileExtension,
+          onStartRecording: handleStartRecording,
+          onStopRecording: handleStopRecording,
+          onClearRecording: recorder.clearRecording,
+        }}
       />
     </div>
   );

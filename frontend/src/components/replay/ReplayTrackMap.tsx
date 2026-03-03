@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import * as d3 from 'd3';
 import { colors } from '@/lib/design-tokens';
 import type { LapData } from '@/lib/types';
@@ -8,6 +8,8 @@ import type { LapData } from '@/lib/types';
 interface ReplayTrackMapProps {
   lapData: LapData;
   currentIndex: number;
+  /** Optional external ref to access the canvas element (e.g. for video recording). */
+  canvasRef?: RefObject<HTMLCanvasElement | null>;
 }
 
 const PADDING = 20;
@@ -26,10 +28,18 @@ function speedColor(speed: number, minSpeed: number, maxSpeed: number): string {
  * - Full track outline drawn once in muted grey.
  * - A coloured trail grows behind the moving dot, with colour based on speed.
  * - The current position is a glowing dot.
+ *
+ * Accepts an optional `canvasRef` prop so the parent can access the underlying
+ * canvas element for video recording via `captureStream()`.
  */
-export function ReplayTrackMap({ lapData, currentIndex }: ReplayTrackMapProps) {
+export function ReplayTrackMap({
+  lapData,
+  currentIndex,
+  canvasRef: externalCanvasRef,
+}: ReplayTrackMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const internalCanvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = externalCanvasRef ?? internalCanvasRef;
   const projRef = useRef<{ x: Float64Array; y: Float64Array; w: number; h: number } | null>(null);
   const minSpeedRef = useRef(0);
   const maxSpeedRef = useRef(1);

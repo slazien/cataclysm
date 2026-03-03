@@ -1,14 +1,32 @@
 'use client';
 
 import { useCallback } from 'react';
-import { Play, Pause, SkipBack } from 'lucide-react';
+import { Play, Pause, SkipBack, Video, Square, Download } from 'lucide-react';
 import type { PlaybackSpeed, ReplayActions, ReplayState } from '@/hooks/useReplay';
+
+interface RecordingProps {
+  /** Whether MediaRecorder is supported in this browser. */
+  isRecordingSupported: boolean;
+  /** Whether a recording is currently in progress. */
+  isRecording: boolean;
+  /** Blob URL for the completed recording download. */
+  downloadUrl: string | null;
+  /** File extension for the download filename (e.g. "webm"). */
+  fileExtension: string;
+  /** Called when user clicks Record. */
+  onStartRecording: () => void;
+  /** Called when user clicks Stop Recording. */
+  onStopRecording: () => void;
+  /** Called to clear the download after user downloads. */
+  onClearRecording: () => void;
+}
 
 interface ReplayControlsProps extends ReplayState, ReplayActions {
   maxIndex: number;
   currentDistance: number;
   totalDistance: number;
   currentTime: number;
+  recording?: RecordingProps;
 }
 
 const SPEED_OPTIONS: PlaybackSpeed[] = [0.5, 1, 2, 4];
@@ -34,6 +52,7 @@ function formatTime(s: number): string {
  * - Scrubber (range input) mapped to distance index
  * - Speed selector buttons (0.5x / 1x / 2x / 4x)
  * - Current distance and time readout
+ * - Record / Stop Recording / Download buttons (when recording props provided)
  */
 export function ReplayControls({
   isPlaying,
@@ -47,6 +66,7 @@ export function ReplayControls({
   seek,
   setSpeed,
   reset,
+  recording,
 }: ReplayControlsProps) {
   const handleScrub = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,21 +125,59 @@ export function ReplayControls({
           <span>{formatTime(currentTime)}</span>
         </div>
 
-        {/* Right: speed selector */}
-        <div className="flex items-center gap-1">
-          {SPEED_OPTIONS.map((s) => (
-            <button
-              key={s}
-              onClick={() => setSpeed(s)}
-              className={`rounded px-2 py-0.5 font-mono text-xs transition-colors ${
-                playbackSpeed === s
-                  ? 'bg-[var(--cata-accent,#3b82f6)] text-white'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              {s}x
-            </button>
-          ))}
+        {/* Right: speed selector + recording controls */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            {SPEED_OPTIONS.map((s) => (
+              <button
+                key={s}
+                onClick={() => setSpeed(s)}
+                className={`rounded px-2 py-0.5 font-mono text-xs transition-colors ${
+                  playbackSpeed === s
+                    ? 'bg-[var(--cata-accent,#3b82f6)] text-white'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                {s}x
+              </button>
+            ))}
+          </div>
+
+          {/* Recording controls */}
+          {recording?.isRecordingSupported && (
+            <div className="flex items-center gap-1.5 border-l border-[var(--cata-border)] pl-2">
+              {recording.isRecording ? (
+                <button
+                  onClick={recording.onStopRecording}
+                  className="flex h-8 items-center gap-1.5 rounded-md bg-red-600/20 px-2.5 text-red-400 transition-colors hover:bg-red-600/30"
+                  title="Stop Recording"
+                >
+                  <Square size={14} fill="currentColor" />
+                  <span className="text-xs font-medium">Stop</span>
+                </button>
+              ) : recording.downloadUrl ? (
+                <a
+                  href={recording.downloadUrl}
+                  download={`lap-replay.${recording.fileExtension}`}
+                  className="flex h-8 items-center gap-1.5 rounded-md bg-green-600/20 px-2.5 text-green-400 transition-colors hover:bg-green-600/30"
+                  title="Download Recording"
+                  onClick={recording.onClearRecording}
+                >
+                  <Download size={14} />
+                  <span className="text-xs font-medium">Save</span>
+                </a>
+              ) : (
+                <button
+                  onClick={recording.onStartRecording}
+                  className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+                  title="Record Replay"
+                >
+                  <Video size={14} />
+                  <span className="text-xs font-medium">Record</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
