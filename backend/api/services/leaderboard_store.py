@@ -107,13 +107,17 @@ async def get_corner_leaderboard(
         .subquery()
     )
 
-    # Join back to get the actual record details for each user's best metric
+    # Join back to get the actual record details for each user's best metric.
+    # Include user_id in WHERE to avoid cross-user matches on identical metric values.
     join_filters = [
         CornerRecord.track_name == track_name,
         CornerRecord.corner_number == corner_number,
+        CornerRecord.user_id == best_per_user.c.user_id,
         metric_col == best_per_user.c.best_metric,
     ]
 
+    # Fetch more rows than limit to account for same-user duplicates (when a user
+    # has multiple records with identical best metric values). Dedup in Python below.
     stmt = (
         select(
             CornerRecord,
@@ -125,11 +129,23 @@ async def get_corner_leaderboard(
         .join(Session, CornerRecord.session_id == Session.session_id)
         .where(*join_filters)
         .order_by(sort_fn(metric_col))
-        .limit(limit)
+        .limit(limit * 3)
     )
 
     result = await db.execute(stmt)
-    rows = result.all()
+    all_rows = result.all()
+
+    # Deduplicate: keep only the first (best) row per user
+    seen_users: set[str] = set()
+    rows: list[Any] = []
+    for row in all_rows:
+        rec = row[0]
+        if rec.user_id in seen_users:
+            continue
+        seen_users.add(rec.user_id)
+        rows.append(row)
+        if len(rows) >= limit:
+            break
 
     # Determine who is king (rank 1)
     king_user_id: str | None = None

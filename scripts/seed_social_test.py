@@ -380,10 +380,28 @@ async def seed_corner_records(
                     if cn is not None:
                         corner_details.setdefault(lap_num, {})[int(cn)] = corner
 
-            # Build insert rows
-            rows_to_insert: list[tuple[str, str, str, int, float, float, int, float | None]] = []
+            # Build insert rows (9 columns: includes consistency_cv)
+            rows_to_insert: list[
+                tuple[str, str, str, int, float, float, int, float | None, float | None]
+            ] = []
+
+            # Compute per-corner consistency CV (coefficient of variation of sector times)
+            corner_cvs: dict[int, float | None] = {}
+            for corner_num, lap_times in corner_times.items():
+                times = list(lap_times.values())
+                if len(times) >= 2:
+                    mean = sum(times) / len(times)
+                    if mean > 0:
+                        variance = sum((t - mean) ** 2 for t in times) / len(times)
+                        std = variance**0.5
+                        corner_cvs[corner_num] = std / mean
+                    else:
+                        corner_cvs[corner_num] = None
+                else:
+                    corner_cvs[corner_num] = None
 
             for corner_num, lap_times in corner_times.items():
+                consistency_cv = corner_cvs.get(corner_num)
                 for lap_num, sector_time in lap_times.items():
                     # Get min_speed and brake_point from corner details
                     lap_corners = corner_details.get(lap_num, {})
@@ -395,7 +413,12 @@ async def seed_corner_records(
                             float(min_speed_mph) * MPH_TO_MPS if min_speed_mph is not None else 0.0
                         )
                         brake_point = corner_info.get("brake_point_m")
-                        brake_point_m = float(brake_point) if brake_point is not None else None
+                        # Treat 0.0 as missing — real brake points are always positive
+                        brake_point_m = (
+                            float(brake_point)
+                            if brake_point is not None and float(brake_point) > 0
+                            else None
+                        )
                     else:
                         # No detailed corner data for this lap — use defaults
                         min_speed_mps = 0.0
@@ -411,6 +434,7 @@ async def seed_corner_records(
                             sector_time,
                             lap_num,
                             brake_point_m,
+                            consistency_cv,
                         )
                     )
 
@@ -426,8 +450,9 @@ async def seed_corner_records(
                         """
                         INSERT INTO corner_records
                             (user_id, session_id, track_name, corner_number,
-                             min_speed_mps, sector_time_s, lap_number, brake_point_m)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                             min_speed_mps, sector_time_s, lap_number, brake_point_m,
+                             consistency_cv)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                         """,
                         rows_to_insert,
                     )

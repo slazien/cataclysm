@@ -163,13 +163,7 @@ export function CornerLeaderboard({
     );
   }
 
-  if (!data || data.entries.length === 0) {
-    return (
-      <div className="text-sm text-zinc-500">
-        No leaderboard data yet. Opt in and upload sessions to compete!
-      </div>
-    );
-  }
+  const isEmpty = !data || data.entries.length === 0;
 
   return (
     <div className="relative rounded-lg border border-zinc-700 bg-zinc-800/50 overflow-hidden">
@@ -183,7 +177,7 @@ export function CornerLeaderboard({
         />
       )}
 
-      {/* Category tabs */}
+      {/* Category tabs — always visible so user can switch categories */}
       <div className="flex gap-1 overflow-x-auto px-4 py-2">
         {CATEGORIES.map((c) => (
           <button
@@ -207,54 +201,63 @@ export function CornerLeaderboard({
           Corner {cornerNumber} Leaderboard
         </h3>
       </div>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-xs text-zinc-400 border-b border-zinc-700/50">
-            <th className="px-4 py-2 text-left w-12">#</th>
-            <th className="px-4 py-2 text-left">Driver</th>
-            <th className="px-4 py-2 text-right">{primaryHeader}</th>
-            <th className="px-4 py-2 text-right">{secondaryHeader}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.entries.map((entry: CornerRecordEntry) => (
-            <tr
-              key={entry.rank}
-              onClick={() => setSelectedEntry(entry)}
-              className={cn(
-                'border-b border-zinc-700/30 cursor-pointer transition-colors',
-                entry.is_king
-                  ? 'bg-yellow-500/10'
-                  : 'hover:bg-zinc-700/30',
-                selectedEntry?.rank === entry.rank && 'ring-1 ring-inset ring-[var(--cata-accent)]',
-              )}
-            >
-              <td className="px-4 py-2 text-zinc-400 font-mono">
-                {entry.rank}
-              </td>
-              <td className="px-4 py-2 text-zinc-200 flex items-center gap-2">
-                {entry.user_name}
-                {entry.is_king && <KingBadge />}
-              </td>
-              <MetricColumns category={category} entry={entry} />
-            </tr>
-          ))}
-        </tbody>
-      </table>
 
-      {/* Share footer */}
-      <div className="flex items-center justify-between px-4 py-2 border-t border-[var(--cata-border)]">
-        <span className="text-xs text-[var(--text-muted)]">
-          {CATEGORIES.find((c) => c.key === category)?.label}
-        </span>
-        <button
-          type="button"
-          onClick={handleSharePosition}
-          className="flex items-center gap-1 text-xs font-medium text-[var(--cata-accent)] hover:underline"
-        >
-          Share My Position
-        </button>
-      </div>
+      {isEmpty ? (
+        <div className="px-4 py-6 text-center text-sm text-zinc-500">
+          No leaderboard data for this category yet.
+        </div>
+      ) : (
+        <>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-xs text-zinc-400 border-b border-zinc-700/50">
+                <th className="px-4 py-2 text-left w-12">#</th>
+                <th className="px-4 py-2 text-left">Driver</th>
+                <th className="px-4 py-2 text-right">{primaryHeader}</th>
+                <th className="px-4 py-2 text-right">{secondaryHeader}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.entries.map((entry: CornerRecordEntry) => (
+                <tr
+                  key={entry.rank}
+                  onClick={() => setSelectedEntry(entry)}
+                  className={cn(
+                    'border-b border-zinc-700/30 cursor-pointer transition-colors',
+                    entry.is_king
+                      ? 'bg-yellow-500/10'
+                      : 'hover:bg-zinc-700/30',
+                    selectedEntry?.rank === entry.rank && 'ring-1 ring-inset ring-[var(--cata-accent)]',
+                  )}
+                >
+                  <td className="px-4 py-2 text-zinc-400 font-mono">
+                    {entry.rank}
+                  </td>
+                  <td className="px-4 py-2 text-zinc-200 flex items-center gap-2">
+                    {entry.user_name}
+                    {entry.is_king && <KingBadge />}
+                  </td>
+                  <MetricColumns category={category} entry={entry} />
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {/* Share footer */}
+          <div className="flex items-center justify-between px-4 py-2 border-t border-[var(--cata-border)]">
+            <span className="text-xs text-[var(--text-muted)]">
+              {CATEGORIES.find((c) => c.key === category)?.label}
+            </span>
+            <button
+              type="button"
+              onClick={handleSharePosition}
+              className="flex items-center gap-1 text-xs font-medium text-[var(--cata-accent)] hover:underline"
+            >
+              Share My Position
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
