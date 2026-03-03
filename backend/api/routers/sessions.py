@@ -452,14 +452,38 @@ async def delete_all_sessions(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, str]:
-    """Delete all sessions for the current user."""
+    """Delete all sessions for the current user.
+
+    Uses bulk SQL deletes instead of per-session loops to avoid timeouts.
+    """
+    from sqlalchemy import delete
+
+    from backend.api.db.models import CoachingReport as CoachingReportModel
+    from backend.api.db.models import Session as SessionModel
+    from backend.api.services.coaching_store import _contexts, _reports
+
     db_rows = await list_sessions_for_user(db, current_user.user_id)
     sids = [row.session_id for row in db_rows]
-    for sid in sids:
-        await delete_session_db(db, sid, current_user.user_id)
-        session_store.delete_session(sid)
-        await clear_coaching_data(sid)
+    if not sids:
+        return {"message": "Deleted 0 session(s)"}
+
+    # Bulk-delete from all related tables in one transaction
+    await db.execute(delete(CoachingReportModel).where(CoachingReportModel.session_id.in_(sids)))
+    await db.execute(delete(SessionFileModel).where(SessionFileModel.session_id.in_(sids)))
+    await db.execute(
+        delete(SessionModel).where(
+            SessionModel.session_id.in_(sids),
+            SessionModel.user_id == current_user.user_id,
+        )
+    )
     await db.commit()
+
+    # Clear in-memory stores
+    for sid in sids:
+        session_store.delete_session(sid)
+        _reports.pop(sid, None)
+        _contexts.pop(sid, None)
+
     return {"message": f"Deleted {len(sids)} session(s)"}
 
 

@@ -2208,7 +2208,7 @@ async def test_list_sessions_direct_db_fallback_no_weather_no_gps() -> None:
 
 @pytest.mark.asyncio
 async def test_delete_all_sessions_direct_with_sessions() -> None:
-    """delete_all_sessions: iterates, calls delete_session_db + memory clear (lines 432-438)."""
+    """delete_all_sessions: uses bulk SQL deletes and clears in-memory stores."""
     from backend.api.routers.sessions import delete_all_sessions
 
     session_id_1 = "del-all-sess-1"
@@ -2220,6 +2220,7 @@ async def test_delete_all_sessions_direct_with_sessions() -> None:
     mock_row_2.session_id = session_id_2
 
     mock_db = AsyncMock()
+    mock_db.execute = AsyncMock()
     mock_db.commit = AsyncMock()
 
     mock_user = MagicMock()
@@ -2231,27 +2232,17 @@ async def test_delete_all_sessions_direct_with_sessions() -> None:
         session_store._store[sid] = sd
 
     try:
-        with (
-            patch(
-                "backend.api.routers.sessions.list_sessions_for_user",
-                new_callable=AsyncMock,
-                return_value=[mock_row_1, mock_row_2],
-            ),
-            patch(
-                "backend.api.routers.sessions.delete_session_db",
-                new_callable=AsyncMock,
-                return_value=True,
-            ) as mock_delete_db,
-            patch(
-                "backend.api.routers.sessions.clear_coaching_data",
-                new_callable=AsyncMock,
-            ) as mock_clear_coaching,
+        with patch(
+            "backend.api.routers.sessions.list_sessions_for_user",
+            new_callable=AsyncMock,
+            return_value=[mock_row_1, mock_row_2],
         ):
             result = await delete_all_sessions(current_user=mock_user, db=mock_db)
 
         assert result["message"] == "Deleted 2 session(s)"
-        assert mock_delete_db.call_count == 2
-        assert mock_clear_coaching.call_count == 2
+        # 3 bulk deletes (coaching_reports, session_files, sessions)
+        assert mock_db.execute.call_count == 3
+        assert mock_db.commit.call_count == 1
         # Memory store should be cleared
         assert session_id_1 not in session_store._store
         assert session_id_2 not in session_store._store
