@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { TrendingUp, Target, ChevronDown, ChevronUp } from 'lucide-react';
 import { extractActionTitle } from '@/lib/textUtils';
 import { useUnits } from '@/hooks/useUnits';
+import { MarkdownText } from '@/components/shared/MarkdownText';
 
 const DEFAULT_VISIBLE = 3;
 
@@ -22,7 +23,7 @@ function ExpandableItem({ text, bullet }: { text: string; bullet: string }) {
       <div className="flex items-start gap-1">
         <span className="mt-0.5 shrink-0 text-[var(--text-muted)]">{bullet}</span>
         <div className="min-w-0">
-          <span>{expanded ? text : title}{!expanded && isTruncated && '…'}</span>
+          <span><MarkdownText>{(expanded ? text : title) + (!expanded && isTruncated ? '…' : '')}</MarkdownText></span>
           {isTruncated && (
             <button
               type="button"
