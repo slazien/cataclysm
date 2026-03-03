@@ -1,8 +1,8 @@
 # Cataclysm App Overhaul Plan
 
-*Comprehensive plan synthesizing the literature review (60+ sources), killer features research, competitive UX analysis, and current architecture into actionable implementation phases.*
+*Unified plan synthesizing the literature review (60+ sources), killer features research, competitive UX analysis, social features design, and current architecture into a single actionable roadmap.*
 
-*March 2026*
+*March 2026 — Reconciled with social features P0-P3 implementation plans.*
 
 ---
 
@@ -312,7 +312,7 @@ Add to `_corner_pattern_snippets()` in `kb_selector.py`:
 - Frontend: Animate a dot along the track map path at time-proportional speed. Sync with speed/G readouts.
 - Export via MediaRecorder API (canvas recording to MP4 for sharing).
 
-**Complexity:** MEDIUM-HIGH — ~5 days. Defer to Phase 5 with sharing features.
+**Complexity:** MEDIUM-HIGH — ~5 days.
 
 ---
 
@@ -340,6 +340,8 @@ When a session loads, show:
 │  [Track Map - mini-sector colored]  [Lap Time Chart] │
 │  ─────────────────────────────────────────────────── │
 │  Consistency: 82%  |  Best Corner: T7  |  Laps: 18  │
+│  ─────────────────────────────────────────────────── │
+│  [↗ Share Card]  [🔗 Challenge a Friend]             │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -352,6 +354,7 @@ Click any corner or "Deep Dive" to see:
 - Full AI coaching report
 - G-G diagram
 - Consistency analysis
+- Corner leaderboard (per-corner, multi-category)
 
 ### 5.2 Session Score (0-100)
 
@@ -362,7 +365,9 @@ Click any corner or "Deep Dive" to see:
 - Improvement component (30%): Did you improve vs. previous session at this track?
 - Technique component (30%): Aggregate of per-corner grades (brake point accuracy, trail braking, throttle commit, line accuracy)
 
-**Implementation:** New `session_score.py` module. Displayed prominently as a large number with color (green >80, yellow 60-80, red <60).
+**Implementation:** New `session_score.py` module. Displayed prominently as a large number with color (green >80, yellow 60-80, red <60). Also shown as a badge in the TopBar contextual bar (see Social P1 Task 7).
+
+**Social integration:** Session score IS the social identity — it appears on share cards, in leaderboards, and as the hero stat in the TopBar.
 
 ### 5.3 Persona-Adaptive UI
 
@@ -406,52 +411,125 @@ The skill level selector should meaningfully change what the user sees:
 
 *Build the distribution mechanics that turn users into ambassadors.*
 
-### 6.1 Shareable Session Cards (Killer Feature #1)
+**Architecture principle:** No dedicated "Social" tab. Social features are woven into existing views as contextual actions (see design doc: `docs/plans/2026-03-02-social-features-design.md`).
 
-**What:** Auto-generated social media cards (9:16 for stories, 1:1 for posts) with track map, racing line, best lap, improvement delta, AI coaching headline. "Analyzed by Cataclysm" branding. ONE TAP to share.
+**Detailed implementation plans:** This phase is broken into priority tiers with granular, file-level task specs in separate documents:
+- **P0 + P1 tasks:** `docs/plans/2026-03-02-social-features-p0p1-implementation.md`
+- **P2 + P3 tasks:** `docs/plans/2026-03-02-social-features-p2p3-implementation.md`
 
-**Why:** Spotify Wrapped proved 500M+ shares. Every share is a free billboard.
+### 6.0 Fix Orphaned Social Features (P0 — Do First)
 
-**Implementation:**
-- Frontend: Canvas/SVG rendering of a card template using existing D3 charts
-- Share via Web Share API (native share sheet on mobile)
-- Branding: "Analyzed by Cataclysm" + app URL at bottom
+Social features already exist in the codebase but are unreachable. These P0 fixes take <1 day combined and unblock everything else.
 
-**Complexity:** MEDIUM — ~3-4 days.
+| Task | What | Why Orphaned |
+|------|------|-------------|
+| **P0-1** Move share buttons to SessionReportHeader | `ShareButton` + `ShareSessionDialog` → `SessionReportHeader.tsx` | Living on unreachable `SessionDashboard` (ViewRouter routes to `SessionReport` instead) |
+| **P0-2** Unhide achievements/wrapped on mobile | Remove `hidden sm:flex` from TopBar icon wrapper | CSS class hides on <640px screens |
+| **P0-3** Wire CornerLeaderboard into Deep Dive | Import `CornerLeaderboard` into `CornerDetailPanel.tsx` | Component exists (104 lines + backend) but is never imported |
 
-### 6.2 Driver-to-Driver Comparison (Killer Feature #9)
+**Spec:** `docs/plans/2026-03-02-social-features-p0p1-implementation.md` Tasks 1-3.
 
-**What:** Upload session → get shareable link → friend uploads → both see overlay with AI comparing their styles.
+### 6.1 Shareable Session Cards — Identity-Framed (P1)
 
-**Why:** Every comparison request is an install request. The viral loop is built-in.
+**What:** Upgrade existing share card renderer with identity framing. Add hero stat ("Improved 1.3s"), consistency label, corners-mastered count. "Top 5% braking at Barber" > "Braking distance: 47m."
 
-**Implementation:**
-- Backend: Generate shareable session links. Cross-user delta analysis (extend existing delta comparison).
-- Frontend: Split-screen comparison view with AI coaching insights.
-- The coaching prompt includes: "Compare Driver A and Driver B's approaches. Where is each faster? What technique differences explain the gaps?"
+**Why:** Spotify Wrapped proved 500M+ shares. Every share is a free billboard. Identity framing makes cards worth sharing — data reporting does not.
 
-**Complexity:** HIGH — needs user identity + cross-session matching + new comparison view. Defer to later in this phase.
+**Implementation:** Enhance `ShareCardData` interface with `heroStat`, `consistencyLabel`, `cornersGraded`. Compute in `useShareCard.ts`. Update canvas renderer.
 
-### 6.3 Season Wrapped (Killer Feature #8)
+**Spec:** `docs/plans/2026-03-02-social-features-p0p1-implementation.md` Task 4.
 
-**What:** Annual recap: total laps, miles, tracks, best improvement, corners mastered, "driving personality." Shareable card.
+### 6.2 "Challenge a Friend" Comparison Flow (P1)
 
-**Implementation:** Aggregate multi-session data into a storytelling flow (5-6 slides). Generate cards. ONE TAP share.
+**What:** Refine comparison dialog from technical "Share for Comparison" to viral "Challenge a Friend" flow. Add Web Share API support. Framing: "I just ran Barber — upload your session and let's see who's faster!"
 
-**Complexity:** MEDIUM — build for end of track season (October-November).
+**Three-layer comparison view (P2):**
+1. **Tale of the Tape** — side-by-side hero stats with one-sentence AI summary
+2. **Corner Scorecard** — per-corner table, tap to expand
+3. **Delta Drill-Down** — speed trace overlay + AI coaching note for selected corner
 
-### 6.4 Achievement/Badge System (Killer Feature #14)
+**Spec:** P1 dialog refinement in `p0p1-implementation.md` Task 5. P2 three-layer view in `p2p3-implementation.md` Task 10.
 
-**What:** Gamification badges triggered by real accomplishments:
-- "Consistency King" — 10 laps within 0.5s
-- "Brake Master" — high trail braking utilization
-- "Track Rat" — 50+ laps at one track
-- "Glass Ceiling" — broke a plateau
-- "Sub-[X]" — hit a lap time milestone
+### 6.3 Multi-Category Corner Leaderboards (P1)
 
-**Implementation:** Badge logic on existing metrics. New `achievements.py` backend module. Badge display in sidebar/profile.
+**What:** Expand corner leaderboard from single metric (sector time) to four categories with fun titles:
 
-**Complexity:** LOW-MEDIUM — ~3 days.
+| Category | Metric | Sort | Title |
+|----------|--------|------|-------|
+| Sector time | `sector_time_s` | ASC (lower = better) | Corner King |
+| Min speed | `min_speed_mps` | DESC (higher = better) | Apex Predator |
+| Brake point | `brake_point_m` | ASC (later = closer = better) | Late Braker |
+| Consistency | `consistency_cv` | ASC (lower CV = better) | Smooth Operator |
+
+**Implementation:** Add `brake_point_m` + `consistency_cv` columns to `CornerRecord` DB model. Add `category` query param to leaderboard endpoint. Add category tabs to `CornerLeaderboard.tsx`. Add leaderboard position sharing via Web Share API.
+
+**Spec:** `docs/plans/2026-03-02-social-features-p0p1-implementation.md` Tasks 8-9.
+
+### 6.4 New Achievement Card in Session Report (P1)
+
+**What:** Show newly unlocked achievements inline in session report footer. "New Achievement: Consistency King" with tier icon and "View All Badges" link.
+
+**Spec:** `docs/plans/2026-03-02-social-features-p0p1-implementation.md` Task 6.
+
+### 6.5 Session Score in TopBar (P1)
+
+**What:** Display session score as a colored badge next to the track name in the TopBar contextual bar. Requires session score computation (Phase 4, §5.2) to be complete first.
+
+**Spec:** `docs/plans/2026-03-02-social-features-p0p1-implementation.md` Task 7.
+
+### 6.6 Progress Rate Leaderboard (P2)
+
+**What:** New endpoint computing improvement rate across sessions for a given track. For each driver: linear regression of best lap times across sessions → seconds improved per session. Show your rank and percentile: "You: #2 of 12 — Top 17%."
+
+**Why:** Rewards improvement, not just raw speed. Encourages return visits. "I'm in the top 25% of improvers at Barber" is identity-defining.
+
+**Implementation:** New `backend/api/routers/progress.py` endpoint + `ProgressLeaderboard.tsx` component in Progress tab.
+
+**Spec:** `docs/plans/2026-03-02-social-features-p2p3-implementation.md` Tasks 11-12.
+
+### 6.7 Track-Level Leaderboard Summary (P2)
+
+**What:** Compact card in Report tab showing user's standing across all leaderboard dimensions: best lap rank, session score rank, progress rank, consistency rank. Plus which corners you hold the crown on.
+
+**Spec:** `docs/plans/2026-03-02-social-features-p2p3-implementation.md` Task 13.
+
+### 6.8 Tap-to-Compare in Leaderboards (P2)
+
+**What:** Click another driver's leaderboard entry → mini comparison card showing their corner KPIs vs yours. Side-by-side with color-coded deltas.
+
+**Spec:** `docs/plans/2026-03-02-social-features-p2p3-implementation.md` Task 14.
+
+### 6.9 Achievements in Progress Tab + Wrapped Banner (P2)
+
+**What:** Inline achievements section in Progress tab (latest 3-4 badges). Conditional "Season Wrapped" banner during October-December when user has 3+ sessions.
+
+**Spec:** `docs/plans/2026-03-02-social-features-p2p3-implementation.md` Tasks 15-16.
+
+### 6.10 Corner King Badge on Track Map (P2)
+
+**What:** Crown icon (👑) on track map corner markers where the current user holds the leaderboard top spot. Visual reward for dominance.
+
+**Spec:** `docs/plans/2026-03-02-social-features-p2p3-implementation.md` Task 17.
+
+### 6.11 Season Wrapped (Killer Feature #8)
+
+**What:** Annual recap: total laps, miles, tracks visited, best improvement, corners mastered, "driving personality." 5-6 slide storytelling flow. Shareable card. ONE TAP share.
+
+**Implementation:** Aggregate multi-session data. Generate cards via Canvas. Build for end of track season (October-November).
+
+**Complexity:** MEDIUM — ~3 days.
+
+### 6.12 Future Social Infrastructure (P3 — Deferred)
+
+These require user density to justify. Architecture notes in `p2p3-implementation.md` Tasks 18-22:
+
+| Feature | Prerequisite | Notes |
+|---------|-------------|-------|
+| G-Force King leaderboard | GPS-derived lateral G (noisy, needs smoothing) | New `peak_lateral_g` column |
+| Duolingo-style skill-bracketed leagues | 30+ active users per track/month | Weekly promotion/demotion |
+| Track day groups | Lightweight entity: track + date + invite code | Perfect for "March 15 Barber" |
+| Corner tips / GeoComments | User-submitted tips anchored to corners | Moderation needed |
+| Instructor dashboard + HPDE org clubs | Instructor role, student linking, org branding | B2B distribution wedge |
 
 ---
 
@@ -504,6 +582,19 @@ Based on the 7-type geometric classification (LowerLaptime):
 
 ## 8. Implementation Sequence
 
+### Wave 0: Fix Orphaned Social Features (<1 day)
+
+Quick wins — unblock social features that already exist but are inaccessible.
+
+| # | Task | Spec | Effort |
+|---|------|------|--------|
+| 0.1 | Move share buttons to SessionReportHeader | P0-1 | 0.5h |
+| 0.2 | Unhide achievements/wrapped on mobile | P0-2 | 0.25h |
+| 0.3 | Wire CornerLeaderboard into Deep Dive corner detail | P0-3 | 0.5h |
+
+**Spec:** `docs/plans/2026-03-02-social-features-p0p1-implementation.md` Tasks 1-3.
+**Outcome:** Users can now see and use share buttons, achievements, and corner leaderboards.
+
 ### Wave 1: Coaching Intelligence (2-3 weeks)
 
 | # | Task | Files | Effort |
@@ -538,6 +629,8 @@ Based on the 7-type geometric classification (LowerLaptime):
 | 2.11 | Degradation alerts frontend | Frontend cards/alerts | 1 day |
 | 2.12 | Tests | `tests/` | 2 days |
 
+**Dependency note:** Tasks 2.5-2.6 (session score) are prerequisites for Social P1 Task 7 (score in TopBar) and share card identity framing.
+
 **Outcome:** Visual experience goes from "telemetry charts" to "F1 broadcast-quality insight."
 
 ### Wave 3: UX Overhaul (2-3 weeks)
@@ -553,29 +646,58 @@ Based on the 7-type geometric classification (LowerLaptime):
 
 **Outcome:** The app feels like it was designed by a driving instructor, not a data engineer.
 
-### Wave 4: Social & Viral (2-3 weeks)
+### Wave 4: Social P1 Features (1-2 weeks)
 
-| # | Task | Files | Effort |
-|---|------|-------|--------|
-| 4.1 | Shareable session card generator (Canvas/SVG) | New frontend module | 3 days |
-| 4.2 | Web Share API integration | Frontend | 1 day |
-| 4.3 | Achievement/badge system backend | New `achievements.py` | 2 days |
-| 4.4 | Achievement display frontend | New components | 2 days |
-| 4.5 | Skill radar chart backend computation | New module | 1 day |
-| 4.6 | Skill radar chart D3 component | New D3 chart | 2 days |
-| 4.7 | Animated lap replay | D3 animation + sync | 4 days |
+| # | Task | Spec | Effort |
+|---|------|------|--------|
+| 4.1 | Upgrade share card to identity-framed design | P1 Task 4 | 1 day |
+| 4.2 | Refine comparison dialog → "Challenge a Friend" + Web Share | P1 Task 5 | 0.5 day |
+| 4.3 | New achievement card in session report footer | P1 Task 6 | 0.5 day |
+| 4.4 | Session score badge in TopBar contextual bar | P1 Task 7 | 0.25 day |
+| 4.5 | Expand leaderboard to multi-category (Late Braker, Smooth Operator) | P1 Task 8 | 2 days |
+| 4.6 | Add leaderboard position sharing | P1 Task 9 | 0.5 day |
+| 4.7 | Animated lap replay | Phase 3 §4.6 | 4 days |
 
-**Outcome:** Every session generates shareable content. Users become ambassadors.
+**Spec:** `docs/plans/2026-03-02-social-features-p0p1-implementation.md` Tasks 4-9.
+**Outcome:** Every session generates shareable, identity-framed content. Users become ambassadors.
 
-### Wave 5: Advanced (Ongoing)
+### Wave 5: Social P2 Features (2-3 weeks)
+
+| # | Task | Spec | Effort |
+|---|------|------|--------|
+| 5.1 | Three-layer comparison view (Tale of the Tape → Scorecard → Delta) | P2 Task 10 | 4 days |
+| 5.2 | Progress rate leaderboard backend | P2 Task 11 | 2 days |
+| 5.3 | Progress rate leaderboard frontend | P2 Task 12 | 2 days |
+| 5.4 | Track-level leaderboard summary card | P2 Task 13 | 1 day |
+| 5.5 | Tap-to-compare in leaderboards | P2 Task 14 | 1 day |
+| 5.6 | Achievements section in Progress tab | P2 Task 15 | 0.5 day |
+| 5.7 | Season Wrapped banner in Progress tab | P2 Task 16 | 0.5 day |
+| 5.8 | Corner King badge on track map | P2 Task 17 | 0.5 day |
+
+**Spec:** `docs/plans/2026-03-02-social-features-p2p3-implementation.md` Tasks 10-17.
+**Outcome:** Full competitive social layer — leaderboards, comparisons, crowns, progress ranking.
+
+### Wave 6: Advanced Analytics (Ongoing)
 
 | # | Task | Effort |
 |---|------|--------|
-| 5.1 | Multi-session progress dashboard enhancement | 3 days |
-| 5.2 | Driver-to-driver comparison with shared links | 5 days |
-| 5.3 | Season Wrapped generator | 3 days |
-| 5.4 | Corner type-specific coaching templates | 2 days |
-| 5.5 | Optimal racing line overlay on track map | 3 days |
+| 6.1 | Multi-session progress dashboard enhancement | 3 days |
+| 6.2 | Skill radar chart (backend + D3 component) | 3 days |
+| 6.3 | Season Wrapped full generator (5-6 slides, Canvas cards) | 3 days |
+| 6.4 | Corner type-specific coaching templates | 2 days |
+| 6.5 | Optimal racing line overlay on track map | 3 days |
+
+### Wave 7: Future Social (P3 — When User Density Justifies)
+
+| # | Task | Prerequisite |
+|---|------|-------------|
+| 7.1 | G-Force King leaderboard | GPS-derived lateral G smoothing |
+| 7.2 | Skill-bracketed leagues (Duolingo-style) | 30+ users/track/month |
+| 7.3 | Track day groups with invite codes | Basic user base |
+| 7.4 | Corner tips / GeoComments | Moderation system |
+| 7.5 | Instructor dashboard + HPDE org clubs | Instructor user type, org entity |
+
+**Spec:** `docs/plans/2026-03-02-social-features-p2p3-implementation.md` Tasks 18-22.
 
 ---
 
@@ -601,26 +723,30 @@ Based on the 7-type geometric classification (LowerLaptime):
 | Mobile usability | Basic responsive | Dedicated pit debrief view |
 | Progressive disclosure levels | 1 (everything shown) | 2 (summary → detail) |
 
-### Engagement
+### Social & Engagement
 
 | Metric | Current | Target |
 |--------|---------|--------|
+| Share buttons visible | No (orphaned) | Yes (Report header) |
+| Leaderboard categories | 1 (sector time) | 4 (Corner King, Apex Predator, Late Braker, Smooth Operator) |
+| Corner leaderboard reachable | No (dead code) | Yes (in Deep Dive corner detail) |
+| Achievement visibility on mobile | Hidden | Visible |
 | Sessions shared | 0 | Track after launch |
-| Return visits per user | Not tracked | Track after launch |
-| Feature: Voice narration usage | N/A | Track after launch |
-| Feature: Achievement unlocks | N/A | Track after launch |
+| Comparison challenges sent | 0 | Track after launch |
+| Leaderboard positions shared | N/A | Track after launch |
 
 ---
 
-## Appendix: Research Sources Informing This Plan
+## Appendix A: Research Sources Informing This Plan
 
 | Source | Key Contribution to Plan |
 |--------|------------------------|
-| Literature Review (`coaching-knowledge-literature-review.md`) | 60+ sources: KB expansion content, coaching science, physics quantification |
-| Killer Features (`killer-features.md`) | 15 ranked features with competitive evidence |
-| Competitive UX Analysis (`competitive-ux-analysis.md`) | Persona definitions, competitor weaknesses, UX patterns, design principles |
-| Garmin Catalyst Analysis (`garmin_catalyst_competitive_analysis.md`) | UX gold standard for HPDE, "3 priorities" validation |
-| UX Research Report (`ux-research-report.md`) | OIS format, progressive disclosure, F/Z scan patterns |
+| Literature Review (`tasks/coaching-knowledge-literature-review.md`) | 60+ sources: KB expansion content, coaching science, physics quantification |
+| Killer Features (`tasks/killer-features.md`) | 15 ranked features with competitive evidence |
+| Competitive UX Analysis (`tasks/competitive-ux-analysis.md`) | Persona definitions, competitor weaknesses, UX patterns, design principles |
+| Social Features Research (`tasks/social-features-research.md`) | Outward-first social design, identity framing, atomic network theory |
+| Social Features Design (`docs/plans/2026-03-02-social-features-design.md`) | No-new-tab architecture, contextual social actions |
+| Garmin Catalyst Analysis (`tasks/garmin_catalyst_competitive_analysis.md`) | UX gold standard for HPDE, "3 priorities" validation |
 | Lappi 2018 (Frontiers in Psychology) | 12 deliberate practice procedures, coaching stage mapping |
 | Guidance Hypothesis (PMC1780106) | Scientific basis for limiting feedback volume |
 | Fitts-Posner Motor Learning Model | Skill-level coaching tone framework |
@@ -629,6 +755,23 @@ Based on the 7-type geometric classification (LowerLaptime):
 | Driver61's 6-Phase Corner Model | Per-phase coaching template system |
 | LowerLaptime's 7-Type Geometry | Corner classification for coaching template selection |
 
+## Appendix B: Document Map
+
+```
+tasks/app-overhaul-plan.md              ← THIS FILE (master roadmap)
+  ├── Phase 1-4, 6: Defined here
+  └── Phase 5 (Social): References ↓
+
+docs/plans/2026-03-02-social-features-design.md     ← Architecture & design principles
+docs/plans/2026-03-02-social-features-p0p1-implementation.md  ← Tasks 1-9 (file-level specs)
+docs/plans/2026-03-02-social-features-p2p3-implementation.md  ← Tasks 10-22 (file-level specs)
+
+tasks/coaching-knowledge-literature-review.md  ← Research input (60+ sources)
+tasks/killer-features.md                       ← Research input (15 features)
+tasks/competitive-ux-analysis.md               ← Research input (market + UX)
+tasks/social-features-research.md              ← Research input (social mechanics)
+```
+
 ---
 
-*Plan authored March 2026. Ready for implementation.*
+*Plan authored March 2026. Reconciled with social features P0-P3 implementation plans. Ready for implementation.*
