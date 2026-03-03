@@ -60,9 +60,15 @@ export async function fetchApi<T>(
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
+    credentials: "same-origin",
   });
   if (!res.ok) {
     throw new Error(`API error: ${res.status} ${res.statusText}`);
+  }
+  // Guard against HTML redirect responses (e.g., middleware auth redirect)
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    throw new Error(`API returned non-JSON response (${contentType})`);
   }
   return res.json();
 }

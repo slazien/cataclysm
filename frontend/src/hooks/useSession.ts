@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSession as useAuthSession } from "next-auth/react";
 import {
   listSessions,
   getSession,
@@ -17,9 +18,12 @@ import { fetchApi } from "@/lib/api";
 import type { SessionSummary } from "@/lib/types";
 
 export function useSessions() {
+  const { status } = useAuthSession();
   return useQuery({
     queryKey: ["sessions"],
     queryFn: listSessions,
+    // Only fetch when auth session is established — prevents 401 race
+    enabled: status === "authenticated",
   });
 }
 

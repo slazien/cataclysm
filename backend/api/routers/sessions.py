@@ -310,8 +310,17 @@ async def list_sessions(
     """List user's sessions ordered by date descending.
 
     Uses DB metadata for the list; enriches from in-memory store if available.
+    Calls ensure_user_exists so that OAuth sub changes trigger FK migration
+    (sessions move from old user_id to current user_id).
     """
+    await ensure_user_exists(db, current_user)
     db_rows = await list_sessions_for_user(db, current_user.user_id)
+    logger.info(
+        "list_sessions: user_id=%s email=%s → %d session(s)",
+        current_user.user_id,
+        current_user.email,
+        len(db_rows),
+    )
     items: list[SessionSummary] = []
     for row in db_rows:
         # Try in-memory store for richer data (e.g. after upload)

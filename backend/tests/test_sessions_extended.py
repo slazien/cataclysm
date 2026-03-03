@@ -2080,6 +2080,10 @@ async def test_list_sessions_direct_in_memory_path() -> None:
     try:
         with (
             patch(
+                "backend.api.routers.sessions.ensure_user_exists",
+                new_callable=AsyncMock,
+            ),
+            patch(
                 "backend.api.routers.sessions.list_sessions_for_user",
                 new_callable=AsyncMock,
                 return_value=[mock_row],
@@ -2132,10 +2136,16 @@ async def test_list_sessions_direct_db_fallback_with_weather() -> None:
     mock_user.user_id = _TEST_USER.user_id
 
     # Session NOT in memory — forces DB-only fallback at line 341
-    with patch(
-        "backend.api.routers.sessions.list_sessions_for_user",
-        new_callable=AsyncMock,
-        return_value=[mock_row],
+    with (
+        patch(
+            "backend.api.routers.sessions.ensure_user_exists",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "backend.api.routers.sessions.list_sessions_for_user",
+            new_callable=AsyncMock,
+            return_value=[mock_row],
+        ),
     ):
         result = await list_sessions(current_user=mock_user, db=mock_db)
 
@@ -2172,10 +2182,16 @@ async def test_list_sessions_direct_db_fallback_no_weather_no_gps() -> None:
     mock_user = MagicMock()
     mock_user.user_id = _TEST_USER.user_id
 
-    with patch(
-        "backend.api.routers.sessions.list_sessions_for_user",
-        new_callable=AsyncMock,
-        return_value=[mock_row],
+    with (
+        patch(
+            "backend.api.routers.sessions.ensure_user_exists",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "backend.api.routers.sessions.list_sessions_for_user",
+            new_callable=AsyncMock,
+            return_value=[mock_row],
+        ),
     ):
         result = await list_sessions(current_user=mock_user, db=mock_db)
 
@@ -2324,6 +2340,10 @@ async def test_list_sessions_restores_weather_from_snapshot() -> None:
 
     try:
         with (
+            patch(
+                "backend.api.routers.sessions.ensure_user_exists",
+                new_callable=AsyncMock,
+            ),
             patch(
                 "backend.api.routers.sessions.list_sessions_for_user",
                 new_callable=AsyncMock,
