@@ -21,6 +21,7 @@ from cataclysm.kb_selector import (
     _corner_pattern_snippets,
     _estimate_char_budget,
     _session_level_snippets,
+    classify_corner_type,
     select_kb_snippets,
 )
 
@@ -557,8 +558,10 @@ class TestCornerPatternSnippetsEdgeCases:
         }
         # Should not crash — the bad name is silently skipped
         triggers = _corner_pattern_snippets(all_corners, gains)
-        # Corner 1 still gets default priority 0.1 (not from gains)
-        assert all(pri == 0.1 for _, pri in triggers if True)
+        # Corner 1 still gets default priority 0.1 (not from gains),
+        # except CT.* triggers which have priority 0.2
+        non_ct = [(sid, pri) for sid, pri in triggers if not sid.startswith("CT.")]
+        assert all(pri == 0.1 for _, pri in non_ct)
 
     def test_empty_segment_name_skipped(self) -> None:
         """Segment name '' → IndexError caught, skipped."""
@@ -653,8 +656,8 @@ class TestNewSnippetCategories:
         assert "aerodynamic" in KB_SNIPPETS["AERO.1"].lower()
 
     def test_total_snippet_count_expanded(self) -> None:
-        """KB should now have 28+ snippets (was 18)."""
-        assert len(KB_SNIPPETS) >= 28
+        """KB should now have 33+ snippets (28 base + 5 corner type)."""
+        assert len(KB_SNIPPETS) >= 33
 
 
 class TestExpandedSkillSnippets:
@@ -802,3 +805,273 @@ class TestUpdatedTokenBudget:
     def test_char_budget_is_12000(self) -> None:
         budget = _estimate_char_budget()
         assert budget == 12000  # 3000 * 4.0
+
+
+# ---------------------------------------------------------------------------
+# Tests: Corner type classification (classify_corner_type)
+# ---------------------------------------------------------------------------
+
+
+class TestClassifyCornerType:
+    """Tests for classify_corner_type function."""
+
+    def test_empty_corner_data_returns_medium(self) -> None:
+        """Empty input defaults to 'medium'."""
+        result = classify_corner_type([])
+        assert result == "medium"
+
+    def test_hairpin_classification(self) -> None:
+        """Hairpin: speed loss > 30 mph, min speed < 35 mph."""
+        # min_speed = 13 mps (~29.1 mph), brake at 100m, entry at 200m = 100m brake dist
+        # peak_brake_g = -0.9 -> decel = 8.829 m/s^2
+        # entry_speed = sqrt(13^2 + 2*8.829*100) = sqrt(169 + 1765.8) = sqrt(1934.8) = ~44.0 m/s
+        # speed loss = (44.0 - 13.0) * 2.237 = ~69.3 mph -> > 30 mph
+        # min speed = 13 * 2.237 = 29.1 mph -> < 35 mph
+        corners = [
+            _make_corner(
+                min_speed=13.0,
+                brake_pt=100.0,
+                entry=200.0,
+                exit_m=350.0,
+                peak_g=-0.9,
+            ),
+        ]
+        result = classify_corner_type(corners)
+        assert result == "hairpin"
+
+    def test_sweeper_classification(self) -> None:
+        """Sweeper: speed loss < 15 mph, min speed > 65 mph."""
+        # min_speed = 32 mps (~71.6 mph), small brake dist, low decel
+        # brake at 180, entry at 200 = 20m brake dist
+        # peak_brake_g = -0.2 -> decel = 1.962 m/s^2
+        # entry_speed = sqrt(32^2 + 2*1.962*20) = sqrt(1024 + 78.48) = sqrt(1102.48) = ~33.2 m/s
+        # speed loss = (33.2 - 32.0) * 2.237 = ~2.7 mph -> < 15 mph
+        # min speed = 32 * 2.237 = 71.6 mph -> > 65 mph
+        corners = [
+            _make_corner(
+                min_speed=32.0,
+                brake_pt=180.0,
+                entry=200.0,
+                exit_m=350.0,
+                peak_g=-0.2,
+            ),
+        ]
+        result = classify_corner_type(corners)
+        assert result == "sweeper"
+
+    def test_kink_classification(self) -> None:
+        """Kink: speed loss < 8 mph, min speed > 80 mph."""
+        # min_speed = 38 mps (~85 mph), tiny brake dist, minimal decel
+        # brake at 195, entry at 200 = 5m brake dist
+        # peak_brake_g = -0.1 -> decel = 0.981 m/s^2
+        # entry_speed = sqrt(38^2 + 2*0.981*5) = sqrt(1444 + 9.81) = sqrt(1453.81) = ~38.1 m/s
+        # speed loss = (38.1 - 38.0) * 2.237 = ~0.2 mph -> < 8 mph
+        # min speed = 38 * 2.237 = 85.0 mph -> > 80 mph
+        corners = [
+            _make_corner(
+                min_speed=38.0,
+                brake_pt=195.0,
+                entry=200.0,
+                exit_m=350.0,
+                peak_g=-0.1,
+            ),
+        ]
+        result = classify_corner_type(corners)
+        assert result == "kink"
+
+    def test_medium_classification(self) -> None:
+        """Medium: speed loss 15-30 mph, min speed 35-65 mph."""
+        # min_speed = 20 mps (~44.7 mph), moderate brake dist
+        # brake at 140, entry at 200 = 60m brake dist
+        # peak_brake_g = -0.5 -> decel = 4.905 m/s^2
+        # entry_speed = sqrt(20^2 + 2*4.905*60) = sqrt(400 + 588.6) = sqrt(988.6) = ~31.4 m/s
+        # speed loss = (31.4 - 20.0) * 2.237 = ~25.6 mph -> 15 < x < 30
+        # min speed = 20 * 2.237 = 44.7 mph -> 35 < x < 65
+        corners = [
+            _make_corner(
+                min_speed=20.0,
+                brake_pt=140.0,
+                entry=200.0,
+                exit_m=350.0,
+                peak_g=-0.5,
+            ),
+        ]
+        result = classify_corner_type(corners)
+        assert result == "medium"
+
+    def test_chicane_detection(self) -> None:
+        """Chicane: two consecutive corners with < 50m gap between exit and entry."""
+        corner1 = [
+            _make_corner(number=1, exit_m=300.0, min_speed=20.0),
+        ]
+        corner2 = [
+            _make_corner(number=2, entry=320.0, exit_m=450.0, min_speed=20.0),
+        ]
+        all_corners_by_number = {1: corner1, 2: corner2}
+        result = classify_corner_type(corner1, all_corners_by_number)
+        assert result == "chicane"
+
+    def test_no_chicane_when_gap_too_large(self) -> None:
+        """Should not classify as chicane when gap between corners > 50m."""
+        corner1 = [
+            _make_corner(number=1, exit_m=300.0, min_speed=20.0),
+        ]
+        corner2 = [
+            _make_corner(number=2, entry=400.0, exit_m=500.0, min_speed=20.0),
+        ]
+        all_corners_by_number = {1: corner1, 2: corner2}
+        result = classify_corner_type(corner1, all_corners_by_number)
+        # Not chicane — gap is 100m
+        assert result != "chicane"
+
+    def test_no_brake_data_falls_back_to_defaults(self) -> None:
+        """Without brake data, uses default speed loss (15 mph) and classifies from min speed."""
+        corners = [
+            _make_corner(min_speed=22.0, brake_pt=None, peak_g=None),
+        ]
+        result = classify_corner_type(corners)
+        # min_speed = 22*2.237 = 49.2 mph, default speed_loss = 15
+        # 15 <= 15 <= 30 and 35 <= 49.2 <= 65 -> "medium"
+        assert result == "medium"
+
+    def test_multiple_laps_uses_median(self) -> None:
+        """Classification uses median values across multiple laps."""
+        # 3 laps of similar hairpin data
+        corners = [
+            _make_corner(min_speed=12.0, brake_pt=100.0, entry=200.0, peak_g=-0.9),
+            _make_corner(min_speed=13.0, brake_pt=95.0, entry=200.0, peak_g=-0.85),
+            _make_corner(min_speed=14.0, brake_pt=105.0, entry=200.0, peak_g=-0.95),
+        ]
+        result = classify_corner_type(corners)
+        assert result == "hairpin"
+
+    def test_without_corners_by_number_skips_chicane(self) -> None:
+        """When all_corners_by_number is None, chicane detection is skipped."""
+        corners = [
+            _make_corner(number=1, exit_m=300.0, min_speed=20.0),
+        ]
+        result = classify_corner_type(corners, None)
+        # Should not crash and should classify based on speed
+        assert result in ("hairpin", "medium", "sweeper", "kink", "chicane")
+
+
+# ---------------------------------------------------------------------------
+# Tests: Corner type snippets exist in KB_SNIPPETS
+# ---------------------------------------------------------------------------
+
+
+class TestCornerTypeSnippets:
+    """Verify corner type snippets exist and are well-formed."""
+
+    def test_all_corner_type_snippets_exist(self) -> None:
+        for ct in ["CT.HAIRPIN", "CT.MEDIUM", "CT.SWEEPER", "CT.KINK", "CT.CHICANE"]:
+            assert ct in KB_SNIPPETS, f"Missing corner type snippet {ct}"
+
+    def test_corner_type_snippets_are_nonempty(self) -> None:
+        for ct in ["CT.HAIRPIN", "CT.MEDIUM", "CT.SWEEPER", "CT.KINK", "CT.CHICANE"]:
+            assert len(KB_SNIPPETS[ct]) > 50, f"Snippet {ct} is too short"
+
+    def test_hairpin_snippet_content(self) -> None:
+        assert "hairpin" in KB_SNIPPETS["CT.HAIRPIN"].lower()
+        assert "rotation" in KB_SNIPPETS["CT.HAIRPIN"].lower()
+
+    def test_sweeper_snippet_content(self) -> None:
+        assert "sweeper" in KB_SNIPPETS["CT.SWEEPER"].lower()
+        assert "momentum" in KB_SNIPPETS["CT.SWEEPER"].lower()
+
+    def test_kink_snippet_content(self) -> None:
+        assert "kink" in KB_SNIPPETS["CT.KINK"].lower()
+        assert "lifting" in KB_SNIPPETS["CT.KINK"].lower()
+
+    def test_chicane_snippet_content(self) -> None:
+        assert "chicane" in KB_SNIPPETS["CT.CHICANE"].lower()
+        assert "sacrifice" in KB_SNIPPETS["CT.CHICANE"].lower()
+
+    def test_medium_snippet_content(self) -> None:
+        assert "medium" in KB_SNIPPETS["CT.MEDIUM"].lower()
+        assert "throttle" in KB_SNIPPETS["CT.MEDIUM"].lower()
+
+
+# ---------------------------------------------------------------------------
+# Tests: Corner type snippets in pattern triggers
+# ---------------------------------------------------------------------------
+
+
+class TestCornerTypeInPatternTriggers:
+    """Verify corner type snippets are injected via _corner_pattern_snippets."""
+
+    def test_hairpin_snippet_in_triggers(self) -> None:
+        """A hairpin corner should trigger CT.HAIRPIN snippet."""
+        all_corners: dict[int, list[Corner]] = {
+            1: [
+                _make_corner(min_speed=13.0, brake_pt=100.0, entry=200.0, exit_m=350.0, peak_g=-0.9)
+            ],
+        }
+        triggers = _corner_pattern_snippets(all_corners, None)
+        snippet_ids = [sid for sid, _ in triggers]
+        assert "CT.HAIRPIN" in snippet_ids
+
+    def test_corner_type_priority_is_0_2(self) -> None:
+        """Corner type snippets should have priority 0.2."""
+        all_corners: dict[int, list[Corner]] = {
+            1: [
+                _make_corner(min_speed=13.0, brake_pt=100.0, entry=200.0, exit_m=350.0, peak_g=-0.9)
+            ],
+        }
+        triggers = _corner_pattern_snippets(all_corners, None)
+        ct_triggers = [(sid, pri) for sid, pri in triggers if sid.startswith("CT.")]
+        assert len(ct_triggers) >= 1
+        for _sid, pri in ct_triggers:
+            assert pri == 0.2
+
+    def test_sweeper_snippet_in_triggers(self) -> None:
+        """A sweeper corner should trigger CT.SWEEPER snippet."""
+        all_corners: dict[int, list[Corner]] = {
+            1: [
+                _make_corner(min_speed=32.0, brake_pt=180.0, entry=200.0, exit_m=350.0, peak_g=-0.2)
+            ],
+        }
+        triggers = _corner_pattern_snippets(all_corners, None)
+        snippet_ids = [sid for sid, _ in triggers]
+        assert "CT.SWEEPER" in snippet_ids
+
+    def test_corner_type_appears_in_final_output(self) -> None:
+        """Corner type snippets should appear in select_kb_snippets output."""
+        all_corners: dict[int, list[Corner]] = {
+            1: [
+                _make_corner(min_speed=13.0, brake_pt=100.0, entry=200.0, exit_m=350.0, peak_g=-0.9)
+            ],
+        }
+        result = select_kb_snippets(all_corners, "intermediate")
+        assert "CT.HAIRPIN" in result
+
+    def test_multiple_corner_types_in_triggers(self) -> None:
+        """Different corners should get different corner type snippets."""
+        all_corners: dict[int, list[Corner]] = {
+            1: [
+                # Hairpin (corner 1)
+                _make_corner(
+                    number=1,
+                    min_speed=13.0,
+                    brake_pt=100.0,
+                    entry=200.0,
+                    exit_m=350.0,
+                    peak_g=-0.9,
+                ),
+            ],
+            2: [
+                # Sweeper (corner 2)
+                _make_corner(
+                    number=2,
+                    min_speed=32.0,
+                    brake_pt=480.0,
+                    entry=500.0,
+                    exit_m=650.0,
+                    peak_g=-0.2,
+                ),
+            ],
+        }
+        triggers = _corner_pattern_snippets(all_corners, None)
+        snippet_ids = [sid for sid, _ in triggers]
+        assert "CT.HAIRPIN" in snippet_ids
+        assert "CT.SWEEPER" in snippet_ids

@@ -7,7 +7,7 @@ import { useSession } from '@/hooks/useSession';
 import { useTrends, useMilestones } from '@/hooks/useTrends';
 import { formatTimeShort, parseSessionDate } from '@/lib/formatters';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
-import { ChevronDown, TrendingUp, Award, Sparkles } from 'lucide-react';
+import { AlertTriangle, ChevronDown, TrendingUp, Award, Sparkles } from 'lucide-react';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { AiInsight } from '@/components/shared/AiInsight';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -33,6 +33,8 @@ import { ConsistencyTrend } from './ConsistencyTrend';
 import { CornerHeatmap } from './CornerHeatmap';
 import { SessionBoxPlot } from './SessionBoxPlot';
 import { ProgressLeaderboard } from '@/components/leaderboard/ProgressLeaderboard';
+import { SkillRadarEvolution } from './SkillRadarEvolution';
+import { CornerTrendSparklines } from './CornerTrendSparklines';
 
 interface TrackOption {
   name: string;
@@ -160,6 +162,19 @@ export function ProgressView() {
     return parts.join(' ');
   }, [trendData, milestones]);
 
+  // Stagnation detection: 5+ sessions, last 3 show <0.2s improvement
+  const isStagnating = useMemo(() => {
+    if (!trendData || trendData.sessions.length < 5) return false;
+    const bestLaps = trendData.best_lap_trend;
+    const n = bestLaps.length;
+    // Compare 3rd-latest best lap to latest best lap
+    const thirdLatest = bestLaps[n - 3];
+    const latest = bestLaps[n - 1];
+    if (thirdLatest <= 0 || latest <= 0) return false;
+    const improvement = thirdLatest - latest;
+    return improvement < 0.2;
+  }, [trendData]);
+
   // Journey card metrics
   const journeyMetrics = useMemo(() => {
     if (!trendData || trendData.sessions.length < 2) return null;
@@ -183,6 +198,21 @@ export function ProgressView() {
 
     return { firstBestLap, latestBestLap, improvement, firstDate, latestDate };
   }, [trendData]);
+
+  // Derive the latest session ID at the effective track for the skill radar
+  const latestTrackSessionId = useMemo(() => {
+    if (!effectiveTrack) return null;
+    const trackSessions = sessions
+      .filter((s) => s.track_name === effectiveTrack)
+      .sort((a, b) => {
+        const da = new Date(a.session_date).getTime();
+        const db = new Date(b.session_date).getTime();
+        return db - da;
+      });
+    return trackSessions.length > 0 ? trackSessions[0].session_id : null;
+  }, [sessions, effectiveTrack]);
+
+  const showSkillRadar = (trendData?.sessions.length ?? 0) >= 2 && !!latestTrackSessionId;
 
   // Loading session or trends
   if (sessionLoading || trendsLoading) {
@@ -306,6 +336,21 @@ export function ProgressView() {
           </AiInsight>
         )}
 
+        {/* 2b. Stagnation Alert */}
+        {isStagnating && trendData && (
+          <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-amber-400">Possible Plateau Detected</p>
+              <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                You may be plateauing at {trendData.track_name}. Consider: (1) Focus on your
+                weakest corner, (2) Try different lines, (3) Get coaching feedback on your brake
+                consistency.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* 3. Journey Card */}
         {heroMetrics && journeyMetrics && trendData.sessions.length >= 2 && (
           <div className="rounded-lg border-l-[3px] border-l-[var(--cata-accent)] bg-gradient-to-r from-[var(--bg-surface)] to-[color-mix(in_srgb,var(--bg-surface)_92%,white)] p-4">
@@ -337,6 +382,11 @@ export function ProgressView() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* 3b. Skill Radar Evolution (2+ sessions required) */}
+        {showSkillRadar && effectiveTrack && (
+          <SkillRadarEvolution sessionId={latestTrackSessionId!} trackName={effectiveTrack} />
         )}
 
         {/* 4. Hero metrics row */}
@@ -511,6 +561,12 @@ export function ProgressView() {
               </div>
             )}
           </div>
+        )}
+        {/* 8. Corner Speed Trend Sparklines */}
+        {Object.keys(trendData.corner_min_speed_trends).length > 0 && (
+          <CornerTrendSparklines
+            cornerMinSpeedTrends={trendData.corner_min_speed_trends}
+          />
         )}
       </div>
       <BadgeGrid open={badgesOpen} onClose={() => setBadgesOpen(false)} />

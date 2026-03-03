@@ -154,6 +154,16 @@ export function LapTimeTrend({
 
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
+  // 3-session rolling average of best lap (must be computed before scales)
+  const rollingAvg = useMemo(() => {
+    return bestLapTrend.map((_, i, arr) => {
+      const start = Math.max(0, i - 2);
+      const window = arr.slice(start, i + 1).filter((v) => v != null && v > 0);
+      if (window.length === 0) return 0;
+      return window.reduce((a, b) => a + b, 0) / window.length;
+    });
+  }, [bestLapTrend]);
+
   const { xScale, yScale } = useMemo(() => {
     const n = sessions.length;
     if (n === 0 || dimensions.innerWidth <= 0) {
@@ -163,7 +173,7 @@ export function LapTimeTrend({
       };
     }
 
-    const allValues = [...bestLapTrend, ...top3AvgTrend, ...theoreticalTrend].filter(
+    const allValues = [...bestLapTrend, ...top3AvgTrend, ...theoreticalTrend, ...rollingAvg].filter(
       (v) => v != null && v > 0,
     );
     const minVal = d3.min(allValues) ?? 0;
@@ -180,7 +190,7 @@ export function LapTimeTrend({
         .domain([maxVal + padding, minVal - padding])
         .range([MARGINS.top, MARGINS.top + dimensions.innerHeight]),
     };
-  }, [sessions.length, bestLapTrend, top3AvgTrend, theoreticalTrend, dimensions.innerWidth, dimensions.innerHeight]);
+  }, [sessions.length, bestLapTrend, top3AvgTrend, theoreticalTrend, rollingAvg, dimensions.innerWidth, dimensions.innerHeight]);
 
   const xScaleRef = useRef(xScale);
   xScaleRef.current = xScale;
@@ -218,6 +228,13 @@ export function LapTimeTrend({
       drawPbDiamonds(ctx, xScale, yScale, bestLapTrend, pbIndices);
     }
 
+    // Rolling average (dashed, semi-transparent)
+    if (rollingAvg.length >= 3) {
+      ctx.globalAlpha = 0.6;
+      drawLine(ctx, xScale, yScale, rollingAvg, '#06b6d4', 1.5, true);
+      ctx.globalAlpha = 1;
+    }
+
     // Legend
     const legendX = MARGINS.left + 8;
     const legendY = MARGINS.top + 8;
@@ -229,6 +246,7 @@ export function LapTimeTrend({
       { label: 'Best Lap', color: colors.motorsport.optimal, dashed: false },
       { label: 'Top 3 Avg', color: colors.motorsport.neutral, dashed: false },
       { label: 'Theoretical', color: colors.motorsport.pb, dashed: true },
+      ...(rollingAvg.length >= 3 ? [{ label: '3-Sess Avg', color: '#06b6d4', dashed: true }] : []),
     ];
 
     for (let i = 0; i < items.length; i++) {
@@ -263,7 +281,7 @@ export function LapTimeTrend({
       ctx.fillStyle = colors.text.secondary;
       ctx.fillText('PB Session', legendX + 26, pbY);
     }
-  }, [sessions, bestLapTrend, top3AvgTrend, theoreticalTrend, pbIndices, xScale, yScale, dimensions, getDataCtx]);
+  }, [sessions, bestLapTrend, top3AvgTrend, theoreticalTrend, pbIndices, rollingAvg, xScale, yScale, dimensions, getDataCtx]);
 
   // Hover overlay
   useEffect(() => {

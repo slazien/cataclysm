@@ -197,6 +197,37 @@ KB_SNIPPETS: dict[str, str] = {
         "grip from aero: reduce steering input and carry speed. Abrupt speed changes in "
         "aero-dependent corners cause sudden grip loss."
     ),
+    # --- Corner type snippets (CT) ---
+    "CT.HAIRPIN": (
+        "Hairpin technique: heavy braking to minimum speed, tight rotation at apex, "
+        "then progressive throttle application. Priority is getting the car rotated "
+        "before throttle. Trail braking is essential — maintain 10-20% brake past turn-in. "
+        "Common error: trying to carry too much speed in, which delays rotation and throttle."
+    ),
+    "CT.MEDIUM": (
+        "Medium-speed corner technique: balance between carrying speed and rotating the car. "
+        "Trail braking should blend smoothly into throttle application. Key metric: how early "
+        "you get back to full throttle. A clean medium corner often gains more time than a "
+        "braking zone because the exit speed carries down the following straight."
+    ),
+    "CT.SWEEPER": (
+        "High-speed sweeper technique: minimal braking, emphasis on maintaining momentum. "
+        "The entry line is critical — a wide entry allows later, harder commitment to the apex. "
+        "At high speeds, small steering adjustments have large effects. Trust aero downforce "
+        "if available. Biggest mistake: lifting mid-corner from fear, causing weight transfer."
+    ),
+    "CT.KINK": (
+        "Kink/flat-out corner: should be taken without lifting. If you're lifting, focus on "
+        "car positioning: use all the road width, take the widest arc possible. Only if the car "
+        "is physically understeering should you consider a slight breathe. Adding more steering "
+        "lock is slower — widen the arc instead."
+    ),
+    "CT.CHICANE": (
+        "Chicane technique: sacrifice the first element to set up the second. The exit of the "
+        "last element matters most because it feeds onto the straight. Common error: over-driving "
+        "the first turn and arriving off-line for the second. Use the curbs on both sides. "
+        "Think of it as one connected maneuver, not two separate corners."
+    ),
 }
 
 # ---------------------------------------------------------------------------
@@ -223,6 +254,92 @@ _SURVIVAL_SPEED_DROP_MPH = 3.0  # sudden speed drop apex-to-exit
 _LOW_COMBINED_G = 0.7  # peak combined G threshold
 _SHORT_BRAKE_ZONE_M = 30.0  # brake-to-apex distance threshold
 _HIGH_SPEED_CORNER_MPH = 80.0  # aero effects become relevant
+
+# Corner type classification thresholds
+_HAIRPIN_SPEED_LOSS_MPH = 30.0  # speed loss > this = hairpin
+_HAIRPIN_MIN_SPEED_MPH = 35.0  # min speed < this = hairpin
+_MEDIUM_SPEED_LOSS_MPH = 15.0  # speed loss 15-30 = medium
+_MEDIUM_MIN_SPEED_MPH = 65.0  # min speed 35-65 = medium
+_KINK_SPEED_LOSS_MPH = 8.0  # speed loss < this = kink
+_KINK_MIN_SPEED_MPH = 80.0  # min speed > this = kink
+_CHICANE_GAP_M = 50.0  # max gap between corners for chicane detection
+
+
+def classify_corner_type(
+    corner_data: list[Corner],
+    all_corners_by_number: dict[int, list[Corner]] | None = None,
+) -> str:
+    """Classify a corner based on telemetry patterns across multiple laps.
+
+    Uses entry speed estimation from kinematics and min speed to determine
+    the corner character.
+
+    Parameters
+    ----------
+    corner_data:
+        All instances of the same corner number across laps.
+    all_corners_by_number:
+        Optional mapping of corner number to corner data for all corners,
+        used for chicane detection (two consecutive corners < 50m apart).
+
+    Returns
+    -------
+    One of: ``"hairpin"``, ``"medium"``, ``"sweeper"``, ``"chicane"``, ``"kink"``
+    """
+    if not corner_data:
+        return "medium"
+
+    # --- Chicane detection: two consecutive corners within _CHICANE_GAP_M ---
+    if all_corners_by_number is not None:
+        cnum = corner_data[0].number
+        # Check if the next corner is close enough to form a chicane
+        next_corners = all_corners_by_number.get(cnum + 1)
+        if next_corners:
+            # Use median exit-to-entry gap across laps
+            gaps: list[float] = []
+            for c in corner_data:
+                for nc in next_corners:
+                    gap = nc.entry_distance_m - c.exit_distance_m
+                    if gap >= 0:
+                        gaps.append(gap)
+            if gaps and statistics.median(gaps) < _CHICANE_GAP_M:
+                return "chicane"
+
+    # --- Estimate speed loss from kinematics ---
+    speed_losses_mph: list[float] = []
+    min_speeds_mph: list[float] = []
+    for c in corner_data:
+        min_speed_mph = c.min_speed_mps * MPS_TO_MPH
+        min_speeds_mph.append(min_speed_mph)
+
+        if c.brake_point_m is not None and c.peak_brake_g is not None and c.entry_distance_m > 0:
+            brake_dist = c.entry_distance_m - c.brake_point_m
+            decel_mps2 = abs(c.peak_brake_g) * 9.81
+            entry_speed_mps = (c.min_speed_mps**2 + 2 * decel_mps2 * max(brake_dist, 0)) ** 0.5
+            speed_losses_mph.append((entry_speed_mps - c.min_speed_mps) * MPS_TO_MPH)
+
+    median_min_speed = statistics.median(min_speeds_mph) if min_speeds_mph else 50.0
+    median_speed_loss = statistics.median(speed_losses_mph) if speed_losses_mph else 15.0
+
+    # --- Classify based on speed loss and min speed ---
+    if median_speed_loss < _KINK_SPEED_LOSS_MPH and median_min_speed > _KINK_MIN_SPEED_MPH:
+        return "kink"
+    if median_speed_loss > _HAIRPIN_SPEED_LOSS_MPH and median_min_speed < _HAIRPIN_MIN_SPEED_MPH:
+        return "hairpin"
+    if median_speed_loss < _MEDIUM_SPEED_LOSS_MPH and median_min_speed > _MEDIUM_MIN_SPEED_MPH:
+        return "sweeper"
+    if (
+        _MEDIUM_SPEED_LOSS_MPH <= median_speed_loss <= _HAIRPIN_SPEED_LOSS_MPH
+        and _HAIRPIN_MIN_SPEED_MPH <= median_min_speed <= _MEDIUM_MIN_SPEED_MPH
+    ):
+        return "medium"
+
+    # Fallback heuristic: classify by speed loss dominant signal
+    if median_speed_loss > _HAIRPIN_SPEED_LOSS_MPH:
+        return "hairpin"
+    if median_speed_loss < _MEDIUM_SPEED_LOSS_MPH:
+        return "sweeper"
+    return "medium"
 
 
 def _estimate_char_budget() -> int:
@@ -328,10 +445,16 @@ def _corner_pattern_snippets(
 
     results: list[tuple[str, float]] = []
 
+    # Pre-build per-corner-number data for chicane detection
+    corners_by_number: dict[int, list[Corner]] = {}
+    for lap_corners in all_lap_corners.values():
+        for c in lap_corners:
+            corners_by_number.setdefault(c.number, []).append(c)
+
+    corner_type_priority = 0.2
+
     for cnum in sorted(corner_nums):
-        corner_data = [
-            c for lap_corners in all_lap_corners.values() for c in lap_corners if c.number == cnum
-        ]
+        corner_data = corners_by_number.get(cnum, [])
         if not corner_data:
             continue
 
@@ -392,6 +515,12 @@ def _corner_pattern_snippets(
                 results.append(("10.3", priority))
             elif median_loss > _LONG_CORNER_MPH:
                 results.append(("10.5", priority))
+
+        # Corner type-specific coaching
+        corner_type = classify_corner_type(corner_data, corners_by_number)
+        ct_snippet = f"CT.{corner_type.upper()}"
+        if ct_snippet in KB_SNIPPETS:
+            results.append((ct_snippet, corner_type_priority))
 
     return results
 
