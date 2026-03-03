@@ -68,10 +68,11 @@ def _settings(**kwargs: object) -> Settings:
     return Settings(**kwargs)  # type: ignore[arg-type]
 
 
-def _mock_websocket(cookies: dict[str, str]) -> MagicMock:
+def _mock_websocket(cookies: dict[str, str], headers: dict[str, str] | None = None) -> MagicMock:
     """Build a minimal WebSocket mock with the given cookies."""
     ws = MagicMock()
     ws.cookies = cookies
+    ws.headers = headers or {}
     return ws
 
 

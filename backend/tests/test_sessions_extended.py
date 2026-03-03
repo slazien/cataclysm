@@ -537,9 +537,12 @@ async def test_upload_file_with_no_name(client: AsyncClient) -> None:
         from backend.api.config import Settings
         from backend.api.routers.sessions import upload_sessions
 
+        mock_settings = MagicMock(spec=Settings)
+        mock_settings.max_upload_size_mb = 50
         result = await upload_sessions(
+            request=MagicMock(),
             files=[nameless_file],
-            settings=MagicMock(spec=Settings),
+            settings=mock_settings,
             current_user=_TEST_USER,  # type: ignore[arg-type]
             db=mock_db,
         )

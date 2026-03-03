@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from cataclysm.equipment import SessionConditions, TrackCondition
 from cataclysm.trends import _parse_session_date  # noqa: F401 — re-exported for callers
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.db.models import Session as SessionModel
@@ -40,10 +40,35 @@ async def ensure_user_exists(db: AsyncSession, user: AuthenticatedUser) -> None:
     result = await db.execute(select(UserModel).where(UserModel.email == user.email))
     by_email = result.scalar_one_or_none()
     if by_email is not None:
-        # Update the existing row to use the new OAuth ID
-        by_email.id = user.user_id
-        by_email.name = user.name
-        by_email.avatar_url = user.picture
+        old_id = by_email.id
+        # Evict ORM object before raw SQL to avoid identity-map conflicts
+        db.expunge(by_email)
+        # Update all FK references to the old user ID across every table
+        # (no ON UPDATE CASCADE on these FKs, so we migrate manually)
+        _fk_refs = [
+            ("user_id", "sessions"),
+            ("user_id", "equipment_profiles"),
+            ("user_id", "user_achievements"),
+            ("user_id", "corner_records"),
+            ("user_id", "corner_kings"),
+            ("user_id", "shared_sessions"),
+            ("instructor_id", "instructor_students"),
+            ("student_id", "student_flags"),
+            ("user_id", "org_memberships"),
+        ]
+        for col, table in _fk_refs:
+            await db.execute(
+                text(f"UPDATE {table} SET {col} = :new_id WHERE {col} = :old_id"),
+                {"new_id": user.user_id, "old_id": old_id},
+            )
+        # Now update the user PK itself
+        await db.execute(
+            text(
+                "UPDATE users SET id = :new_id, name = :name, avatar_url = :avatar "
+                "WHERE id = :old_id"
+            ),
+            {"new_id": user.user_id, "name": user.name, "avatar": user.picture, "old_id": old_id},
+        )
         await db.flush()
         return
 
