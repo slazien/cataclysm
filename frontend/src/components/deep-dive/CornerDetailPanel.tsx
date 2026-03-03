@@ -2,8 +2,10 @@
 
 import { useCorners, useAllLapCorners } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
-import { useAnalysisStore } from '@/stores';
+import { useAnalysisStore, useSessionStore } from '@/stores';
+import { useSession } from '@/hooks/useSession';
 import { GlossaryTerm } from '@/components/shared/GlossaryTerm';
+import { CornerLeaderboard } from '@/components/leaderboard/CornerLeaderboard';
 import { GradeChip } from '@/components/shared/GradeChip';
 import { AiInsight } from '@/components/shared/AiInsight';
 import { MarkdownText } from '@/components/shared/MarkdownText';
@@ -100,6 +102,8 @@ function GradeRow({ label, grade, explanation }: GradeRowProps) {
 
 export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
   const selectedCorner = useAnalysisStore((s) => s.selectedCorner);
+  const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const { data: session } = useSession(activeSessionId);
   const { data: corners } = useCorners(sessionId);
   const { data: allLapCorners } = useAllLapCorners(sessionId);
   const { data: report } = useCoachingReport(sessionId);
@@ -280,6 +284,15 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
         <AiInsight mode="card">
           <p className="text-xs leading-relaxed"><MarkdownText>{resolveSpeed(priorityCorner?.tip ?? cornerGrade?.notes ?? '')}</MarkdownText></p>
         </AiInsight>
+      )}
+
+      {/* Corner leaderboard */}
+      {session?.track_name && (
+        <CornerLeaderboard
+          trackName={session.track_name}
+          cornerNumber={cornerNumber}
+          limit={5}
+        />
       )}
     </div>
   );

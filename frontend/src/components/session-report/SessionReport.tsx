@@ -44,6 +44,7 @@ export function SessionReport() {
         <SessionReportHeader
           session={session ?? null}
           gpsQuality={gpsQuality ?? null}
+          sessionId={activeSessionId ?? undefined}
         />
 
         <MetricsGrid

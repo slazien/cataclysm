@@ -2,13 +2,16 @@
 
 import type { SessionSummary } from '@/lib/types';
 import type { GPSQualityReport } from '@/lib/types';
+import { ShareButton } from '@/components/dashboard/ShareButton';
+import { ShareSessionDialog } from '@/components/comparison/ShareSessionDialog';
 
 interface SessionReportHeaderProps {
   session: SessionSummary | null;
   gpsQuality: GPSQualityReport | null;
+  sessionId?: string;
 }
 
-export function SessionReportHeader({ session, gpsQuality }: SessionReportHeaderProps) {
+export function SessionReportHeader({ session, gpsQuality, sessionId }: SessionReportHeaderProps) {
   const score = session?.session_score;
   const scoreColor = score != null
     ? score >= 80 ? 'text-green-400' : score >= 60 ? 'text-yellow-400' : 'text-red-400'
@@ -34,7 +37,7 @@ export function SessionReportHeader({ session, gpsQuality }: SessionReportHeader
         <p className="text-sm text-[var(--text-muted)]">{session?.session_date ?? ''}</p>
       </div>
 
-      {/* Badges */}
+      {/* Badges + Share actions */}
       <div className="flex shrink-0 flex-wrap items-center gap-2">
         {gpsQuality && (
           <span className="rounded-full bg-[var(--bg-elevated)] px-2.5 py-0.5 text-xs font-medium text-[var(--text-secondary)]">
@@ -45,6 +48,12 @@ export function SessionReportHeader({ session, gpsQuality }: SessionReportHeader
           <span className="rounded-full bg-[var(--bg-elevated)] px-2.5 py-0.5 text-xs font-medium text-[var(--text-secondary)]">
             {session.weather_temp_c != null ? `${Math.round(session.weather_temp_c)}\u00B0C` : ''} {session.weather_condition}
           </span>
+        )}
+        {sessionId && (
+          <>
+            <ShareButton sessionId={sessionId} />
+            <ShareSessionDialog sessionId={sessionId} />
+          </>
         )}
       </div>
     </div>

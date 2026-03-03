@@ -104,7 +104,7 @@ export function TopBar() {
             className="hidden"
             onChange={handleFileChange}
           />
-          <div className="hidden sm:flex sm:items-center sm:gap-1">
+          <div className="flex items-center gap-1">
             <Button
               variant="ghost"
               size="icon-sm"
