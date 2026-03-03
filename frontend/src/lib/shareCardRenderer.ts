@@ -3,65 +3,74 @@ import { formatLapTime } from './formatters';
 export interface ShareCardData {
   trackName: string;
   sessionDate: string;
-  bestLapTime: number;
+  bestLapTime: number | null;
   sessionScore: number | null;
-  improvementDelta: number | null; // seconds faster than previous session
-  topInsight: string | null;
-  gpsCoords: Array<{ lat: number; lon: number }> | null;
-  // Identity framing additions
-  heroStat: string | null;
-  consistencyLabel: string | null;
-  cornersGraded: { mastered: number; total: number } | null;
+  nLaps: number;
+  consistencyScore: number | null;
+  identityLabel: string;
+  gpsCoords?: { lat: number[]; lon: number[] };
 }
 
 const CARD_W = 1080;
 const CARD_H = 1920;
+const ACCENT = '#6366f1';
+const ACCENT_GLOW = 'rgba(99, 102, 241, 0.4)';
 
-function drawBackground(ctx: CanvasRenderingContext2D) {
+function drawBackground(ctx: CanvasRenderingContext2D): void {
   const grad = ctx.createLinearGradient(0, 0, 0, CARD_H);
-  grad.addColorStop(0, '#0f0f23');
-  grad.addColorStop(0.5, '#1a1a2e');
-  grad.addColorStop(1, '#16213e');
+  grad.addColorStop(0, '#0a0a1a');
+  grad.addColorStop(0.5, '#111128');
+  grad.addColorStop(1, '#1a1a2e');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, CARD_W, CARD_H);
+
+  // Subtle grain texture
+  ctx.globalAlpha = 0.03;
+  for (let i = 0; i < 8000; i++) {
+    const x = Math.random() * CARD_W;
+    const y = Math.random() * CARD_H;
+    ctx.fillStyle = Math.random() > 0.5 ? '#fff' : '#000';
+    ctx.fillRect(x, y, 1, 1);
+  }
+  ctx.globalAlpha = 1;
 }
 
-function drawTrackOutline(
+function drawTrackGlow(
   ctx: CanvasRenderingContext2D,
-  coords: Array<{ lat: number; lon: number }>,
-) {
-  if (coords.length < 10) return;
+  coords: { lat: number[]; lon: number[] },
+): void {
+  const { lat, lon } = coords;
+  if (lat.length < 10) return;
 
-  // Project GPS to screen coords
-  const lats = coords.map((c) => c.lat);
-  const lons = coords.map((c) => c.lon);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLon = Math.min(...lons);
-  const maxLon = Math.max(...lons);
+  const minLat = Math.min(...lat),
+    maxLat = Math.max(...lat);
+  const minLon = Math.min(...lon),
+    maxLon = Math.max(...lon);
+  const rangeX = maxLon - minLon || 1e-6;
+  const rangeY = maxLat - minLat || 1e-6;
+  const size = 500;
+  const scale = size / Math.max(rangeX, rangeY);
+  const cx = CARD_W / 2;
+  const cy = 650;
 
-  const mapPadding = 120;
-  const mapWidth = CARD_W - mapPadding * 2;
-  const mapHeight = 600;
-  const mapY = 300;
-
-  const latRange = maxLat - minLat || 1e-6;
-  const lonRange = maxLon - minLon || 1e-6;
-  const scale = Math.min(mapWidth / lonRange, mapHeight / latRange);
-
+  ctx.save();
+  ctx.globalAlpha = 0.12;
+  ctx.strokeStyle = ACCENT;
+  ctx.lineWidth = 6;
+  ctx.shadowColor = ACCENT_GLOW;
+  ctx.shadowBlur = 40;
   ctx.beginPath();
-  ctx.strokeStyle = 'rgba(99, 102, 241, 0.6)';
-  ctx.lineWidth = 3;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  coords.forEach((c, i) => {
-    const x = mapPadding + (c.lon - minLon) * scale + (mapWidth - lonRange * scale) / 2;
-    const y = mapY + mapHeight - ((c.lat - minLat) * scale + (mapHeight - latRange * scale) / 2);
+  for (let i = 0; i < lat.length; i++) {
+    const x = cx + (lon[i] - (minLon + maxLon) / 2) * scale;
+    const y = cy - (lat[i] - (minLat + maxLat) / 2) * scale;
     if (i === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
-  });
+  }
+  ctx.closePath();
   ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 function drawScoreRing(
@@ -69,29 +78,66 @@ function drawScoreRing(
   score: number,
   cx: number,
   cy: number,
-  r: number,
-) {
+): void {
+  const r = 100;
+  const lineW = 14;
+  const startAngle = -Math.PI / 2;
+  const endAngle = startAngle + (2 * Math.PI * Math.min(score, 10)) / 10;
+
   // Background ring
   ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-  ctx.lineWidth = 6;
+  ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = lineW;
   ctx.stroke();
 
-  // Score arc
-  const endAngle = -Math.PI / 2 + (score / 100) * Math.PI * 2;
+  // Score arc with glow
+  ctx.save();
+  ctx.shadowColor = ACCENT_GLOW;
+  ctx.shadowBlur = 20;
   ctx.beginPath();
-  ctx.arc(cx, cy, r, -Math.PI / 2, endAngle);
-  ctx.strokeStyle = '#6366f1';
-  ctx.lineWidth = 6;
+  ctx.arc(cx, cy, r, startAngle, endAngle);
+  ctx.strokeStyle = ACCENT;
+  ctx.lineWidth = lineW;
+  ctx.lineCap = 'round';
   ctx.stroke();
+  ctx.restore();
 
   // Score text
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 28px Inter, system-ui, sans-serif';
+  ctx.font = "bold 64px 'Barlow Semi Condensed', sans-serif";
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(Math.round(score).toString(), cx, cy);
+  ctx.fillText(score.toFixed(1), cx, cy - 8);
+  ctx.font = "24px 'Barlow Semi Condensed', sans-serif";
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText('/ 10', cx, cy + 32);
+}
+
+function drawStatPill(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  value: string,
+  label: string,
+): void {
+  const w = 180;
+  const h = 90;
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(x - w / 2, y, w, h, 16);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#fff';
+  ctx.font = "bold 32px 'JetBrains Mono', monospace";
+  ctx.textAlign = 'center';
+  ctx.fillText(value, x, y + 36);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = "18px 'Barlow Semi Condensed', sans-serif";
+  ctx.fillText(label, x, y + 68);
 }
 
 export function renderSessionCard(
@@ -100,143 +146,75 @@ export function renderSessionCard(
 ): void {
   canvas.width = CARD_W;
   canvas.height = CARD_H;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
+  const ctx = canvas.getContext('2d')!;
 
-  // Background
   drawBackground(ctx);
 
-  // Header
-  ctx.fillStyle = '#6366f1';
-  ctx.font = 'bold 36px Inter, system-ui, sans-serif';
+  // Track name + date at top
+  let y = 100;
   ctx.textAlign = 'center';
-  ctx.fillText('CATACLYSM', CARD_W / 2, 80);
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.font = "28px 'Barlow Semi Condensed', sans-serif";
+  ctx.fillText(data.trackName, CARD_W / 2, y);
+  y += 40;
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.font = "22px 'Barlow Semi Condensed', sans-serif";
+  ctx.fillText(data.sessionDate, CARD_W / 2, y);
 
-  ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  ctx.font = '16px Inter, system-ui, sans-serif';
-  ctx.fillText('AI Motorsport Coaching', CARD_W / 2, 115);
+  // Track outline glow
+  if (data.gpsCoords && data.gpsCoords.lat.length > 10) {
+    drawTrackGlow(ctx, data.gpsCoords);
+  }
 
-  // Divider
-  ctx.strokeStyle = 'rgba(99, 102, 241, 0.3)';
-  ctx.lineWidth = 1;
+  // Identity label
+  y = 920;
+  ctx.fillStyle = '#fff';
+  ctx.font = "bold 96px 'Barlow Semi Condensed', sans-serif";
+  ctx.textAlign = 'center';
+  ctx.fillText(data.identityLabel, CARD_W / 2, y);
+
+  // Decorative line under label
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(100, 150);
-  ctx.lineTo(CARD_W - 100, 150);
+  ctx.moveTo(CARD_W / 2 - 200, y + 20);
+  ctx.lineTo(CARD_W / 2 + 200, y + 20);
   ctx.stroke();
 
-  // Track outline
-  if (data.gpsCoords && data.gpsCoords.length > 10) {
-    drawTrackOutline(ctx, data.gpsCoords);
+  // Score ring
+  if (data.sessionScore != null) {
+    drawScoreRing(ctx, data.sessionScore, CARD_W / 2, 1100);
   }
 
   // Best lap time
-  const lapY = data.gpsCoords ? 1050 : 700;
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 72px Inter, system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(formatLapTime(data.bestLapTime), CARD_W / 2, lapY);
-
-  ctx.fillStyle = '#22c55e';
-  ctx.font = '20px Inter, system-ui, sans-serif';
-  ctx.fillText('BEST LAP', CARD_W / 2, lapY + 40);
-
-  // Identity framing: hero stat, consistency label, corners graded
-  let identityOffset = 0;
-
-  if (data.heroStat) {
+  y = 1310;
+  if (data.bestLapTime != null) {
     ctx.fillStyle = '#fff';
-    ctx.font = 'bold 36px Inter, system-ui, sans-serif';
+    ctx.font = "bold 56px 'JetBrains Mono', monospace";
     ctx.textAlign = 'center';
-    ctx.fillText(data.heroStat, CARD_W / 2, lapY + 90);
-    identityOffset += 50;
+    ctx.fillText(formatLapTime(data.bestLapTime), CARD_W / 2, y);
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = "22px 'Barlow Semi Condensed', sans-serif";
+    ctx.fillText('BEST LAP', CARD_W / 2, y + 36);
   }
 
-  if (data.consistencyLabel) {
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.font = '22px Inter, system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(data.consistencyLabel, CARD_W / 2, lapY + 90 + identityOffset);
-    identityOffset += 40;
+  // Stat pills
+  y = 1440;
+  drawStatPill(ctx, CARD_W / 2 - 120, y, String(data.nLaps), 'LAPS');
+  if (data.consistencyScore != null) {
+    drawStatPill(
+      ctx,
+      CARD_W / 2 + 120,
+      y,
+      `${Math.round(data.consistencyScore * 100)}%`,
+      'CONSISTENCY',
+    );
   }
 
-  if (data.cornersGraded) {
-    const badgeText = `Mastered ${data.cornersGraded.mastered}/${data.cornersGraded.total} corners`;
-    const badgeY = lapY + 90 + identityOffset;
-    ctx.font = '18px Inter, system-ui, sans-serif';
-    const badgeW = ctx.measureText(badgeText).width + 40;
-    const badgeX = CARD_W / 2 - badgeW / 2;
-
-    // Badge background
-    ctx.fillStyle = 'rgba(99, 102, 241, 0.25)';
-    ctx.beginPath();
-    ctx.roundRect(badgeX, badgeY - 18, badgeW, 36, 18);
-    ctx.fill();
-
-    // Badge border
-    ctx.strokeStyle = 'rgba(99, 102, 241, 0.5)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(badgeX, badgeY - 18, badgeW, 36, 18);
-    ctx.stroke();
-
-    // Badge text
-    ctx.fillStyle = '#a5b4fc';
-    ctx.textAlign = 'center';
-    ctx.fillText(badgeText, CARD_W / 2, badgeY + 6);
-    identityOffset += 50;
-  }
-
-  // Score + improvement row
-  const rowY = lapY + 100 + identityOffset;
-  if (data.sessionScore !== null) {
-    drawScoreRing(ctx, data.sessionScore, CARD_W / 2 - 100, rowY, 30);
-  }
-  if (data.improvementDelta !== null) {
-    const sign = data.improvementDelta > 0 ? '+' : '';
-    ctx.fillStyle = data.improvementDelta < 0 ? '#22c55e' : '#f97316';
-    ctx.font = 'bold 24px Inter, system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${sign}${data.improvementDelta.toFixed(2)}s`, CARD_W / 2 + 100, rowY + 8);
-  }
-
-  // AI Insight
-  if (data.topInsight) {
-    const insightY = rowY + 100;
-    ctx.fillStyle = 'rgba(99, 102, 241, 0.15)';
-    const insightPad = 40;
-    ctx.beginPath();
-    ctx.roundRect(insightPad, insightY - 30, CARD_W - insightPad * 2, 100, 12);
-    ctx.fill();
-
-    ctx.fillStyle = 'rgba(255,255,255,0.8)';
-    ctx.font = '18px Inter, system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    // Truncate long text
-    const text =
-      data.topInsight.length > 100
-        ? data.topInsight.substring(0, 97) + '...'
-        : data.topInsight;
-    ctx.fillText(text, CARD_W / 2, insightY + 10);
-  }
-
-  // Footer divider
-  ctx.strokeStyle = 'rgba(99, 102, 241, 0.3)';
-  ctx.beginPath();
-  ctx.moveTo(100, CARD_H - 180);
-  ctx.lineTo(CARD_W - 100, CARD_H - 180);
-  ctx.stroke();
-
-  // Footer
-  ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.font = '18px Inter, system-ui, sans-serif';
+  // Footer CTA
+  y = 1820;
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.font = "22px 'Barlow Semi Condensed', sans-serif";
   ctx.textAlign = 'center';
-  ctx.fillText(
-    `${data.trackName} | ${data.sessionDate}`,
-    CARD_W / 2,
-    CARD_H - 130,
-  );
-
-  ctx.fillStyle = 'rgba(99, 102, 241, 0.6)';
-  ctx.font = '14px Inter, system-ui, sans-serif';
-  ctx.fillText('Analyzed by Cataclysm', CARD_W / 2, CARD_H - 90);
+  ctx.fillText('\u2500\u2500\u2500 cataclysm.app \u2500\u2500\u2500', CARD_W / 2, y);
 }
