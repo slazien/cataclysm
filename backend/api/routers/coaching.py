@@ -78,8 +78,12 @@ async def trigger_auto_coaching(
     """
     if is_generating(session_id):
         return
-    if await get_coaching_report(session_id) is not None:
-        return
+    existing = await get_coaching_report(session_id)
+    if existing is not None:
+        if existing.status != "error":
+            return
+        # Clear failed report so we can retry
+        await clear_coaching_data(session_id)
 
     mark_generating(session_id)
     _track_task(asyncio.create_task(_run_generation(session_id, sd, skill_level)))
@@ -247,17 +251,22 @@ async def get_report(
 
     report = await get_coaching_report(session_id)
     if report is not None:
-        # Filter out hallucinated corners beyond the actual corner count.
-        num_corners = len(next(iter(sd.all_lap_corners.values()), []))
-        if num_corners > 0:
-            valid = set(range(1, num_corners + 1))
-            if report.corner_grades:
-                report.corner_grades = [g for g in report.corner_grades if g.corner in valid]
-            if report.priority_corners:
-                report.priority_corners = [
-                    pc for pc in report.priority_corners if pc.corner in valid
-                ]
-        return report
+        # Error reports should not be served — clear them so the frontend
+        # sees a 404 and auto-triggers a fresh generation attempt.
+        if report.status == "error":
+            await clear_coaching_data(session_id)
+        else:
+            # Filter out hallucinated corners beyond the actual corner count.
+            num_corners = len(next(iter(sd.all_lap_corners.values()), []))
+            if num_corners > 0:
+                valid = set(range(1, num_corners + 1))
+                if report.corner_grades:
+                    report.corner_grades = [g for g in report.corner_grades if g.corner in valid]
+                if report.priority_corners:
+                    report.priority_corners = [
+                        pc for pc in report.priority_corners if pc.corner in valid
+                    ]
+            return report
 
     if is_generating(session_id):
         return CoachingReportResponse(session_id=session_id, status="generating")
