@@ -80,10 +80,9 @@ async def trigger_auto_coaching(
         return
     existing = await get_coaching_report(session_id)
     if existing is not None:
-        if existing.status != "error":
-            return
-        # Clear failed report so we can retry
-        await clear_coaching_data(session_id)
+        # Skip if report exists (including errors — errors are retried lazily
+        # when the user views the session via GET /report, not on startup).
+        return
 
     mark_generating(session_id)
     _track_task(asyncio.create_task(_run_generation(session_id, sd, skill_level)))
