@@ -32,6 +32,7 @@ import { LapTimeTrend } from './LapTimeTrend';
 import { ConsistencyTrend } from './ConsistencyTrend';
 import { CornerHeatmap } from './CornerHeatmap';
 import { SessionBoxPlot } from './SessionBoxPlot';
+import { ProgressLeaderboard } from '@/components/leaderboard/ProgressLeaderboard';
 
 interface TrackOption {
   name: string;
@@ -435,6 +436,11 @@ export function ProgressView() {
             <MilestoneTimeline sessions={trendData.sessions} milestones={milestones} />
           </ChartErrorBoundary>
         </div>
+
+        {/* 5b. Improvement Leaderboard */}
+        {effectiveTrack && (
+          <ProgressLeaderboard trackName={effectiveTrack} />
+        )}
 
         {/* 6. Two-column trend charts */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

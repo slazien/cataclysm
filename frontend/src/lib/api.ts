@@ -35,6 +35,7 @@ import type {
   OrgMemberListData,
   OrgEventListData,
   OrgEvent,
+  ProgressLeaderboardResponse,
 } from "./types";
 
 const API_BASE = "";
@@ -502,5 +503,13 @@ export async function deleteOrgEvent(slug: string, eventId: string) {
   return fetchApi<{ status: string }>(
     `/api/orgs/${encodeURIComponent(slug)}/events/${eventId}`,
     { method: "DELETE" },
+  );
+}
+
+// --- Progress Leaderboard API ---
+
+export async function getProgressLeaderboard(trackName: string, days = 90) {
+  return fetchApi<ProgressLeaderboardResponse>(
+    `/api/progress/${encodeURIComponent(trackName)}/improvement?days=${days}`,
   );
 }

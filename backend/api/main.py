@@ -25,6 +25,7 @@ from backend.api.routers import (
     instructor,
     leaderboards,
     organizations,
+    progress,
     sessions,
     sharing,
     tracks,
@@ -352,6 +353,7 @@ app.include_router(leaderboards.router, prefix="/api/leaderboards", tags=["leade
 app.include_router(sharing.router, prefix="/api/sharing", tags=["sharing"])
 app.include_router(instructor.router, prefix="/api/instructor", tags=["instructor"])
 app.include_router(organizations.router, prefix="/api/orgs", tags=["organizations"])
+app.include_router(progress.router, prefix="/api/progress", tags=["progress"])
 
 
 # -- Health ------------------------------------------------------------------

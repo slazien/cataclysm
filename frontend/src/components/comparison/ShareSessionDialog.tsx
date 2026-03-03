@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Link2, Check, Copy, Loader2 } from 'lucide-react';
+import { Link2, Check, Copy, Loader2, BarChart3, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { createShareLink } from '@/lib/api';
 import { useUiStore } from '@/stores';
+import { ComparisonView } from './ComparisonView';
 
 interface ShareSessionDialogProps {
   sessionId: string;
@@ -23,9 +24,11 @@ export function ShareSessionDialog({ sessionId }: ShareSessionDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareToken, setShareToken] = useState<string | null>(null);
   const [trackName, setTrackName] = useState<string>('');
   const [expiresAt, setExpiresAt] = useState<string>('');
   const [copied, setCopied] = useState(false);
+  const [showComparison, setShowComparison] = useState(false);
   const addToast = useUiStore((s) => s.addToast);
 
   const handleCreate = useCallback(async () => {
@@ -34,6 +37,7 @@ export function ShareSessionDialog({ sessionId }: ShareSessionDialogProps) {
       const result = await createShareLink(sessionId);
       const fullUrl = `${window.location.origin}${result.share_url}`;
       setShareUrl(fullUrl);
+      setShareToken(result.token);
       setTrackName(result.track_name);
       setExpiresAt(result.expires_at);
     } catch {
@@ -82,8 +86,10 @@ export function ShareSessionDialog({ sessionId }: ShareSessionDialogProps) {
     if (!nextOpen) {
       // Reset state when dialog closes
       setShareUrl(null);
+      setShareToken(null);
       setCopied(false);
       setLoading(false);
+      setShowComparison(false);
     }
   };
 
@@ -107,18 +113,38 @@ export function ShareSessionDialog({ sessionId }: ShareSessionDialogProps) {
           Challenge a Friend
         </Button>
       </DialogTrigger>
-      <DialogContent className="border-[var(--cata-border)] bg-[var(--bg-surface)]">
+      <DialogContent
+        className={`border-[var(--cata-border)] bg-[var(--bg-surface)] ${showComparison ? 'max-w-3xl' : ''}`}
+      >
         <DialogHeader>
           <DialogTitle className="text-[var(--text-primary)]">
-            Challenge a Friend
+            {showComparison ? (
+              <span className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowComparison(false)}
+                  className="text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+                Comparison Results
+              </span>
+            ) : (
+              'Challenge a Friend'
+            )}
           </DialogTitle>
-          <DialogDescription className="text-[var(--text-secondary)]">
-            Send a link — your friend uploads their session and you both get a side-by-side
-            comparison with AI coaching.
-          </DialogDescription>
+          {!showComparison && (
+            <DialogDescription className="text-[var(--text-secondary)]">
+              Send a link — your friend uploads their session and you both get a side-by-side
+              comparison with AI coaching.
+            </DialogDescription>
+          )}
         </DialogHeader>
 
-        {!shareUrl ? (
+        {showComparison && shareToken ? (
+          <div className="max-h-[70vh] overflow-y-auto py-2">
+            <ComparisonView token={shareToken} />
+          </div>
+        ) : !shareUrl ? (
           <div className="flex flex-col items-center gap-4 py-4">
             <p className="text-center text-sm text-[var(--text-secondary)]">
               Your friend will be able to upload their own RaceChrono CSV and see a side-by-side
@@ -167,16 +193,30 @@ export function ShareSessionDialog({ sessionId }: ShareSessionDialogProps) {
               </Button>
             </div>
 
-            {typeof navigator !== 'undefined' && 'share' in navigator && (
-              <Button
-                onClick={handleNativeShare}
-                size="sm"
-                className="gap-1.5"
-              >
-                <Link2 className="h-3.5 w-3.5" />
-                Share Challenge
-              </Button>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {typeof navigator !== 'undefined' && 'share' in navigator && (
+                <Button
+                  onClick={handleNativeShare}
+                  size="sm"
+                  className="gap-1.5"
+                >
+                  <Link2 className="h-3.5 w-3.5" />
+                  Share Challenge
+                </Button>
+              )}
+
+              {shareToken && (
+                <Button
+                  onClick={() => setShowComparison(true)}
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 border-[var(--cata-border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                >
+                  <BarChart3 className="h-3.5 w-3.5" />
+                  View Comparison
+                </Button>
+              )}
+            </div>
 
             {expiresDate && (
               <p className="text-xs text-[var(--text-muted)]">

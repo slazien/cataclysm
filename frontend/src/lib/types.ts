@@ -653,3 +653,22 @@ export interface OrgEvent {
 export interface OrgEventListData {
   events: OrgEvent[];
 }
+
+// --- Progress Leaderboard Types ---
+
+export interface ProgressEntry {
+  rank: number;
+  user_name: string;
+  improvement_rate_s: number;
+  n_sessions: number;
+  best_lap_first: number;
+  best_lap_latest: number;
+  total_improvement_s: number;
+}
+
+export interface ProgressLeaderboardResponse {
+  track_name: string;
+  entries: ProgressEntry[];
+  your_rank: number | null;
+  your_percentile: number | null;
+}
