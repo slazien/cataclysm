@@ -576,13 +576,21 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
 #   source comparison. Heading-rate analysis gets the sign wrong at complex
 #   curves where approach curvature differs from the main arc.
 #
+# Fraction corrections (2026-03-02): labels placed at VISUAL CENTER of each
+#   curve, not speed minimum (which falls at curve entry). Verified against
+#   racingcircuits.info map and racetrackdriving.com turn-by-turn guide.
+#   Speed minimums at curve entries were systematically early, causing T5-T8
+#   labels to appear ~1 position before their correct physical features.
+#   Analysis: scripts/analyze_roebling.py on best lap #8.
+#   Key changes: T5 +54m, T6 +86m, T7 +109m, T8 +112m, T9 +96m.
+#
 # Verification:
 #   - GPS centroid from real telemetry: (32.1682, -81.3218)
 #   - Median lap distance (44 laps across 8 sessions): 3200.4m
 #   - Elevation range (GPS altitude): ~8m (10–18m ASL) — essentially flat
-#   - Corner fractions derived from speed-trace minimums + heading-rate curvature
-#     cross-referenced with racetrackdriving.com guide, PCA Beginner's Guide,
-#     and Paradigm Shift Racing track notes.
+#   - Corner fractions derived from speed-trace minimums + heading-rate peaks,
+#     adjusted to visual curve centers by cross-referencing racingcircuits.info
+#     schematic, racetrackdriving.com guide, and PCA Beginner's Guide.
 #   - Session: session_20260111_075431_roebling_road_v3.csv (best lap #8)
 
 _ROEBLING_LANDMARKS: list[Landmark] = [
@@ -600,7 +608,7 @@ _ROEBLING_LANDMARKS: list[Landmark] = [
     ),
     # --- T6-T7 elevation change ---
     Landmark("T6 downhill entry", 1740.0, LandmarkType.natural, description="Track drops"),
-    Landmark("T7 uphill exit", 2170.0, LandmarkType.natural, description="Track climbs back"),
+    Landmark("T7 uphill exit", 2250.0, LandmarkType.natural, description="Track climbs back"),
     # --- T8-T9 complex ---
     Landmark("T9 exit curb", 2680.0, LandmarkType.curbing, description="Dips in exit curb"),
     # --- Return to start ---
@@ -650,9 +658,9 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
         OfficialCorner(
             3,
             "Fast Left Sweeper",
-            0.334,
-            lat=32.168765,
-            lon=-81.325403,
+            0.346,
+            lat=32.168615,
+            lon=-81.325035,
             character="flat",
             direction="left",
             corner_type="sweeper",
@@ -682,9 +690,9 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
         OfficialCorner(
             5,
             "Slow Right",
-            0.466,
-            lat=32.169784,
-            lon=-81.321494,
+            0.483,
+            lat=32.169530,
+            lon=-81.321016,
             direction="right",
             corner_type="hairpin",
             elevation_trend="flat",
@@ -697,9 +705,9 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
         OfficialCorner(
             6,
             "Downhill Left",
-            0.566,
-            lat=32.167818,
-            lon=-81.319413,
+            0.593,
+            lat=32.168278,
+            lon=-81.318716,
             direction="left",
             corner_type="sweeper",
             elevation_trend="downhill",
@@ -712,9 +720,9 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
         OfficialCorner(
             7,
             "Uphill Right",
-            0.656,
-            lat=32.170034,
-            lon=-81.318406,
+            0.690,
+            lat=32.170267,
+            lon=-81.317363,
             direction="right",
             corner_type="sweeper",
             elevation_trend="uphill",
@@ -727,9 +735,9 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
         OfficialCorner(
             8,
             "Fast Left Kink",
-            0.772,
-            lat=32.168155,
-            lon=-81.316687,
+            0.807,
+            lat=32.167165,
+            lon=-81.316863,
             character="flat",
             direction="left",
             corner_type="kink",
@@ -743,9 +751,9 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
         OfficialCorner(
             9,
             "Fast Right Sweeper",
-            0.813,
-            lat=32.167007,
-            lon=-81.316955,
+            0.843,
+            lat=32.166406,
+            lon=-81.317667,
             character="flat",
             direction="right",
             corner_type="sweeper",

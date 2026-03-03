@@ -10,6 +10,7 @@ from cataclysm.landmarks import Landmark, LandmarkType
 from cataclysm.track_db import (
     ATLANTA_MOTORSPORTS_PARK,
     BARBER_MOTORSPORTS_PARK,
+    ROEBLING_ROAD_RACEWAY,
     OfficialCorner,
     TrackLayout,
     get_all_tracks,
@@ -531,3 +532,75 @@ class TestBarberEnrichedData:
 
     def test_elevation_range(self) -> None:
         assert BARBER_MOTORSPORTS_PARK.elevation_range_m == pytest.approx(60.0)
+
+
+class TestRoeblingRoadRaceway:
+    """Tests for Roebling Road Raceway track definition."""
+
+    def test_lookup_by_name(self) -> None:
+        layout = lookup_track("Roebling Road Raceway")
+        assert layout is not None
+        assert layout.name == "Roebling Road Raceway"
+
+    def test_lookup_short_name(self) -> None:
+        layout = lookup_track("Roebling Road")
+        assert layout is not None
+        assert layout.name == "Roebling Road Raceway"
+
+    def test_lookup_case_insensitive(self) -> None:
+        layout = lookup_track("roebling road raceway")
+        assert layout is not None
+
+    def test_has_nine_corners(self) -> None:
+        assert len(ROEBLING_ROAD_RACEWAY.corners) == 9
+
+    def test_corner_numbering(self) -> None:
+        numbers = [c.number for c in ROEBLING_ROAD_RACEWAY.corners]
+        assert numbers == list(range(1, 10))
+
+    def test_fractions_monotonic(self) -> None:
+        fractions = [c.fraction for c in ROEBLING_ROAD_RACEWAY.corners]
+        for i in range(1, len(fractions)):
+            assert fractions[i] > fractions[i - 1], (
+                f"T{i + 1} frac {fractions[i]} <= T{i} frac {fractions[i - 1]}"
+            )
+
+    def test_fractions_in_range(self) -> None:
+        for c in ROEBLING_ROAD_RACEWAY.corners:
+            assert 0.0 < c.fraction < 1.0, f"T{c.number} fraction {c.fraction} out of range"
+
+    def test_all_corners_have_direction(self) -> None:
+        for c in ROEBLING_ROAD_RACEWAY.corners:
+            assert c.direction in ("left", "right"), f"T{c.number} missing direction"
+
+    def test_all_corners_have_coaching_notes(self) -> None:
+        for c in ROEBLING_ROAD_RACEWAY.corners:
+            assert c.coaching_notes is not None, f"T{c.number} missing coaching_notes"
+            assert len(c.coaching_notes) > 10, f"T{c.number} coaching_notes too short"
+
+    def test_gps_metadata(self) -> None:
+        assert ROEBLING_ROAD_RACEWAY.center_lat == pytest.approx(32.168, abs=0.01)
+        assert ROEBLING_ROAD_RACEWAY.center_lon == pytest.approx(-81.322, abs=0.01)
+        assert ROEBLING_ROAD_RACEWAY.country == "US"
+        assert ROEBLING_ROAD_RACEWAY.length_m == pytest.approx(3200.4, abs=10.0)
+
+    def test_elevation_range(self) -> None:
+        assert ROEBLING_ROAD_RACEWAY.elevation_range_m == pytest.approx(8.0, abs=2.0)
+
+    def test_landmarks_present(self) -> None:
+        assert len(ROEBLING_ROAD_RACEWAY.landmarks) >= 7
+
+    def test_landmarks_sorted(self) -> None:
+        distances = [lm.distance_m for lm in ROEBLING_ROAD_RACEWAY.landmarks]
+        for i in range(1, len(distances)):
+            assert distances[i] >= distances[i - 1]
+
+    def test_landmarks_in_range(self) -> None:
+        length = ROEBLING_ROAD_RACEWAY.length_m
+        assert length is not None
+        for lm in ROEBLING_ROAD_RACEWAY.landmarks:
+            assert 0.0 <= lm.distance_m < length
+
+    def test_in_all_tracks(self) -> None:
+        tracks = get_all_tracks()
+        assert any(t.name == "Roebling Road Raceway" for t in tracks)
