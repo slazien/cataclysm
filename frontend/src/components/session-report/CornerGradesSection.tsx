@@ -27,26 +27,20 @@ export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
   const [expandedCorner, setExpandedCorner] = useState<number | null>(null);
 
   const handleCornerClick = useCallback(
-    (cornerNum: number, hasNotes: boolean) => {
-      if (hasNotes) {
-        // Toggle expanded note inline; double-click navigates
-        setExpandedCorner((prev) => (prev === cornerNum ? null : cornerNum));
-      } else {
-        selectCorner(`T${cornerNum}`);
-        setMode('corner');
-        setActiveView('deep-dive');
-      }
-    },
-    [selectCorner, setMode, setActiveView],
-  );
-
-  const handleDeepDive = useCallback(
     (cornerNum: number) => {
       selectCorner(`T${cornerNum}`);
       setMode('corner');
       setActiveView('deep-dive');
     },
     [selectCorner, setMode, setActiveView],
+  );
+
+  const handleToggleNotes = useCallback(
+    (e: React.MouseEvent, cornerNum: number) => {
+      e.stopPropagation();
+      setExpandedCorner((prev) => (prev === cornerNum ? null : cornerNum));
+    },
+    [],
   );
 
   return (
@@ -76,22 +70,29 @@ export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
                   <m.tr
                     variants={rowVariants}
                     transition={motionTokens.gradeChip}
-                    onClick={() => handleCornerClick(g.corner, hasNotes)}
+                    onClick={() => handleCornerClick(g.corner)}
                     className="cursor-pointer border-b border-[var(--cata-border)] transition-colors last:border-0 hover:bg-[var(--bg-elevated)]"
                   >
                     <td className="px-2 py-1.5 font-medium text-[var(--text-primary)] lg:px-3 lg:py-2">
                       <span className="flex items-center gap-1">
                         T{g.corner}
                         {hasNotes && (
-                          <svg
-                            className={`h-3 w-3 text-[var(--ai-icon)] transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleNotes(e, g.corner)}
+                            className="inline-flex items-center"
+                            title="Toggle coaching notes"
                           >
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                          </svg>
+                            <svg
+                              className={`h-3 w-3 text-[var(--ai-icon)] transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                            </svg>
+                          </button>
                         )}
                       </span>
                     </td>
@@ -113,16 +114,6 @@ export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
                           <AiInsight mode="inline">
                             <MarkdownText>{resolveSpeed(g.notes)}</MarkdownText>
                           </AiInsight>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeepDive(g.corner);
-                            }}
-                            className="mt-1.5 text-xs font-medium text-[var(--ai-icon)] hover:underline"
-                          >
-                            Deep Dive T{g.corner} &rarr;
-                          </button>
                         </td>
                       </m.tr>
                     )}
@@ -134,7 +125,7 @@ export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
         </table>
       </div>
       <p className="mt-2 text-xs text-[var(--text-muted)]">
-        Click any corner row to expand coaching notes, or use Deep Dive for detailed analysis.
+        Click any row to deep dive. Use the arrow icon to expand coaching notes.
       </p>
     </div>
   );

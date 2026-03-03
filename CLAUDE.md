@@ -88,7 +88,7 @@ All must pass before committing:
 
 1. **Ruff check** — zero lint errors: `ruff check cataclysm/ tests/ backend/`
 2. **Ruff format** — auto-format first: `ruff format cataclysm/ tests/ backend/`
-3. **Mypy** — zero type errors: `mypy cataclysm/ backend/`
+3. **Mypy** — zero type errors: `dmypy run -- cataclysm/ backend/` (daemon mode, ~4s warm vs 30s cold)
 4. **Tests** — all pass: `pytest tests/ backend/tests/ -v`
 5. **Coverage** — target near-100%. Every new module needs `tests/test_<module>.py`. Test edge cases, error paths, boundary conditions.
 6. **Code review** — ALWAYS dispatch `superpowers:code-reviewer` after implementation. Catches logic errors, architecture issues, and subtle bugs that linters miss.

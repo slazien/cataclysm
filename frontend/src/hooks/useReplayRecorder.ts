@@ -60,9 +60,13 @@ export function useReplayRecorder(): ReplayRecorderState & ReplayRecorderActions
   const mimeTypeRef = useRef<string | null>(null);
   const blobUrlRef = useRef<string | null>(null);
 
-  // Detect supported MIME type once
-  const supportedMime =
-    typeof window !== 'undefined' ? getSupportedMimeType() : null;
+  // Detect supported MIME type once (lazy init via ref to avoid calling on every render)
+  const supportedMimeRef = useRef<string | null | undefined>(undefined);
+  if (supportedMimeRef.current === undefined) {
+    supportedMimeRef.current =
+      typeof window !== 'undefined' ? getSupportedMimeType() : null;
+  }
+  const supportedMime = supportedMimeRef.current;
 
   const isSupported =
     typeof window !== 'undefined' &&

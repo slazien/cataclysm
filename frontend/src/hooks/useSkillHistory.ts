@@ -2,8 +2,7 @@
 
 import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
-import { useSessions } from './useSession';
-import { useSession } from './useSession';
+import { useSessions, useSession } from './useSession';
 import { getCoachingReport } from '@/lib/api';
 import { computeSkillDimensions, dimensionsToArray } from '@/lib/skillDimensions';
 import type { SkillDimensions } from '@/lib/skillDimensions';
@@ -60,14 +59,18 @@ export function useSkillHistory(currentSessionId: string | null) {
     })),
   });
 
+  // Stable dependency: derive from query data arrays rather than the unstable coachingQueries object
+  const queryData = coachingQueries.map((q) => q.data);
+  const isLoading = coachingQueries.some((q) => q.isLoading);
+
   // Compute skill dimensions for each successfully fetched report
   const history: HistoricalSkillEntry[] = useMemo(() => {
     const entries: HistoricalSkillEntry[] = [];
     for (let i = 0; i < sameTrackSessions.length; i++) {
-      const query = coachingQueries[i];
+      const data = queryData[i];
       const session = sameTrackSessions[i];
-      if (!query?.data) continue;
-      const report = query.data as CoachingReport;
+      if (!data) continue;
+      const report = data as CoachingReport;
       if (
         report.status !== 'ready' ||
         !report.corner_grades ||
@@ -86,9 +89,8 @@ export function useSkillHistory(currentSessionId: string | null) {
     }
     // Reverse so entries are oldest-first (oldest = most transparent)
     return entries.reverse();
-  }, [sameTrackSessions, coachingQueries]);
-
-  const isLoading = coachingQueries.some((q) => q.isLoading);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sameTrackSessions, ...queryData]);
 
   return { history, isLoading };
 }

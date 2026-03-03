@@ -279,7 +279,11 @@ export function GGDiagramChart({ sessionId }: GGDiagramChartProps) {
 
     ctx.fillStyle = 'rgba(10, 12, 16, 0.9)';
     ctx.beginPath();
-    ctx.roundRect(tx, ty, boxW, boxH, 4);
+    if (ctx.roundRect) {
+      ctx.roundRect(tx, ty, boxW, boxH, 4);
+    } else {
+      ctx.rect(tx, ty, boxW, boxH);
+    }
     ctx.fill();
 
     ctx.fillStyle = '#e2e4e9';

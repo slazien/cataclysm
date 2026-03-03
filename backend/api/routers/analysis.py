@@ -470,7 +470,9 @@ async def get_degradation(
 async def get_gg_diagram(
     session_id: str,
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
-    corner: int | None = Query(default=None, description="Filter to a specific corner number"),
+    corner: int | None = Query(
+        default=None, ge=1, description="Filter to a specific corner number"
+    ),
 ) -> GGDiagramResponse:
     """Compute the G-G diagram (lateral vs longitudinal G scatter) for the best lap.
 

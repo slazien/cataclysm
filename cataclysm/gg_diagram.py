@@ -158,6 +158,11 @@ def compute_gg_diagram(
     if n == 0:
         return GGDiagramResult(points=[], overall_utilization_pct=0.0, observed_max_g=0.0)
 
+    # Observed max combined G across ALL points BEFORE any corner filtering,
+    # so the traction circle reference is consistent regardless of filter.
+    combined_g_all = np.sqrt(lat_g**2 + lon_g**2)
+    observed_max_g = float(np.max(combined_g_all)) if n > 0 else 0.0
+
     # Assign corner labels
     corner_labels = np.full(n, -1, dtype=np.int32)
     if corners:
@@ -173,14 +178,11 @@ def compute_gg_diagram(
         n = len(lat_g)
 
         if n == 0:
-            return GGDiagramResult(points=[], overall_utilization_pct=0.0, observed_max_g=0.0)
+            return GGDiagramResult(
+                points=[], overall_utilization_pct=0.0, observed_max_g=observed_max_g
+            )
 
-    # Observed max combined G across ALL points (before corner filtering for
-    # per-corner normalisation — we want the same reference circle)
-    combined_g = np.sqrt(lat_g**2 + lon_g**2)
-    observed_max_g = float(np.max(combined_g)) if n > 0 else 0.0
-
-    # Overall utilization
+    # Overall utilization (uses pre-filter observed_max_g for consistent reference)
     hull_area = _convex_hull_area(lat_g, lon_g)
     overall_util = _utilization_pct(hull_area, observed_max_g)
 

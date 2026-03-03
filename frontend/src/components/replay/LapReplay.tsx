@@ -54,15 +54,16 @@ export function LapReplay() {
   const wasRecordingRef = useRef(false);
 
   // Auto-stop recording when replay reaches the end
+  const { isRecording, stopRecording: stopRec } = recorder;
   useEffect(() => {
-    if (recorder.isRecording && wasRecordingRef.current) {
+    if (isRecording && wasRecordingRef.current) {
       // Replay stopped playing and we were recording -- replay has ended
       if (!replay.isPlaying && replay.currentIndex >= (lapData?.distance_m.length ?? 1) - 1) {
-        recorder.stopRecording();
+        stopRec();
         wasRecordingRef.current = false;
       }
     }
-  }, [replay.isPlaying, replay.currentIndex, recorder, lapData]);
+  }, [replay.isPlaying, replay.currentIndex, isRecording, stopRec, lapData]);
 
   // Handle start recording: reset to beginning, start recording, then play
   const handleStartRecording = useCallback(() => {

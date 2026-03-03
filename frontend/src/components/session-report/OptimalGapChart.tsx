@@ -49,22 +49,17 @@ export function OptimalGapChart({ sessionId }: OptimalGapChartProps) {
     );
   }, [comparison]);
 
-  const totalGapS = comparison?.total_gap_s ?? 0;
+  const totalGapS = Math.max(comparison?.total_gap_s ?? 0, 0);
 
-  const { containerRef, dataCanvasRef, dimensions } = useCanvasChart(MARGINS);
+  const { containerRef, dataCanvasRef, dimensions, getDataCtx } = useCanvasChart(MARGINS);
 
   // Draw bars
   useEffect(() => {
-    const canvas = dataCanvasRef.current;
-    if (!canvas || opportunities.length === 0 || dimensions.width === 0) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const ctx = getDataCtx();
+    if (!ctx || opportunities.length === 0 || dimensions.width === 0) return;
 
     const { width, height, margins } = dimensions;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.save();
-    ctx.setTransform(dimensions.dpr, 0, 0, dimensions.dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
 
     const chartW = width - margins.left - margins.right;
     const chartH = height - margins.top - margins.bottom;
@@ -86,7 +81,11 @@ export function OptimalGapChart({ sessionId }: OptimalGapChartProps) {
       // Bar
       ctx.fillStyle = barColor + 'd9'; // ~85% opacity
       ctx.beginPath();
-      ctx.roundRect(margins.left, y, barW, barHeight, 3);
+      if (ctx.roundRect) {
+        ctx.roundRect(margins.left, y, barW, barHeight, 3);
+      } else {
+        ctx.rect(margins.left, y, barW, barHeight);
+      }
       ctx.fill();
 
       // Corner name label (left of bar)
@@ -112,8 +111,7 @@ export function OptimalGapChart({ sessionId }: OptimalGapChartProps) {
       }
     });
 
-    ctx.restore();
-  }, [opportunities, dimensions, dataCanvasRef, convertSpeed, speedUnit]);
+  }, [opportunities, dimensions, getDataCtx, convertSpeed, speedUnit]);
 
   if (isLoading) {
     return <SkeletonCard height="h-40" />;
