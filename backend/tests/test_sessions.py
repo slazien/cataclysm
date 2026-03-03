@@ -5,6 +5,9 @@ from __future__ import annotations
 import pytest
 from httpx import AsyncClient
 
+from backend.api.config import Settings
+from backend.api.dependencies import get_settings
+from backend.api.main import app
 from backend.api.schemas.coaching import CoachingReportResponse
 from backend.api.services.coaching_store import get_coaching_report, store_coaching_report
 from backend.api.services.db_coaching_store import get_coaching_report_db
@@ -274,3 +277,30 @@ async def test_delete_session_clears_coaching(
     # Coaching should be gone from DB (CASCADE from session delete + explicit clear)
     async with _test_session_factory() as db:
         assert await get_coaching_report_db(db, session_id) is None
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_oversized_file(client: AsyncClient) -> None:
+    """Files exceeding max_upload_size_mb should be rejected."""
+    # Override settings to use a tiny 1KB limit for testing
+    tiny_settings = Settings(
+        max_upload_size_mb=0,  # 0 MB = effectively 0 bytes
+        anthropic_api_key="fake",
+    )
+
+    def _override_settings() -> Settings:
+        return tiny_settings
+
+    app.dependency_overrides[get_settings] = _override_settings
+    try:
+        big_bytes = b"x" * 1024  # 1KB — exceeds 0MB limit
+        response = await client.post(
+            "/api/sessions/upload",
+            files=[("files", ("huge.csv", big_bytes, "text/csv"))],
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["session_ids"] == []
+        assert "size" in data["message"].lower() or "limit" in data["message"].lower()
+    finally:
+        app.dependency_overrides.pop(get_settings, None)

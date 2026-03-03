@@ -229,13 +229,26 @@ async def upload_sessions(
 
     session_ids: list[str] = []
     errors: list[str] = []
+    max_bytes = settings.max_upload_size_mb * 1024 * 1024
 
     for f in files:
         if not f.filename:
             errors.append("File with no name skipped")
             continue
         try:
+            # Check size before reading entire file into memory
+            if f.size is not None and f.size > max_bytes:
+                errors.append(
+                    f"{f.filename}: exceeds {settings.max_upload_size_mb}MB size limit"
+                )
+                continue
             file_bytes = await f.read()
+            # Double-check after read (f.size may be None for chunked uploads)
+            if len(file_bytes) > max_bytes:
+                errors.append(
+                    f"{f.filename}: exceeds {settings.max_upload_size_mb}MB size limit"
+                )
+                continue
             result = await process_upload(file_bytes, f.filename)
             sid = str(result["session_id"])
             session_ids.append(sid)
