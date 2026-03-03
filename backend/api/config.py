@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     # Upload limits
     max_upload_size_mb: int = 50
 
+    # Database pool
+    db_pool_size: int = 20
+    db_max_overflow: int = 30
+
     # Auth
     nextauth_secret: str = ""
 
