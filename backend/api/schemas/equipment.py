@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class VehicleSpecSchema(BaseModel):
@@ -12,6 +12,19 @@ class VehicleSpecSchema(BaseModel):
     model: str
     generation: str
     year_range: list[int]  # [start_year, end_year]
+
+    @field_validator("year_range")
+    @classmethod
+    def validate_year_range(cls, v: list[int]) -> list[int]:
+        """Enforce exactly 2 elements in year_range."""
+        if len(v) != 2:
+            msg = "year_range must contain exactly 2 elements [start, end]"
+            raise ValueError(msg)
+        if v[0] > v[1]:
+            msg = "year_range start must be <= end"
+            raise ValueError(msg)
+        return v
+
     weight_kg: float
     wheelbase_m: float
     track_width_front_m: float
@@ -80,6 +93,17 @@ class SuspensionSpecSchema(BaseModel):
     sway_bar_rear: str | None = None
 
 
+_VALID_VEHICLE_OVERRIDE_KEYS = frozenset(
+    {
+        "weight_kg",
+        "cg_height_m",
+        "weight_dist_front_pct",
+        "hp",
+        "torque_nm",
+    }
+)
+
+
 class EquipmentProfileCreate(BaseModel):
     """Request body for creating an equipment profile."""
 
@@ -90,6 +114,17 @@ class EquipmentProfileCreate(BaseModel):
     suspension: SuspensionSpecSchema | None = None
     vehicle_overrides: dict[str, float] = Field(default_factory=dict)
     notes: str | None = None
+
+    @field_validator("vehicle_overrides")
+    @classmethod
+    def validate_override_keys(cls, v: dict[str, float]) -> dict[str, float]:
+        """Only allow known vehicle override keys."""
+        bad = set(v) - _VALID_VEHICLE_OVERRIDE_KEYS
+        if bad:
+            allowed = sorted(_VALID_VEHICLE_OVERRIDE_KEYS)
+            msg = f"Invalid vehicle_overrides keys: {sorted(bad)}. Allowed: {allowed}"
+            raise ValueError(msg)
+        return v
 
 
 class EquipmentProfileResponse(BaseModel):

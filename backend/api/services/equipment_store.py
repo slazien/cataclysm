@@ -23,6 +23,7 @@ from cataclysm.equipment import (
     TireSpec,
     TrackCondition,
 )
+from cataclysm.vehicle_db import VehicleSpec
 from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger(__name__)
@@ -171,22 +172,60 @@ def _suspension_spec_from_dict(d: dict[str, object]) -> SuspensionSpec:
     )
 
 
+def _vehicle_spec_from_dict(d: dict[str, object]) -> VehicleSpec:
+    """Reconstruct a VehicleSpec from a plain dict."""
+    yr = d.get("year_range")
+    if isinstance(yr, (list, tuple)) and len(yr) >= 2:
+        year_range = (int(yr[0]), int(yr[1]))
+    else:
+        year_range = (2000, 2025)
+    return VehicleSpec(
+        make=str(d["make"]),
+        model=str(d["model"]),
+        generation=str(d.get("generation", "")),
+        year_range=year_range,
+        weight_kg=float(d["weight_kg"]),  # type: ignore[arg-type]
+        wheelbase_m=float(d["wheelbase_m"]),  # type: ignore[arg-type]
+        track_width_front_m=float(d["track_width_front_m"]),  # type: ignore[arg-type]
+        track_width_rear_m=float(d["track_width_rear_m"]),  # type: ignore[arg-type]
+        cg_height_m=float(d["cg_height_m"]),  # type: ignore[arg-type]
+        weight_dist_front_pct=float(d["weight_dist_front_pct"]),  # type: ignore[arg-type]
+        drivetrain=str(d["drivetrain"]),
+        hp=int(d["hp"]),  # type: ignore[call-overload]
+        torque_nm=int(d["torque_nm"]),  # type: ignore[call-overload]
+        has_aero=bool(d.get("has_aero", False)),
+        notes=_opt_str(d, "notes"),
+    )
+
+
 def _profile_from_dict(d: dict[str, object]) -> EquipmentProfile:
     """Reconstruct an EquipmentProfile from a plain dict."""
     tires_raw = d["tires"]
     assert isinstance(tires_raw, dict)
     brakes_raw = d.get("brakes")
     suspension_raw = d.get("suspension")
+    vehicle_raw = d.get("vehicle")
     brakes = _brake_spec_from_dict(brakes_raw) if isinstance(brakes_raw, dict) else None
     suspension = (
         _suspension_spec_from_dict(suspension_raw) if isinstance(suspension_raw, dict) else None
     )
+    vehicle = _vehicle_spec_from_dict(vehicle_raw) if isinstance(vehicle_raw, dict) else None
+    overrides_raw = d.get("vehicle_overrides")
+    vehicle_overrides: dict[str, float] = {}
+    if isinstance(overrides_raw, dict):
+        vehicle_overrides = {
+            str(k): float(v)
+            for k, v in overrides_raw.items()  # type: ignore[arg-type]
+            if isinstance(v, (int, float))
+        }
     return EquipmentProfile(
         id=str(d["id"]),
         name=str(d["name"]),
         tires=_tire_spec_from_dict(tires_raw),
+        vehicle=vehicle,
         brakes=brakes,
         suspension=suspension,
+        vehicle_overrides=vehicle_overrides,
         notes=_opt_str(d, "notes"),
     )
 

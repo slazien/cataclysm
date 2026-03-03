@@ -234,7 +234,7 @@ async def get_ideal_lap_data(session_data: SessionData) -> dict[str, object]:
     return await asyncio.to_thread(_compute)
 
 
-def _resolve_vehicle_params(session_id: str) -> VehicleParams | None:
+def resolve_vehicle_params(session_id: str) -> VehicleParams | None:
     """Look up equipment for a session and convert to VehicleParams.
 
     Returns *None* if the session has no equipment assigned, letting the
@@ -269,7 +269,7 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
         curvature_result = compute_curvature(best_lap_df)
 
         # Equipment-aware vehicle params
-        vehicle_params = _resolve_vehicle_params(session_id)
+        vehicle_params = resolve_vehicle_params(session_id)
 
         # Solve optimal velocity profile
         optimal = compute_optimal_profile(curvature_result, params=vehicle_params)

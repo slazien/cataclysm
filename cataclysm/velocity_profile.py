@@ -466,7 +466,10 @@ def _segment_time(
 
     # Trapezoidal integration: dt = ds / v
     # t = sum(2*ds / (v_i + v_{i+1}))
-    t = float(np.sum(2.0 * ds / (speeds[:-1] + speeds[1:])))
+    pair_sums = speeds[:-1] + speeds[1:]
+    # Guard against division by zero (should not happen with min_speed clamp)
+    pair_sums = np.maximum(pair_sums, 1e-6)
+    t = float(np.sum(2.0 * ds / pair_sums))
     return t
 
 

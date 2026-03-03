@@ -7,7 +7,7 @@ Targets the uncovered error-handling branches in _run_pipeline_sync:
 - Lines 108-109: compute_session_consistency raises → consistency stays None
 - Lines 122-123: estimate_gains raises → gains stays None
 - Lines 130-131: estimate_grip_limit raises → grip stays None
-- Line 248: _resolve_vehicle_params when profile is missing
+- Line 248: resolve_vehicle_params when profile is missing
 
 All tests mock the heavy cataclysm functions so the suite stays fast.
 """
@@ -20,7 +20,7 @@ import pytest
 
 from backend.api.services import equipment_store
 from backend.api.services import pipeline as pipeline_module
-from backend.api.services.pipeline import _resolve_vehicle_params
+from backend.api.services.pipeline import resolve_vehicle_params
 from backend.api.services.session_store import SessionData
 
 # ---------------------------------------------------------------------------
@@ -315,25 +315,25 @@ class TestRunPipelineSyncErrorPaths:
 
 
 # ---------------------------------------------------------------------------
-# _resolve_vehicle_params
+# resolve_vehicle_params
 # ---------------------------------------------------------------------------
 
 
 class TestResolveVehicleParams:
-    """Tests for _resolve_vehicle_params — the uncovered line 248 branch."""
+    """Tests for resolve_vehicle_params — the uncovered line 248 branch."""
 
     def setup_method(self) -> None:
         equipment_store.clear_all_equipment()
 
     def test_returns_none_when_no_session_equipment(self) -> None:
         """When no equipment is assigned to the session, returns None."""
-        result = _resolve_vehicle_params("no-equipment-session")
+        result = resolve_vehicle_params("no-equipment-session")
         assert result is None
 
     def test_returns_none_when_profile_missing(self) -> None:
         """When session equipment references a non-existent profile, returns None.
 
-        This is line 248 — the second early-return path in _resolve_vehicle_params.
+        This is line 248 — the second early-return path in resolve_vehicle_params.
         """
         from cataclysm.equipment import SessionEquipment
 
@@ -345,7 +345,7 @@ class TestResolveVehicleParams:
         )
         equipment_store.store_session_equipment(se)
 
-        result = _resolve_vehicle_params("sess-orphan")
+        result = resolve_vehicle_params("sess-orphan")
         assert result is None
 
     def test_returns_vehicle_params_when_equipment_complete(self) -> None:
@@ -387,7 +387,7 @@ class TestResolveVehicleParams:
         equipment_store.store_profile(profile)
         equipment_store.store_session_equipment(se)
 
-        result = _resolve_vehicle_params("sess-with-equip")
+        result = resolve_vehicle_params("sess-with-equip")
         assert result is not None
 
 

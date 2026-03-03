@@ -450,15 +450,17 @@ async def get_speed_sensitivity(
 
     from cataclysm.velocity_profile import compute_speed_sensitivity, default_vehicle_params
 
-    from backend.api.services.pipeline import _resolve_vehicle_params
+    from backend.api.services.pipeline import resolve_vehicle_params
 
-    vehicle = _resolve_vehicle_params(session_id) or default_vehicle_params()
+    vehicle = resolve_vehicle_params(session_id) or default_vehicle_params()
     corners = sd.corners
 
     def _compute() -> list[CornerSensitivitySchema]:
         import numpy as np
 
         results: list[CornerSensitivitySchema] = []
+        if sd.processed.best_lap not in sd.processed.resampled_laps:
+            return results
         best_df = sd.processed.resampled_laps[sd.processed.best_lap]
         dist = best_df["lap_distance_m"].to_numpy()
         speed = best_df["speed_mps"].to_numpy()

@@ -8,8 +8,16 @@ telemetry patterns without prescribing technique changes.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TypedDict
 
 import numpy as np
+
+
+class SessionSummaryInput(TypedDict, total=False):
+    """Expected structure for session summary dicts passed to detect_stagnation."""
+
+    best_lap_time_s: float  # required
+    corner_times: dict[int, list[float]]  # optional
 
 
 @dataclass
@@ -59,7 +67,7 @@ def _compute_improvement_rate(best_times: list[float]) -> float:
 
 
 def _find_stagnant_corners(
-    session_summaries: list[dict[str, object]],
+    session_summaries: list[SessionSummaryInput],
     threshold_s: float,
 ) -> list[StagnantCorner]:
     """Identify corners where times have not improved across sessions.
@@ -118,7 +126,7 @@ def _find_stagnant_corners(
 
 
 def detect_stagnation(
-    session_summaries: list[dict[str, object]],
+    session_summaries: list[SessionSummaryInput],
     threshold_s: float = 0.3,
     min_sessions: int = 3,
 ) -> StagnationAnalysis:
