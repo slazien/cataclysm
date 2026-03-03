@@ -14,7 +14,7 @@ from cataclysm.topic_guardrail import (
     OFF_TOPIC_RESPONSE,
     classify_topic,
 )
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response
 
 from backend.api.dependencies import (
@@ -22,6 +22,7 @@ from backend.api.dependencies import (
     authenticate_websocket,
     get_current_user,
 )
+from backend.api.rate_limit import limiter
 from backend.api.schemas.coaching import (
     ChatRequest,
     CoachingReportResponse,
@@ -85,7 +86,9 @@ async def trigger_auto_coaching(
 
 
 @router.post("/{session_id}/report", response_model=CoachingReportResponse)
+@limiter.limit("20/hour")
 async def generate_report(
+    request: Request,
     session_id: str,
     body: ReportRequest,
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],

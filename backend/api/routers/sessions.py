@@ -6,7 +6,7 @@ import logging
 from typing import Annotated
 
 from cataclysm.constants import MPS_TO_MPH
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +14,7 @@ from backend.api.config import Settings
 from backend.api.db.database import get_db
 from backend.api.db.models import SessionFile as SessionFileModel
 from backend.api.dependencies import AuthenticatedUser, get_current_user, get_settings
+from backend.api.rate_limit import limiter
 from backend.api.routers.coaching import trigger_auto_coaching
 from backend.api.schemas.comparison import ComparisonResult
 from backend.api.schemas.session import (
@@ -208,7 +209,9 @@ async def _compute_session_score(sd: session_store.SessionData) -> float | None:
 
 
 @router.post("/upload", response_model=UploadResponse)
+@limiter.limit("10/hour")
 async def upload_sessions(
+    request: Request,
     files: list[UploadFile],
     settings: Annotated[Settings, Depends(get_settings)],
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],

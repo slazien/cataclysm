@@ -193,6 +193,17 @@ def synthetic_csv_bytes_3laps() -> bytes:
 
 
 @pytest.fixture(autouse=True)
+def _disable_rate_limits() -> Generator[None, None, None]:
+    """Disable slowapi rate limiting for all tests to avoid cross-test 429s."""
+    from backend.api.rate_limit import limiter
+
+    original = limiter.enabled
+    limiter.enabled = False
+    yield
+    limiter.enabled = original
+
+
+@pytest.fixture(autouse=True)
 def _disable_auto_coaching() -> Generator[None, None, None]:
     """Disable auto-coaching on upload in all tests by default.
 

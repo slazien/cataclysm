@@ -11,11 +11,14 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
 
 from backend.api.config import Settings
+from backend.api.rate_limit import limiter
 from backend.api.routers import (
     achievements,
     analysis,
@@ -255,6 +258,10 @@ app = FastAPI(
     lifespan=lifespan,
     redirect_slashes=False,
 )
+
+# -- Rate limiting ---------------------------------------------------------------
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 # -- Cache-Control middleware --------------------------------------------------
