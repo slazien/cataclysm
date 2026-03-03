@@ -49,3 +49,35 @@ export function computeSkillDimensions(grades: CornerGrade[]): SkillDimensions |
 export function dimensionsToArray(dims: SkillDimensions): number[] {
   return [dims.braking, dims.trailBraking, dims.throttle, dims.line];
 }
+
+const IDENTITY_LABELS: Record<string, string[]> = {
+  braking: ['LATE BRAKER', 'BRAKE BOSS'],
+  trailBraking: ['TRAIL WIZARD', 'SMOOTH OPERATOR'],
+  throttle: ['THROTTLE KING', 'POWER PLAYER'],
+  line: ['LINE MASTER', 'APEX HUNTER'],
+  balanced: ['COMPLETE DRIVER', 'WELL ROUNDED'],
+};
+
+/** Map skill dimensions to an identity label for share cards. */
+export function getIdentityLabel(dims: SkillDimensions | null): string {
+  if (!dims) return 'TRACK WARRIOR';
+
+  const entries: [string, number][] = [
+    ['braking', dims.braking],
+    ['trailBraking', dims.trailBraking],
+    ['throttle', dims.throttle],
+    ['line', dims.line],
+  ];
+  const max = Math.max(...entries.map(([, v]) => v));
+  const min = Math.min(...entries.map(([, v]) => v));
+
+  // If all dimensions within 10 points, driver is balanced
+  const key = max - min <= 10
+    ? 'balanced'
+    : entries.find(([, v]) => v === max)![0];
+
+  const pool = IDENTITY_LABELS[key];
+  // Deterministic pick based on dimension values (not random, so same data = same label)
+  const hash = Math.round(dims.braking + dims.throttle * 3 + dims.line * 7);
+  return pool[hash % pool.length];
+}
