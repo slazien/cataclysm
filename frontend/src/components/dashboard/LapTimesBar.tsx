@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useMemo } from 'react';
 import { useSessionLaps } from '@/hooks/useSession';
 import { useCoachingReport } from '@/hooks/useCoaching';
+import { useConsistency } from '@/hooks/useAnalysis';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
 import { formatLapTime } from '@/lib/formatters';
 import { colors, fonts } from '@/lib/design-tokens';
 import { useUnits } from '@/hooks/useUnits';
+import { AiInsight } from '@/components/shared/AiInsight';
 import type { LapSummary } from '@/lib/types';
 
 interface LapTimesBarProps {
@@ -28,8 +30,38 @@ export function LapTimesBar({ sessionId }: LapTimesBarProps) {
     useCanvasChart(MARGINS);
   const { data: laps, isLoading } = useSessionLaps(sessionId);
   const { data: report } = useCoachingReport(sessionId);
+  const { data: consistency } = useConsistency(sessionId);
   const { resolveSpeed } = useUnits();
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+
+  // Compute consistency insight text and potential time saving
+  const consistencyInsight = useMemo(() => {
+    if (!laps || laps.length < 3 || !consistency?.lap_consistency) return null;
+
+    const score = consistency.lap_consistency.consistency_score;
+    const lapTimes = [...laps].sort((a, b) => a.lap_time_s - b.lap_time_s);
+    const top3Avg =
+      lapTimes.slice(0, 3).reduce((sum, l) => sum + l.lap_time_s, 0) / 3;
+    const sessionAvg =
+      laps.reduce((sum, l) => sum + l.lap_time_s, 0) / laps.length;
+    const savingS = sessionAvg - top3Avg;
+
+    if (savingS < 0.1) return null;
+
+    const scoreText =
+      score >= 90
+        ? 'Very consistent'
+        : score >= 75
+          ? 'Good consistency'
+          : score >= 50
+            ? 'Moderate consistency'
+            : 'Inconsistent';
+
+    return {
+      text: `${scoreText} (${score.toFixed(0)}%). Matching your best 3 laps consistently would save ~${savingS.toFixed(1)}s per lap.`,
+      badge: `-${savingS.toFixed(1)}s`,
+    };
+  }, [laps, consistency]);
 
   const renderChart = useCallback(() => {
     const ctx = getDataCtx();
@@ -383,6 +415,11 @@ export function LapTimesBar({ sessionId }: LapTimesBarProps) {
           style={{ width: '100%', height: '100%', cursor: 'crosshair', zIndex: 2, pointerEvents: 'auto' }}
         />
       </div>
+      {consistencyInsight && (
+        <AiInsight mode="inline" badge={consistencyInsight.badge}>
+          {consistencyInsight.text}
+        </AiInsight>
+      )}
     </div>
   );
 }

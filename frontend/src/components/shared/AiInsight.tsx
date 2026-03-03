@@ -1,16 +1,19 @@
 'use client';
 
+import { Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type AiInsightMode = 'compact' | 'card';
+type AiInsightMode = 'compact' | 'card' | 'inline';
 
 interface AiInsightProps {
   children: React.ReactNode;
   mode?: AiInsightMode;
   className?: string;
+  /** Optional badge text (e.g. time saved) shown to the right */
+  badge?: string;
 }
 
-export function AiInsight({ children, mode = 'card', className }: AiInsightProps) {
+export function AiInsight({ children, mode = 'card', className, badge }: AiInsightProps) {
   if (mode === 'compact') {
     return (
       <span
@@ -22,6 +25,27 @@ export function AiInsight({ children, mode = 'card', className }: AiInsightProps
         <span className="text-xs" role="img" aria-label="AI">&#x1F916;</span>
         {children}
       </span>
+    );
+  }
+
+  if (mode === 'inline') {
+    return (
+      <div
+        className={cn(
+          'flex items-start gap-2 rounded-md bg-[var(--ai-bg)] px-3 py-2',
+          className,
+        )}
+      >
+        <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--ai-icon)]" />
+        <div className="min-w-0 flex-1 text-xs leading-relaxed text-[var(--text-secondary)]">
+          {children}
+        </div>
+        {badge && (
+          <span className="shrink-0 rounded-full bg-[var(--ai-icon)]/10 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-[var(--ai-icon)]">
+            {badge}
+          </span>
+        )}
+      </div>
     );
   }
 
