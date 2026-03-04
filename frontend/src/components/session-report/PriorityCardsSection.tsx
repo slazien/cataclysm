@@ -6,7 +6,7 @@ import { useUiStore, useAnalysisStore } from '@/stores';
 import type { PriorityCorner, CornerGrade } from '@/lib/types';
 import { useUnits } from '@/hooks/useUnits';
 import { worstGrade } from '@/lib/gradeUtils';
-import { extractActionTitle } from '@/lib/textUtils';
+import { extractActionTitle, formatCoachingText } from '@/lib/textUtils';
 import { MarkdownText } from '@/components/shared/MarkdownText';
 
 /** Maps a grade letter to the CSS variable for left-border color */
@@ -42,7 +42,7 @@ function PriorityCard({
     ? (GRADE_BORDER_COLORS[gradeForCorner] ?? 'border-l-[var(--cata-accent)]')
     : 'border-l-[var(--cata-accent)]';
 
-  const resolvedIssue = resolveSpeed(p.issue);
+  const resolvedIssue = formatCoachingText(resolveSpeed(p.issue));
   const actionTitle = extractActionTitle(resolvedIssue);
 
   return (
@@ -76,7 +76,7 @@ function PriorityCard({
 
       {/* Novice tip - always visible when available */}
       {isNovice && p.tip && (
-        <p className="mb-2 text-xs leading-relaxed text-[var(--text-muted)]">{resolveSpeed(p.tip)}</p>
+        <p className="mb-2 text-xs leading-relaxed text-[var(--text-muted)]">{formatCoachingText(resolveSpeed(p.tip))}</p>
       )}
 
       {/* Expandable detail section */}

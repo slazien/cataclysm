@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { TrendingUp, Target, ChevronDown, ChevronUp } from 'lucide-react';
-import { extractActionTitle } from '@/lib/textUtils';
+import { extractActionTitle, formatCoachingText } from '@/lib/textUtils';
 import { useUnits } from '@/hooks/useUnits';
 import { MarkdownText } from '@/components/shared/MarkdownText';
 
@@ -50,8 +50,8 @@ function ExpandableItem({ text, bullet }: { text: string; bullet: string }) {
 export function PatternsAndDrillsSection({ patterns, drills }: PatternsAndDrillsSectionProps) {
   const [showAllPatterns, setShowAllPatterns] = useState(false);
   const { resolveSpeed } = useUnits();
-  const resolvedPatterns = patterns.map(resolveSpeed);
-  const resolvedDrills = drills.map(resolveSpeed);
+  const resolvedPatterns = patterns.map((t) => formatCoachingText(resolveSpeed(t)));
+  const resolvedDrills = drills.map((t) => formatCoachingText(resolveSpeed(t)));
   const visiblePatterns = showAllPatterns ? resolvedPatterns : resolvedPatterns.slice(0, DEFAULT_VISIBLE);
   const hiddenCount = resolvedPatterns.length - DEFAULT_VISIBLE;
 

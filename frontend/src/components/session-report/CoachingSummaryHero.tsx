@@ -3,6 +3,7 @@
 import { Sparkles } from 'lucide-react';
 import { MarkdownText } from '@/components/shared/MarkdownText';
 import { useUnits } from '@/hooks/useUnits';
+import { formatCoachingText } from '@/lib/textUtils';
 
 interface CoachingSummaryHeroProps {
   report: { status: string; summary?: string | null } | null;
@@ -22,7 +23,7 @@ function splitSummary(text: string): { lead: string; rest: string } {
 export function CoachingSummaryHero({ report }: CoachingSummaryHeroProps) {
   const isLoading = !report || report.status === 'generating';
   const { resolveSpeed } = useUnits();
-  const summary = report?.summary ? resolveSpeed(report.summary) : report?.summary;
+  const summary = report?.summary ? formatCoachingText(resolveSpeed(report.summary)) : report?.summary;
 
   return (
     <div className="overflow-hidden rounded-xl border border-[var(--cata-accent)]/30 bg-gradient-to-r from-[var(--cata-accent)]/5 to-transparent p-5">

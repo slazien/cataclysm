@@ -37,6 +37,41 @@ export function resolveSpeedMarkers(text: string, isMetric: boolean): string {
   return result;
 }
 
+/**
+ * Insert paragraph breaks into coaching text that was generated as a single
+ * long string (older cached reports). New reports already contain \n\n breaks
+ * from the updated prompt, so this is a no-op for those.
+ *
+ * Splits before structured markers like "Lap 1-2:", "Measure:", "This drill",
+ * "Focus:", etc. that indicate logical paragraph boundaries.
+ */
+export function formatCoachingText(text: string): string {
+  // Already has paragraph breaks — leave it alone
+  if (text.includes('\n\n')) return text;
+
+  // Patterns that indicate a new paragraph should start before them.
+  // Each regex matches ". <marker>" and inserts \n\n before the marker.
+  const breakPatterns = [
+    // Drill step markers: "Lap 1-2:", "Laps 3-4:"
+    /(?<=\.)\s+(?=Laps?\s+\d)/g,
+    // Measurement/target sections
+    /(?<=\.)\s+(?=Measure:|Target:|Goal:|Result:)/g,
+    // Conclusion sentences
+    /(?<=\.)\s+(?=This drill|This exercise|This builds|This removes|This addresses)/g,
+    // Section headers
+    /(?<=\.)\s+(?=Focus:|Setup:|Execution:|Key:|Note:)/g,
+    // Numbered steps: "1.", "2.", "3." at logical boundaries
+    /(?<=\.)\s+(?=\d+\.\s+[A-Z])/g,
+  ];
+
+  let result = text;
+  for (const pattern of breakPatterns) {
+    result = result.replace(pattern, '\n\n');
+  }
+
+  return result;
+}
+
 /** Extracts a short action phrase from long coaching text.
  *  Takes the first clause (before a comma, period, semicolon, colon, or dash) and caps it. */
 export function extractActionTitle(text: string): string {

@@ -12,6 +12,7 @@ import { useSessionStore } from '@/stores';
 import { useAutoReport } from '@/hooks/useAutoReport';
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 import { useUnits } from '@/hooks/useUnits';
+import { formatCoachingText } from '@/lib/textUtils';
 import type { CoachingReport } from '@/lib/types';
 
 const gradeContainerVariants = {
@@ -124,7 +125,7 @@ export function ReportSummary() {
       {report.summary && (
         <div className="px-4 py-3">
           <AiInsight mode="compact">
-            <span className="text-xs leading-relaxed"><MarkdownText>{resolveSpeed(report.summary)}</MarkdownText></span>
+            <span className="text-xs leading-relaxed"><MarkdownText>{formatCoachingText(resolveSpeed(report.summary))}</MarkdownText></span>
           </AiInsight>
           {speech.isSupported && (
             <Button
@@ -247,7 +248,7 @@ export function ReportSummary() {
           <ul className="space-y-0.5">
             {report.patterns.map((pattern, i) => (
               <li key={i} className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                &bull; <MarkdownText>{resolveSpeed(pattern)}</MarkdownText>
+                &bull; <MarkdownText>{formatCoachingText(resolveSpeed(pattern))}</MarkdownText>
               </li>
             ))}
           </ul>
@@ -263,7 +264,7 @@ export function ReportSummary() {
           <ul className="space-y-0.5">
             {report.drills.map((drill, i) => (
               <li key={i} className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                &bull; <MarkdownText>{resolveSpeed(drill)}</MarkdownText>
+                &bull; <MarkdownText>{formatCoachingText(resolveSpeed(drill))}</MarkdownText>
               </li>
             ))}
           </ul>

@@ -8,6 +8,7 @@ import { AiInsight } from '@/components/shared/AiInsight';
 import { MarkdownText } from '@/components/shared/MarkdownText';
 import { motion as motionTokens } from '@/lib/design-tokens';
 import { useUnits } from '@/hooks/useUnits';
+import { formatCoachingText } from '@/lib/textUtils';
 import type { CornerGrade } from '@/lib/types';
 
 const rowVariants = {
@@ -112,7 +113,7 @@ export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
                       >
                         <td colSpan={5} className="px-2 py-2 lg:px-3">
                           <AiInsight mode="inline">
-                            <MarkdownText>{resolveSpeed(g.notes)}</MarkdownText>
+                            <MarkdownText block>{formatCoachingText(resolveSpeed(g.notes))}</MarkdownText>
                           </AiInsight>
                         </td>
                       </m.tr>
