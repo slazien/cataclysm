@@ -42,8 +42,8 @@ export function resolveSpeedMarkers(text: string, isMetric: boolean): string {
  * long string (older cached reports). New reports already contain \n\n breaks
  * from the updated prompt, so this is a no-op for those.
  *
- * Splits before structured markers like "Lap 1-2:", "Measure:", "This drill",
- * "Focus:", etc. that indicate logical paragraph boundaries.
+ * Splits before structured markers like "Lap 1-2:", "Goal:", "Early laps",
+ * "Focus on", "This decouples", etc. that indicate logical paragraph boundaries.
  */
 export function formatCoachingText(text: string): string {
   // Already has paragraph breaks — leave it alone
@@ -52,16 +52,22 @@ export function formatCoachingText(text: string): string {
   // Patterns that indicate a new paragraph should start before them.
   // Each regex matches ". <marker>" and inserts \n\n before the marker.
   const breakPatterns = [
-    // Drill step markers: "Lap 1-2:", "Laps 3-4:"
-    /(?<=\.)\s+(?=Laps?\s+\d)/g,
+    // Drill step markers: "Lap 1-2:", "Laps 3-4:", "On laps 1-2"
+    /(?<=\.)\s+(?=(?:On\s+)?Laps?\s+\d)/g,
     // Measurement/target sections
     /(?<=\.)\s+(?=Measure:|Target:|Goal:|Result:)/g,
-    // Conclusion sentences
-    /(?<=\.)\s+(?=This drill|This exercise|This builds|This removes|This addresses)/g,
-    // Section headers
+    // Evidence sentences: "Early laps", "Best laps", "Worst laps", "Your best"
+    /(?<=\.)\s+(?=(?:Early|Best|Worst|Your best|Your worst|The best|The worst)\s+laps?\b)/g,
+    // Conclusion/explanation sentences starting with "This"
+    /(?<=\.)\s+(?=This\s+(?!is\b)\w)/g,
+    // Section headers with colon
     /(?<=\.)\s+(?=Focus:|Setup:|Execution:|Key:|Note:)/g,
+    // Action instructions without colon
+    /(?<=\.)\s+(?=(?:Focus on|Deliberately|Practice|Once|Start with|Begin)\s)/g,
     // Numbered steps: "1.", "2.", "3." at logical boundaries
     /(?<=\.)\s+(?=\d+\.\s+[A-Z])/g,
+    // Throttle/brake summary conclusions
+    /(?<=\.)\s+(?=Throttle\s+is\b)/g,
   ];
 
   let result = text;
