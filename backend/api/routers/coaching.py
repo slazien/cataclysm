@@ -192,8 +192,10 @@ async def _run_generation(
                     break
                 except Exception as exc:  # noqa: BLE001
                     last_exc = exc
-                    # Only retry on rate-limit errors
-                    if "429" in str(exc) or "rate_limit" in str(exc).lower():
+                    # Only retry on Anthropic rate-limit (429) errors
+                    import anthropic
+
+                    if isinstance(exc, anthropic.RateLimitError):
                         wait = 30 * (attempt + 1)
                         logger.warning(
                             "Rate limited for %s, retry %d/%d in %ds",
