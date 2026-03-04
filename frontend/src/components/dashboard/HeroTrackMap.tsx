@@ -88,6 +88,30 @@ interface TrackSegment {
   cornerNumber?: number;
 }
 
+/** Resolve a corner's display color from its grade (worst-of-3) or speed. */
+function resolveCornerColor(
+  corner: Corner,
+  gradeMap: Map<number, CornerGrade>,
+  minSpd: number,
+  maxSpd: number,
+): string {
+  const grade = gradeMap.get(corner.number);
+  if (grade) {
+    const gradeLetters = [grade.braking, grade.min_speed, grade.throttle].filter(Boolean);
+    if (gradeLetters.length > 0) {
+      const gradeOrder = ['F', 'D', 'C', 'B', 'A'];
+      const worstIdx = Math.min(
+        ...gradeLetters.map((g) => {
+          const idx = gradeOrder.indexOf(g.toUpperCase());
+          return idx >= 0 ? idx : 2; // default to C
+        }),
+      );
+      return gradeToColor(gradeOrder[worstIdx]);
+    }
+  }
+  return speedToColor(corner.min_speed_mph, minSpd, maxSpd);
+}
+
 function computeSegments(
   lapData: LapData,
   corners: Corner[],
@@ -100,6 +124,7 @@ function computeSegments(
   const sortedCorners = [...corners].sort(
     (a, b) => a.entry_distance_m - b.entry_distance_m,
   );
+  if (sortedCorners.length === 0) return [];
 
   // Build a grade lookup
   const gradeMap = new Map<number, CornerGrade>();
@@ -111,6 +136,13 @@ function computeSegments(
   const minSpd = d3.min(speed_mph) ?? 0;
   const maxSpd = d3.max(speed_mph) ?? 1;
 
+  // Pre-compute last corner's color for the wrap-around straight.
+  // The main straight wraps from after the last corner back to before the first,
+  // so we color the leading segment (0 → T1 entry) and trailing segment
+  // (last exit → end) with the last corner's grade color instead of gray.
+  const lastCorner = sortedCorners[sortedCorners.length - 1];
+  const lastCornerColor = resolveCornerColor(lastCorner, gradeMap, minSpd, maxSpd);
+
   let currentIdx = 0;
 
   for (const corner of sortedCorners) {
@@ -119,36 +151,18 @@ function computeSegments(
 
     // Straight section before this corner
     if (entryIdx > currentIdx) {
+      // Leading straight (before first corner) uses last corner's color
+      // to visually close the lap wrap-around gap
+      const isLeadingStraight = currentIdx === 0;
       segments.push({
         startIdx: currentIdx,
         endIdx: entryIdx,
-        color: colors.text.muted,
+        color: isLeadingStraight ? lastCornerColor : colors.text.muted,
       });
     }
 
     // Corner section
-    const grade = gradeMap.get(corner.number);
-    let cornerColor: string;
-    if (grade) {
-      // Average the grade letters to a single color
-      const gradeLetters = [grade.braking, grade.min_speed, grade.throttle].filter(Boolean);
-      if (gradeLetters.length > 0) {
-        // Use the worst grade to color
-        const gradeOrder = ['F', 'D', 'C', 'B', 'A'];
-        const worstIdx = Math.min(
-          ...gradeLetters.map((g) => {
-            const idx = gradeOrder.indexOf(g.toUpperCase());
-            return idx >= 0 ? idx : 2; // default to C
-          }),
-        );
-        cornerColor = gradeToColor(gradeOrder[worstIdx]);
-      } else {
-        cornerColor = colors.text.muted;
-      }
-    } else {
-      // No grades — color by speed
-      cornerColor = speedToColor(corner.min_speed_mph, minSpd, maxSpd);
-    }
+    const cornerColor = resolveCornerColor(corner, gradeMap, minSpd, maxSpd);
 
     segments.push({
       startIdx: entryIdx,
@@ -160,12 +174,12 @@ function computeSegments(
     currentIdx = exitIdx;
   }
 
-  // Trailing straight
+  // Trailing straight — extend last corner's color to close the wrap-around
   if (currentIdx < distance_m.length - 1) {
     segments.push({
       startIdx: currentIdx,
       endIdx: distance_m.length - 1,
-      color: colors.text.muted,
+      color: lastCornerColor,
     });
   }
 
