@@ -74,9 +74,9 @@ export function PitLaneDebrief() {
           <h3 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">
             Session Summary
           </h3>
-          <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
+          <div className="text-sm leading-relaxed text-[var(--text-secondary)]">
             <MarkdownText block>{formatCoachingText(resolveSpeed(report.summary))}</MarkdownText>
-          </p>
+          </div>
         </div>
       )}
     </div>
