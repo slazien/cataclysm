@@ -1,0 +1,44 @@
+{
+    admin :2019
+    servers {
+        metrics
+    }
+}
+
+:80 {
+    # API routes → backend
+    handle /api/* {
+        reverse_proxy backend:8000
+    }
+
+    # Health check → backend
+    handle /health {
+        reverse_proxy backend:8000
+    }
+
+    # Metrics (internal only — blocked from external access)
+    handle /metrics {
+        respond "Forbidden" 403
+    }
+
+    # Grafana dashboard (basic auth protected)
+    handle_path /grafana/* {
+        basic_auth {
+            {$CADDY_ADMIN_USER:admin} {$CADDY_ADMIN_HASH}
+        }
+        reverse_proxy grafana:3000
+    }
+
+    # Dozzle log viewer (basic auth protected)
+    handle_path /dozzle/* {
+        basic_auth {
+            {$CADDY_ADMIN_USER:admin} {$CADDY_ADMIN_HASH}
+        }
+        reverse_proxy dozzle:8080
+    }
+
+    # Everything else → frontend
+    handle {
+        reverse_proxy frontend:3000
+    }
+}
