@@ -290,7 +290,7 @@ class TestBuildCoachingPrompt:
             sample_all_lap_corners,
             "Test",
         )
-        assert "All Laps" in prompt
+        assert "<corner_kpis" in prompt
         assert "L1" in prompt
         assert "L2" in prompt
         assert "L3" in prompt

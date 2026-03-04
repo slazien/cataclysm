@@ -635,17 +635,32 @@ def _build_coaching_prompt(
     # Determine the number of corners from the data to constrain the AI output.
     num_corners = len(next(iter(all_lap_corners.values()), []))
 
-    return f"""Track: {track_name}
+    # Determine priority corner count by skill level
+    max_priorities = 2 if skill_level == "novice" else 3
+
+    return f"""<session_data>
+<session_info>
+Track: {track_name}
 Best Lap: L{best.lap_number} ({best_min}:{best_sec:05.2f})
 Total laps: {len(summaries)}
 Number of corners: {num_corners} (T1 through T{num_corners})
-{corner_analysis_section}\
-## Lap Times
-{lap_text}
+</session_info>
 
-## Corner KPIs — All Laps (best lap marked with *)
+<corner_analysis note="pre-computed statistics, sorted by time opportunity">
+{corner_analysis_section}
+</corner_analysis>
+
+<lap_times>
+{lap_text}
+</lap_times>
+
+<corner_kpis note="all laps, best lap marked with *">
 {corner_text}
+</corner_kpis>
 {gains_section}{optimal_section}{landmark_section}{skill_section}{equipment_section}{weather_section}
+</session_data>
+
+<instructions>
 {corner_analysis_instruction}\
 {landmark_instruction}\
 Analyze the FULL session. Look at every lap's data for each corner to identify:
@@ -655,6 +670,7 @@ Analyze the FULL session. Look at every lap's data for each corner to identify:
 - Best-vs-rest gaps: where the best lap gained time vs the driver's typical performance
 - Technique patterns: brake point consistency, apex type shifts, min-speed spread
 {gains_instruction}{optimal_instruction}
+
 Respond in JSON with this exact structure:
 {{
   "summary": "2-3 sentence overview — mention consistency, progression, key strengths",
@@ -662,8 +678,8 @@ Respond in JSON with this exact structure:
     {{
       "corner": <number>,
       "time_cost_s": <estimated avg time lost vs best lap at this corner>,
-      "issue": "<what the data shows across all laps>",
-      "tip": "<actionable advice, max 20 words>"
+      "issue": "<what the data shows across all laps — include root cause chain>",
+      "tip": "<actionable advice with 'because' clause and what the driver will FEEL>"
     }}
   ],
   "corner_grades": [
@@ -673,10 +689,14 @@ Respond in JSON with this exact structure:
       "trail_braking": "<A-F>",
       "min_speed": "<A-F>",
       "throttle": "<A-F>",
-      "notes": "<one sentence referencing lap-to-lap data>"
+      "notes": "<one sentence referencing lap-to-lap data with 'because' clause>"
     }}
   ],
-  "patterns": ["<session-wide pattern with root cause>", "<pattern 2 with why>", "<pattern 3>"],
+  "patterns": [
+    "<session-wide pattern with root cause chain>",
+    "<pattern 2 with why>",
+    "<pattern 3>"
+  ],
   "drills": [
     "<specific practice drill for weakness 1>",
     "<specific practice drill for weakness 2>"
@@ -695,25 +715,34 @@ Structure each drill with markdown: use a bold title, then separate paragraphs \
 Keep each paragraph to 1-2 sentences. Never write a wall of text.
 
 Sort priority_corners by time_cost_s descending (biggest avg time loss first).
-Identify the THREE corners with the largest improvement opportunity. \
-For each, provide ONE specific actionable change. \
-Do NOT include more than three priorities in priority_corners — exactly 3 entries maximum. \
-If fewer than 3 corners have meaningful improvement potential, include only those.
-Grades reflect consistency across ALL laps, not just one comparison:
-  A = very consistent, close to best-lap performance every lap
-  B = mostly consistent with minor variance
-  C = moderate variance or a clear technique gap on some laps
-  D = high variance, inconsistent execution
-  F = major issue across most laps
-Be encouraging but honest.
-For each pattern, don't just describe WHAT happened — diagnose WHY. \
+Identify the {max_priorities} corners with the largest improvement opportunity. \
+For each, provide ONE specific actionable change with a "because" clause explaining why. \
+Do NOT include more than {max_priorities} priorities in priority_corners. \
+If fewer corners have meaningful improvement potential, include only those.
+
+Grading criteria (evidence-anchored):
+  BRAKING: A = std < 3m + peak G within 0.05G of best |
+    B = std < 6m | C = std < 10m | D = std < 15m | F = std > 15m
+  TRAIL BRAKING: A = present 90%+ laps | B = 70-89% |
+    C = 50-69% | D = < 50% | N/A = kinks/lifts
+  MIN SPEED: A = std < 1.0 mph + within 1 mph of target |
+    B = std < 2.0 | C = std < 3.0 | D = std < 5.0 | F = > 5.0
+  THROTTLE: A = commit std < 5m + progressive |
+    B = std < 8m | C = std < 12m | D = std > 12m or abrupt
+Grade distribution should approximate a bell curve around B/C for a typical driver. \
+All-A or all-B reports are almost certainly grade-inflated. \
+First cite the evidence (numbers), THEN assign the grade — not the reverse.
+
+For each pattern, trace the root cause chain: don't just describe WHAT happened — \
+diagnose WHY by tracing entry cause -> mid-corner effect -> exit consequence. \
 If lap times plateaued, explain whether it's a technique ceiling, \
 fatigue, tire degradation, or confidence limit based on the data.
 
 SPEED FORMATTING: In ALL text fields (summary, issue, tip, notes, patterns, drills), \
 wrap every speed value with the marker {{{{speed:N}}}} where N is the numeric value in mph. \
 Example: "Carry {{{{speed:3}}}} more through the apex" or "Min speed was {{{{speed:42.5}}}}". \
-Never write bare "mph" or "km/h" in text fields — always use {{{{speed:N}}}}."""
+Never write bare "mph" or "km/h" in text fields — always use {{{{speed:N}}}}.
+</instructions>"""
 
 
 def _parse_coaching_response(text: str) -> CoachingReport:
@@ -845,6 +874,7 @@ def generate_coaching_report(
         msg = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=16384,
+            temperature=0.3,
             system=system,
             messages=[{"role": "user", "content": prompt}],
         )
