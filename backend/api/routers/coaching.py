@@ -189,11 +189,24 @@ async def _run_generation(
                         conditions=conditions,
                         weather=weather,
                     )
+                    # Treat JSON parse failures as retryable errors
+                    if "Could not parse" in (report.summary or ""):
+                        logger.warning(
+                            "Parse failure for %s, retry %d/%d",
+                            session_id,
+                            attempt + 1,
+                            _MAX_RETRIES,
+                        )
+                        last_exc = ValueError(report.summary)
+                        await asyncio.sleep(5 * (attempt + 1))
+                        continue
                     break
                 except Exception as exc:  # noqa: BLE001
                     last_exc = exc
-                    # Only retry on rate-limit errors
-                    if "429" in str(exc) or "rate_limit" in str(exc).lower():
+                    # Only retry on Anthropic rate-limit (429) errors
+                    import anthropic
+
+                    if isinstance(exc, anthropic.RateLimitError):
                         wait = 30 * (attempt + 1)
                         logger.warning(
                             "Rate limited for %s, retry %d/%d in %ds",
@@ -280,9 +293,10 @@ async def get_report(
 
     report = await get_coaching_report(session_id)
     if report is not None:
-        # Error reports should not be served — clear them so the frontend
-        # sees a 404 and auto-triggers a fresh generation attempt.
-        if report.status == "error":
+        # Error/unparseable reports should not be served — clear them so the
+        # frontend sees a 404 and auto-triggers a fresh generation attempt.
+        is_parse_failure = "Could not parse" in (report.summary or "")
+        if report.status == "error" or is_parse_failure:
             await clear_coaching_data(session_id)
         else:
             # Filter out hallucinated corners beyond the actual corner count.
