@@ -37,7 +37,9 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
     }
   }, [data.session_a_id, data.session_b_id]);
 
+  const isTie = data.delta_s === 0;
   const aFaster = data.delta_s > 0;
+  const bFaster = data.delta_s < 0;
   const deltaAbs = Math.abs(data.delta_s);
 
   return (
@@ -87,22 +89,32 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
       <div
         className={cn(
           'rounded-lg border px-5 py-4',
-          aFaster
-            ? 'border-[var(--color-throttle)]/30 bg-[var(--color-throttle)]/5'
-            : 'border-[var(--color-brake)]/30 bg-[var(--color-brake)]/5',
+          isTie
+            ? 'border-[var(--cata-border)] bg-[var(--bg-surface)]'
+            : aFaster
+              ? 'border-[var(--color-throttle)]/30 bg-[var(--color-throttle)]/5'
+              : 'border-[var(--color-brake)]/30 bg-[var(--color-brake)]/5',
         )}
       >
         <div className="flex items-center gap-3">
           <Trophy
             className={cn(
               'h-5 w-5',
-              aFaster ? 'text-[var(--color-throttle)]' : 'text-[var(--color-brake)]',
+              isTie
+                ? 'text-[var(--text-muted)]'
+                : aFaster
+                  ? 'text-[var(--color-throttle)]'
+                  : 'text-[var(--color-brake)]',
             )}
           />
           <div>
             <p className="text-sm font-medium text-[var(--text-primary)]">
-              {aFaster ? 'Session A' : 'Session B'} is faster by{' '}
-              <span className="font-mono font-semibold">{deltaAbs.toFixed(3)}s</span>
+              {isTie
+                ? "It's a tie!"
+                : `${aFaster ? 'Session A' : 'Session B'} is faster by `}
+              {!isTie && (
+                <span className="font-mono font-semibold">{deltaAbs.toFixed(3)}s</span>
+              )}
             </p>
             <p className="text-xs text-[var(--text-secondary)]">
               Based on best lap comparison
@@ -163,7 +175,7 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
         <div
           className={cn(
             'rounded-lg border px-5 py-4',
-            !aFaster
+            bFaster
               ? 'border-[var(--color-throttle)]/30 bg-[var(--bg-surface)]'
               : 'border-[var(--cata-border)] bg-[var(--bg-surface)]',
           )}
@@ -172,7 +184,7 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
             <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
               Session B
             </span>
-            {!aFaster && (
+            {bFaster && (
               <span className="rounded-full bg-[var(--color-throttle)]/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-[var(--color-throttle)]">
                 Faster
               </span>

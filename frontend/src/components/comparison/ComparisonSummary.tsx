@@ -42,7 +42,7 @@ export function ComparisonSummary({
           <Trophy className="h-6 w-6 text-emerald-400" />
           <div className="text-center">
             <p className="text-base font-semibold text-[var(--text-primary)]">
-              {isTie ? "It's a tie!" : `${winnerName} wins!`}
+              {isTie ? "It's a tie!" : winnerName === 'You' ? 'You win!' : `${winnerName} wins!`}
             </p>
             {!isTie && (
               <p className="mt-0.5 text-sm text-emerald-300/80">
