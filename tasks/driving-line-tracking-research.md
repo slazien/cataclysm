@@ -33,7 +33,7 @@
 - **0.5m CEP is more than sufficient** for meaningful line analysis on 10-15m wide tracks. Line differences of 2-5m are clearly resolved.
 - **Within-session relative accuracy is even better (~0.3-0.5m)** since satellite geometry barely changes lap-to-lap.
 - **Multi-lap averaging** reduces noise dramatically: 10 laps → 0.16m reference accuracy.
-- **RaceBox has an unused 1kHz IMU** (accelerometer ±8g, gyroscope ±320°/s) — RaceChrono only reads GPS data. Future sensor fusion could improve accuracy to ~0.1m.
+- **We already have IMU data** (lateral_g, longitudinal_g, 3-axis accelerometer, yaw rate) — but it's not used for position improvement. GPS+IMU sensor fusion could push accuracy to ~0.1m in a future phase.
 - **Professional coaching techniques are well-documented** and can be directly encoded into AI prompts (Allen Berg corner types, Blayze reference points, delta-t methodology).
 - **The implementation is tractable** — complete Python algorithms exist for every step, using scipy, pymap3d, and KD-trees.
 
@@ -831,30 +831,43 @@ The existing `GPSQualityReport` in `gps_quality.py` already grades sessions A-F.
 
 ---
 
-## 12. Future: RaceBox IMU Sensor Fusion {#12-future-imu}
+## 12. Future: GPS+IMU Sensor Fusion for Position {#12-future-imu}
 
-### Current State
+### Current State — We Already Have IMU Data
 
-RaceChrono exports CSV v3 with GPS-only position data. The RaceBox Mini S has a 1kHz IMU (accelerometer ±8g, gyroscope ±320°/s) that RaceChrono does not currently utilize. Confirmed via RaceChrono forum: "RaceChrono uses the GPS only at the moment from the RaceBox, though future versions were planned to utilize the IMU data."
+RaceChrono CSV v3 **already exports 6 IMU channels** and Cataclysm **already parses them**:
 
-### What IMU Fusion Would Enable
+| CSV Column | Field | Used For |
+|-----------|-------|----------|
+| 17 | `lateral_g` | G-G diagram, grip estimation, corner analysis |
+| 19 | `longitudinal_g` | Brake point detection, throttle commit, corner analysis |
+| 22 | `x_acc_g` | Raw accelerometer X-axis |
+| 23 | `y_acc_g` | Raw accelerometer Y-axis |
+| 24 | `z_acc_g` | Raw accelerometer Z-axis |
+| 28 | `yaw_rate_dps` | Yaw rate from gyroscope |
 
-**GPS+IMU Extended Kalman Filter (EKF)** could improve position accuracy to ~0.1-0.2m:
+**However**, the GPS lat/lon positions are NOT fused with IMU data — they are raw GPS positions from the RaceBox u-blox receiver. RaceChrono does not perform GPS+IMU sensor fusion to improve position accuracy. The accelerations shown in RaceChrono may be derived from GPS velocity changes (25Hz, noisier) rather than raw IMU (up to 1kHz, much smoother), though the CSV export includes both.
+
+### What GPS+IMU Position Fusion Would Enable
+
+**Extended Kalman Filter (EKF)** combining GPS position with IMU dead-reckoning could improve position accuracy to ~0.1-0.2m:
 - GPS provides absolute position (25Hz, ~0.5m noise)
-- IMU provides relative motion (1000Hz, drift-prone but very precise short-term)
-- Kalman filter combines both: GPS prevents drift, IMU fills gaps and smooths noise
+- IMU double-integration provides relative displacement (very precise short-term, drift-prone long-term)
+- Kalman filter combines both: GPS corrects drift, IMU smooths noise between GPS updates
 
 This would make line analysis nearly as good as differential GPS systems costing 10-100x more.
 
-### How To Access IMU Data
+### Implementation Path
 
-1. **RaceChrono Pro API**: Check if future versions expose IMU channels
-2. **RaceBox BLE protocol**: Direct Bluetooth connection to RaceBox to read raw IMU data
-3. **RaceBox USB/SD export**: Some RaceBox models allow raw data export including IMU
+Since we already have the raw 3-axis accelerometer (`x/y/z_acc_g`) and gyroscope (`yaw_rate_dps`) in our parsed data, we could implement GPS+IMU fusion in post-processing:
+
+1. **Dead-reckoning between GPS updates**: Use accelerometer + gyroscope to interpolate position between 25Hz GPS samples (gives effective ~100-200Hz position)
+2. **Kalman smoothing**: Run an EKF backwards-and-forwards over the session to get optimal position estimates
+3. **Libraries**: `filterpy` (Python EKF), `ahrs` (IMU orientation fusion), or custom implementation
 
 ### Timeline Consideration
 
-This is a **Phase 2+ optimization**. GPS-only line analysis is already viable and valuable. IMU fusion would be a competitive moat enhancement, not a prerequisite.
+This is a **Phase 2+ optimization**. GPS-only line analysis at 0.5m CEP is already viable and valuable. IMU-fused position would be a competitive moat enhancement, not a prerequisite.
 
 ---
 
