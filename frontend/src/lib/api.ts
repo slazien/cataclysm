@@ -25,6 +25,7 @@ import type {
   ShareCreateResponse,
   ShareMetadata,
   ShareComparisonResult,
+  PublicSessionView,
   StudentListData,
   InviteData,
   FlagListData,
@@ -379,6 +380,10 @@ export async function uploadToShare(token: string, files: File[]) {
 
 export async function getShareComparison(token: string) {
   return fetchApi<ShareComparisonResult>(`/api/sharing/${token}/comparison`);
+}
+
+export async function getPublicSessionView(token: string) {
+  return fetchApi<PublicSessionView>(`/api/sharing/${token}/view`);
 }
 
 // --- Instructor API ---

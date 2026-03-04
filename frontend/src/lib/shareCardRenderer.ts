@@ -1,3 +1,4 @@
+import QRCode from 'qrcode';
 import { formatLapTime } from './formatters';
 
 export interface ShareCardData {
@@ -9,6 +10,14 @@ export interface ShareCardData {
   consistencyScore: number | null;
   identityLabel: string;
   gpsCoords?: { lat: number[]; lon: number[] };
+  topSpeedMph: number | null;
+  skillDimensions: {
+    braking: number;
+    trailBraking: number;
+    throttle: number;
+    line: number;
+  } | null;
+  viewUrl: string | null;
 }
 
 const CARD_W = 1080;
@@ -48,10 +57,10 @@ function drawTrackGlow(
     maxLon = Math.max(...lon);
   const rangeX = maxLon - minLon || 1e-6;
   const rangeY = maxLat - minLat || 1e-6;
-  const size = 500;
+  const size = 400;
   const scale = size / Math.max(rangeX, rangeY);
   const cx = CARD_W / 2;
-  const cy = 650;
+  const cy = 550;
 
   ctx.save();
   ctx.globalAlpha = 0.12;
@@ -140,10 +149,110 @@ function drawStatPill(
   ctx.fillText(label, x, y + 68);
 }
 
-export function renderSessionCard(
+function drawSkillRadar(
+  ctx: CanvasRenderingContext2D,
+  dims: { braking: number; trailBraking: number; throttle: number; line: number },
+  cx: number,
+  cy: number,
+  radius: number,
+): void {
+  const axes = ['Braking', 'Trail Braking', 'Throttle', 'Line'];
+  const values = [dims.braking, dims.trailBraking, dims.throttle, dims.line];
+  const n = axes.length;
+  const angleStep = (2 * Math.PI) / n;
+  const startAngle = -Math.PI / 2;
+
+  ctx.save();
+
+  // Concentric grid rings
+  for (const pct of [0.2, 0.4, 0.6, 0.8, 1.0]) {
+    const r = radius * pct;
+    ctx.beginPath();
+    for (let i = 0; i <= n; i++) {
+      const angle = startAngle + (i % n) * angleStep;
+      const x = cx + r * Math.cos(angle);
+      const y = cy + r * Math.sin(angle);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // Axis lines
+  for (let i = 0; i < n; i++) {
+    const angle = startAngle + i * angleStep;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + radius * Math.cos(angle), cy + radius * Math.sin(angle));
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // Data polygon with glow
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const angle = startAngle + i * angleStep;
+    const r = (Math.min(values[i], 100) / 100) * radius;
+    const x = cx + r * Math.cos(angle);
+    const y = cy + r * Math.sin(angle);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(99, 102, 241, 0.25)';
+  ctx.fill();
+  ctx.shadowColor = ACCENT_GLOW;
+  ctx.shadowBlur = 15;
+  ctx.strokeStyle = ACCENT;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // Axis labels
+  ctx.font = "18px 'Barlow Semi Condensed', sans-serif";
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < n; i++) {
+    const angle = startAngle + i * angleStep;
+    const labelR = radius + 24;
+    ctx.fillText(axes[i], cx + labelR * Math.cos(angle), cy + labelR * Math.sin(angle));
+  }
+
+  ctx.restore();
+}
+
+async function drawQRCode(
+  ctx: CanvasRenderingContext2D,
+  url: string,
+  x: number,
+  y: number,
+  size: number,
+): Promise<void> {
+  const dataUrl = await QRCode.toDataURL(url, {
+    width: size,
+    margin: 1,
+    color: { dark: '#ffffff', light: '#00000000' },
+  });
+  return new Promise<void>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(img, x - size / 2, y, size, size);
+      resolve();
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
+export async function renderSessionCard(
   canvas: HTMLCanvasElement,
   data: ShareCardData,
-): void {
+): Promise<void> {
   canvas.width = CARD_W;
   canvas.height = CARD_H;
   const ctx = canvas.getContext('2d')!;
@@ -161,13 +270,13 @@ export function renderSessionCard(
   ctx.font = "22px 'Barlow Semi Condensed', sans-serif";
   ctx.fillText(data.sessionDate, CARD_W / 2, y);
 
-  // Track outline glow
+  // Track outline glow (shifted up and smaller to make room for new elements)
   if (data.gpsCoords && data.gpsCoords.lat.length > 10) {
     drawTrackGlow(ctx, data.gpsCoords);
   }
 
   // Identity label
-  y = 920;
+  y = 860;
   ctx.fillStyle = '#fff';
   ctx.font = "bold 96px 'Barlow Semi Condensed', sans-serif";
   ctx.textAlign = 'center';
@@ -183,11 +292,11 @@ export function renderSessionCard(
 
   // Score ring
   if (data.sessionScore != null) {
-    drawScoreRing(ctx, data.sessionScore, CARD_W / 2, 1100);
+    drawScoreRing(ctx, data.sessionScore, CARD_W / 2, 1000);
   }
 
   // Best lap time
-  y = 1310;
+  y = 1170;
   if (data.bestLapTime != null) {
     ctx.fillStyle = '#fff';
     ctx.font = "bold 56px 'JetBrains Mono', monospace";
@@ -198,21 +307,32 @@ export function renderSessionCard(
     ctx.fillText('BEST LAP', CARD_W / 2, y + 36);
   }
 
-  // Stat pills
-  y = 1440;
-  drawStatPill(ctx, CARD_W / 2 - 120, y, String(data.nLaps), 'LAPS');
+  // 3 Stat pills
+  y = 1280;
+  drawStatPill(ctx, CARD_W / 2 - 200, y, String(data.nLaps), 'LAPS');
   if (data.consistencyScore != null) {
-    drawStatPill(
-      ctx,
-      CARD_W / 2 + 120,
-      y,
-      `${Math.round(data.consistencyScore * 100)}%`,
-      'CONSISTENCY',
-    );
+    drawStatPill(ctx, CARD_W / 2, y, `${Math.round(data.consistencyScore * 100)}%`, 'CONSISTENCY');
+  }
+  if (data.topSpeedMph != null) {
+    drawStatPill(ctx, CARD_W / 2 + 200, y, `${Math.round(data.topSpeedMph)}`, 'TOP SPEED');
+  }
+
+  // Skill radar chart
+  if (data.skillDimensions) {
+    drawSkillRadar(ctx, data.skillDimensions, CARD_W / 2, 1510, 80);
+  }
+
+  // QR code
+  if (data.viewUrl) {
+    await drawQRCode(ctx, data.viewUrl, CARD_W / 2, 1650, 120);
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = "18px 'Barlow Semi Condensed', sans-serif";
+    ctx.textAlign = 'center';
+    ctx.fillText('Scan to view full analysis', CARD_W / 2, 1790);
   }
 
   // Footer CTA
-  y = 1820;
+  y = 1860;
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.font = "22px 'Barlow Semi Condensed', sans-serif";
   ctx.textAlign = 'center';

@@ -222,6 +222,8 @@ export interface ComparisonCornerDelta {
   speed_diff_mph: number;
   a_min_speed_mph: number;
   b_min_speed_mph: number;
+  entry_distance_m: number;
+  exit_distance_m: number;
 }
 
 export interface ComparisonResult {
@@ -538,6 +540,8 @@ export interface ShareComparisonResult {
     speed_diff_mph: number;
     a_min_speed_mph: number;
     b_min_speed_mph: number;
+    entry_distance_m: number;
+    exit_distance_m: number;
   }[];
   speed_traces?: {
     a: { distance_m: number[]; speed_mph: number[] };
@@ -548,6 +552,25 @@ export interface ShareComparisonResult {
     b: { braking: number; trail_braking: number; throttle: number; line: number };
   };
   ai_verdict?: string;
+}
+
+export interface PublicSessionView {
+  token: string;
+  track_name: string;
+  session_date: string;
+  driver_name: string;
+  is_expired: boolean;
+  best_lap_time_s: number | null;
+  n_laps: number | null;
+  consistency_score: number | null;
+  session_score: number | null;
+  top_speed_mph: number | null;
+  skill_braking: number | null;
+  skill_trail_braking: number | null;
+  skill_throttle: number | null;
+  skill_line: number | null;
+  coaching_summary: string | null;
+  track_coords: { lat: number[]; lon: number[] } | null;
 }
 
 // --- Instructor Types ---

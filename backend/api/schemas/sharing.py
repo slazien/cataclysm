@@ -32,6 +32,27 @@ class ShareMetadata(BaseModel):
     is_expired: bool
 
 
+class PublicSessionView(BaseModel):
+    """Rich public view data for a shared session."""
+
+    token: str
+    track_name: str
+    session_date: str
+    driver_name: str
+    is_expired: bool
+    best_lap_time_s: float | None = None
+    n_laps: int | None = None
+    consistency_score: float | None = None  # 0-100
+    session_score: float | None = None  # 0-10
+    top_speed_mph: float | None = None
+    skill_braking: float | None = None  # 0-100
+    skill_trail_braking: float | None = None
+    skill_throttle: float | None = None
+    skill_line: float | None = None
+    coaching_summary: str | None = None
+    track_coords: dict[str, list[float]] | None = None
+
+
 class ShareComparisonResponse(BaseModel):
     """Comparison result from a share upload."""
 

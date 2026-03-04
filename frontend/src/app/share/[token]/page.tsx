@@ -8,6 +8,7 @@ import { getShareMetadata, uploadToShare } from '@/lib/api';
 import { formatLapTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { ComparisonSummary } from '@/components/comparison/ComparisonSummary';
+import { SignUpCTA } from '@/components/shared/SignUpCTA';
 import type { ShareComparisonResult } from '@/lib/types';
 
 export default function SharePage() {
@@ -103,7 +104,7 @@ export default function SharePage() {
   // Comparison result view
   if (comparison) {
     return (
-      <div className="min-h-screen bg-[var(--bg-primary)]">
+      <div className="min-h-screen bg-[var(--bg-primary)] pb-24">
         <div className="mx-auto flex max-w-4xl flex-col gap-6 p-4 lg:p-8">
           <div className="text-center">
             <h1 className="text-2xl font-semibold text-[var(--text-primary)]">
@@ -121,13 +122,14 @@ export default function SharePage() {
             token={token}
           />
         </div>
+        <SignUpCTA />
       </div>
     );
   }
 
   // Main share landing page - upload zone
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)]">
+    <div className="min-h-screen bg-[var(--bg-primary)] pb-24">
       <div className="mx-auto flex max-w-2xl flex-col items-center gap-8 p-4 pt-16 lg:p-8 lg:pt-24">
         {/* Header */}
         <div className="text-center">
@@ -215,6 +217,7 @@ export default function SharePage() {
           </div>
         )}
       </div>
+      <SignUpCTA />
     </div>
   );
 }

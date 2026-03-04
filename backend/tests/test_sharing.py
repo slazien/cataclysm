@@ -172,3 +172,45 @@ async def test_get_share_comparison_not_available(client: AsyncClient) -> None:
 
     resp = await client.get(f"/api/sharing/{token}/comparison")
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_public_view_success(client: AsyncClient) -> None:
+    """GET /api/sharing/{token}/view returns full public view data."""
+    sid = await _upload_session(client)
+    create_resp = await client.post("/api/sharing/create", json={"session_id": sid})
+    token = create_resp.json()["token"]
+
+    resp = await client.get(f"/api/sharing/{token}/view")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["token"] == token
+    assert data["track_name"] == "Test Circuit"
+    assert data["is_expired"] is False
+    assert data["best_lap_time_s"] is not None
+    assert data["n_laps"] is not None and data["n_laps"] > 0
+    assert data["top_speed_mph"] is not None and data["top_speed_mph"] > 0
+    assert data["track_coords"] is not None
+    assert "lat" in data["track_coords"]
+    assert "lon" in data["track_coords"]
+
+
+@pytest.mark.asyncio
+async def test_get_public_view_not_found(client: AsyncClient) -> None:
+    """GET /api/sharing/{token}/view returns 404 for invalid token."""
+    resp = await client.get("/api/sharing/nonexistent-token/view")
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_public_view_top_speed_conversion(client: AsyncClient) -> None:
+    """Verify top_speed_mph conversion from m/s is reasonable."""
+    sid = await _upload_session(client)
+    create_resp = await client.post("/api/sharing/create", json={"session_id": sid})
+    token = create_resp.json()["token"]
+
+    resp = await client.get(f"/api/sharing/{token}/view")
+    data = resp.json()
+    # Synthetic data has speeds ~30-50 m/s → ~67-112 mph
+    if data["top_speed_mph"] is not None:
+        assert 10 < data["top_speed_mph"] < 300  # sanity check

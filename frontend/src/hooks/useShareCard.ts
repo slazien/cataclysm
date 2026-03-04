@@ -8,6 +8,7 @@ import { useLapData } from '@/hooks/useSession';
 import { renderSessionCard } from '@/lib/shareCardRenderer';
 import type { ShareCardData } from '@/lib/shareCardRenderer';
 import { getIdentityLabel, computeSkillDimensions } from '@/lib/skillDimensions';
+import { createShareLink } from '@/lib/api';
 
 interface UseShareCardReturn {
   share: () => Promise<void>;
@@ -60,6 +61,28 @@ export function useShareCard(sessionId: string | null): UseShareCardReturn {
           ? Math.min(consistency.lap_consistency.consistency_score, 100) / 100
           : null;
 
+      // Create share link for QR code
+      let viewUrl: string | null = null;
+      try {
+        if (sessionId) {
+          const shareResp = await createShareLink(sessionId);
+          viewUrl = `${window.location.origin}/view/${shareResp.token}`;
+        }
+      } catch {
+        // Share link creation failed — continue without QR code
+      }
+
+      // Compute top speed from lap summaries
+      let topSpeedMph: number | null = null;
+      if (laps && laps.length > 0) {
+        topSpeedMph = Math.max(...laps.map((l) => l.max_speed_mps)) * 2.23694;
+      }
+
+      // Compute skill dimensions from corner grades
+      const skillDimensions = coachingReport?.corner_grades?.length
+        ? computeSkillDimensions(coachingReport.corner_grades)
+        : null;
+
       const data: ShareCardData = {
         trackName: session.track_name ?? 'Unknown Track',
         sessionDate: session.session_date ?? '',
@@ -69,11 +92,14 @@ export function useShareCard(sessionId: string | null): UseShareCardReturn {
         consistencyScore,
         identityLabel,
         gpsCoords,
+        topSpeedMph,
+        skillDimensions,
+        viewUrl,
       };
 
-      // Render to offscreen canvas
+      // Render to offscreen canvas (async for QR code generation)
       const canvas = document.createElement('canvas');
-      renderSessionCard(canvas, data);
+      await renderSessionCard(canvas, data);
 
       // Convert to blob
       const blob = await new Promise<Blob | null>((resolve) =>
@@ -99,7 +125,7 @@ export function useShareCard(sessionId: string | null): UseShareCardReturn {
     } finally {
       setIsRendering(false);
     }
-  }, [session, consistency, bestLapData, identityLabel]);
+  }, [session, sessionId, consistency, bestLapData, identityLabel, laps, coachingReport]);
 
   return { share, isRendering };
 }

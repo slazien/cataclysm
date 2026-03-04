@@ -19,12 +19,15 @@ from backend.api.db.database import get_db
 from backend.api.db.models import ShareComparisonReport, SharedSession
 from backend.api.dependencies import AuthenticatedUser, get_current_user, get_settings
 from backend.api.rate_limit import limiter
+from backend.api.routers.sessions import _compute_session_score
 from backend.api.schemas.sharing import (
+    PublicSessionView,
     ShareComparisonResponse,
     ShareCreateRequest,
     ShareCreateResponse,
     ShareMetadata,
 )
+from backend.api.services.coaching_store import get_coaching_report
 from backend.api.services.comparison import compare_sessions as run_comparison
 from backend.api.services.pipeline import process_upload
 from backend.api.services.session_store import get_session
@@ -115,6 +118,122 @@ async def get_share_metadata(
         created_at=shared.created_at.isoformat() if shared.created_at else "",
         expires_at=shared.expires_at.isoformat() if shared.expires_at else "",
         is_expired=is_expired,
+    )
+
+
+@router.get("/{token}/view", response_model=PublicSessionView)
+async def get_public_view(
+    token: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> PublicSessionView:
+    """Get rich public view data for a shared session (no auth required)."""
+    result = await db.execute(
+        select(SharedSession)
+        .where(SharedSession.token == token)
+        .options(selectinload(SharedSession.user))
+    )
+    shared = result.scalar_one_or_none()
+    if shared is None:
+        raise HTTPException(status_code=404, detail="Share link not found")
+
+    now = datetime.now(UTC)
+    is_expired = (
+        shared.expires_at.replace(tzinfo=UTC) < now
+        if shared.expires_at.tzinfo is None
+        else shared.expires_at < now
+    )
+
+    driver_name = "A driver"
+    if shared.user:
+        driver_name = shared.user.name or shared.user.email
+
+    # Defaults for data-dependent fields
+    best_lap_time_s: float | None = None
+    n_laps: int | None = None
+    consistency_score: float | None = None
+    session_score: float | None = None
+    top_speed_mph: float | None = None
+    skill_braking: float | None = None
+    skill_trail_braking: float | None = None
+    skill_throttle: float | None = None
+    skill_line: float | None = None
+    coaching_summary: str | None = None
+    track_coords: dict[str, list[float]] | None = None
+    session_date = ""
+    track_name = shared.track_name
+
+    sd = get_session(shared.session_id)
+    if sd is not None:
+        session_date = sd.snapshot.metadata.session_date
+        track_name = sd.snapshot.metadata.track_name
+        best_lap_time_s = sd.snapshot.best_lap_time_s
+        n_laps = len(sd.processed.lap_summaries)
+        top_speed_mph = max(ls.max_speed_mps for ls in sd.processed.lap_summaries) * 2.23694
+
+        if sd.consistency and sd.consistency.lap_consistency:
+            consistency_score = sd.consistency.lap_consistency.consistency_score
+
+        # Coaching report: skill dimensions + summary
+        report = await get_coaching_report(shared.session_id)
+        if report and report.corner_grades:
+            grade_scores = {"A": 100, "B": 80, "C": 60, "D": 40, "F": 20}
+            dims: dict[str, list[int]] = {
+                "braking": [],
+                "trail_braking": [],
+                "throttle": [],
+                "min_speed": [],
+            }
+            for cg in report.corner_grades:
+                for field_name, bucket in dims.items():
+                    letter = getattr(cg, field_name, "")[:1].upper()
+                    if letter in grade_scores:
+                        bucket.append(grade_scores[letter])
+            skill_braking = sum(dims["braking"]) / len(dims["braking"]) if dims["braking"] else None
+            skill_trail_braking = (
+                sum(dims["trail_braking"]) / len(dims["trail_braking"])
+                if dims["trail_braking"]
+                else None
+            )
+            skill_throttle = (
+                sum(dims["throttle"]) / len(dims["throttle"]) if dims["throttle"] else None
+            )
+            skill_line = (
+                sum(dims["min_speed"]) / len(dims["min_speed"]) if dims["min_speed"] else None
+            )
+        if report:
+            coaching_summary = report.summary
+
+        session_score = await _compute_session_score(sd)
+
+        # Downsample GPS coords from best lap to ~300 points
+        best_lap_summary = min(sd.processed.lap_summaries, key=lambda ls: ls.lap_time_s)
+        lap_df = sd.processed.resampled_laps.get(best_lap_summary.lap_number)
+        if lap_df is not None and "lat" in lap_df.columns and "lon" in lap_df.columns:
+            lat_arr = lap_df["lat"].tolist()
+            lon_arr = lap_df["lon"].tolist()
+            step = max(1, len(lat_arr) // 300)
+            track_coords = {
+                "lat": lat_arr[::step],
+                "lon": lon_arr[::step],
+            }
+
+    return PublicSessionView(
+        token=token,
+        track_name=track_name,
+        session_date=session_date,
+        driver_name=driver_name,
+        is_expired=is_expired,
+        best_lap_time_s=best_lap_time_s,
+        n_laps=n_laps,
+        consistency_score=consistency_score,
+        session_score=session_score,
+        top_speed_mph=top_speed_mph,
+        skill_braking=skill_braking,
+        skill_trail_braking=skill_trail_braking,
+        skill_throttle=skill_throttle,
+        skill_line=skill_line,
+        coaching_summary=coaching_summary,
+        track_coords=track_coords,
     )
 
 
