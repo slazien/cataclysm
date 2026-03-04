@@ -7,6 +7,7 @@ import type { PriorityCorner, CornerGrade } from '@/lib/types';
 import { useUnits } from '@/hooks/useUnits';
 import { worstGrade } from '@/lib/gradeUtils';
 import { extractActionTitle } from '@/lib/textUtils';
+import { MarkdownText } from '@/components/shared/MarkdownText';
 
 /** Maps a grade letter to the CSS variable for left-border color */
 const GRADE_BORDER_COLORS: Record<string, string> = {
@@ -96,9 +97,9 @@ function PriorityCard({
           )}
         </button>
         {expanded && (
-          <p className="mt-2 text-xs leading-relaxed text-[var(--text-secondary)]">
-            {resolvedIssue}
-          </p>
+          <div className="mt-2 text-xs leading-relaxed text-[var(--text-secondary)]">
+            <MarkdownText block>{resolvedIssue}</MarkdownText>
+          </div>
         )}
       </div>
     </div>

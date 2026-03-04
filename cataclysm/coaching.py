@@ -689,7 +689,10 @@ Do NOT include corners beyond T{num_corners}.
 
 Include 1-2 specific practice drills tailored to the driver's weakest areas. \
 Each drill should reference a specific corner number and give the driver \
-something concrete to practice on their next session.
+something concrete to practice on their next session. \
+Structure each drill with markdown: use a bold title, then separate paragraphs \
+(use \\n\\n within the JSON string) for focus areas and measurable targets. \
+Keep each paragraph to 1-2 sentences. Never write a wall of text.
 
 Sort priority_corners by time_cost_s descending (biggest avg time loss first).
 Identify the THREE corners with the largest improvement opportunity. \

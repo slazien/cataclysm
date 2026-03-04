@@ -23,7 +23,11 @@ function ExpandableItem({ text, bullet }: { text: string; bullet: string }) {
       <div className="flex items-start gap-1">
         <span className="mt-0.5 shrink-0 text-[var(--text-muted)]">{bullet}</span>
         <div className="min-w-0">
-          <span><MarkdownText>{(expanded ? text : title) + (!expanded && isTruncated ? '…' : '')}</MarkdownText></span>
+          {expanded ? (
+            <MarkdownText block>{text}</MarkdownText>
+          ) : (
+            <span><MarkdownText>{title + (isTruncated ? '…' : '')}</MarkdownText></span>
+          )}
           {isTruncated && (
             <button
               type="button"
