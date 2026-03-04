@@ -91,7 +91,7 @@ _SKILL_PROMPTS: dict[str, str] = {
         "not 'brake later'\n"
         "- Frame FORWARD only — never dwell on past mistakes, only what to do next lap\n"
         "- Celebrate what they're doing well — confidence building is critical\n"
-        "- Use metaphors: 'dance with the car', 'squeeze the brake like a sponge', "
+        "- Use metaphors: 'dance with the car', 'unwind the steering like unwinding a spring', "
         "'the tires are a pie — braking and turning share the same slice'\n"
     ),
     "intermediate": (
@@ -815,7 +815,8 @@ opportunity"
 let's close the gap to those"
 - Frame improvement areas as OPPORTUNITIES, not deficiencies
 
-SPEED FORMATTING: In ALL text fields (summary, issue, tip, notes, patterns, drills), \
+SPEED FORMATTING: In ALL text fields \
+(primary_focus, summary, issue, tip, notes, patterns, drills), \
 wrap every speed value with the marker {{{{speed:N}}}} where N is the numeric value in mph. \
 Example: "Carry {{{{speed:3}}}} more through the apex" or "Min speed was {{{{speed:42.5}}}}". \
 Never write bare "mph" or "km/h" in text fields — always use {{{{speed:N}}}}.

@@ -774,6 +774,58 @@ class TestCoachingReportDrillsField:
         assert len(report.drills) == 2
 
 
+class TestParsePrimaryFocus:
+    """Test extraction of primary_focus from coaching response."""
+
+    def test_parses_primary_focus_from_json(self) -> None:
+        response = json.dumps(
+            {
+                "primary_focus": "Anchor braking to the 2-board at T7",
+                "summary": "Good session.",
+                "priority_corners": [],
+                "corner_grades": [],
+                "patterns": [],
+            }
+        )
+        report = _parse_coaching_response(response)
+        assert report.primary_focus == "Anchor braking to the 2-board at T7"
+
+    def test_missing_primary_focus_defaults_to_empty(self) -> None:
+        response = json.dumps(
+            {
+                "summary": "Good session.",
+                "priority_corners": [],
+                "corner_grades": [],
+                "patterns": [],
+            }
+        )
+        report = _parse_coaching_response(response)
+        assert report.primary_focus == ""
+
+
+class TestCoachingReportPrimaryFocusField:
+    """Test CoachingReport dataclass primary_focus field."""
+
+    def test_default_primary_focus_empty(self) -> None:
+        report = CoachingReport(
+            summary="test",
+            priority_corners=[],
+            corner_grades=[],
+            patterns=[],
+        )
+        assert report.primary_focus == ""
+
+    def test_primary_focus_can_be_set(self) -> None:
+        report = CoachingReport(
+            summary="test",
+            priority_corners=[],
+            corner_grades=[],
+            patterns=[],
+            primary_focus="Focus on T5 braking consistency",
+        )
+        assert report.primary_focus == "Focus on T5 braking consistency"
+
+
 # ---------------------------------------------------------------------------
 # Landmark integration tests
 # ---------------------------------------------------------------------------

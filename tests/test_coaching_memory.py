@@ -37,6 +37,7 @@ def _make_report(
     corner_grades: list[CornerGrade] | None = None,
     patterns: list[str] | None = None,
     drills: list[str] | None = None,
+    primary_focus: str = "",
 ) -> CoachingReport:
     if priority_corners is None:
         priority_corners = [
@@ -61,6 +62,7 @@ def _make_report(
         priority_corners=priority_corners,
         corner_grades=corner_grades,
         patterns=patterns,
+        primary_focus=primary_focus,
         drills=drills,
     )
 
@@ -175,6 +177,23 @@ class TestExtractMemoryFromReport:
         assert mem.detected_archetype == "SMOOTH_OPERATOR"
         assert mem.detected_skill == "intermediate"
 
+    def test_primary_focus_extracted(self) -> None:
+        report = _make_report()
+        report.primary_focus = "Anchor braking to 2-board at T7"
+        mem = extract_memory_from_report(
+            report=report,
+            session_id="s1",
+            track_name="T",
+            session_date=datetime(2026, 1, 1),
+            best_lap_s=90.0,
+            top3_avg_s=91.0,
+        )
+        assert mem.primary_focus == "Anchor braking to 2-board at T7"
+
+    def test_primary_focus_defaults_empty(self) -> None:
+        mem = _make_memory()
+        assert mem.primary_focus == ""
+
     def test_handles_non_int_corner_in_priority(self) -> None:
         report = _make_report(priority_corners=[{"corner": "bad"}, {"corner": 3}])
         mem = extract_memory_from_report(
@@ -221,6 +240,19 @@ class TestBuildHistoryPromptSection:
         ]
         text = build_history_prompt_section(memories, "Barber")
         assert "Priority corners" in text or "Strengths" in text
+
+    def test_primary_focus_in_most_recent(self) -> None:
+        mem = _make_memory()
+        mem.primary_focus = "Anchor braking to 2-board at T7"
+        text = build_history_prompt_section([mem], "Barber")
+        assert "Primary focus" in text
+        assert "2-board" in text
+
+    def test_primary_focus_omitted_when_empty(self) -> None:
+        mem = _make_memory()
+        mem.primary_focus = ""
+        text = build_history_prompt_section([mem], "Barber")
+        assert "Primary focus" not in text
 
     def test_caps_at_max_sessions(self) -> None:
         memories = [

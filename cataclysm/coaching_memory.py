@@ -198,7 +198,7 @@ def build_history_prompt_section(
         priority_str = ", ".join(f"T{c}" for c in m.priority_corners[:2])
         weakness_str = m.key_weaknesses[0] if m.key_weaknesses else "none"
         lines.append(
-            f"  {date_str}: best {m.best_lap_s:.2f}s | focus: {priority_str} | {weakness_str}"
+            f"  {date_str}: best {m.best_lap_s:.2f}s | corners: {priority_str} | {weakness_str}"
         )
 
     # Coaching instruction.
