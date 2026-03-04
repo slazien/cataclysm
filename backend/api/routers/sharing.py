@@ -530,30 +530,3 @@ async def generate_ai_comparison(
 
     text = await _get_or_generate_ai_comparison(report, db)
     return AiComparisonResponse(ai_comparison_text=text)
-
-
-# --- Temporary admin endpoint: remove after use ---
-
-_ADMIN_SECRET = "cata-clear-comparisons-2026"
-
-
-@router.delete("/admin/clear-comparisons")
-async def clear_all_comparisons(
-    secret: str,
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> dict[str, str]:
-    """Temporary endpoint to clear all cached comparison reports from DB.
-
-    Protected by a simple secret query parameter.
-    Remove this endpoint after one-time use.
-    """
-    if secret != _ADMIN_SECRET:
-        raise HTTPException(status_code=403, detail="Invalid secret")
-
-    from sqlalchemy import delete
-
-    result = await db.execute(delete(ShareComparisonReport))
-    await db.commit()
-    count = result.rowcount
-    logger.info("Admin: cleared %d comparison reports", count)
-    return {"status": "ok", "deleted": str(count)}
