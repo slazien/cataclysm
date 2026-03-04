@@ -258,11 +258,17 @@ async def test_generate_report_retries_after_error(client: AsyncClient) -> None:
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "intermediate"},
         )
-        await asyncio.sleep(0.2)
+        # Wait for background task to finish (with generous timeout)
+        from backend.api.services.coaching_store import is_generating
 
-    # GET should show error status
+        for _ in range(20):
+            await asyncio.sleep(0.1)
+            if not is_generating(session_id):
+                break
+
+    # GET clears error reports and returns 404 (triggering frontend auto-retry)
     response = await client.get(f"/api/coaching/{session_id}/report")
-    assert response.json()["status"] == "error"
+    assert response.status_code == 404
 
     # Retry should trigger a new generation (not return the error)
     report = _mock_coaching_report()
@@ -1078,9 +1084,9 @@ async def test_run_generation_stores_error_on_exception(client: AsyncClient) -> 
         assert response.json()["status"] == "generating"
         await asyncio.sleep(0.2)
 
+    # GET clears error reports and returns 404 (triggering frontend auto-retry)
     report = await client.get(f"/api/coaching/{session_id}/report")
-    assert report.json()["status"] == "error"
-    assert "unavailable" in report.json()["summary"].lower()
+    assert report.status_code == 404
 
 
 @pytest.mark.asyncio
