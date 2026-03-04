@@ -15,6 +15,7 @@ from cataclysm.coaching_validator import CoachingValidator
 from cataclysm.constants import MPS_TO_MPH
 from cataclysm.corner_analysis import SessionCornerAnalysis
 from cataclysm.corners import Corner
+from cataclysm.driver_archetypes import ArchetypeResult, format_archetype_for_prompt
 from cataclysm.driving_physics import COACHING_SYSTEM_PROMPT
 from cataclysm.engine import LapSummary
 from cataclysm.equipment import EquipmentProfile, SessionConditions
@@ -27,6 +28,7 @@ from cataclysm.landmarks import (
     format_corner_landmarks,
 )
 from cataclysm.optimal_comparison import OptimalComparisonResult
+from cataclysm.skill_detection import SkillAssessment, format_skill_for_prompt
 from cataclysm.topic_guardrail import TOPIC_RESTRICTION_PROMPT
 
 logger = logging.getLogger(__name__)
@@ -570,6 +572,8 @@ def _build_coaching_prompt(
     optimal_comparison: OptimalComparisonResult | None = None,
     corner_analysis: SessionCornerAnalysis | None = None,
     causal_analysis: SessionCausalAnalysis | None = None,
+    archetype: ArchetypeResult | None = None,
+    skill_assessment: SkillAssessment | None = None,
     equipment_profile: EquipmentProfile | None = None,
     conditions: SessionConditions | None = None,
     weather: SessionConditions | None = None,
@@ -618,6 +622,8 @@ def _build_coaching_prompt(
     causal_section = (
         format_causal_context_for_prompt(causal_analysis) if causal_analysis is not None else ""
     )
+    archetype_section = format_archetype_for_prompt(archetype)
+    skill_section_auto = format_skill_for_prompt(skill_assessment)
 
     corner_analysis_section = ""
     corner_analysis_instruction = ""
@@ -663,7 +669,7 @@ Number of corners: {num_corners} (T1 through T{num_corners})
 {corner_text}
 </corner_kpis>
 {gains_section}{optimal_section}{landmark_section}{skill_section}\
-{equipment_section}{weather_section}{causal_section}
+{equipment_section}{weather_section}{causal_section}{archetype_section}{skill_section_auto}
 </session_data>
 
 <instructions>
@@ -837,6 +843,8 @@ def generate_coaching_report(
     optimal_comparison: OptimalComparisonResult | None = None,
     corner_analysis: SessionCornerAnalysis | None = None,
     causal_analysis: SessionCausalAnalysis | None = None,
+    archetype: ArchetypeResult | None = None,
+    skill_assessment: SkillAssessment | None = None,
     equipment_profile: EquipmentProfile | None = None,
     conditions: SessionConditions | None = None,
     weather: SessionConditions | None = None,
@@ -868,6 +876,8 @@ def generate_coaching_report(
         optimal_comparison=optimal_comparison,
         corner_analysis=corner_analysis,
         causal_analysis=causal_analysis,
+        archetype=archetype,
+        skill_assessment=skill_assessment,
         equipment_profile=equipment_profile,
         conditions=conditions,
         weather=weather,

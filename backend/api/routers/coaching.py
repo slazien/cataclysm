@@ -9,7 +9,9 @@ from typing import Annotated
 
 from cataclysm.causal_chains import compute_causal_analysis
 from cataclysm.coaching import CoachingReport, CornerGrade
+from cataclysm.driver_archetypes import detect_archetype
 from cataclysm.pdf_report import ReportContent, generate_pdf
+from cataclysm.skill_detection import detect_skill_level
 from cataclysm.topic_guardrail import (
     INPUT_TOO_LONG_RESPONSE,
     OFF_TOPIC_RESPONSE,
@@ -179,6 +181,23 @@ async def _run_generation(
             sd.anomalous_laps,
         )
 
+        # Detect driver archetype and auto-assess skill level
+        archetype = (
+            await asyncio.to_thread(detect_archetype, corner_analysis, sd.all_lap_corners)
+            if corner_analysis
+            else None
+        )
+        skill_assessment = (
+            await asyncio.to_thread(
+                detect_skill_level,
+                corner_analysis,
+                sd.consistency.lap_consistency if sd.consistency else None,
+                skill_level,
+            )
+            if corner_analysis
+            else None
+        )
+
         # Semaphore + retry with backoff for rate-limit errors
         async with _coaching_semaphore:
             last_exc: Exception | None = None
@@ -194,6 +213,8 @@ async def _run_generation(
                         landmarks=landmarks or None,
                         corner_analysis=corner_analysis,
                         causal_analysis=causal_analysis,
+                        archetype=archetype,
+                        skill_assessment=skill_assessment,
                         equipment_profile=equipment_profile,
                         conditions=conditions,
                         weather=weather,
