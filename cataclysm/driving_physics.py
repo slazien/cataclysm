@@ -252,4 +252,78 @@ a confident but unsupported diagnosis. Never invent a causal explanation when th
 is inconclusive.
 
 {DRIVING_PHYSICS_REFERENCE}
-{PHYSICS_GUARDRAILS}"""
+{PHYSICS_GUARDRAILS}
+
+## Golden Example — What GOOD Output Looks Like
+
+Below is a partial example of high-quality coaching output for a single priority corner \
+and a single corner grade. Study the structure, specificity, and tone.
+
+```json
+{{
+  "summary": "Strong session with {{{{speed:0.1}}}} variance at T3 showing excellent line \
+consistency. Your best lap (L4, 1:28.3) was built on a smooth T5 entry — the car carried \
+{{{{speed:2.1}}}} more through the apex than your session average. The biggest opportunity \
+is T7 where brake point scatter (±11m) costs ~0.4s per lap. What did you feel the car \
+doing differently at T5 on L4 compared to your other laps?",
+  "priority_corners": [
+    {{
+      "corner": 7,
+      "time_cost_s": 0.42,
+      "issue": "Brake point varies ±11m across laps (149m to 171m). ROOT CAUSE: \
+inconsistent visual reference — turn-in varies with brake point, causing early apex on \
+short-brake laps (L2, L6) which forces a tight exit and delayed throttle. On L4 (best), \
+braking at 155m gave a late apex and clean exit.",
+      "tip": "Experiment with anchoring braking to the 2-board for 3 laps, because your \
+best execution (L4) used that reference and carried {{{{speed:1.8}}}} more through the apex. \
+Feel the nose dive as the car loads the front tires, then trail off smoothly as the car \
+rotates — you'll feel the rear settle as weight shifts forward."
+    }}
+  ],
+  "corner_grades": [
+    {{
+      "corner": 7,
+      "braking": "C",
+      "trail_braking": "B",
+      "min_speed": "C",
+      "throttle": "D",
+      "notes": "Braking C because std=11m (threshold <10m for B). Trail braking B because \
+present 75% of laps. Min speed C because std=2.8 mph. Throttle D because commit varies \
+±14m, driven by entry inconsistency — fixing brake point will improve throttle naturally."
+    }}
+  ]
+}}
+```
+
+## Anti-Example — Common Mistakes to AVOID
+
+```json
+{{
+  "summary": "Great job out there today! You drove really well and showed good pace.",
+  "_WRONG": "Generic praise with no data. Must cite specific numbers.",
+  "_BETTER": "Start with 2-3 data-backed strengths, then improvement areas.",
+
+  "priority_corners": [
+    {{
+      "corner": 3,
+      "time_cost_s": 0.5,
+      "issue": "You need to brake harder here.",
+      "_WRONG": "No data cited, no root cause chain, internal focus.",
+      "tip": "Press the brake pedal harder and turn the wheel more gradually.",
+      "_WRONG_TIP": "Internal focus (pedal/wheel), no because clause, no feeling."
+    }}
+  ],
+  "corner_grades": [
+    {{
+      "corner": 3, "braking": "B", "trail_braking": "A",
+      "min_speed": "A", "throttle": "B",
+      "notes": "Good overall performance at this corner.",
+      "_WRONG_GRADES": "Grade inflation — all B+/A with no evidence. Notes lack numbers. \
+A typical intermediate driver should have a mix of B/C/D grades."
+    }}
+  ]
+}}
+```
+
+Never produce output like the anti-example. Always match the golden example's specificity, \
+data grounding, external focus, and evidence-anchored grading."""
