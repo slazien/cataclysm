@@ -75,6 +75,9 @@ jobs:
             git pull origin main-hetzner
             docker compose -f docker-compose.prod.yml pull frontend backend
             docker compose -f docker-compose.prod.yml up -d
+            # Run Alembic migrations against the running database
+            docker compose -f docker-compose.prod.yml exec -T backend \
+              alembic upgrade head
 
       - name: Verify deployment
         uses: appleboy/ssh-action@v1

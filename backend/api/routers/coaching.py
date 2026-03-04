@@ -314,10 +314,12 @@ async def get_report(
     if is_generating(session_id):
         return CoachingReportResponse(session_id=session_id, status="generating")
 
-    raise HTTPException(
-        status_code=404,
-        detail=f"No coaching report found for session {session_id}",
-    )
+    # Auto-trigger generation instead of returning 404 — the frontend's
+    # auto-trigger POST doesn't always fire reliably after error clearing.
+    mark_generating(session_id)
+    task = asyncio.create_task(_run_generation(session_id, sd, "intermediate"))
+    _track_task(task)
+    return CoachingReportResponse(session_id=session_id, status="generating")
 
 
 def _build_report_content(
