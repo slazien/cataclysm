@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from typing import TypedDict
 
 import numpy as np
 
@@ -21,10 +22,18 @@ logger = logging.getLogger(__name__)
 _MIN_LAPS = 4
 _MIN_CORNERS = 3
 
+
 # Thresholds for each dimension. Values below "novice" threshold → novice,
 # between novice and intermediate → intermediate, above intermediate → advanced.
 # Direction: "lower_is_better" means lower values indicate higher skill.
-_SKILL_DIMENSIONS: dict[str, dict] = {
+class _DimensionConfig(TypedDict):
+    novice: float
+    intermediate: float
+    direction: str
+    label: str
+
+
+_SKILL_DIMENSIONS: dict[str, _DimensionConfig] = {
     "lap_time_cv_pct": {
         "novice": 3.0,
         "intermediate": 1.5,
@@ -161,7 +170,7 @@ def _compute_speed_utilization(
 
 def _classify_dimension(
     value: float,
-    dim_config: dict,
+    dim_config: _DimensionConfig,
 ) -> str:
     """Classify a single dimension value as novice/intermediate/advanced."""
     novice_threshold = dim_config["novice"]

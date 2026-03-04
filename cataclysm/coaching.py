@@ -594,7 +594,13 @@ def _build_coaching_prompt(
             "The consistency gain shows where the driver loses time vs their own best.\n"
         )
 
-    skill_section = _SKILL_PROMPTS.get(skill_level, _SKILL_PROMPTS["intermediate"])
+    # Use auto-detected final_level when available, falling back to user-declared.
+    effective_skill = (
+        skill_assessment.final_level
+        if skill_assessment is not None and skill_assessment.final_level is not None
+        else skill_level
+    )
+    skill_section = _SKILL_PROMPTS.get(effective_skill, _SKILL_PROMPTS["intermediate"])
 
     landmark_section = ""
     landmark_instruction = ""
@@ -647,7 +653,7 @@ def _build_coaching_prompt(
     num_corners = len(next(iter(all_lap_corners.values()), []))
 
     # Determine priority corner count by skill level
-    max_priorities = 2 if skill_level == "novice" else 3
+    max_priorities = 2 if effective_skill == "novice" else 3
 
     return f"""<session_data>
 <session_info>

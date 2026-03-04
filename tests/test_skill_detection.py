@@ -113,27 +113,27 @@ def _make_lap_consistency(
 
 class TestClassifyDimension:
     def test_lower_is_better_novice(self) -> None:
-        config = {"novice": 10.0, "intermediate": 5.0, "direction": "lower_is_better"}
+        config = {"novice": 10.0, "intermediate": 5.0, "direction": "lower_is_better", "label": "x"}
         assert _classify_dimension(15.0, config) == "novice"
 
     def test_lower_is_better_intermediate(self) -> None:
-        config = {"novice": 10.0, "intermediate": 5.0, "direction": "lower_is_better"}
+        config = {"novice": 10.0, "intermediate": 5.0, "direction": "lower_is_better", "label": "x"}
         assert _classify_dimension(7.0, config) == "intermediate"
 
     def test_lower_is_better_advanced(self) -> None:
-        config = {"novice": 10.0, "intermediate": 5.0, "direction": "lower_is_better"}
+        config = {"novice": 10.0, "intermediate": 5.0, "direction": "lower_is_better", "label": "x"}
         assert _classify_dimension(3.0, config) == "advanced"
 
     def test_higher_is_better_novice(self) -> None:
-        config = {"novice": 0.5, "intermediate": 0.8, "direction": "higher_is_better"}
+        config = {"novice": 0.5, "intermediate": 0.8, "direction": "higher_is_better", "label": "x"}
         assert _classify_dimension(0.3, config) == "novice"
 
     def test_higher_is_better_intermediate(self) -> None:
-        config = {"novice": 0.5, "intermediate": 0.8, "direction": "higher_is_better"}
+        config = {"novice": 0.5, "intermediate": 0.8, "direction": "higher_is_better", "label": "x"}
         assert _classify_dimension(0.65, config) == "intermediate"
 
     def test_higher_is_better_advanced(self) -> None:
-        config = {"novice": 0.5, "intermediate": 0.8, "direction": "higher_is_better"}
+        config = {"novice": 0.5, "intermediate": 0.8, "direction": "higher_is_better", "label": "x"}
         assert _classify_dimension(0.95, config) == "advanced"
 
 

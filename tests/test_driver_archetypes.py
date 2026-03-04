@@ -154,12 +154,12 @@ def _make_corner(
 
 class TestBrakeTimingScore:
     def test_early_braker(self) -> None:
-        """Large negative delta (mean >> best) → score < 0."""
+        """Early braker: mean >> best distance → negative score."""
         corners = [
             _make_corner_analysis(i, brake_mean=170.0, brake_best=145.0) for i in range(1, 5)
         ]
         score = _compute_brake_timing_score(corners, {})
-        assert score > 0  # Braking later than best = positive
+        assert score < 0  # Braking farther from corner on avg = early = negative
 
     def test_close_to_best(self) -> None:
         """Mean ≈ best → score near 0."""
@@ -270,8 +270,8 @@ class TestThrottleAggressionScore:
 
 
 class TestScoreArchetype:
-    def test_early_braker_scores_high_with_low_brake_timing(self) -> None:
-        dims = {"brake_timing": 0.1, "brake_force": 0.2}
+    def test_early_braker_scores_high_with_negative_brake_timing(self) -> None:
+        dims = {"brake_timing": -0.8, "brake_force": 0.2}
         score = _score_archetype(dims, Archetype.EARLY_BRAKER)
         assert score > 0.7
 

@@ -95,9 +95,10 @@ def _compute_brake_timing_score(
     for ca in corner_analyses:
         if ca.stats_brake_point is None or ca.stats_brake_point.n_laps < _MIN_LAPS:
             continue
-        # Positive = braking later than best (closer to corner)
-        # Negative = braking earlier than best
-        delta = ca.stats_brake_point.mean - ca.stats_brake_point.best
+        # best = np.min(distance) = closest to corner = latest braking.
+        # Early braker: mean > best (farther from corner on avg).
+        # delta = best - mean: negative = early, positive = late.
+        delta = ca.stats_brake_point.best - ca.stats_brake_point.mean
         deltas.append(delta)
 
     if not deltas:
@@ -215,15 +216,16 @@ def _compute_throttle_aggression_score(
     for ca in corner_analyses:
         if ca.stats_throttle_commit is None or ca.stats_throttle_commit.n_laps < _MIN_LAPS:
             continue
-        # Negative = committing earlier than best (aggressive)
-        # Positive = committing later (conservative)
+        # best = np.min(distance) = earliest commit point.
+        # delta = mean - best: always >= 0. Small = consistently near best
+        # (aggressive), large = usually committing later (conservative).
         delta = ca.stats_throttle_commit.mean - ca.stats_throttle_commit.best
         deltas.append(delta)
 
     if not deltas:
         return 0.5
     mean_delta = float(np.mean(deltas))
-    # Normalize: -10m (aggressive) to +20m (conservative)
+    # Normalize: 0m (aggressive, near-best) to 15m+ (conservative)
     # Map to 0.0 (conservative) to 1.0 (aggressive)
     return float(np.clip(1.0 - mean_delta / 15.0, 0.0, 1.0))
 
@@ -265,6 +267,24 @@ _ARCHETYPE_WEIGHTS: dict[Archetype, list[tuple[str, float, str]]] = {
         ("consistency", 1.0, "high"),  # Consistent
     ],
 }
+
+# Valid dimension names — must match keys computed in detect_archetype().
+_VALID_DIMENSIONS = {
+    "brake_timing",
+    "brake_force",
+    "coast",
+    "consistency",
+    "speed_utilization",
+    "throttle_aggression",
+}
+
+# Startup-time validation: catch typos in weight definitions.
+for _arch, _weights in _ARCHETYPE_WEIGHTS.items():
+    for _dim, _, _dir in _weights:
+        if _dim not in _VALID_DIMENSIONS:
+            raise ValueError(f"Unknown dimension '{_dim}' in {_arch.value} weights")
+        if _dir not in ("high", "low"):
+            raise ValueError(f"Unknown direction '{_dir}' in {_arch.value} weights")
 
 
 def _score_archetype(
