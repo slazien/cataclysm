@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev &
 COPY pyproject.toml .
 COPY cataclysm/ cataclysm/
 RUN pip install --no-cache-dir . && \
-    pip install --no-cache-dir fastapi "uvicorn[standard]" pydantic-settings sqlalchemy asyncpg alembic python-multipart "joserfc" "slowapi>=0.1.9"
+    pip install --no-cache-dir fastapi "uvicorn[standard]" pydantic-settings sqlalchemy asyncpg alembic python-multipart "joserfc" "slowapi>=0.1.9" prometheus-fastapi-instrumentator
 
 # Runtime stage
 FROM python:3.12-slim
