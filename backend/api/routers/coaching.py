@@ -7,6 +7,7 @@ import contextlib
 import logging
 from typing import Annotated
 
+from cataclysm.causal_chains import compute_causal_analysis
 from cataclysm.coaching import CoachingReport, CornerGrade
 from cataclysm.pdf_report import ReportContent, generate_pdf
 from cataclysm.topic_guardrail import (
@@ -172,13 +173,10 @@ async def _run_generation(
         )
 
         # Compute inter-corner causal chains
-        from cataclysm.causal_chains import compute_causal_analysis
-
-        anomalous = {s.lap_number for s in sd.processed.lap_summaries if "anomalous" in s.tags}
         causal_analysis = await asyncio.to_thread(
             compute_causal_analysis,
             sd.all_lap_corners,
-            anomalous,
+            sd.anomalous_laps,
         )
 
         # Semaphore + retry with backoff for rate-limit errors

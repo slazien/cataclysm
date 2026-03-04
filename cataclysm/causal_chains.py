@@ -26,6 +26,11 @@ _CAUSAL_R_THRESHOLD = 0.50
 # Minimum number of causal links to form a chain.
 _MIN_CHAIN_LENGTH = 2
 
+# Approximate time cost (seconds) per unit of unrecovered correlation.
+# Heuristic: 1 mph of speed variance at a typical corner ≈ 0.05s,
+# combined with correlation strength and recovery fraction.
+_CASCADE_TIME_FACTOR_S = 0.1
+
 
 @dataclass
 class CornerLink:
@@ -101,7 +106,6 @@ def _extract_lap_metrics(
                     "min_speed_mph": c.min_speed_mps * MPS_TO_MPH,
                     "brake_point_m": c.brake_point_m,
                     "throttle_commit_m": c.throttle_commit_m,
-                    "peak_brake_g": c.peak_brake_g,
                 }
                 break
     return result
@@ -265,7 +269,8 @@ def _build_chains(links: list[CornerLink]) -> list[CausalChain]:
         if len(chain_links) >= _MIN_CHAIN_LENGTH:
             # Estimate cascade cost: sum of (1 - recovery) * upstream correlation
             cascade_cost = sum(
-                (1.0 - link.recovery_fraction) * abs(link.pearson_r) * 0.1 for link in chain_links
+                (1.0 - lnk.recovery_fraction) * abs(lnk.pearson_r) * _CASCADE_TIME_FACTOR_S
+                for lnk in chain_links
             )
             chains.append(
                 CausalChain(
@@ -318,7 +323,8 @@ def _find_time_killer(
     affected: dict[int, list[int]] = {}
     for link in links:
         up = link.upstream_corner
-        cascade_impact = (1.0 - link.recovery_fraction) * abs(link.pearson_r) * 0.1
+        r = abs(link.pearson_r)
+        cascade_impact = (1.0 - link.recovery_fraction) * r * _CASCADE_TIME_FACTOR_S
         cascade_costs[up] = cascade_costs.get(up, 0.0) + cascade_impact
         if up not in affected:
             affected[up] = []
