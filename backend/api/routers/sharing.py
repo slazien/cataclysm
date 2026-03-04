@@ -354,6 +354,7 @@ async def upload_to_share(
         speed_traces=comparison.get("speed_traces"),
         skill_dimensions=comparison.get("skill_dimensions"),
         ai_verdict=comparison.get("ai_verdict"),
+        track_coords=comparison.get("track_coords"),
     )
 
 
@@ -395,6 +396,7 @@ async def get_share_comparison(
         speed_traces=data.get("speed_traces"),
         skill_dimensions=data.get("skill_dimensions"),
         ai_verdict=data.get("ai_verdict"),
+        track_coords=data.get("track_coords"),
     )
 
 
