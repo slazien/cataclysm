@@ -198,6 +198,47 @@ async def _run_generation(
             else None
         )
 
+        # Corners Gained decomposition (gap to target by corner/technique)
+        # Use theoretical best as the target — it represents the driver's own
+        # potential assembled from their best micro-sectors.
+        corners_gained = None
+        if corner_analysis and sd.gains:
+            from cataclysm.corners_gained import compute_corners_gained
+
+            best_lap_s = min(s.lap_time_s for s in coaching_summaries)
+            target_s = sd.gains.theoretical.theoretical_time_s
+            corners_gained = await asyncio.to_thread(
+                compute_corners_gained,
+                corner_analysis,
+                target_s,
+                best_lap_s,
+            )
+
+        # Flow lap detection (peak-performance laps)
+        flow_laps = None
+        if sd.all_lap_corners and coaching_summaries:
+            from cataclysm.constants import MPS_TO_MPH
+            from cataclysm.flow_lap import detect_flow_laps
+
+            lap_times = [s.lap_time_s for s in coaching_summaries]
+            per_lap_speeds: dict[int, list[float]] = {}
+            best_speeds: list[float] = []
+            for lap_num, corners in sd.all_lap_corners.items():
+                per_lap_speeds[lap_num] = [c.min_speed_mps * MPS_TO_MPH for c in corners]
+            if per_lap_speeds:
+                n_corners = len(next(iter(per_lap_speeds.values())))
+                best_speeds = [
+                    max(
+                        per_lap_speeds[ln][ci]
+                        for ln in per_lap_speeds
+                        if ci < len(per_lap_speeds[ln])
+                    )
+                    for ci in range(n_corners)
+                ]
+            flow_laps = await asyncio.to_thread(
+                detect_flow_laps, lap_times, per_lap_speeds, best_speeds
+            )
+
         # Semaphore + retry with backoff for rate-limit errors
         async with _coaching_semaphore:
             last_exc: Exception | None = None
@@ -218,6 +259,8 @@ async def _run_generation(
                         equipment_profile=equipment_profile,
                         conditions=conditions,
                         weather=weather,
+                        corners_gained=corners_gained,
+                        flow_laps=flow_laps,
                     )
                     # Treat JSON parse failures as retryable errors
                     if "Could not parse" in (report.summary or ""):

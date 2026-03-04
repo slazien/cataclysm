@@ -28,6 +28,9 @@ FLOW_LAP_WEIGHTS = {
     "timing": 0.10,
 }
 
+if abs(sum(FLOW_LAP_WEIGHTS.values()) - 1.0) > 1e-9:
+    raise ValueError(f"FLOW_LAP_WEIGHTS must sum to 1.0, got {sum(FLOW_LAP_WEIGHTS.values())}")
+
 
 @dataclass
 class FlowLapResult:
@@ -153,7 +156,9 @@ def detect_flow_laps(
     lap_numbers = sorted(per_lap_corner_speeds.keys())
 
     for i, lap_num in enumerate(lap_numbers):
-        lap_time = lap_times[lap_num - 1] if lap_num <= len(lap_times) else lap_times[-1]
+        if lap_num < 1 or lap_num > len(lap_times):
+            continue
+        lap_time = lap_times[lap_num - 1]
         corner_speeds = per_lap_corner_speeds[lap_num]
 
         prox = _score_proximity(lap_time, best_time)

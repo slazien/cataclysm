@@ -15,10 +15,12 @@ from cataclysm.coaching_validator import CoachingValidator
 from cataclysm.constants import MPS_TO_MPH
 from cataclysm.corner_analysis import SessionCornerAnalysis
 from cataclysm.corners import Corner
+from cataclysm.corners_gained import CornersGainedResult, format_corners_gained_for_prompt
 from cataclysm.driver_archetypes import ArchetypeResult, format_archetype_for_prompt
 from cataclysm.driving_physics import COACHING_SYSTEM_PROMPT
 from cataclysm.engine import LapSummary
 from cataclysm.equipment import EquipmentProfile, SessionConditions
+from cataclysm.flow_lap import FlowLapResult
 from cataclysm.gains import GainEstimate
 from cataclysm.kb_selector import select_kb_snippets
 from cataclysm.landmarks import (
@@ -561,6 +563,26 @@ def _format_cross_condition_context(
     return "\n".join(lines)
 
 
+def _format_flow_laps_for_prompt(result: FlowLapResult | None) -> str:
+    """Format flow lap detection results for injection into the coaching prompt."""
+    if result is None or not result.flow_laps:
+        return ""
+    lines = ["\n## Flow Laps (Peak Performance)"]
+    lines.append(
+        f"Flow laps identified: {', '.join(f'L{lap}' for lap in result.flow_laps[:5])} "
+        f"(threshold: {result.threshold:.0%})"
+    )
+    if result.best_flow_lap is not None:
+        score = result.scores.get(result.best_flow_lap, 0.0)
+        lines.append(f"Best flow lap: L{result.best_flow_lap} (score: {score:.0%})")
+    lines.append(
+        "Flow laps show when the driver was 'in the zone' — balanced technique, "
+        "near-PB pace, and smooth execution. Reference these laps as positive examples "
+        "and study what the driver did differently on non-flow laps."
+    )
+    return "\n".join(lines)
+
+
 def _build_coaching_prompt(
     summaries: list[LapSummary],
     all_lap_corners: dict[int, list[Corner]],
@@ -577,6 +599,8 @@ def _build_coaching_prompt(
     equipment_profile: EquipmentProfile | None = None,
     conditions: SessionConditions | None = None,
     weather: SessionConditions | None = None,
+    corners_gained: CornersGainedResult | None = None,
+    flow_laps: FlowLapResult | None = None,
 ) -> str:
     """Build the full coaching prompt for Claude."""
     lap_text = _format_lap_summaries(summaries)
@@ -630,6 +654,8 @@ def _build_coaching_prompt(
     )
     archetype_section = format_archetype_for_prompt(archetype)
     skill_section_auto = format_skill_for_prompt(skill_assessment)
+    corners_gained_section = format_corners_gained_for_prompt(corners_gained)
+    flow_laps_section = _format_flow_laps_for_prompt(flow_laps)
 
     corner_analysis_section = ""
     corner_analysis_instruction = ""
@@ -675,7 +701,8 @@ Number of corners: {num_corners} (T1 through T{num_corners})
 {corner_text}
 </corner_kpis>
 {gains_section}{optimal_section}{landmark_section}{skill_section}\
-{equipment_section}{weather_section}{causal_section}{archetype_section}{skill_section_auto}
+{equipment_section}{weather_section}{causal_section}{archetype_section}{skill_section_auto}\
+{corners_gained_section}{flow_laps_section}
 </session_data>
 
 <instructions>
@@ -854,6 +881,8 @@ def generate_coaching_report(
     equipment_profile: EquipmentProfile | None = None,
     conditions: SessionConditions | None = None,
     weather: SessionConditions | None = None,
+    corners_gained: CornersGainedResult | None = None,
+    flow_laps: FlowLapResult | None = None,
 ) -> CoachingReport:
     """Generate an AI coaching report using the Claude API.
 
@@ -887,6 +916,8 @@ def generate_coaching_report(
         equipment_profile=equipment_profile,
         conditions=conditions,
         weather=weather,
+        corners_gained=corners_gained,
+        flow_laps=flow_laps,
     )
 
     system = COACHING_SYSTEM_PROMPT

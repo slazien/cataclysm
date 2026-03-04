@@ -142,6 +142,10 @@ class TestEstimateConsistencyGain:
         ca = _make_corner(1, gain_s=0.0)
         assert _estimate_consistency_gain(ca) == 0.0
 
+    def test_negative_gain_clamped_to_zero(self) -> None:
+        ca = _make_corner(1, gain_s=-0.5)
+        assert _estimate_consistency_gain(ca) == 0.0
+
 
 class TestComputeCornersGained:
     def test_returns_none_for_few_corners(self) -> None:

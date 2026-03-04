@@ -18,10 +18,6 @@ logger = logging.getLogger(__name__)
 _MIN_CORNERS = 2
 _MIN_LAPS = 4
 
-# Weight caps — no single technique category can exceed this fraction
-# of the total gap to prevent implausible attributions.
-_MAX_CATEGORY_FRACTION = 0.50
-
 # Conversion factor: mph speed deficit → approximate time cost per corner.
 # Rough heuristic: 1 mph slower through a typical 50m corner ≈ 0.05s.
 _MPH_TO_SEC_PER_CORNER = 0.05
@@ -93,11 +89,8 @@ def _estimate_min_speed_gain(ca: CornerAnalysis) -> float:
     stats = ca.stats_min_speed
     if stats.n_laps < _MIN_LAPS:
         return 0.0
-    speed_gap_mph = stats.mean - stats.best  # always >= 0 since best = min
-    # For min speed, best = fastest = highest, so gap = mean - best < 0 for
-    # stats computed with np.min, but corner_analysis uses "best" as the
-    # single-lap value closest to the physical optimum.  Here best > mean
-    # is the expected case (best lap was faster).
+    # best = fastest min speed (highest value), so best > mean when driver
+    # carried more speed on their best lap than average.
     speed_gap_mph = stats.best - stats.mean if stats.best > stats.mean else 0.0
     return speed_gap_mph * _MPH_TO_SEC_PER_CORNER
 
@@ -187,22 +180,24 @@ def compute_corners_gained(
     raw_consistency = sum(c.consistency_gain_s for c in per_corner)
     raw_total = raw_braking + raw_speed + raw_throttle + raw_consistency
 
-    # Scale gains proportionally to match the actual gap.
-    # This prevents over-counting (raw estimates can exceed the gap).
-    scale = min(total_gap / raw_total, 1.0) if raw_total > 0 else 0.0
+    # Scale gains proportionally so they sum to the actual gap.
+    # Allows both upward and downward scaling to fully attribute the gap.
+    scale = total_gap / raw_total if raw_total > 0 else 0.0
 
     total_braking = round(raw_braking * scale, 3)
     total_speed = round(raw_speed * scale, 3)
     total_throttle = round(raw_throttle * scale, 3)
     total_consistency = round(raw_consistency * scale, 3)
 
-    # Scale per-corner values too.
+    # Scale per-corner values and recompute totals from rounded components.
     for c in per_corner:
         c.braking_gain_s = round(c.braking_gain_s * scale, 3)
         c.min_speed_gain_s = round(c.min_speed_gain_s * scale, 3)
         c.throttle_gain_s = round(c.throttle_gain_s * scale, 3)
         c.consistency_gain_s = round(c.consistency_gain_s * scale, 3)
-        c.total_gain_s = round(c.total_gain_s * scale, 3)
+        c.total_gain_s = round(
+            c.braking_gain_s + c.min_speed_gain_s + c.throttle_gain_s + c.consistency_gain_s, 3
+        )
 
     # Top opportunities: largest per-corner gains.
     sorted_corners = sorted(per_corner, key=lambda c: c.total_gain_s, reverse=True)
