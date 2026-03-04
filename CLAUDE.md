@@ -117,18 +117,23 @@ All must pass before committing:
 
 ## Deployment
 
-Railway auto-deploys from `main` branch. After committing to `nextjs-rewrite`, merge to `main` and push.
+Two deployment targets (both active, independent branches):
 
-For Railway configuration, environment variables, Docker setup, and troubleshooting: read `docs/deployment.md`.
+- **Railway** (PaaS): Auto-deploys from `main` branch. Dev branch: `nextjs-rewrite`.
+- **Hetzner VPS** (self-managed): Auto-deploys from `main-hetzner` via GitHub Actions. Dev branch: `hetzner-migration`.
 
-**Key URLs**: Frontend `https://cataclysm.up.railway.app` | Backend `https://backend-production-4c97.up.railway.app`
+For full deployment guide (Railway + Hetzner): read `docs/deployment.md`.
+
+**Railway URLs**: Frontend `https://cataclysm.up.railway.app` | Backend `https://backend-production-4c97.up.railway.app`
+
+**Hetzner**: `http://<VPS_IP>` (Caddy reverse proxy, auto-TLS when domain added)
 
 ## Workflow
 
 - Always ask all clarifying questions before making assumptions
 - Use agent teams wherever possible for parallel work
 - Always commit and push after making changes. Do not wait to be asked.
-- Dev branch: `nextjs-rewrite`. Production: `main`.
+- Dev branch: `nextjs-rewrite`. Production: `main` (Railway), `main-hetzner` (Hetzner VPS).
 - When pushing to GitHub, confirm remote URL — personal repo is github.com, NOT github.intuit.com.
 - **Image viewing**: When a URL points to an image that WebFetch can't render, download it locally (`curl -sL -o /tmp/filename.ext "URL"`), view with the Read tool, then delete when done. Never give up on viewing an image — always try the download approach.
 
