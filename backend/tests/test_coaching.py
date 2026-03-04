@@ -250,6 +250,8 @@ async def test_generate_report_retries_after_error(client: AsyncClient) -> None:
     session_id = await _upload_session(client)
 
     # First generation fails (API overloaded)
+    from backend.api.services.coaching_store import is_generating
+
     with patch(
         "cataclysm.coaching.generate_coaching_report",
         side_effect=Exception("API overloaded"),
@@ -258,7 +260,11 @@ async def test_generate_report_retries_after_error(client: AsyncClient) -> None:
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "intermediate"},
         )
-        await asyncio.sleep(0.2)
+        # Wait for background task to finish
+        for _ in range(20):
+            await asyncio.sleep(0.1)
+            if not is_generating(session_id):
+                break
 
     # GET clears error reports and returns 404 (triggering frontend auto-retry)
     response = await client.get(f"/api/coaching/{session_id}/report")
