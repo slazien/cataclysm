@@ -22,6 +22,7 @@ dependencies = [
     "pandas>=2.1",
     "anthropic>=0.40",
     "slowapi>=0.1.9",
+    "prometheus-fastapi-instrumentator>=7.0.0",
 ]
 
 [project.optional-dependencies]
@@ -65,6 +66,8 @@ module = [
     "pandas.*",
     "anthropic",
     "anthropic.*",
+    "prometheus_fastapi_instrumentator",
+    "prometheus_fastapi_instrumentator.*",
 ]
 ignore_missing_imports = true
 

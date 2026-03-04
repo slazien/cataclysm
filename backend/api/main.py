@@ -20,6 +20,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
 
+from prometheus_fastapi_instrumentator import Instrumentator
+
 from backend.api.config import Settings
 from backend.api.db.database import get_db
 from backend.api.rate_limit import limiter
@@ -360,6 +362,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# -- Prometheus metrics -------------------------------------------------------
+
+Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 # -- Routers -----------------------------------------------------------------
 
