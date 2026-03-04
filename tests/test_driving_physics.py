@@ -36,4 +36,4 @@ class TestCoachingSystemPrompt:
         assert PHYSICS_GUARDRAILS in COACHING_SYSTEM_PROMPT
 
     def test_includes_role_preamble(self) -> None:
-        assert "expert motorsport driving coach" in COACHING_SYSTEM_PROMPT
+        assert "elite motorsport driving coach" in COACHING_SYSTEM_PROMPT

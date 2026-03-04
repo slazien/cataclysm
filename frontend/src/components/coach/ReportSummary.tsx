@@ -37,6 +37,10 @@ function buildSpeechText(
 ): string {
   const parts: string[] = [];
 
+  if (report.primary_focus) {
+    parts.push('Your primary focus: ' + resolveSpeed(report.primary_focus));
+  }
+
   if (report.summary) {
     parts.push(resolveSpeed(report.summary));
   }
@@ -121,6 +125,20 @@ export function ReportSummary() {
 
   return (
     <div className="border-b border-[var(--cata-border)]">
+      {/* Primary Focus — the ONE thing to work on */}
+      {report.primary_focus && (
+        <div className="px-4 pt-3 pb-1">
+          <div className="rounded-md bg-[var(--cata-accent)]/10 border border-[var(--cata-accent)]/30 px-3 py-2">
+            <h4 className="text-[10px] font-medium text-[var(--cata-accent)] uppercase tracking-wider mb-1">
+              Primary Focus
+            </h4>
+            <p className="text-xs text-[var(--text-primary)] leading-relaxed">
+              <MarkdownText>{formatCoachingText(resolveSpeed(report.primary_focus))}</MarkdownText>
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Summary */}
       {report.summary && (
         <div className="px-4 py-3">

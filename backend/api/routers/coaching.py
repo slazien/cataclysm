@@ -326,6 +326,7 @@ async def _run_generation(
             status="ready",
             skill_level=skill_level,
             summary=report.summary,
+            primary_focus=report.primary_focus,
             priority_corners=priority_corners,
             corner_grades=corner_grades,
             patterns=report.patterns,
@@ -435,6 +436,7 @@ def _build_report_content(
         priority_corners=priority_corners,
         corner_grades=corner_grades,
         patterns=coaching_response.patterns,
+        primary_focus=coaching_response.primary_focus,
         drills=coaching_response.drills,
         raw_response="",
         validation_failed=coaching_response.validation_failed,
@@ -538,6 +540,7 @@ async def coaching_chat_http(
         ],
         corner_grades=[],
         patterns=report_response.patterns,
+        primary_focus=report_response.primary_focus,
         drills=report_response.drills,
         raw_response=report_response.summary or "",
     )
@@ -617,6 +620,7 @@ async def coaching_chat(
         ],
         corner_grades=[],
         patterns=report_response.patterns,
+        primary_focus=report_response.primary_focus,
         drills=report_response.drills,
         raw_response=report_response.summary or "",
     )

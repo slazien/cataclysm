@@ -74,49 +74,65 @@ SkillLevel = str  # "novice", "intermediate", "advanced"
 _SKILL_PROMPTS: dict[str, str] = {
     "novice": (
         "\n## Skill Level: Novice (HPDE Group 1-2)\n"
-        "This driver is relatively new to track driving. "
-        "Focus your coaching on:\n"
+        "This driver is new to track driving. Adapt your coaching style:\n\n"
+        "**Content focus:**\n"
         "- Line consistency: are they hitting the same line each lap?\n"
-        "- Smooth inputs: abrupt braking/throttle transitions hurt "
-        "novices most\n"
-        "- Basic braking: are they braking in a straight line before "
-        "turn-in?\n"
-        "- Limit advice to 1-2 priorities per corner — avoid "
-        "information overload\n"
-        "- Do NOT discuss trail braking, threshold braking, or "
-        "advanced techniques\n"
-        "- Grade trail_braking as 'N/A' for novices (not expected "
-        "at this level)\n"
-        "- Use encouraging language and celebrate what they're "
-        "doing well\n"
+        "- Smooth inputs: abrupt braking/throttle transitions hurt novices most\n"
+        "- Basic braking: are they braking in a straight line before turn-in?\n"
+        "- Limit to 1-2 priorities TOTAL (not per corner) — information overload is the "
+        "#1 mistake coaches make with novices\n"
+        "- Do NOT discuss trail braking, threshold braking, or advanced techniques\n"
+        "- Grade trail_braking as 'N/A' for novices\n\n"
+        "**Communication style:**\n"
+        "- Use SHORT sentences with MINIMAL jargon. 'The car doesn't want to turn' "
+        "not 'you have excessive understeer'\n"
+        "- Use SENSORY language: 'feel the nose dip', 'squeeze the brake like a sponge'\n"
+        "- Give REFERENCE POINTS, not reactive commands: 'Brake at the 3-board' "
+        "not 'brake later'\n"
+        "- Frame FORWARD only — never dwell on past mistakes, only what to do next lap\n"
+        "- Celebrate what they're doing well — confidence building is critical\n"
+        "- Use metaphors: 'dance with the car', 'squeeze the brake like a sponge', "
+        "'the tires are a pie — braking and turning share the same slice'\n"
     ),
     "intermediate": (
         "\n## Skill Level: Intermediate (HPDE Group 3)\n"
-        "This driver has solid fundamentals and is ready for "
-        "technique refinement:\n"
-        "- Trail braking: are they carrying brake into the corner "
-        "entry?\n"
-        "- Brake point optimization: can they brake later or "
-        "release more gradually?\n"
-        "- Throttle timing: are they getting on throttle at the "
-        "right point?\n"
-        "- Consistency: compare their best corner executions vs "
-        "typical ones\n"
-        "- Show all metrics and be specific about what to work on\n"
+        "This driver has solid fundamentals and may be hitting a plateau. "
+        "Adapt your coaching style:\n\n"
+        "**Content focus:**\n"
+        "- Trail braking: are they carrying brake into the corner entry?\n"
+        "- Brake point optimization: can they brake later or release more gradually?\n"
+        "- Throttle timing: are they getting on throttle at the right point?\n"
+        "- 'No dead time': is there coast between brake release and throttle? Eliminate it\n"
+        "- Consistency: compare their best corner executions vs typical ones\n"
+        "- Show all metrics and be specific about what to work on\n\n"
+        "**Communication style:**\n"
+        "- Use SOCRATIC questioning: 'Your T5 on L7 was 50 mph — what were you doing "
+        "differently than the other laps at 47 mph?' This builds self-coaching ability\n"
+        "- Compare against THEIR OWN data: 'You already carried that speed on L7 — "
+        "the potential is proven'\n"
+        "- Frame as EXPERIMENTS: 'Try anchoring to the 2-board for 3 laps, then compare'\n"
+        "- Reframe abstract metrics to tangible ones: '0.1s = 10 inches at this speed'\n"
+        "- Plateau-breaking techniques: isolate ONE variable, exaggerate it, then dial back\n"
     ),
     "advanced": (
         "\n## Skill Level: Advanced (HPDE Group 4+ / Instructor)\n"
-        "This driver has strong technique and is looking for "
-        "marginal gains:\n"
-        "- Micro-optimization: tenths and hundredths at each "
-        "corner\n"
-        "- Composite/theoretical gap analysis: where are they "
-        "leaving time?\n"
-        "- Setup correlation hints: do certain corners suggest "
-        "car balance issues?\n"
-        "- Discuss advanced concepts: trail brake modulation, "
-        "weight transfer mgmt\n"
-        "- Be precise with distances and speed differentials\n"
+        "This driver has strong technique and is hunting marginal gains. "
+        "Adapt your coaching style:\n\n"
+        "**Content focus:**\n"
+        "- Corner EXIT speed is king: 1 mph more at exit compounds down the straight\n"
+        "- Brake release PROFILE: shape of the release curve, not just brake point\n"
+        "- Micro-sector analysis: where are tenths hiding in the data?\n"
+        "- Consistency as the primary metric: variance analysis, not just best-lap speed\n"
+        "- Setup correlation hints: do certain corners suggest car balance issues?\n"
+        "- Trail brake modulation, weight transfer management, rotation technique\n\n"
+        "**Communication style:**\n"
+        "- Use PRECISE technical language — this driver knows the vocabulary\n"
+        "- Reference mini-sector splits and exact distances/speeds\n"
+        "- Frame as analysis, not instruction: 'The data shows your brake release in T5 "
+        "has a 0.3G/s rate vs 0.5G/s on L4 — the progressive release on L4 gave 0.8 mph "
+        "more through the apex'\n"
+        "- Discuss ROTATION vs oversteer: deliberate rotation is a tool, not a problem\n"
+        "- Support mental programming: trigger words, trust in subconscious execution\n"
     ),
 }
 
@@ -190,6 +206,7 @@ class CoachingReport:
     priority_corners: list[dict[str, object]]
     corner_grades: list[CornerGrade]
     patterns: list[str]
+    primary_focus: str = ""
     drills: list[str] = field(default_factory=list)
     raw_response: str = ""
     validation_failed: bool = False
@@ -718,7 +735,13 @@ Analyze the FULL session. Look at every lap's data for each corner to identify:
 
 Respond in JSON with this exact structure:
 {{
-  "summary": "2-3 sentence overview — mention consistency, progression, key strengths",
+  "primary_focus": "The ONE most impactful change for the driver's next session. \
+This is the single highest-leverage action — not a list, not vague, but one specific \
+experiment the driver can practice next time out. Frame it as what the CAR should do, \
+not what the body should do. Include a 'because' clause with data.",
+  "summary": "2-3 sentence overview — START with 2-3 data-backed strengths, \
+then transition to the biggest opportunity. End with one reflective question \
+referencing specific telemetry patterns.",
   "priority_corners": [
     {{
       "corner": <number>,
@@ -783,6 +806,15 @@ diagnose WHY by tracing entry cause -> mid-corner effect -> exit consequence. \
 If lap times plateaued, explain whether it's a technique ceiling, \
 fatigue, tire degradation, or confidence limit based on the data.
 
+Motivational framing — use the driver's OWN best laps as the reference:
+- Instead of "You need to brake later" → "You already braked at the 2-board on L7 — \
+let's make that your target"
+- Instead of "Your T5 is weak" → "T5 has the most time to gain — it's your biggest \
+opportunity"
+- Instead of "You're inconsistent" → "Your best laps show what you're capable of — \
+let's close the gap to those"
+- Frame improvement areas as OPPORTUNITIES, not deficiencies
+
 SPEED FORMATTING: In ALL text fields (summary, issue, tip, notes, patterns, drills), \
 wrap every speed value with the marker {{{{speed:N}}}} where N is the numeric value in mph. \
 Example: "Carry {{{{speed:3}}}} more through the apex" or "Min speed was {{{{speed:42.5}}}}". \
@@ -841,6 +873,7 @@ def _parse_coaching_response(text: str) -> CoachingReport:
         priority_corners=data.get("priority_corners", []),
         corner_grades=grades,
         patterns=data.get("patterns", []),
+        primary_focus=data.get("primary_focus", ""),
         drills=drills,
         raw_response=text,
     )

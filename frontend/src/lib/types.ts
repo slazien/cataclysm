@@ -149,6 +149,7 @@ export interface CoachingReport {
   session_id: string;
   status: string; // "ready" | "generating" | "error"
   summary: string | null;
+  primary_focus?: string;
   priority_corners: PriorityCorner[];
   corner_grades: CornerGrade[];
   patterns: string[];

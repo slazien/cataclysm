@@ -32,6 +32,7 @@ class CoachingReportResponse(BaseModel):
     status: str  # "ready", "generating", "error"
     skill_level: str = "intermediate"
     summary: str | None = None
+    primary_focus: str = ""
     priority_corners: list[PriorityCornerSchema] = []
     corner_grades: list[CornerGradeSchema] = []
     patterns: list[str] = []

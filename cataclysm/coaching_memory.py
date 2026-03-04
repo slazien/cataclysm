@@ -36,6 +36,7 @@ class SessionMemoryExtract:
     key_strengths: list[str]
     key_weaknesses: list[str]
     drills_assigned: list[str]
+    primary_focus: str = ""
     conditions: str | None = None
     equipment: str | None = None
     timekiller_corner: int | None = None
@@ -124,6 +125,7 @@ def extract_memory_from_report(
         key_strengths=strengths,
         key_weaknesses=weaknesses,
         drills_assigned=report.drills[:3],
+        primary_focus=report.primary_focus,
         conditions=conditions,
         equipment=equipment,
         timekiller_corner=timekiller_corner,
@@ -185,6 +187,8 @@ def build_history_prompt_section(
         lines.append(f"  Strengths: {'; '.join(most_recent.key_strengths)}")
     if most_recent.key_weaknesses:
         lines.append(f"  Weaknesses: {'; '.join(most_recent.key_weaknesses)}")
+    if most_recent.primary_focus:
+        lines.append(f"  Primary focus: {most_recent.primary_focus}")
     if most_recent.drills_assigned:
         lines.append(f"  Drills assigned: {'; '.join(most_recent.drills_assigned)}")
 

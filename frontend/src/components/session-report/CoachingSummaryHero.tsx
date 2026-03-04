@@ -6,7 +6,7 @@ import { useUnits } from '@/hooks/useUnits';
 import { formatCoachingText } from '@/lib/textUtils';
 
 interface CoachingSummaryHeroProps {
-  report: { status: string; summary?: string | null } | null;
+  report: { status: string; summary?: string | null; primary_focus?: string } | null;
 }
 
 /** Split summary into a prominent first sentence and the rest. */
@@ -24,6 +24,7 @@ export function CoachingSummaryHero({ report }: CoachingSummaryHeroProps) {
   const isLoading = !report || report.status === 'generating';
   const { resolveSpeed } = useUnits();
   const summary = report?.summary ? formatCoachingText(resolveSpeed(report.summary)) : report?.summary;
+  const primaryFocus = report?.primary_focus ? formatCoachingText(resolveSpeed(report.primary_focus)) : null;
 
   return (
     <div className="overflow-hidden rounded-xl border border-[var(--cata-accent)]/30 bg-gradient-to-r from-[var(--cata-accent)]/5 to-transparent p-5">
@@ -43,22 +44,34 @@ export function CoachingSummaryHero({ report }: CoachingSummaryHeroProps) {
       ) : report?.status === 'error' ? (
         <p className="text-sm text-[var(--text-muted)]">{summary ?? 'Coaching report unavailable.'}</p>
       ) : summary ? (
-        <div className="border-l-[3px] border-[var(--cata-accent)] pl-4">
-          {(() => {
-            const { lead, rest } = splitSummary(summary);
-            return (
-              <>
-                <p className="font-[family-name:var(--font-display)] text-base font-semibold leading-snug text-[var(--text-primary)]">
-                  <MarkdownText>{lead}</MarkdownText>
-                </p>
-                {rest && (
-                  <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
-                    <MarkdownText>{rest}</MarkdownText>
+        <div className="space-y-3">
+          {primaryFocus && (
+            <div className="rounded-lg bg-[var(--cata-accent)]/10 border border-[var(--cata-accent)]/20 px-4 py-3">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--cata-accent)]">
+                Your #1 Focus
+              </span>
+              <p className="mt-1 text-sm font-medium leading-relaxed text-[var(--text-primary)]">
+                <MarkdownText>{primaryFocus}</MarkdownText>
+              </p>
+            </div>
+          )}
+          <div className="border-l-[3px] border-[var(--cata-accent)] pl-4">
+            {(() => {
+              const { lead, rest } = splitSummary(summary);
+              return (
+                <>
+                  <p className="font-[family-name:var(--font-display)] text-base font-semibold leading-snug text-[var(--text-primary)]">
+                    <MarkdownText>{lead}</MarkdownText>
                   </p>
-                )}
-              </>
-            );
-          })()}
+                  {rest && (
+                    <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
+                      <MarkdownText>{rest}</MarkdownText>
+                    </p>
+                  )}
+                </>
+              );
+            })()}
+          </div>
         </div>
       ) : (
         <p className="text-sm text-[var(--text-muted)]">No coaching summary available.</p>
