@@ -171,6 +171,16 @@ async def _run_generation(
             sd.processed.best_lap,
         )
 
+        # Compute inter-corner causal chains
+        from cataclysm.causal_chains import compute_causal_analysis
+
+        anomalous = {s.lap_number for s in sd.processed.lap_summaries if "anomalous" in s.tags}
+        causal_analysis = await asyncio.to_thread(
+            compute_causal_analysis,
+            sd.all_lap_corners,
+            anomalous,
+        )
+
         # Semaphore + retry with backoff for rate-limit errors
         async with _coaching_semaphore:
             last_exc: Exception | None = None
@@ -185,6 +195,7 @@ async def _run_generation(
                         skill_level=skill_level,
                         landmarks=landmarks or None,
                         corner_analysis=corner_analysis,
+                        causal_analysis=causal_analysis,
                         equipment_profile=equipment_profile,
                         conditions=conditions,
                         weather=weather,

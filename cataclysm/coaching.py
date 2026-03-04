@@ -10,6 +10,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from cataclysm.causal_chains import SessionCausalAnalysis, format_causal_context_for_prompt
 from cataclysm.coaching_validator import CoachingValidator
 from cataclysm.constants import MPS_TO_MPH
 from cataclysm.corner_analysis import SessionCornerAnalysis
@@ -568,6 +569,7 @@ def _build_coaching_prompt(
     landmarks: list[Landmark] | None = None,
     optimal_comparison: OptimalComparisonResult | None = None,
     corner_analysis: SessionCornerAnalysis | None = None,
+    causal_analysis: SessionCausalAnalysis | None = None,
     equipment_profile: EquipmentProfile | None = None,
     conditions: SessionConditions | None = None,
     weather: SessionConditions | None = None,
@@ -613,6 +615,9 @@ def _build_coaching_prompt(
 
     equipment_section = _format_equipment_context(equipment_profile, conditions)
     weather_section = _format_weather_context(weather)
+    causal_section = (
+        format_causal_context_for_prompt(causal_analysis) if causal_analysis is not None else ""
+    )
 
     corner_analysis_section = ""
     corner_analysis_instruction = ""
@@ -657,7 +662,8 @@ Number of corners: {num_corners} (T1 through T{num_corners})
 <corner_kpis note="all laps, best lap marked with *">
 {corner_text}
 </corner_kpis>
-{gains_section}{optimal_section}{landmark_section}{skill_section}{equipment_section}{weather_section}
+{gains_section}{optimal_section}{landmark_section}{skill_section}\
+{equipment_section}{weather_section}{causal_section}
 </session_data>
 
 <instructions>
@@ -830,6 +836,7 @@ def generate_coaching_report(
     landmarks: list[Landmark] | None = None,
     optimal_comparison: OptimalComparisonResult | None = None,
     corner_analysis: SessionCornerAnalysis | None = None,
+    causal_analysis: SessionCausalAnalysis | None = None,
     equipment_profile: EquipmentProfile | None = None,
     conditions: SessionConditions | None = None,
     weather: SessionConditions | None = None,
@@ -860,6 +867,7 @@ def generate_coaching_report(
         landmarks=landmarks,
         optimal_comparison=optimal_comparison,
         corner_analysis=corner_analysis,
+        causal_analysis=causal_analysis,
         equipment_profile=equipment_profile,
         conditions=conditions,
         weather=weather,
