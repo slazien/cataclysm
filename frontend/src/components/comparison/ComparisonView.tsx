@@ -6,6 +6,7 @@ import { useShareComparison } from '@/hooks/useComparison';
 import { TaleOfTheTape } from './TaleOfTheTape';
 import { CornerScorecard } from './CornerScorecard';
 import { ComparisonDeltaChart } from './ComparisonDeltaChart';
+import { ComparisonTrackMap } from './ComparisonTrackMap';
 
 /** Padding (meters) around corner zone for context in the delta chart */
 const CORNER_PADDING_M = 100;
@@ -100,6 +101,26 @@ export function ComparisonView({ token }: ComparisonViewProps) {
           bestLap: data.session_b_best_lap,
         }}
       />
+
+      {/* Delta-colored track map */}
+      {data.track_coords && data.distance_m.length > 0 && (
+        <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
+          <h2 className="mb-1 text-sm font-medium text-[var(--text-primary)] font-[family-name:var(--font-display)]">
+            Delta Map
+          </h2>
+          <p className="mb-3 text-xs text-[var(--text-secondary)]">
+            Green = A gaining, Red = A losing
+          </p>
+          <div className="mx-auto aspect-square max-w-sm">
+            <ComparisonTrackMap
+              trackCoords={data.track_coords}
+              distanceM={data.distance_m}
+              deltaTimeS={data.delta_time_s}
+              cornerDeltas={data.corner_deltas}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Layer 2: Corner Scorecard */}
       {data.corner_deltas.length > 0 && (

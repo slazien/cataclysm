@@ -226,6 +226,12 @@ export interface ComparisonCornerDelta {
   exit_distance_m: number;
 }
 
+export interface ComparisonTrackCoords {
+  lat: number[];
+  lon: number[];
+  distance_m: number[];
+}
+
 export interface ComparisonResult {
   session_a_id: string;
   session_b_id: string;
@@ -237,6 +243,7 @@ export interface ComparisonResult {
   distance_m: number[];
   delta_time_s: number[];
   corner_deltas: ComparisonCornerDelta[];
+  track_coords?: ComparisonTrackCoords | null;
   session_a_weather_condition?: string | null;
   session_a_weather_temp_c?: number | null;
   session_b_weather_condition?: string | null;
@@ -552,6 +559,7 @@ export interface ShareComparisonResult {
     b: { braking: number; trail_braking: number; throttle: number; line: number };
   };
   ai_verdict?: string;
+  track_coords?: ComparisonTrackCoords | null;
 }
 
 export interface PublicSessionView {

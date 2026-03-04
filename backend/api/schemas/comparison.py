@@ -32,6 +32,14 @@ class SkillDimensionSchema(BaseModel):
     line: float
 
 
+class TrackCoordsSchema(BaseModel):
+    """GPS coordinates and distance array for track rendering."""
+
+    lat: list[float]
+    lon: list[float]
+    distance_m: list[float]
+
+
 class ComparisonResult(BaseModel):
     """Full comparison of two sessions' best laps."""
 
@@ -48,6 +56,7 @@ class ComparisonResult(BaseModel):
     speed_traces: dict[str, SpeedTracePoint] | None = None
     skill_dimensions: dict[str, SkillDimensionSchema] | None = None
     ai_verdict: str | None = None
+    track_coords: TrackCoordsSchema | None = None
     session_a_weather_condition: str | None = None
     session_a_weather_temp_c: float | None = None
     session_b_weather_condition: str | None = None

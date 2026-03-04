@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { formatLapTime } from '@/lib/formatters';
 import { Button } from '@/components/ui/button';
 import { DeltaTimeChart } from './DeltaTimeChart';
+import { ComparisonTrackMap } from './ComparisonTrackMap';
 import type { ComparisonResult } from '@/lib/types';
 import { ConditionsMismatchAlert } from '@/components/shared/ConditionsMismatchAlert';
 
@@ -209,6 +210,26 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
           </div>
         </div>
       </div>
+
+      {/* Delta-colored track map */}
+      {data.track_coords && data.distance_m.length > 0 && (
+        <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
+          <h2 className="mb-1 text-sm font-medium text-[var(--text-primary)]">
+            Delta Map
+          </h2>
+          <p className="mb-3 text-xs text-[var(--text-secondary)]">
+            Green = Session A gaining time, Red = Session A losing time
+          </p>
+          <div className="mx-auto aspect-square max-w-sm">
+            <ComparisonTrackMap
+              trackCoords={data.track_coords}
+              distanceM={data.distance_m}
+              deltaTimeS={data.delta_time_s}
+              cornerDeltas={data.corner_deltas}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Delta-T Chart */}
       {data.distance_m.length > 0 && (

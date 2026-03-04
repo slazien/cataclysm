@@ -70,3 +70,4 @@ class ShareComparisonResponse(BaseModel):
     speed_traces: dict[str, object] | None = None
     skill_dimensions: dict[str, object] | None = None
     ai_verdict: str | None = None
+    track_coords: dict[str, list[float]] | None = None

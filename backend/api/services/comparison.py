@@ -104,6 +104,20 @@ async def compare_sessions(sd_a: SessionData, sd_b: SessionData) -> dict[str, An
             best_time_b = ls.lap_time_s
             break
 
+    # Track coordinates from session A's reference lap for track map rendering
+    # Subsample to ~300 points for reasonable response size
+    track_coords: dict[str, list[float]] | None = None
+    if "lat" in df_a.columns and "lon" in df_a.columns:
+        lat_arr = df_a["lat"].tolist()
+        lon_arr = df_a["lon"].tolist()
+        dist_arr = df_a["lap_distance_m"].tolist()
+        step = max(1, len(lat_arr) // 300)
+        track_coords = {
+            "lat": lat_arr[::step],
+            "lon": lon_arr[::step],
+            "distance_m": dist_arr[::step],
+        }
+
     # Speed traces — speed vs distance for both best laps
     speed_traces: dict[str, dict[str, list[float]]] = {
         "a": {
@@ -145,6 +159,7 @@ async def compare_sessions(sd_a: SessionData, sd_b: SessionData) -> dict[str, An
         "speed_traces": speed_traces,
         "skill_dimensions": skill_dimensions,
         "ai_verdict": None,  # populated by AI narrative endpoint (Task 4)
+        "track_coords": track_coords,
         "session_a_weather_condition": weather_a.track_condition.value if weather_a else None,
         "session_a_weather_temp_c": weather_a.ambient_temp_c if weather_a else None,
         "session_b_weather_condition": weather_b.track_condition.value if weather_b else None,
