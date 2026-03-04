@@ -1,6 +1,8 @@
 # Deployment Guide
 
-Cataclysm is deployed on Railway with 3 services: PostgreSQL, FastAPI backend, and Next.js frontend.
+Cataclysm supports two deployment targets:
+- **Railway** (PaaS) — auto-deploys from `main` branch
+- **Hetzner VPS** (self-managed) — auto-deploys from `main-hetzner` branch via GitHub Actions
 
 ## Railway Architecture
 
@@ -192,3 +194,164 @@ Swagger UI is available at the backend URL:
 ```
 https://backend-production-4c97.up.railway.app/docs
 ```
+
+---
+
+## Hetzner VPS Deployment
+
+### Architecture
+
+```
+┌──────────────────────────────────────────────────────┐
+│  Hetzner CX32 (Ashburn)                             │
+│                                                       │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐       │
+│  │  Caddy    │───▶│ Frontend │    │ Grafana  │       │
+│  │  :80/:443 │    │  :3000   │    │  :3000   │       │
+│  │           │───▶│          │    │          │       │
+│  │           │    └──────────┘    └──────────┘       │
+│  │           │    ┌──────────┐    ┌────────────┐     │
+│  │           │───▶│ Backend  │    │ Prometheus │     │
+│  │           │    │  :8000   │    │  :9090     │     │
+│  └──────────┘    └──────────┘    └────────────┘     │
+│                   ┌──────────┐    ┌──────────┐       │
+│                   │ Postgres │    │  Dozzle  │       │
+│                   │  :5432   │    │  :8080   │       │
+│                   └──────────┘    └──────────┘       │
+│                   ┌──────────────┐ ┌──────────┐      │
+│                   │ Node Exporter│ │ cAdvisor │      │
+│                   │  :9100       │ │  :8080   │      │
+│                   └──────────────┘ └──────────┘      │
+│                                                       │
+│  Docker Compose internal network                      │
+│  Volumes: pgdata, grafana-data, prometheus-data       │
+└──────────────────────────────────────────────────────┘
+```
+
+10 services orchestrated by Docker Compose. Only Caddy exposes ports 80/443 to the internet.
+
+### Deployment Workflow
+
+GitHub Actions triggers on push to `main-hetzner`:
+1. Run lint + tests (reuses CI workflow)
+2. Build Docker images (frontend + backend)
+3. Push to `ghcr.io/slazien/cataclysm/`
+4. SSH into VPS, pull images, restart containers
+5. Health check verification
+
+```bash
+# Develop on hetzner-migration
+git checkout hetzner-migration
+# ... make changes ...
+git push origin hetzner-migration
+
+# Deploy to Hetzner
+git checkout main-hetzner
+git merge hetzner-migration
+git push origin main-hetzner
+# → GitHub Actions auto-deploys
+```
+
+### Initial VPS Setup
+
+1. **Provision CX32** in Hetzner Cloud console (Ashburn, Ubuntu 24.04, add SSH key)
+
+2. **Run setup script**:
+   ```bash
+   ssh root@<VPS_IP> 'bash -s' < scripts/setup-server.sh
+   ```
+   This installs Docker, fail2ban, configures UFW (22/80/443), creates `deploy` user, and sets up backup cron.
+
+3. **Clone repo as deploy user**:
+   ```bash
+   ssh deploy@<VPS_IP>
+   git clone https://github.com/slazien/cataclysm.git /opt/cataclysm
+   cd /opt/cataclysm && git checkout main-hetzner
+   ```
+
+4. **Create `.env`**:
+   ```bash
+   cp .env.example .env
+   nano .env  # Fill in real values
+   ```
+
+5. **Docker login to GHCR**:
+   ```bash
+   docker login ghcr.io -u YOUR_GITHUB_USER
+   ```
+
+6. **Start services**:
+   ```bash
+   docker compose -f docker-compose.prod.yml up -d
+   ```
+
+### GitHub Secrets Required
+
+Configure these in your GitHub repository settings:
+
+| Secret | Value |
+|--------|-------|
+| `VPS_HOST` | VPS IP address |
+| `VPS_USER` | `deploy` |
+| `VPS_SSH_KEY` | Private SSH key for deploy user |
+
+`GITHUB_TOKEN` is automatically available for GHCR access.
+
+### Data Migration from Railway
+
+```bash
+# 1. Export from Railway
+railway run pg_dump -Fc > railway_backup.dump
+scp railway_backup.dump deploy@<VPS_IP>:/opt/backups/
+
+# 2. Import on VPS (start postgres first)
+docker compose -f docker-compose.prod.yml up -d postgres
+sleep 5
+docker exec -i cataclysm-postgres-1 pg_restore \
+    -U cataclysm -d cataclysm --clean < /opt/backups/railway_backup.dump
+
+# 3. Start remaining services
+docker compose -f docker-compose.prod.yml up -d
+```
+
+### Backup Management
+
+Daily automated backups at 03:00 UTC via cron (`scripts/pg_backup.sh`):
+- Location: `/opt/backups/`
+- Format: PostgreSQL custom format (`.dump`)
+- Retention: 7 days
+
+Manual backup:
+```bash
+/opt/cataclysm/scripts/pg_backup.sh
+```
+
+Restore:
+```bash
+docker exec -i cataclysm-postgres-1 pg_restore \
+    -U cataclysm -d cataclysm --clean < /opt/backups/cataclysm_YYYYMMDD.dump
+```
+
+### Monitoring
+
+| Tool | URL | Purpose |
+|------|-----|---------|
+| Grafana | `http://<VPS_IP>/grafana` | Dashboards (CPU, memory, request metrics) |
+| Dozzle | `http://<VPS_IP>/dozzle` | Live Docker container logs |
+| Prometheus | Internal only | Metrics collection + alerting |
+
+### Adding a Custom Domain
+
+1. Update `Caddyfile`: change `:80` to `yourdomain.com` (Caddy auto-provisions TLS)
+2. Update `.env`: set `NEXTAUTH_URL`, `CORS_ORIGINS` to the domain
+3. Restart Caddy: `docker compose -f docker-compose.prod.yml restart caddy`
+
+### Hetzner Troubleshooting
+
+**Container won't start**: Check logs with `docker compose -f docker-compose.prod.yml logs <service>`
+
+**Health check fails**: Ensure postgres is healthy first: `docker compose -f docker-compose.prod.yml ps`
+
+**GHCR pull fails**: Re-run `docker login ghcr.io` on the VPS
+
+**Disk space**: Check with `df -h`. Prune old images: `docker image prune -a`
