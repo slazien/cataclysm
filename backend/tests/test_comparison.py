@@ -54,8 +54,13 @@ async def test_compare_two_sessions(client: AsyncClient) -> None:
         assert "speed_diff_mph" in cd
         assert "a_min_speed_mph" in cd
         assert "b_min_speed_mph" in cd
+        assert "entry_distance_m" in cd
+        assert "exit_distance_m" in cd
         assert isinstance(cd["corner_number"], int)
         assert isinstance(cd["speed_diff_mph"], float)
+        assert isinstance(cd["entry_distance_m"], float)
+        assert isinstance(cd["exit_distance_m"], float)
+        assert cd["entry_distance_m"] < cd["exit_distance_m"]
 
 
 @pytest.mark.asyncio

@@ -12,6 +12,8 @@ class CornerDeltaSchema(BaseModel):
     speed_diff_mph: float  # positive = A faster
     a_min_speed_mph: float
     b_min_speed_mph: float
+    entry_distance_m: float
+    exit_distance_m: float
 
 
 class SpeedTracePoint(BaseModel):

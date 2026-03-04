@@ -9,6 +9,8 @@ interface CornerDeltaRow {
   a_min_speed_mph: number;
   b_min_speed_mph: number;
   speed_diff_mph: number;
+  entry_distance_m: number;
+  exit_distance_m: number;
 }
 
 interface CornerScorecardProps {

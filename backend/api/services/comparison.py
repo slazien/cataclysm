@@ -87,6 +87,8 @@ async def compare_sessions(sd_a: SessionData, sd_b: SessionData) -> dict[str, An
                 "speed_diff_mph": round(a_mph - b_mph, 2),
                 "a_min_speed_mph": round(a_mph, 2),
                 "b_min_speed_mph": round(b_mph, 2),
+                "entry_distance_m": round(ca.entry_distance_m, 1),
+                "exit_distance_m": round(ca.exit_distance_m, 1),
             }
         )
 
