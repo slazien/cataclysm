@@ -70,12 +70,11 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -euo pipefail
             cd /opt/cataclysm
             git pull origin main-hetzner
             docker compose -f docker-compose.prod.yml pull frontend backend
             docker compose -f docker-compose.prod.yml up -d
-            sleep 5
-            curl -sf http://localhost/health || echo "WARNING: Health check failed"
 
       - name: Verify deployment
         uses: appleboy/ssh-action@v1
@@ -84,4 +83,14 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            curl -sf http://localhost/health && echo "Deploy successful" || exit 1
+            set -euo pipefail
+            for i in $(seq 1 12); do
+              if curl -sf http://localhost/health; then
+                echo "Deploy successful"
+                exit 0
+              fi
+              echo "Waiting for health check... attempt $i/12"
+              sleep 5
+            done
+            echo "Health check failed after 60s"
+            exit 1
