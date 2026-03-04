@@ -125,6 +125,13 @@ async def generate_report(
     return CoachingReportResponse(session_id=session_id, status="generating")
 
 
+# Limit concurrent coaching API calls to avoid rate-limit storms.
+_coaching_semaphore = asyncio.Semaphore(2)
+
+# Max retries for rate-limit (429) errors.
+_MAX_RETRIES = 3
+
+
 async def _run_generation(
     session_id: str,
     sd: SessionData,
@@ -164,19 +171,42 @@ async def _run_generation(
             sd.processed.best_lap,
         )
 
-        report = await asyncio.to_thread(
-            generate_coaching_report,
-            coaching_summaries,
-            sd.all_lap_corners,
-            sd.parsed.metadata.track_name,
-            gains=sd.gains,
-            skill_level=skill_level,
-            landmarks=landmarks or None,
-            corner_analysis=corner_analysis,
-            equipment_profile=equipment_profile,
-            conditions=conditions,
-            weather=weather,
-        )
+        # Semaphore + retry with backoff for rate-limit errors
+        async with _coaching_semaphore:
+            last_exc: Exception | None = None
+            for attempt in range(_MAX_RETRIES):
+                try:
+                    report = await asyncio.to_thread(
+                        generate_coaching_report,
+                        coaching_summaries,
+                        sd.all_lap_corners,
+                        sd.parsed.metadata.track_name,
+                        gains=sd.gains,
+                        skill_level=skill_level,
+                        landmarks=landmarks or None,
+                        corner_analysis=corner_analysis,
+                        equipment_profile=equipment_profile,
+                        conditions=conditions,
+                        weather=weather,
+                    )
+                    break
+                except Exception as exc:  # noqa: BLE001
+                    last_exc = exc
+                    # Only retry on rate-limit errors
+                    if "429" in str(exc) or "rate_limit" in str(exc).lower():
+                        wait = 30 * (attempt + 1)
+                        logger.warning(
+                            "Rate limited for %s, retry %d/%d in %ds",
+                            session_id,
+                            attempt + 1,
+                            _MAX_RETRIES,
+                            wait,
+                        )
+                        await asyncio.sleep(wait)
+                    else:
+                        raise
+            else:
+                raise last_exc  # type: ignore[misc]
 
         priority_corners = []
         for pc in report.priority_corners:
