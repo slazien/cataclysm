@@ -45,9 +45,9 @@ async def _setup_db() -> None:  # type: ignore[misc]
 
     async with _session_factory() as session:
         # Create test users
-        session.add(User(id="user-a", email="a@test.com", name="Alice", leaderboard_opt_in=True))
-        session.add(User(id="user-b", email="b@test.com", name="Bob", leaderboard_opt_in=True))
-        session.add(User(id="user-c", email="c@test.com", name="Charlie", leaderboard_opt_in=False))
+        session.add(User(id="user-a", email="a@test.com", name="Alice"))
+        session.add(User(id="user-b", email="b@test.com", name="Bob"))
+        session.add(User(id="user-c", email="c@test.com", name="Charlie"))
         await session.commit()
 
         # Create sessions for FK constraints
@@ -131,7 +131,7 @@ async def test_get_corner_leaderboard_empty(db: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_get_corner_leaderboard_ranked(db: AsyncSession) -> None:
-    """Leaderboard ranks opted-in users by sector time."""
+    """Leaderboard ranks users by sector time."""
     # Alice: corner 1 = 4.5s
     await record_corner_times(
         db,
@@ -148,7 +148,7 @@ async def test_get_corner_leaderboard_ranked(db: AsyncSession) -> None:
         "Barber Motorsports Park",
         [CornerRecordInput(corner_number=1, min_speed_mps=26.0, sector_time_s=4.2, lap_number=5)],
     )
-    # Charlie: corner 1 = 3.9s (fastest but NOT opted in)
+    # Charlie: corner 1 = 3.9s (fastest)
     await record_corner_times(
         db,
         "user-c",
@@ -159,13 +159,16 @@ async def test_get_corner_leaderboard_ranked(db: AsyncSession) -> None:
     await db.commit()
 
     entries = await get_corner_leaderboard(db, "Barber Motorsports Park", 1)
-    assert len(entries) == 2  # Charlie excluded (not opted in)
-    assert entries[0].user_name == "Bob"
-    assert entries[0].sector_time_s == 4.2
+    assert len(entries) == 3  # All users included
+    assert entries[0].user_name == "Charlie"
+    assert entries[0].sector_time_s == 3.9
     assert entries[0].rank == 1
-    assert entries[1].user_name == "Alice"
-    assert entries[1].sector_time_s == 4.5
+    assert entries[1].user_name == "Bob"
+    assert entries[1].sector_time_s == 4.2
     assert entries[1].rank == 2
+    assert entries[2].user_name == "Alice"
+    assert entries[2].sector_time_s == 4.5
+    assert entries[2].rank == 3
 
 
 @pytest.mark.asyncio
@@ -221,7 +224,7 @@ async def test_get_kings_empty(db: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_update_kings(db: AsyncSession) -> None:
-    """update_kings correctly computes kings from opted-in records."""
+    """update_kings correctly computes kings from records."""
     await record_corner_times(
         db,
         "user-a",
@@ -259,8 +262,8 @@ async def test_update_kings(db: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
-async def test_update_kings_excludes_non_opted_in(db: AsyncSession) -> None:
-    """Non-opted-in users cannot become king even with faster times."""
+async def test_update_kings_all_users_eligible(db: AsyncSession) -> None:
+    """All users are eligible for king — fastest time wins."""
     await record_corner_times(
         db,
         "user-c",
@@ -282,7 +285,7 @@ async def test_update_kings_excludes_non_opted_in(db: AsyncSession) -> None:
 
     kings = await get_kings(db, "Barber Motorsports Park")
     assert len(kings) == 1
-    assert kings[0].user_name == "Alice"
+    assert kings[0].user_name == "Charlie"
 
 
 @pytest.mark.asyncio

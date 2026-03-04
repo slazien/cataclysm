@@ -4,18 +4,14 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.db.database import get_db
-from backend.api.db.models import User
 from backend.api.dependencies import AuthenticatedUser, get_current_user
 from backend.api.schemas.leaderboard import (
     KingsResponse,
     LeaderboardResponse,
-    OptInRequest,
-    OptInResponse,
 )
 from backend.api.services.leaderboard_store import (
     get_corner_leaderboard,
@@ -55,21 +51,3 @@ async def corner_kings(
     """Get current kings for all corners on a track."""
     kings = await get_kings(db, track)
     return KingsResponse(track_name=track, kings=kings)
-
-
-@router.post("/opt-in", response_model=OptInResponse)
-async def toggle_opt_in(
-    body: OptInRequest,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> OptInResponse:
-    """Toggle leaderboard opt-in for the authenticated user."""
-    result = await db.execute(select(User).where(User.id == current_user.user_id))
-    user = result.scalar_one_or_none()
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    user.leaderboard_opt_in = body.opt_in
-    await db.flush()
-
-    return OptInResponse(leaderboard_opt_in=user.leaderboard_opt_in)

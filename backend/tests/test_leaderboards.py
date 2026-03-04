@@ -7,7 +7,6 @@ from datetime import UTC, datetime
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.db.models import CornerRecord, Session, User
@@ -28,15 +27,8 @@ async def _seed_leaderboard_data(client: AsyncClient) -> None:
                 id="user-rival",
                 email="rival@test.com",
                 name="Rival Driver",
-                leaderboard_opt_in=True,
             )
         )
-        await db.flush()
-
-        # Opt in the default test user
-        result = await db.execute(select(User).where(User.id == "test-user-123"))
-        user = result.scalar_one()
-        user.leaderboard_opt_in = True
         await db.flush()
 
         # Create sessions
@@ -130,18 +122,6 @@ async def test_corner_kings_empty(client: AsyncClient) -> None:
     assert resp.status_code == 200
     data = resp.json()
     assert data["kings"] == []
-
-
-@pytest.mark.asyncio
-async def test_opt_in_toggle(client: AsyncClient) -> None:
-    """POST /api/leaderboards/opt-in toggles the leaderboard opt-in flag."""
-    resp = await client.post("/api/leaderboards/opt-in", json={"opt_in": True})
-    assert resp.status_code == 200
-    assert resp.json()["leaderboard_opt_in"] is True
-
-    resp = await client.post("/api/leaderboards/opt-in", json={"opt_in": False})
-    assert resp.status_code == 200
-    assert resp.json()["leaderboard_opt_in"] is False
 
 
 @pytest.mark.asyncio

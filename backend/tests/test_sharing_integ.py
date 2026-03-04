@@ -68,8 +68,8 @@ class TestCreateShareLink:
         assert "expires_at" in data
 
     @pytest.mark.asyncio
-    async def test_each_create_produces_unique_token(self, client: AsyncClient) -> None:
-        """Two share links for the same session have different tokens."""
+    async def test_idempotent_create_returns_same_token(self, client: AsyncClient) -> None:
+        """Two share links for the same session return the same token (idempotent)."""
         sid = await _upload_session(client)
 
         resp1 = await client.post("/api/sharing/create", json={"session_id": sid})
@@ -77,7 +77,7 @@ class TestCreateShareLink:
 
         assert resp1.status_code == 200
         assert resp2.status_code == 200
-        assert resp1.json()["token"] != resp2.json()["token"]
+        assert resp1.json()["token"] == resp2.json()["token"]
 
     @pytest.mark.asyncio
     async def test_returns_404_for_nonexistent_session(self, client: AsyncClient) -> None:

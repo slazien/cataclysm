@@ -66,9 +66,9 @@ async def ensure_user_exists(db: AsyncSession, user: AuthenticatedUser) -> None:
         await db.execute(
             text(
                 "INSERT INTO users "
-                "(id, email, name, avatar_url, skill_level, role, leaderboard_opt_in) "
+                "(id, email, name, avatar_url, skill_level, role) "
                 "VALUES (:new_id, :temp_email, :name, :avatar, "
-                "'intermediate', 'driver', false)"
+                "'intermediate', 'driver')"
             ),
             {
                 "new_id": user.user_id,

@@ -23,7 +23,6 @@ async def _seed_progress_data() -> None:
             id="user-a",
             email="a@test.com",
             name="Driver Alpha",
-            leaderboard_opt_in=True,
         )
         db.add(user_a)
         for i in range(4):
@@ -43,7 +42,6 @@ async def _seed_progress_data() -> None:
             id="user-b",
             email="b@test.com",
             name="Driver Beta",
-            leaderboard_opt_in=True,
         )
         db.add(user_b)
         for i in range(3):
@@ -63,7 +61,6 @@ async def _seed_progress_data() -> None:
             id="user-c",
             email="c@test.com",
             name="Driver Charlie",
-            leaderboard_opt_in=True,
         )
         db.add(user_c)
         for i in range(2):
@@ -78,12 +75,11 @@ async def _seed_progress_data() -> None:
                 )
             )
 
-        # User D: opted out, should not appear even with enough sessions
+        # User D: 5 sessions, should appear (no longer gated by opt-in)
         user_d = User(
             id="user-d",
             email="d@test.com",
             name="Driver Delta",
-            leaderboard_opt_in=False,
         )
         db.add(user_d)
         for i in range(5):
@@ -103,7 +99,6 @@ async def _seed_progress_data() -> None:
             id="user-e",
             email="e@test.com",
             name="Driver Echo",
-            leaderboard_opt_in=True,
         )
         db.add(user_e)
         for i in range(4):
@@ -118,10 +113,7 @@ async def _seed_progress_data() -> None:
                 )
             )
 
-        # Make the test user also opted-in with 3 sessions (rate = (97-100)/3 = -1.0)
-        test_user_result = await db.get(User, _TEST_USER.user_id)
-        if test_user_result:
-            test_user_result.leaderboard_opt_in = True
+        # Make the test user with 3 sessions (rate = (97-100)/3 = -1.0)
         for i in range(3):
             db.add(
                 Session(
@@ -149,24 +141,29 @@ async def test_improvement_leaderboard_ranking(
     assert data["track_name"] == "Barber Motorsports Park"
     entries = data["entries"]
 
-    # Should have 3 entries: User B (rate -1.667), User A (rate -1.5), Test User (rate -1.0)
-    assert len(entries) == 3
+    # Should have 4 entries: User D (rate -2.4), User B (rate -1.667),
+    # User A (rate -1.5), Test User (rate -1.0)
+    assert len(entries) == 4
 
     # Verify ranking order: most negative first
     rates = [e["improvement_rate_s"] for e in entries]
     assert rates == sorted(rates), "Entries should be sorted by improvement rate ascending"
 
-    # Rank 1 should be User B (most negative rate)
-    assert entries[0]["user_name"] == "Driver Beta"
+    # Rank 1 should be User D (most negative rate: (95-15*3-95)/5 = -12/5 = -2.4)
+    assert entries[0]["user_name"] == "Driver Delta"
     assert entries[0]["rank"] == 1
 
-    # Rank 2 should be User A
-    assert entries[1]["user_name"] == "Driver Alpha"
+    # Rank 2 should be User B
+    assert entries[1]["user_name"] == "Driver Beta"
     assert entries[1]["rank"] == 2
 
-    # Rank 3 should be Test User
-    assert entries[2]["user_name"] == "Test Driver"
+    # Rank 3 should be User A
+    assert entries[2]["user_name"] == "Driver Alpha"
     assert entries[2]["rank"] == 3
+
+    # Rank 4 should be Test User
+    assert entries[3]["user_name"] == "Test Driver"
+    assert entries[3]["rank"] == 4
 
 
 @pytest.mark.asyncio
@@ -178,15 +175,6 @@ async def test_user_below_min_sessions_excluded(
     assert resp.status_code == 200
     names = [e["user_name"] for e in resp.json()["entries"]]
     assert "Driver Charlie" not in names
-
-
-@pytest.mark.asyncio
-async def test_opted_out_user_excluded(client: AsyncClient, _seed_progress_data: None) -> None:
-    """User D is opted out, should not appear."""
-    resp = await client.get("/api/progress/Barber Motorsports Park/improvement")
-    assert resp.status_code == 200
-    names = [e["user_name"] for e in resp.json()["entries"]]
-    assert "Driver Delta" not in names
 
 
 @pytest.mark.asyncio
@@ -205,10 +193,10 @@ async def test_your_rank_and_percentile(client: AsyncClient, _seed_progress_data
     assert resp.status_code == 200
     data = resp.json()
 
-    assert data["your_rank"] == 3
-    # percentile = (3-1)/3 * 100 = 66.7
+    assert data["your_rank"] == 4
+    # percentile = (4-1)/4 * 100 = 75.0
     assert data["your_percentile"] is not None
-    assert abs(data["your_percentile"] - 66.7) < 0.1
+    assert abs(data["your_percentile"] - 75.0) < 0.1
 
 
 @pytest.mark.asyncio
@@ -239,7 +227,6 @@ async def test_time_window_filtering(client: AsyncClient, _seed_progress_data: N
     # With days=7, only the test user's sessions (within last 5 days) qualify
     # User A sessions are 27-30 days old, User B 18-20, etc.
     data = resp.json()
-    # The test user has 3 sessions within 5 days, all within the 7-day window
     names = [e["user_name"] for e in data["entries"]]
     assert "Driver Alpha" not in names
     assert "Driver Beta" not in names

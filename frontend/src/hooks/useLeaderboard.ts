@@ -1,11 +1,10 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import type { LeaderboardData, KingsData } from '@/lib/types';
 import {
   getCornerLeaderboard,
   getCornerKings,
-  toggleLeaderboardOptIn,
 } from '@/lib/api';
 
 export function useCornerLeaderboard(
@@ -28,15 +27,5 @@ export function useCornerKings(trackName: string | undefined) {
     queryFn: () => getCornerKings(trackName!),
     enabled: !!trackName,
     staleTime: 30_000,
-  });
-}
-
-export function useToggleOptIn() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (optIn: boolean) => toggleLeaderboardOptIn(optIn),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
-    },
   });
 }

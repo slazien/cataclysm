@@ -54,7 +54,6 @@ async def get_corner_leaderboard(
 ) -> list[CornerRecordEntry]:
     """Get top N users for a specific corner, ranked by the chosen category.
 
-    Only includes users who have opted in to leaderboards.
     Returns the best record per user (deduped).
 
     Categories:
@@ -88,20 +87,18 @@ async def get_corner_leaderboard(
     base_filters = [
         CornerRecord.track_name == track_name,
         CornerRecord.corner_number == corner_number,
-        User.leaderboard_opt_in.is_(True),
     ]
 
     # For nullable columns, filter out NULL values
     if category in ("brake_point", "consistency"):
         base_filters.append(metric_col.isnot(None))
 
-    # Subquery: best metric per opted-in user for this corner
+    # Subquery: best metric per user for this corner
     best_per_user = (
         select(
             CornerRecord.user_id,
             agg_func.label("best_metric"),
         )
-        .join(User, CornerRecord.user_id == User.id)
         .where(*base_filters)
         .group_by(CornerRecord.user_id)
         .subquery()
@@ -205,20 +202,18 @@ async def get_kings(db: AsyncSession, track_name: str) -> list[CornerKingEntry]:
 async def update_kings(db: AsyncSession, track_name: str) -> int:
     """Recompute kings for all corners at a track after new records.
 
-    Only considers opted-in users. Returns the number of kings updated.
+    Returns the number of kings updated.
     """
     from sqlalchemy import func as sa_func
 
-    # Find the best sector_time per corner among opted-in users
+    # Find the best sector_time per corner
     best_stmt = (
         select(
             CornerRecord.corner_number,
             sa_func.min(CornerRecord.sector_time_s).label("best_time"),
         )
-        .join(User, CornerRecord.user_id == User.id)
         .where(
             CornerRecord.track_name == track_name,
-            User.leaderboard_opt_in.is_(True),
         )
         .group_by(CornerRecord.corner_number)
     )
@@ -234,12 +229,10 @@ async def update_kings(db: AsyncSession, track_name: str) -> int:
         # Find the actual record that has this best time
         record_stmt = (
             select(CornerRecord)
-            .join(User, CornerRecord.user_id == User.id)
             .where(
                 CornerRecord.track_name == track_name,
                 CornerRecord.corner_number == corner_num,
                 CornerRecord.sector_time_s == best_time,
-                User.leaderboard_opt_in.is_(True),
             )
             .limit(1)
         )

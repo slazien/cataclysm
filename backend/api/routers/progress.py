@@ -53,15 +53,18 @@ async def improvement_leaderboard(
         assert row.user_id is not None  # guaranteed by filter  # noqa: S101
         user_sessions[row.user_id].append(row)
 
-    # Only include users who opted in to leaderboards
-    opted_in_stmt = select(User.id, User.name).where(User.leaderboard_opt_in.is_(True))
-    opted_in_result = await db.execute(opted_in_stmt)
-    opted_in_users: dict[str, str] = {uid: name for uid, name in opted_in_result.all()}
+    # Fetch all user names
+    all_user_ids = list(user_sessions.keys())
+    user_names: dict[str, str] = {}
+    if all_user_ids:
+        name_stmt = select(User.id, User.name).where(User.id.in_(all_user_ids))
+        name_result = await db.execute(name_stmt)
+        user_names = {uid: name for uid, name in name_result.all()}
 
     # Compute improvement rate for each qualifying user
     entries: list[ProgressEntry] = []
     for user_id, sessions_list in user_sessions.items():
-        if user_id not in opted_in_users:
+        if user_id not in user_names:
             continue
         if len(sessions_list) < min_sessions:
             continue
@@ -78,7 +81,7 @@ async def improvement_leaderboard(
         entries.append(
             ProgressEntry(
                 rank=0,  # placeholder, assigned after sorting
-                user_name=opted_in_users[user_id],
+                user_name=user_names[user_id],
                 improvement_rate_s=round(improvement_rate, 4),
                 n_sessions=n,
                 best_lap_first=round(first_best, 3),
@@ -101,8 +104,8 @@ async def improvement_leaderboard(
         for entry in entries:
             # Match by user_id via the name lookup
             if (
-                current_user.user_id in opted_in_users
-                and entry.user_name == opted_in_users[current_user.user_id]
+                current_user.user_id in user_names
+                and entry.user_name == user_names[current_user.user_id]
             ):
                 your_rank = entry.rank
                 # percentile: 0 = best, 100 = worst

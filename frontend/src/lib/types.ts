@@ -492,10 +492,6 @@ export interface KingsData {
   kings: CornerKingEntry[];
 }
 
-export interface OptInResponse {
-  leaderboard_opt_in: boolean;
-}
-
 export interface SessionEquipmentResponse {
   session_id: string;
   profile_id: string;

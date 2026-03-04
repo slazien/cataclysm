@@ -36,7 +36,6 @@ FAKE_USERS: list[dict[str, Any]] = [
         "email": "alex@test.cataclysm.dev",
         "name": "Alex Racer",
         "skill_level": "advanced",
-        "leaderboard_opt_in": True,
         "role": "driver",
     },
     {
@@ -44,7 +43,6 @@ FAKE_USERS: list[dict[str, Any]] = [
         "email": "jordan@test.cataclysm.dev",
         "name": "Jordan Swift",
         "skill_level": "intermediate",
-        "leaderboard_opt_in": True,
         "role": "driver",
     },
     {
@@ -52,7 +50,6 @@ FAKE_USERS: list[dict[str, Any]] = [
         "email": "morgan@test.cataclysm.dev",
         "name": "Morgan Apex",
         "skill_level": "intermediate",
-        "leaderboard_opt_in": True,
         "role": "driver",
     },
 ]
@@ -141,20 +138,18 @@ async def seed_users(conn: asyncpg.Connection, *, dry_run: bool) -> None:
 
         await conn.execute(
             """
-            INSERT INTO users (id, email, name, skill_level, leaderboard_opt_in, role)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO users (id, email, name, skill_level, role)
+            VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (id) DO UPDATE SET
                 email = EXCLUDED.email,
                 name = EXCLUDED.name,
                 skill_level = EXCLUDED.skill_level,
-                leaderboard_opt_in = EXCLUDED.leaderboard_opt_in,
                 role = EXCLUDED.role
             """,
             user["id"],
             user["email"],
             user["name"],
             user["skill_level"],
-            user["leaderboard_opt_in"],
             user["role"],
         )
         _log("USERS", f"  Upserted {user['id']} ({user['name']})")
@@ -482,15 +477,11 @@ async def compute_kings(conn: asyncpg.Connection, *, dry_run: bool) -> None:
             SELECT cr.track_name, cr.corner_number,
                    cr.user_id, cr.sector_time_s, cr.session_id
             FROM corner_records cr
-            JOIN users u ON u.id = cr.user_id
-            WHERE u.leaderboard_opt_in = true
-              AND cr.sector_time_s = (
+            WHERE cr.sector_time_s = (
                   SELECT MIN(cr2.sector_time_s)
                   FROM corner_records cr2
-                  JOIN users u2 ON u2.id = cr2.user_id
                   WHERE cr2.track_name = cr.track_name
                     AND cr2.corner_number = cr.corner_number
-                    AND u2.leaderboard_opt_in = true
               )
             ORDER BY cr.track_name, cr.corner_number
             """
@@ -525,8 +516,6 @@ async def compute_kings(conn: asyncpg.Connection, *, dry_run: bool) -> None:
                cr.sector_time_s,
                cr.session_id
         FROM corner_records cr
-        JOIN users u ON u.id = cr.user_id
-        WHERE u.leaderboard_opt_in = true
         ORDER BY cr.track_name, cr.corner_number, cr.sector_time_s ASC
         ON CONFLICT (track_name, corner_number) DO UPDATE SET
             user_id = EXCLUDED.user_id,

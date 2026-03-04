@@ -36,7 +36,6 @@ class User(Base):
     avatar_url: Mapped[str | None] = mapped_column(String, nullable=True)
     skill_level: Mapped[str] = mapped_column(String, default="intermediate")
     role: Mapped[str] = mapped_column(String, default="driver")  # driver | instructor
-    leaderboard_opt_in: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships

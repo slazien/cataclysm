@@ -21,7 +21,6 @@ import type {
   NewAchievementsData,
   LeaderboardData,
   KingsData,
-  OptInResponse,
   ShareCreateResponse,
   ShareMetadata,
   ShareComparisonResult,
@@ -347,13 +346,6 @@ export async function getCornerKings(trackName: string) {
   return fetchApi<KingsData>(
     `/api/leaderboards/${encodeURIComponent(trackName)}/kings`,
   );
-}
-
-export async function toggleLeaderboardOptIn(optIn: boolean) {
-  return fetchApi<OptInResponse>("/api/leaderboards/opt-in", {
-    method: "POST",
-    body: JSON.stringify({ opt_in: optIn }),
-  });
 }
 
 // --- Sharing API ---

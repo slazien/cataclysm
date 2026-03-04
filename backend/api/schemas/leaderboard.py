@@ -50,15 +50,3 @@ class KingsResponse(BaseModel):
 
     track_name: str
     kings: list[CornerKingEntry]
-
-
-class OptInRequest(BaseModel):
-    """Request body for toggling leaderboard opt-in."""
-
-    opt_in: bool
-
-
-class OptInResponse(BaseModel):
-    """Response for opt-in toggle."""
-
-    leaderboard_opt_in: bool

@@ -94,7 +94,7 @@ export function TrackLeaderboardSummary({ trackName }: TrackLeaderboardSummaryPr
         </div>
       ) : (
         <p className="text-sm text-[var(--text-muted)]">
-          Opt in to leaderboards to see your standing at this track.
+          No leaderboard data available yet.
         </p>
       )}
     </div>

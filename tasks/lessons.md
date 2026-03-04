@@ -110,7 +110,7 @@
 ## Raw SQL Must Include ALL NOT NULL Columns — ORM Defaults Don't Apply
 - **When**: Writing raw SQL INSERT statements that bypass the ORM (e.g. `text("INSERT INTO ...")`)
 - **Rule**: Check the ORM model for ALL `Mapped[str]` / `Mapped[bool]` (non-Optional) columns with `default=`. Raw SQL bypasses ORM `default=` values. You must explicitly include those columns with their default values in the INSERT statement.
-- **Pattern**: Compare `text("INSERT INTO users (id, email, name, avatar_url)")` against `class User` model — if `skill_level`, `role`, `leaderboard_opt_in` are NOT NULL with ORM defaults, they MUST be in the raw SQL.
+- **Pattern**: Compare `text("INSERT INTO users (id, email, name, avatar_url)")` against `class User` model — if `skill_level`, `role` are NOT NULL with ORM defaults, they MUST be in the raw SQL.
 - **Why**: Hit this TWICE in `ensure_user_exists` migration path. First: FK violation (UPDATE FKs before new user row existed). Second: NOT NULL violation on `skill_level` because raw INSERT didn't include it. Both caused production 500 errors on CSV upload.
 
 ## Always Run Code Reviewer After Implementation

@@ -288,7 +288,6 @@ erDiagram
         string avatar_url
         string skill_level
         string role
-        boolean leaderboard_opt_in
     }
 
     Session {
