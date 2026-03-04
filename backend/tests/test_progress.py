@@ -149,7 +149,7 @@ async def test_improvement_leaderboard_ranking(
     rates = [e["improvement_rate_s"] for e in entries]
     assert rates == sorted(rates), "Entries should be sorted by improvement rate ascending"
 
-    # Rank 1 should be User D (most negative rate: (95-15*3-95)/5 = -12/5 = -2.4)
+    # Rank 1 should be User D (most negative rate: (83.0-95.0)/5 = -12/5 = -2.4)
     assert entries[0]["user_name"] == "Driver Delta"
     assert entries[0]["rank"] == 1
 
