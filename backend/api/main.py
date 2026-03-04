@@ -12,6 +12,7 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
@@ -19,8 +20,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
-
-from prometheus_fastapi_instrumentator import Instrumentator
 
 from backend.api.config import Settings
 from backend.api.db.database import get_db
@@ -83,15 +82,15 @@ async def _reload_sessions_from_db() -> int:
                     if sd is not None and sess_meta:
                         # Tag session with owner for access control
                         sd.user_id = sess_meta.user_id
+                        if sess_meta.snapshot_json:
+                            weather = restore_weather_from_snapshot(sess_meta.snapshot_json)
+                            if weather is not None:
+                                sd.weather = weather
                     elif sd is not None:
                         logger.warning(
                             "Reload: %s has no session metadata — user_id unset",
                             sid,
                         )
-                        if sess_meta.snapshot_json:
-                            weather = restore_weather_from_snapshot(sess_meta.snapshot_json)
-                            if weather is not None:
-                                sd.weather = weather
 
                     loaded += 1
                 except (ValueError, KeyError, IndexError, OSError) as exc:
