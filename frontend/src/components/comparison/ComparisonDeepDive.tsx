@@ -7,6 +7,7 @@ import { fetchApi } from '@/lib/api';
 import { colors } from '@/lib/design-tokens';
 import { SKILL_AXES } from '@/lib/skillDimensions';
 import { DeltaTimeChart } from '@/components/comparison/DeltaTimeChart';
+import { ComparisonTrackMap } from '@/components/comparison/ComparisonTrackMap';
 import { SpeedTraceOverlay } from '@/components/comparison/SpeedTraceOverlay';
 import { RadarChart } from '@/components/shared/RadarChart';
 import type { ShareComparisonResult } from '@/lib/types';
@@ -86,7 +87,27 @@ export function ComparisonDeepDive({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* 1. Time Delta Chart */}
+      {/* 1. Delta Track Map */}
+      {comparison.track_coords && comparison.distance_m.length > 0 && (
+        <section className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
+          <h3 className="mb-1 text-sm font-medium text-[var(--text-primary)]">
+            Delta Map
+          </h3>
+          <p className="mb-3 text-xs text-[var(--text-secondary)]">
+            Green = {inviterName} gaining, Red = {inviterName} losing
+          </p>
+          <div className="mx-auto aspect-square max-w-sm">
+            <ComparisonTrackMap
+              trackCoords={comparison.track_coords}
+              distanceM={comparison.distance_m}
+              deltaTimeS={comparison.delta_time_s}
+              cornerDeltas={comparison.corner_deltas}
+            />
+          </div>
+        </section>
+      )}
+
+      {/* 2. Time Delta Chart */}
       {comparison.distance_m.length > 0 && (
         <section className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
           <h3 className="mb-3 text-sm font-medium text-[var(--text-primary)]">
@@ -102,7 +123,7 @@ export function ComparisonDeepDive({
         </section>
       )}
 
-      {/* 2. Speed Comparison */}
+      {/* 3. Speed Comparison */}
       {comparison.speed_traces && (
         <section className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
           <h3 className="mb-3 text-sm font-medium text-[var(--text-primary)]">
@@ -118,7 +139,7 @@ export function ComparisonDeepDive({
         </section>
       )}
 
-      {/* 3. Skill Comparison Radar */}
+      {/* 4. Skill Comparison Radar */}
       {radarDatasets && (
         <section className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
           <h3 className="mb-3 text-sm font-medium text-[var(--text-primary)]">
@@ -147,7 +168,7 @@ export function ComparisonDeepDive({
         </section>
       )}
 
-      {/* 4. AI Coach Analysis */}
+      {/* 5. AI Coach Analysis */}
       <section className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
         <div className="mb-3 flex items-center gap-2">
           <BrainCircuit className="h-4 w-4 text-[var(--ai-icon)]" />
@@ -177,7 +198,7 @@ export function ComparisonDeepDive({
         )}
       </section>
 
-      {/* 5. Corner Breakdown Table */}
+      {/* 6. Corner Breakdown Table */}
       {comparison.corner_deltas.length > 0 && (
         <section className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
           <h3 className="mb-4 text-sm font-medium text-[var(--text-primary)]">
