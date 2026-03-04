@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 
 interface TrackOutlineSVGProps {
   coords: { lat: number[]; lon: number[] };
@@ -10,6 +10,7 @@ interface TrackOutlineSVGProps {
 }
 
 export function TrackOutlineSVG({ coords, className, width = 400, height = 300 }: TrackOutlineSVGProps) {
+  const filterId = useId();
   const pathD = useMemo(() => {
     const { lat, lon } = coords;
     if (lat.length < 10) return '';
@@ -39,7 +40,7 @@ export function TrackOutlineSVG({ coords, className, width = 400, height = 300 }
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className={className}>
       <defs>
-        <filter id="track-glow">
+        <filter id={`track-glow-${filterId}`}>
           <feGaussianBlur stdDeviation="4" result="blur" />
           <feComposite in="SourceGraphic" in2="blur" operator="over" />
         </filter>
@@ -50,7 +51,7 @@ export function TrackOutlineSVG({ coords, className, width = 400, height = 300 }
         stroke="#6366f1"
         strokeWidth={2.5}
         strokeOpacity={0.6}
-        filter="url(#track-glow)"
+        filter={`url(#track-glow-${filterId})`}
       />
     </svg>
   );

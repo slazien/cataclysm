@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from httpx import AsyncClient
 
@@ -214,3 +216,72 @@ async def test_get_public_view_top_speed_conversion(client: AsyncClient) -> None
     # Synthetic data has speeds ~30-50 m/s → ~67-112 mph
     if data["top_speed_mph"] is not None:
         assert 10 < data["top_speed_mph"] < 300  # sanity check
+
+
+@pytest.mark.asyncio
+async def test_get_public_view_expired(client: AsyncClient) -> None:
+    """GET /api/sharing/{token}/view returns is_expired=True with minimal data."""
+    sid = await _upload_session(client)
+    create_resp = await client.post("/api/sharing/create", json={"session_id": sid})
+    token = create_resp.json()["token"]
+
+    # Manually expire the share link in the database
+    from sqlalchemy import update
+
+    from backend.api.db.models import SharedSession
+    from backend.tests.conftest import _test_session_factory
+
+    async with _test_session_factory() as session:
+        await session.execute(
+            update(SharedSession)
+            .where(SharedSession.token == token)
+            .values(expires_at=datetime.now(UTC) - timedelta(hours=1))
+        )
+        await session.commit()
+
+    resp = await client.get(f"/api/sharing/{token}/view")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["is_expired"] is True
+    # Expired responses should not include session data
+    assert data["best_lap_time_s"] is None
+    assert data["session_score"] is None
+    assert data["track_coords"] is None
+
+
+@pytest.mark.asyncio
+async def test_get_public_view_session_evicted(client: AsyncClient) -> None:
+    """GET /api/sharing/{token}/view returns partial data when session is evicted."""
+    sid = await _upload_session(client)
+    create_resp = await client.post("/api/sharing/create", json={"session_id": sid})
+    token = create_resp.json()["token"]
+
+    # Evict the session from memory
+    from backend.api.services import session_store
+
+    session_store._store.pop(sid, None)
+
+    resp = await client.get(f"/api/sharing/{token}/view")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["is_expired"] is False
+    assert data["track_name"] is not None  # from DB row
+    # Data-dependent fields should be null
+    assert data["best_lap_time_s"] is None
+    assert data["session_score"] is None
+    assert data["top_speed_mph"] is None
+
+
+@pytest.mark.asyncio
+async def test_create_share_link_idempotent(client: AsyncClient) -> None:
+    """POST /api/sharing/create returns the same token for repeated calls."""
+    sid = await _upload_session(client)
+    resp1 = await client.post("/api/sharing/create", json={"session_id": sid})
+    assert resp1.status_code == 200
+    token1 = resp1.json()["token"]
+
+    resp2 = await client.post("/api/sharing/create", json={"session_id": sid})
+    assert resp2.status_code == 200
+    token2 = resp2.json()["token"]
+
+    assert token1 == token2

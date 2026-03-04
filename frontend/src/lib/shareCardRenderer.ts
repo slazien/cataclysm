@@ -255,7 +255,8 @@ export async function renderSessionCard(
 ): Promise<void> {
   canvas.width = CARD_W;
   canvas.height = CARD_H;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Could not get 2d canvas context');
 
   drawBackground(ctx);
 

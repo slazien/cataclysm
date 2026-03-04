@@ -50,13 +50,35 @@ async def create_share_link(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ShareCreateResponse:
-    """Create a shareable link for a session so a friend can upload and compare."""
+    """Create a shareable link for a session so a friend can upload and compare.
+
+    Idempotent: returns an existing non-expired share link for the same
+    user+session if one exists, rather than creating duplicates.
+    """
     sd = get_session(body.session_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {body.session_id} not found")
 
-    token = str(uuid.uuid4())
     now = datetime.now(UTC)
+
+    # Return existing non-expired share link if available
+    existing = await db.execute(
+        select(SharedSession).where(
+            SharedSession.user_id == current_user.user_id,
+            SharedSession.session_id == body.session_id,
+            SharedSession.expires_at > now,
+        )
+    )
+    existing_share = existing.scalar_one_or_none()
+    if existing_share is not None:
+        return ShareCreateResponse(
+            token=existing_share.token,
+            share_url=f"/share/{existing_share.token}",
+            track_name=sd.snapshot.metadata.track_name,
+            expires_at=existing_share.expires_at.isoformat(),
+        )
+
+    token = str(uuid.uuid4())
     expires_at = now + timedelta(days=SHARE_EXPIRY_DAYS)
 
     shared = SharedSession(
@@ -122,7 +144,9 @@ async def get_share_metadata(
 
 
 @router.get("/{token}/view", response_model=PublicSessionView)
+@limiter.limit("30/minute")
 async def get_public_view(
+    request: Request,
     token: str,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> PublicSessionView:
@@ -145,7 +169,17 @@ async def get_public_view(
 
     driver_name = "A driver"
     if shared.user:
-        driver_name = shared.user.name or shared.user.email
+        driver_name = shared.user.name or "A driver"
+
+    # Short-circuit for expired links — avoid expensive computation
+    if is_expired:
+        return PublicSessionView(
+            token=token,
+            track_name=shared.track_name,
+            session_date="",
+            driver_name=driver_name,
+            is_expired=True,
+        )
 
     # Defaults for data-dependent fields
     best_lap_time_s: float | None = None
@@ -186,8 +220,7 @@ async def get_public_view(
             for cg in report.corner_grades:
                 for field_name, bucket in dims.items():
                     letter = getattr(cg, field_name, "")[:1].upper()
-                    if letter in grade_scores:
-                        bucket.append(grade_scores[letter])
+                    bucket.append(grade_scores.get(letter, 50))
             skill_braking = sum(dims["braking"]) / len(dims["braking"]) if dims["braking"] else None
             skill_trail_braking = (
                 sum(dims["trail_braking"]) / len(dims["trail_braking"])
