@@ -454,3 +454,79 @@ def query_ggv_max_g(
 
     # Linear interpolation between speed bins
     return g_lo + speed_t * (g_hi - g_lo)
+
+
+# ---------------------------------------------------------------------------
+# Tire thermal warmup model
+# ---------------------------------------------------------------------------
+
+
+def compute_warmup_factor(
+    lap_number: int,
+    *,
+    cold_factor: float = 0.75,
+    warmup_laps: float = 1.5,
+) -> float:
+    """Compute tire warmup multiplier for a given lap number.
+
+    Lap 1: starts at cold_factor, ramps toward 1.0.
+    After warmup_laps: returns 1.0 (tires warm).
+
+    The warmup is modeled as:
+        factor = min(1.0, cold_factor + (1 - cold_factor) * lap / warmup_laps)
+
+    Parameters
+    ----------
+    lap_number
+        1-based lap number.
+    cold_factor
+        Grip multiplier on completely cold tires (lap 0). Default 0.75.
+    warmup_laps
+        Number of laps to reach full grip. Default 1.5.
+        Compound-specific: Street=0.5, 200TW=1.0, R-compound=1.5, Slick=2.5
+
+    Returns
+    -------
+    float
+        Grip multiplier in [cold_factor, 1.0].
+    """
+    lap = max(0, lap_number)
+    return min(1.0, cold_factor + (1.0 - cold_factor) * lap / warmup_laps)
+
+
+# ---------------------------------------------------------------------------
+# Tire load sensitivity model
+# ---------------------------------------------------------------------------
+
+
+def load_sensitive_mu(
+    mu_ref: float,
+    fz_ref: float,
+    fz_actual: float,
+    *,
+    sensitivity: float = -0.00005,
+) -> float:
+    """Compute load-sensitive friction coefficient.
+
+    Uses a linear model: mu(Fz) = mu_ref + sensitivity * (Fz_actual - Fz_ref)
+
+    Parameters
+    ----------
+    mu_ref
+        Reference friction coefficient at Fz_ref.
+    fz_ref
+        Reference vertical load (N).
+    fz_actual
+        Actual vertical load (N).
+    sensitivity
+        Load sensitivity coefficient in 1/N, typically -0.00005 per N
+        (equivalent to -0.05 per kN).
+        mu decreases with more load (load sensitivity).
+
+    Returns
+    -------
+    float
+        Load-sensitive mu, clamped to >= 0.1.
+    """
+    mu = mu_ref + sensitivity * (fz_actual - fz_ref)
+    return max(0.1, mu)

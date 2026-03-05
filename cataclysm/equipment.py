@@ -78,6 +78,33 @@ _CATEGORY_ACCEL_G: dict[TireCompoundCategory, float] = {
     TireCompoundCategory.SLICK: 0.70,
 }
 
+CATEGORY_WARMUP_LAPS: dict[TireCompoundCategory, float] = {
+    TireCompoundCategory.STREET: 0.5,
+    TireCompoundCategory.ENDURANCE_200TW: 1.0,
+    TireCompoundCategory.SUPER_200TW: 1.0,
+    TireCompoundCategory.TW_100: 1.0,
+    TireCompoundCategory.R_COMPOUND: 1.5,
+    TireCompoundCategory.SLICK: 2.5,
+}
+
+CATEGORY_LOAD_SENSITIVITY_EXPONENT: dict[TireCompoundCategory, float] = {
+    TireCompoundCategory.STREET: 0.85,
+    TireCompoundCategory.ENDURANCE_200TW: 0.82,
+    TireCompoundCategory.SUPER_200TW: 0.82,
+    TireCompoundCategory.TW_100: 0.80,
+    TireCompoundCategory.R_COMPOUND: 0.78,
+    TireCompoundCategory.SLICK: 0.75,
+}
+
+CATEGORY_FRICTION_CIRCLE_EXPONENT: dict[TireCompoundCategory, float] = {
+    TireCompoundCategory.STREET: 1.8,
+    TireCompoundCategory.ENDURANCE_200TW: 2.0,
+    TireCompoundCategory.SUPER_200TW: 2.0,
+    TireCompoundCategory.TW_100: 2.1,
+    TireCompoundCategory.R_COMPOUND: 2.2,
+    TireCompoundCategory.SLICK: 2.3,
+}
+
 _BRAKE_EFFICIENCY = 0.95  # real-world brake efficiency factor
 
 

@@ -13,6 +13,8 @@ from cataclysm.grip_calibration import (
     build_ggv_surface,
     calibrate_grip_from_telemetry,
     calibrate_per_corner_grip,
+    compute_warmup_factor,
+    load_sensitive_mu,
     query_ggv_max_g,
 )
 from cataclysm.velocity_profile import VehicleParams, default_vehicle_params
@@ -763,3 +765,78 @@ class TestQueryGGVMaxG:
         g_at_0 = query_ggv_max_g(surface, 30.0, 0.0)
         g_at_2pi = query_ggv_max_g(surface, 30.0, 2.0 * np.pi)
         assert g_at_0 == pytest.approx(g_at_2pi, abs=0.01)
+
+
+# ---------------------------------------------------------------------------
+# Tire thermal warmup model tests
+# ---------------------------------------------------------------------------
+
+
+class TestComputeWarmupFactor:
+    """Tests for compute_warmup_factor()."""
+
+    def test_warmup_first_lap_midpoint(self) -> None:
+        """Lap 1 with default warmup_laps=1.5 should be ~0.917."""
+        factor = compute_warmup_factor(1)
+        expected = 0.75 + (1.0 - 0.75) * 1.0 / 1.5  # 0.9167
+        assert factor == pytest.approx(expected, rel=1e-6)
+
+    def test_warmup_second_lap_full_grip(self) -> None:
+        """After warmup_laps, should be 1.0."""
+        assert compute_warmup_factor(2) == pytest.approx(1.0, rel=1e-6)
+
+    def test_warmup_custom_cold_factor(self) -> None:
+        """Custom cold_factor should be used."""
+        factor = compute_warmup_factor(1, cold_factor=0.5, warmup_laps=2.0)
+        expected = 0.5 + (1.0 - 0.5) * 1.0 / 2.0  # 0.75
+        assert factor == pytest.approx(expected, rel=1e-6)
+
+    def test_warmup_compound_street_fast(self) -> None:
+        """Street tires (warmup_laps=0.5) should be warm mid-lap 1."""
+        factor = compute_warmup_factor(1, warmup_laps=0.5)
+        assert factor == pytest.approx(1.0, rel=1e-6)
+
+    def test_warmup_compound_slick_slow(self) -> None:
+        """Slick tires (warmup_laps=2.5) should still be warming on lap 2."""
+        factor = compute_warmup_factor(2, warmup_laps=2.5)
+        expected = 0.75 + (1.0 - 0.75) * 2.0 / 2.5  # 0.95
+        assert factor == pytest.approx(expected, rel=1e-6)
+
+    def test_warmup_lap_zero_returns_cold(self) -> None:
+        """Lap 0 (or negative) should return cold_factor."""
+        assert compute_warmup_factor(0) == pytest.approx(0.75, rel=1e-6)
+
+
+# ---------------------------------------------------------------------------
+# Tire load sensitivity model tests
+# ---------------------------------------------------------------------------
+
+
+class TestLoadSensitiveMu:
+    """Tests for load_sensitive_mu()."""
+
+    def test_at_reference_load_unchanged(self) -> None:
+        """At reference load, mu should equal mu_ref."""
+        result = load_sensitive_mu(1.2, 4000.0, 4000.0)
+        assert result == pytest.approx(1.2, rel=1e-10)
+
+    def test_higher_load_lower_mu(self) -> None:
+        """More load should decrease mu (negative sensitivity)."""
+        result = load_sensitive_mu(1.2, 4000.0, 5000.0, sensitivity=-0.00005)
+        # mu = 1.2 + (-0.00005) * (5000 - 4000) = 1.2 - 0.05 = 1.15
+        expected = 1.2 + (-0.00005) * (5000.0 - 4000.0)
+        assert result == pytest.approx(expected, rel=1e-10)
+        assert result < 1.2
+
+    def test_mu_clamped_at_minimum(self) -> None:
+        """Extremely high load should not produce negative mu."""
+        result = load_sensitive_mu(1.0, 4000.0, 100000.0, sensitivity=-0.001)
+        assert result >= 0.1
+
+    def test_lower_load_higher_mu(self) -> None:
+        """Less load should increase mu (load sensitivity works both ways)."""
+        result = load_sensitive_mu(1.0, 4000.0, 2000.0, sensitivity=-0.00005)
+        # mu = 1.0 + (-0.00005) * (2000 - 4000) = 1.0 + 0.1 = 1.1
+        assert result > 1.0
+        expected = 1.0 + (-0.00005) * (2000.0 - 4000.0)
+        assert result == pytest.approx(expected, rel=1e-10)
