@@ -36,6 +36,7 @@ import type {
   OrgEventListData,
   OrgEvent,
   ProgressLeaderboardResponse,
+  LineAnalysisData,
 } from "./types";
 
 const API_BASE = "";
@@ -283,6 +284,15 @@ export async function getGGDiagram(sessionId: string, corner?: number) {
   const params = corner !== undefined ? `?corner=${corner}` : "";
   return fetchApi<GGDiagramData>(
     `/api/sessions/${sessionId}/gg-diagram${params}`,
+  );
+}
+
+export async function getLineAnalysis(sessionId: string, laps?: number[]) {
+  const params = laps?.length
+    ? `?${laps.map((l) => `laps=${l}`).join("&")}`
+    : "";
+  return fetchApi<LineAnalysisData>(
+    `/api/sessions/${sessionId}/line-analysis${params}`,
   );
 }
 

@@ -14,6 +14,7 @@ type SkillFeature =
   | 'keyboard_overlay'
   | 'delta_breakdown'
   | 'gforce_analysis'
+  | 'line_analysis'
   | 'optimal_comparison';
 
 // Feature visibility matrix: true = visible at this skill level
@@ -31,6 +32,7 @@ const FEATURE_MATRIX: Record<SkillFeature, Record<SkillLevel, boolean>> = {
   keyboard_overlay:   { novice: false, intermediate: false, advanced: true },
   delta_breakdown:    { novice: false, intermediate: true,  advanced: true },
   gforce_analysis:    { novice: false, intermediate: false, advanced: true },
+  line_analysis:      { novice: false, intermediate: true,  advanced: true },
   optimal_comparison: { novice: false, intermediate: true,  advanced: true },
 };
 

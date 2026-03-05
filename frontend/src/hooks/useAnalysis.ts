@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery, useQueries } from "@tanstack/react-query";
-import { getCorners, getAllLapCorners, getConsistency, getGains, getGrip, getDelta, getLapData, getGPSQuality, getMiniSectors, getDegradation, getOptimalComparison, getGGDiagram } from "@/lib/api";
-import type { Corner, SessionConsistency, DeltaData, LapData, GPSQualityReport, MiniSectorData, DegradationData, OptimalComparisonData, GGDiagramData } from "@/lib/types";
+import { getCorners, getAllLapCorners, getConsistency, getGains, getGrip, getDelta, getLapData, getGPSQuality, getMiniSectors, getDegradation, getOptimalComparison, getGGDiagram, getLineAnalysis } from "@/lib/api";
+import type { Corner, SessionConsistency, DeltaData, LapData, GPSQualityReport, MiniSectorData, DegradationData, OptimalComparisonData, GGDiagramData, LineAnalysisData } from "@/lib/types";
 
 export function useCorners(sessionId: string | null) {
   return useQuery<Corner[]>({
@@ -116,6 +116,17 @@ export function useGGDiagram(sessionId: string | null, corner?: number) {
   return useQuery<GGDiagramData>({
     queryKey: ["gg-diagram", sessionId, corner],
     queryFn: () => getGGDiagram(sessionId!, corner),
+    enabled: !!sessionId,
+  });
+}
+
+export function useLineAnalysis(
+  sessionId: string | null,
+  laps?: number[],
+) {
+  return useQuery<LineAnalysisData>({
+    queryKey: ["line-analysis", sessionId, laps],
+    queryFn: () => getLineAnalysis(sessionId!, laps),
     enabled: !!sessionId,
   });
 }

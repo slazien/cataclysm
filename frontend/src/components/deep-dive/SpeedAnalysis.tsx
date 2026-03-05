@@ -15,6 +15,7 @@ import { TrackMapContainer } from './charts/TrackMapContainer';
 import { CornerQuickCard } from './CornerQuickCard';
 import { ComparisonLegend } from './ComparisonLegend';
 import { GGDiagramChart } from './GGDiagramChart';
+import { LateralOffsetChart } from './charts/LateralOffsetChart';
 
 export function SpeedAnalysis() {
   const sessionId = useSessionStore((s) => s.activeSessionId);
@@ -115,6 +116,23 @@ export function SpeedAnalysis() {
             <BrakeThrottle sessionId={sessionId} />
           </ChartErrorBoundary>
         </div>
+
+        {/* Driving Line -- lateral offset from reference line */}
+        {showFeature('line_analysis') && (
+          <div className="relative h-[14rem] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:h-auto lg:flex-1">
+            <div className="pointer-events-none absolute left-3 top-1.5 z-10">
+              <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+                Driving Line
+              </h3>
+              <p className="text-[10px] text-[var(--text-muted)] opacity-60">
+                lateral offset from reference line
+              </p>
+            </div>
+            <ChartErrorBoundary name="Driving Line">
+              <LateralOffsetChart sessionId={sessionId} />
+            </ChartErrorBoundary>
+          </div>
+        )}
 
         {/* G-G Diagram (advanced skill level only) */}
         {showFeature('gforce_analysis') && (

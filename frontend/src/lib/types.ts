@@ -709,3 +709,35 @@ export interface ProgressLeaderboardResponse {
   your_rank: number | null;
   your_percentile: number | null;
 }
+
+// --- Line Analysis Types ---
+
+export interface CornerLineProfile {
+  corner_number: number;
+  n_laps: number;
+  d_entry_median: number;
+  d_apex_median: number;
+  d_exit_median: number;
+  apex_fraction_median: number;
+  d_apex_sd: number;
+  line_error_type: string;
+  severity: string;
+  consistency_tier: string;
+  allen_berg_type: string;
+}
+
+export interface LateralOffsetTrace {
+  lap_number: number;
+  offsets_m: number[];
+}
+
+export interface LineAnalysisData {
+  session_id: string;
+  available: boolean;
+  corner_profiles: CornerLineProfile[];
+  distance_m: number[];
+  traces: LateralOffsetTrace[];
+  reference_e: number[];
+  reference_n: number[];
+  n_laps_used: number;
+}
