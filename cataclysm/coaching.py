@@ -831,7 +831,8 @@ def _build_coaching_prompt(
             "2. Prioritize corners by the pre-computed gain values\n"
             "3. Reference the target brake/speed values in your tips\n"
             "4. Use correlation insights to explain cause-effect relationships\n"
-            "5. Cite the specific numbers from the analysis in your grades and notes\n"
+            "5. Use data insights to inform your coaching — but translate numbers into "
+            "driver-friendly language (never raw stats like std, r-values, or ±)\n"
             "The raw KPI table below is for lap-specific citations only.\n"
         )
 
@@ -907,7 +908,10 @@ referencing specific telemetry patterns.",
       "trail_braking": "<A-F>",
       "min_speed": "<A-F>",
       "throttle": "<A-F>",
-      "notes": "<one sentence referencing lap-to-lap data with 'because' clause>"
+      "notes": "<ONE sentence a trackside coach would say. Embed key data naturally — \
+e.g. 'Your best lap carried {{{{speed:3}}}} more and gained 0.3s on the straight' — \
+but NEVER dump raw stats (std=, r=, ±), restate grades, or echo thresholds. \
+Focus on what to DO or what's working, with one concrete data point as evidence.>"
     }}
   ],
   "patterns": [
@@ -950,6 +954,19 @@ Grading criteria (evidence-anchored):
 Grade distribution should approximate a bell curve around B/C for a typical driver. \
 All-A or all-B reports are almost certainly grade-inflated. \
 First cite the evidence (numbers), THEN assign the grade — not the reverse.
+
+CORNER NOTES RULES — write like a trackside coach, not a data analyst:
+- NEVER use raw statistics: "std=1.1 mph", "±6.8m", "r=-0.63", "commit std=0.3m"
+- NEVER restate what the grade fields already show (e.g. "Braking N/A because it's a kink")
+- NEVER echo grading thresholds (e.g. "A-grade, within 1 mph of target")
+- DO embed one concrete data point naturally: lap numbers, speed values, distances
+- DO focus on the single most coaching-relevant insight for this corner
+- DO frame as what to DO or what's WORKING
+GOOD: "Your best lap carried {{{{speed:3}}}} more through the apex — trust the grip"
+GOOD: "Same throttle spot every lap (L7 nailed it) — this corner is dialed in"
+GOOD: "Getting on power early here costs you into T4 — hold an extra beat"
+BAD: "Min speed std=1.1 mph. Throttle scatter ±6.8m. Correlation r=-0.63"
+BAD: "Braking N/A (kink, no braking). Min speed B because std=1.9 mph"
 
 For each pattern, trace the root cause chain: don't just describe WHAT happened — \
 diagnose WHY by tracing entry cause -> mid-corner effect -> exit consequence. \
