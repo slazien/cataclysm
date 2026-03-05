@@ -163,6 +163,43 @@ def _scalar_result(value: object) -> MagicMock:
     return result
 
 
+def _seed_existing_all() -> MagicMock:
+    """Build mock for seed_achievements: all definitions exist with matching fields."""
+    mocks = []
+    for defn in SEED_ACHIEVEMENTS:
+        m = MagicMock()
+        m.id = defn["id"]
+        for field in ("category", "name", "description", "icon", "tier", "criteria_type"):
+            setattr(m, field, defn[field])
+        mocks.append(m)
+    seed_result = MagicMock()
+    seed_result.scalars.return_value.all.return_value = mocks
+    return seed_result
+
+
+def _seed_existing_empty() -> MagicMock:
+    """Build mock for seed_achievements: no definitions exist yet."""
+    seed_result = MagicMock()
+    seed_result.scalars.return_value.all.return_value = []
+    return seed_result
+
+
+def _seed_existing_partial(exclude_ids: set[str] | None = None) -> MagicMock:
+    """Build mock for seed_achievements: some definitions exist."""
+    exclude = exclude_ids or set()
+    mocks = []
+    for defn in SEED_ACHIEVEMENTS:
+        if defn["id"] not in exclude:
+            m = MagicMock()
+            m.id = defn["id"]
+            for field in ("category", "name", "description", "icon", "tier", "criteria_type"):
+                setattr(m, field, defn[field])
+            mocks.append(m)
+    seed_result = MagicMock()
+    seed_result.scalars.return_value.all.return_value = mocks
+    return seed_result
+
+
 # ---------------------------------------------------------------------------
 # seed_achievements
 # ---------------------------------------------------------------------------
@@ -175,9 +212,7 @@ class TestSeedAchievementsFunction:
     async def test_inserts_missing_definitions(self) -> None:
         """Definitions not yet in the DB should be added via db.add."""
         mock_db = MagicMock()
-        existing_result = MagicMock()
-        existing_result.all.return_value = []  # nothing in DB yet
-        mock_db.execute = AsyncMock(return_value=existing_result)
+        mock_db.execute = AsyncMock(return_value=_seed_existing_empty())
         mock_db.flush = AsyncMock()
 
         await seed_achievements(mock_db)
@@ -189,11 +224,7 @@ class TestSeedAchievementsFunction:
     async def test_skips_existing_definitions(self) -> None:
         """Definitions already present in the DB must not be re-inserted."""
         mock_db = MagicMock()
-        # All seed IDs already present
-        all_ids = [(a["id"],) for a in SEED_ACHIEVEMENTS]
-        existing_result = MagicMock()
-        existing_result.all.return_value = all_ids
-        mock_db.execute = AsyncMock(return_value=existing_result)
+        mock_db.execute = AsyncMock(return_value=_seed_existing_all())
         mock_db.flush = AsyncMock()
 
         await seed_achievements(mock_db)
@@ -205,16 +236,13 @@ class TestSeedAchievementsFunction:
     async def test_inserts_only_missing_subset(self) -> None:
         """Only the IDs absent from the DB should be added."""
         mock_db = MagicMock()
-        # Pretend the first seed definition is already there
-        first_id = SEED_ACHIEVEMENTS[0]["id"]
-        existing_result = MagicMock()
-        existing_result.all.return_value = [(first_id,)]
-        mock_db.execute = AsyncMock(return_value=existing_result)
+        first_id = str(SEED_ACHIEVEMENTS[0]["id"])
+        mock_db.execute = AsyncMock(return_value=_seed_existing_partial(exclude_ids={first_id}))
         mock_db.flush = AsyncMock()
 
         await seed_achievements(mock_db)
 
-        assert mock_db.add.call_count == len(SEED_ACHIEVEMENTS) - 1
+        assert mock_db.add.call_count == 1
 
 
 # ---------------------------------------------------------------------------
@@ -232,9 +260,7 @@ class TestCheckAchievements:
         mock_db.flush = AsyncMock()
 
         # seed_achievements: all defs already present so no db.add from seeding
-        all_seed_ids = [(a["id"],) for a in SEED_ACHIEVEMENTS]
-        seed_existing = MagicMock()
-        seed_existing.all.return_value = all_seed_ids
+        seed_existing = _seed_existing_all()
 
         # already_unlocked query: none unlocked yet
         unlocked_result = MagicMock()
@@ -267,9 +293,7 @@ class TestCheckAchievements:
         mock_db.flush = AsyncMock()
 
         # seed_achievements: all defs already present
-        all_seed_ids = [(a["id"],) for a in SEED_ACHIEVEMENTS]
-        seed_existing = MagicMock()
-        seed_existing.all.return_value = all_seed_ids
+        seed_existing = _seed_existing_all()
 
         unlocked_result = MagicMock()
         unlocked_result.all.return_value = [("first_session",)]  # already unlocked
@@ -294,9 +318,7 @@ class TestCheckAchievements:
         mock_db.flush = AsyncMock()
 
         # seed_achievements: all defs already present
-        all_seed_ids = [(a["id"],) for a in SEED_ACHIEVEMENTS]
-        seed_existing = MagicMock()
-        seed_existing.all.return_value = all_seed_ids
+        seed_existing = _seed_existing_all()
 
         unlocked_result = MagicMock()
         unlocked_result.all.return_value = []
@@ -324,9 +346,7 @@ class TestCheckAchievements:
         mock_db.flush = AsyncMock()
 
         # seed_achievements: all defs already present
-        all_seed_ids = [(a["id"],) for a in SEED_ACHIEVEMENTS]
-        seed_existing = MagicMock()
-        seed_existing.all.return_value = all_seed_ids
+        seed_existing = _seed_existing_all()
 
         unlocked_result = MagicMock()
         unlocked_result.all.return_value = []
@@ -350,9 +370,7 @@ class TestCheckAchievements:
         mock_db.flush = AsyncMock()
 
         # seed_achievements: all defs already present so db.add gets only the UA
-        all_seed_ids = [(a["id"],) for a in SEED_ACHIEVEMENTS]
-        seed_existing = MagicMock()
-        seed_existing.all.return_value = all_seed_ids
+        seed_existing = _seed_existing_all()
 
         unlocked_result = MagicMock()
         unlocked_result.all.return_value = []
@@ -708,8 +726,7 @@ class TestGetUserAchievements:
         mock_db.flush = AsyncMock()
 
         # seed_achievements side-effects
-        seed_existing = MagicMock()
-        seed_existing.all.return_value = []
+        seed_existing = _seed_existing_empty()
 
         # Definitions
         defn = MagicMock(spec=ADefn)
@@ -753,8 +770,7 @@ class TestGetUserAchievements:
         mock_db = MagicMock()
         mock_db.flush = AsyncMock()
 
-        seed_existing = MagicMock()
-        seed_existing.all.return_value = []
+        seed_existing = _seed_existing_empty()
 
         defn = MagicMock(spec=ADefn)
         defn.id = "track_rat_10"
@@ -791,8 +807,7 @@ class TestGetUserAchievements:
         mock_db = MagicMock()
         mock_db.flush = AsyncMock()
 
-        seed_existing = MagicMock()
-        seed_existing.all.return_value = []
+        seed_existing = _seed_existing_empty()
 
         defn = MagicMock(spec=ADefn)
         defn.id = "century_laps"
@@ -835,8 +850,7 @@ class TestGetUserAchievements:
         mock_db = MagicMock()
         mock_db.flush = AsyncMock()
 
-        seed_existing = MagicMock()
-        seed_existing.all.return_value = []
+        seed_existing = _seed_existing_empty()
 
         defn_result = MagicMock()
         defn_result.scalars.return_value.all.return_value = []

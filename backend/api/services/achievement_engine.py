@@ -217,17 +217,25 @@ SEED_ACHIEVEMENTS: list[dict[str, object]] = [
 
 
 async def seed_achievements(db: AsyncSession) -> None:
-    """Insert seed achievement definitions if they don't already exist."""
+    """Insert or update seed achievement definitions."""
     global _seeded  # noqa: PLW0603
     if _seeded:
         return
 
-    existing = await db.execute(select(AchievementDefinition.id))
-    existing_ids = {row[0] for row in existing.all()}
+    existing_result = await db.execute(select(AchievementDefinition))
+    existing_map: dict[str, AchievementDefinition] = {
+        row.id: row for row in existing_result.scalars().all()
+    }
 
     for defn in SEED_ACHIEVEMENTS:
-        if defn["id"] not in existing_ids:
+        existing = existing_map.get(str(defn["id"]))
+        if existing is None:
             db.add(AchievementDefinition(**defn))
+        else:
+            # Sync mutable fields (category, name, description, icon, tier)
+            for field in ("category", "name", "description", "icon", "tier", "criteria_type"):
+                if getattr(existing, field) != defn.get(field):
+                    setattr(existing, field, defn[field])
 
     await db.flush()
     _seeded = True
