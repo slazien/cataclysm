@@ -14,6 +14,8 @@ from cataclysm.track_db import (
     OfficialCorner,
     TrackLayout,
     get_all_tracks,
+    get_key_corners,
+    get_peculiarities,
     locate_official_corners,
     lookup_track,
 )
@@ -604,3 +606,132 @@ class TestRoeblingRoadRaceway:
     def test_in_all_tracks(self) -> None:
         tracks = get_all_tracks()
         assert any(t.name == "Roebling Road Raceway" for t in tracks)
+
+
+class TestGetKeyCorners:
+    """Tests for the get_key_corners utility function."""
+
+    def test_barber_key_corners(self) -> None:
+        """Barber should have key corners with >150m straights."""
+        result = get_key_corners(BARBER_MOTORSPORTS_PARK)
+        assert len(result) > 0
+        assert len(result) <= 3
+        for _corner, gap_m in result:
+            assert gap_m > 150
+
+    def test_key_corners_sorted_by_gap_descending(self) -> None:
+        gaps = [gap_m for _, gap_m in get_key_corners(BARBER_MOTORSPORTS_PARK)]
+        assert gaps == sorted(gaps, reverse=True)
+
+    def test_amp_key_corners(self) -> None:
+        result = get_key_corners(ATLANTA_MOTORSPORTS_PARK)
+        assert len(result) > 0
+        for _corner, gap_m in result:
+            assert gap_m > 150
+
+    def test_roebling_key_corners(self) -> None:
+        result = get_key_corners(ROEBLING_ROAD_RACEWAY)
+        assert len(result) > 0
+
+    def test_empty_layout(self) -> None:
+        layout = TrackLayout(name="Empty", corners=[], length_m=1000.0)
+        assert get_key_corners(layout) == []
+
+    def test_single_corner(self) -> None:
+        layout = TrackLayout(
+            name="One",
+            corners=[OfficialCorner(1, "T1", 0.5)],
+            length_m=1000.0,
+        )
+        assert get_key_corners(layout) == []
+
+    def test_no_length(self) -> None:
+        layout = TrackLayout(
+            name="NoLen",
+            corners=[OfficialCorner(1, "T1", 0.2), OfficialCorner(2, "T2", 0.8)],
+        )
+        assert get_key_corners(layout) == []
+
+    def test_max_three_returned(self) -> None:
+        """Even if more than 3 qualify, only top 3 are returned."""
+        corners = [OfficialCorner(i, f"T{i}", i * 0.1) for i in range(1, 10)]
+        layout = TrackLayout(name="Wide", corners=corners, length_m=10000.0)
+        result = get_key_corners(layout)
+        assert len(result) <= 3
+
+    def test_wrap_around_gap(self) -> None:
+        """Last corner to first corner through S/F should be detected."""
+        layout = TrackLayout(
+            name="Wrap",
+            corners=[
+                OfficialCorner(1, "T1", 0.05),
+                OfficialCorner(2, "T2", 0.50),
+                OfficialCorner(3, "T3", 0.55),
+            ],
+            length_m=1000.0,
+        )
+        result = get_key_corners(layout)
+        # T2→T3 is only 50m, but T3→T1 wrap-around is 500m
+        gaps = {c.number: gap for c, gap in result}
+        assert 3 in gaps  # T3 should be a key corner (500m wrap)
+
+
+class TestGetPeculiarities:
+    """Tests for the get_peculiarities utility function."""
+
+    def test_barber_has_blind_corners(self) -> None:
+        result = get_peculiarities(BARBER_MOTORSPORTS_PARK)
+        descs = [desc for _, desc in result]
+        assert any("blind" in d for d in descs)
+
+    def test_barber_has_off_camber(self) -> None:
+        result = get_peculiarities(BARBER_MOTORSPORTS_PARK)
+        descs = [desc for _, desc in result]
+        assert any("off-camber" in d for d in descs)
+
+    def test_barber_has_crests(self) -> None:
+        result = get_peculiarities(BARBER_MOTORSPORTS_PARK)
+        descs = [desc for _, desc in result]
+        assert any("crest" in d for d in descs)
+
+    def test_barber_has_compression(self) -> None:
+        result = get_peculiarities(BARBER_MOTORSPORTS_PARK)
+        descs = [desc for _, desc in result]
+        assert any("compression" in d for d in descs)
+
+    def test_amp_has_peculiarities(self) -> None:
+        result = get_peculiarities(ATLANTA_MOTORSPORTS_PARK)
+        assert len(result) > 0
+
+    def test_empty_layout(self) -> None:
+        layout = TrackLayout(name="Empty", corners=[])
+        assert get_peculiarities(layout) == []
+
+    def test_plain_corner_no_peculiarities(self) -> None:
+        layout = TrackLayout(
+            name="Plain",
+            corners=[OfficialCorner(1, "T1", 0.5, camber="positive")],
+        )
+        assert get_peculiarities(layout) == []
+
+    def test_multiple_flags_per_corner(self) -> None:
+        """A corner can have multiple peculiarities (e.g. blind + off-camber)."""
+        layout = TrackLayout(
+            name="Multi",
+            corners=[
+                OfficialCorner(
+                    1,
+                    "Scary",
+                    0.5,
+                    blind=True,
+                    camber="off-camber",
+                    elevation_trend="crest",
+                ),
+            ],
+        )
+        result = get_peculiarities(layout)
+        assert len(result) == 3
+        descs = [desc for _, desc in result]
+        assert "blind apex/exit" in descs
+        assert "off-camber camber" in descs
+        assert "crest" in descs

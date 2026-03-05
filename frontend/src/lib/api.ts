@@ -37,6 +37,7 @@ import type {
   OrgEvent,
   ProgressLeaderboardResponse,
   LineAnalysisData,
+  TrackGuideData,
 } from "./types";
 
 const API_BASE = "";
@@ -302,6 +303,12 @@ export async function getLineAnalysis(sessionId: string, laps?: number[]) {
   return fetchApi<LineAnalysisData>(
     `/api/sessions/${sessionId}/line-analysis${params}`,
   );
+}
+
+// --- Track Guide API ---
+
+export async function getTrackGuide(sessionId: string) {
+  return fetchApi<TrackGuideData>(`/api/sessions/${sessionId}/track-guide`);
 }
 
 // --- Trends API ---

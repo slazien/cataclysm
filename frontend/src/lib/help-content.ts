@@ -88,4 +88,6 @@ export const helpContent: Record<string, string> = {
     'How the session score is calculated: Consistency (40%) measures lap time repeatability, Pace (30%) compares your best to your optimal, Corner Grades (30%) averages your technique scores.',
   'section.session-metrics':
     'Key performance indicators summarizing this session. Compare across sessions on the Progress tab.',
+  'section.track-guide':
+    'A briefing on this track\'s layout, key corners, and notable features. Shown for novice drivers to build familiarity before diving into telemetry.',
 };

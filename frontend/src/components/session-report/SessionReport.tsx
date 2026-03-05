@@ -23,6 +23,7 @@ import { TrackWatermark } from '@/components/shared/TrackWatermark';
 import { BadgeGrid } from '@/components/achievements/BadgeGrid';
 import { TrackLeaderboardSummary } from '@/components/leaderboard/TrackLeaderboardSummary';
 import { SkillLevelMismatchBanner } from '@/components/coach/SkillLevelMismatchBanner';
+import { TrackGuideCard } from './TrackGuideCard';
 
 export function SessionReport() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
@@ -66,6 +67,10 @@ export function SessionReport() {
           isNovice={isNovice}
           isAdvanced={isAdvanced}
         />
+
+        {showFeature('track_guide') && activeSessionId && (
+          <TrackGuideCard sessionId={activeSessionId} />
+        )}
 
         {isSkillMismatch && report?.skill_level && (
           <SkillLevelMismatchBanner

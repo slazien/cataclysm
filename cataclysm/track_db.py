@@ -780,6 +780,45 @@ def _normalize_name(name: str) -> str:
     return name.strip().lower()
 
 
+def get_key_corners(layout: TrackLayout) -> list[tuple[OfficialCorner, float]]:
+    """Identify Type A corners: exit speed critical because a long straight follows.
+
+    A corner qualifies as Type A when the gap to the next corner exceeds 150 m.
+    Returns up to 3 results sorted by straight length descending.
+    """
+    track_len = layout.length_m or 0.0
+    if track_len <= 0 or len(layout.corners) < 2:
+        return []
+
+    result: list[tuple[OfficialCorner, float]] = []
+    sorted_corners = sorted(layout.corners, key=lambda c: c.fraction)
+    for i, c in enumerate(sorted_corners):
+        if i + 1 < len(sorted_corners):
+            gap = sorted_corners[i + 1].fraction - c.fraction
+        else:
+            # Wrap-around: last corner to first corner (through S/F)
+            gap = (1.0 - c.fraction) + sorted_corners[0].fraction
+        gap_m = gap * track_len
+        if gap_m > 150:
+            result.append((c, gap_m))
+
+    result.sort(key=lambda x: x[1], reverse=True)
+    return result[:3]
+
+
+def get_peculiarities(layout: TrackLayout) -> list[tuple[OfficialCorner, str]]:
+    """Corners with blind, off-camber, crest, or compression characteristics."""
+    result: list[tuple[OfficialCorner, str]] = []
+    for c in layout.corners:
+        if c.blind:
+            result.append((c, "blind apex/exit"))
+        if c.camber in ("off-camber", "negative"):
+            result.append((c, f"{c.camber} camber"))
+        if c.elevation_trend in ("crest", "compression"):
+            result.append((c, c.elevation_trend))
+    return result
+
+
 def lookup_track(track_name: str) -> TrackLayout | None:
     """Look up a known track layout by name.
 

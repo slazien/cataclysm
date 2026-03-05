@@ -15,7 +15,8 @@ type SkillFeature =
   | 'delta_breakdown'
   | 'gforce_analysis'
   | 'line_analysis'
-  | 'optimal_comparison';
+  | 'optimal_comparison'
+  | 'track_guide';
 
 // Feature visibility matrix: true = visible at this skill level
 const FEATURE_MATRIX: Record<SkillFeature, Record<SkillLevel, boolean>> = {
@@ -34,6 +35,7 @@ const FEATURE_MATRIX: Record<SkillFeature, Record<SkillLevel, boolean>> = {
   gforce_analysis:    { novice: false, intermediate: false, advanced: true },
   line_analysis:      { novice: false, intermediate: true,  advanced: true },
   optimal_comparison: { novice: false, intermediate: true,  advanced: true },
+  track_guide:        { novice: true,  intermediate: false, advanced: false },
 };
 
 export function useSkillLevel() {

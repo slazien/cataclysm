@@ -705,6 +705,96 @@ async def backfill_weather(
     }
 
 
+@router.get("/{session_id}/track-guide")
+async def get_track_guide(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> dict[str, object]:
+    """Get structured track guide data for the Track Briefing Card.
+
+    Returns 404 if the session's track is not in the track database.
+    """
+    from cataclysm.track_db import get_key_corners, get_peculiarities, lookup_track
+
+    from backend.api.schemas.track_guide import (
+        KeyCorner,
+        TrackGuideCorner,
+        TrackGuideLandmark,
+        TrackGuideResponse,
+        TrackPeculiarity,
+    )
+
+    sd = session_store.get_session_for_user(session_id, current_user.user_id)
+    if sd is None:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+    track_name = sd.snapshot.metadata.track_name
+    layout = lookup_track(track_name)
+    if layout is None:
+        raise HTTPException(status_code=404, detail=f"Track '{track_name}' not in database")
+
+    corners = [
+        TrackGuideCorner(
+            number=c.number,
+            name=c.name,
+            fraction=c.fraction,
+            direction=c.direction,
+            corner_type=c.corner_type,
+            elevation_trend=c.elevation_trend,
+            camber=c.camber,
+            blind=c.blind,
+            coaching_notes=c.coaching_notes,
+            character=c.character,
+        )
+        for c in layout.corners
+    ]
+
+    key_corners = [
+        KeyCorner(
+            number=c.number,
+            name=c.name,
+            straight_after_m=round(gap_m, 0),
+            coaching_notes=c.coaching_notes,
+            direction=c.direction,
+            blind=c.blind,
+            camber=c.camber,
+        )
+        for c, gap_m in get_key_corners(layout)
+    ]
+
+    peculiarities = [
+        TrackPeculiarity(
+            corner_number=c.number,
+            corner_name=c.name,
+            description=desc,
+        )
+        for c, desc in get_peculiarities(layout)
+    ]
+
+    landmarks = [
+        TrackGuideLandmark(
+            name=lm.name,
+            distance_m=lm.distance_m,
+            landmark_type=lm.landmark_type.value,
+            description=lm.description,
+        )
+        for lm in layout.landmarks
+    ]
+
+    response = TrackGuideResponse(
+        track_name=layout.name,
+        length_m=layout.length_m,
+        elevation_range_m=layout.elevation_range_m,
+        country=layout.country,
+        n_corners=len(layout.corners),
+        corners=corners,
+        key_corners=key_corners,
+        peculiarities=peculiarities,
+        landmarks=landmarks,
+    )
+    return response.model_dump()
+
+
 @router.get("/{session_id}/laps", response_model=list[LapSummary])
 async def get_lap_summaries(
     session_id: str,

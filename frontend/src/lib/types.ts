@@ -711,6 +711,56 @@ export interface ProgressLeaderboardResponse {
   your_percentile: number | null;
 }
 
+// --- Track Guide Types ---
+
+export interface TrackGuideCorner {
+  number: number;
+  name: string;
+  fraction: number;
+  direction: string | null;
+  corner_type: string | null;
+  elevation_trend: string | null;
+  camber: string | null;
+  blind: boolean;
+  coaching_notes: string | null;
+  character: string | null;
+}
+
+export interface KeyCorner {
+  number: number;
+  name: string;
+  straight_after_m: number;
+  coaching_notes: string | null;
+  direction: string | null;
+  blind: boolean;
+  camber: string | null;
+}
+
+export interface TrackPeculiarity {
+  corner_number: number;
+  corner_name: string;
+  description: string;
+}
+
+export interface TrackGuideLandmark {
+  name: string;
+  distance_m: number;
+  landmark_type: string;
+  description: string | null;
+}
+
+export interface TrackGuideData {
+  track_name: string;
+  length_m: number | null;
+  elevation_range_m: number | null;
+  country: string;
+  n_corners: number;
+  corners: TrackGuideCorner[];
+  key_corners: KeyCorner[];
+  peculiarities: TrackPeculiarity[];
+  landmarks: TrackGuideLandmark[];
+}
+
 // --- Line Analysis Types ---
 
 export interface CornerLineProfile {

@@ -38,7 +38,7 @@ from cataclysm.landmarks import (
 from cataclysm.optimal_comparison import OptimalComparisonResult
 from cataclysm.skill_detection import SkillAssessment, format_skill_for_prompt
 from cataclysm.topic_guardrail import TOPIC_RESTRICTION_PROMPT
-from cataclysm.track_db import OfficialCorner, TrackLayout
+from cataclysm.track_db import TrackLayout, get_key_corners, get_peculiarities
 
 logger = logging.getLogger(__name__)
 
@@ -676,46 +676,23 @@ def build_track_introduction(layout: TrackLayout | None) -> str:
 
     lines.append("</corner_guide>")
 
-    # Key corners: identify Type A corners by gap analysis.
-    # A corner is Type A if the fraction gap to the next corner * length_m > 150m.
-    track_len = layout.length_m or 0.0
-    if track_len > 0 and len(layout.corners) >= 2:
-        key_corners: list[tuple[OfficialCorner, float]] = []
-        sorted_corners = sorted(layout.corners, key=lambda c: c.fraction)
-        for i, c in enumerate(sorted_corners):
-            if i + 1 < len(sorted_corners):
-                gap = sorted_corners[i + 1].fraction - c.fraction
-            else:
-                # Wrap-around: last corner to first corner (through S/F)
-                gap = (1.0 - c.fraction) + sorted_corners[0].fraction
-            gap_m = gap * track_len
-            if gap_m > 150:
-                key_corners.append((c, gap_m))
-
-        if key_corners:
-            key_corners.sort(key=lambda x: x[1], reverse=True)
-            lines.append("<key_corners>")
-            for c, gap_m in key_corners[:3]:
-                lines.append(
-                    f'  <corner number="{c.number}" name="{c.name}" '
-                    f'straight_after="{gap_m:.0f}m">Type A — exit speed critical</corner>'
-                )
-            lines.append("</key_corners>")
+    # Key corners: Type A corners where exit speed is critical (long straight after)
+    key_corners = get_key_corners(layout)
+    if key_corners:
+        lines.append("<key_corners>")
+        for c, gap_m in key_corners:
+            lines.append(
+                f'  <corner number="{c.number}" name="{c.name}" '
+                f'straight_after="{gap_m:.0f}m">Type A — exit speed critical</corner>'
+            )
+        lines.append("</key_corners>")
 
     # Peculiarities: blind corners, off-camber, crests, compressions
-    peculiarities: list[str] = []
-    for c in layout.corners:
-        if c.blind:
-            peculiarities.append(f"T{c.number} ({c.name}): blind apex/exit")
-        if c.camber in ("off-camber", "negative"):
-            peculiarities.append(f"T{c.number} ({c.name}): {c.camber} camber")
-        if c.elevation_trend in ("crest", "compression"):
-            peculiarities.append(f"T{c.number} ({c.name}): {c.elevation_trend}")
-
+    peculiarities = get_peculiarities(layout)
     if peculiarities:
         lines.append("<peculiarities>")
-        for p in peculiarities:
-            lines.append(f"  {p}")
+        for c, desc in peculiarities:
+            lines.append(f"  T{c.number} ({c.name}): {desc}")
         lines.append("</peculiarities>")
 
     # Landmarks
