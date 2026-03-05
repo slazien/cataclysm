@@ -72,7 +72,7 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
   const { data: report } = useCoachingReport(sessionId);
   const { data: allLapCorners } = useAllLapCorners(sessionId);
   const { data: lineData } = useLineAnalysis(sessionId);
-  const { convertSpeed, speedUnit, resolveSpeed } = useUnits();
+  const { convertSpeed, convertDistance, speedUnit, distanceUnit, resolveSpeed } = useUnits();
 
   if (!selectedCorner) {
     return (
@@ -160,8 +160,8 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
         />
         <KpiRow
           label={<GlossaryTerm term="Brake Point">Brake Point</GlossaryTerm>}
-          value={corner.brake_point_m !== null ? corner.brake_point_m.toFixed(0) : '--'}
-          unit={corner.brake_point_m !== null ? 'm' : ''}
+          value={corner.brake_point_m !== null ? convertDistance(corner.brake_point_m).toFixed(0) : '--'}
+          unit={corner.brake_point_m !== null ? distanceUnit : ''}
         />
         <KpiRow
           label={<GlossaryTerm term="Peak Brake G">Peak Brake G</GlossaryTerm>}
@@ -170,18 +170,18 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
         />
         <KpiRow
           label={<GlossaryTerm term="Throttle Commit">Throttle Commit</GlossaryTerm>}
-          value={corner.throttle_commit_m !== null ? corner.throttle_commit_m.toFixed(0) : '--'}
-          unit={corner.throttle_commit_m !== null ? 'm' : ''}
+          value={corner.throttle_commit_m !== null ? convertDistance(corner.throttle_commit_m).toFixed(0) : '--'}
+          unit={corner.throttle_commit_m !== null ? distanceUnit : ''}
         />
         <KpiRow
           label="Entry"
-          value={corner.entry_distance_m.toFixed(0)}
-          unit="m"
+          value={convertDistance(corner.entry_distance_m).toFixed(0)}
+          unit={distanceUnit}
         />
         <KpiRow
           label="Exit"
-          value={corner.exit_distance_m.toFixed(0)}
-          unit="m"
+          value={convertDistance(corner.exit_distance_m).toFixed(0)}
+          unit={distanceUnit}
         />
       </div>
 
@@ -244,19 +244,19 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
               <div>
                 <div className="text-[10px] text-[var(--text-muted)]">Entry</div>
                 <div className="text-xs font-medium tabular-nums text-[var(--text-primary)]">
-                  {lp.d_entry_median > 0 ? '+' : ''}{lp.d_entry_median.toFixed(1)}m
+                  {lp.d_entry_median > 0 ? '+' : ''}{convertDistance(lp.d_entry_median).toFixed(1)}{distanceUnit}
                 </div>
               </div>
               <div>
                 <div className="text-[10px] text-[var(--text-muted)]">Apex</div>
                 <div className="text-xs font-medium tabular-nums text-[var(--text-primary)]">
-                  {lp.d_apex_median > 0 ? '+' : ''}{lp.d_apex_median.toFixed(1)}m
+                  {lp.d_apex_median > 0 ? '+' : ''}{convertDistance(lp.d_apex_median).toFixed(1)}{distanceUnit}
                 </div>
               </div>
               <div>
                 <div className="text-[10px] text-[var(--text-muted)]">Exit</div>
                 <div className="text-xs font-medium tabular-nums text-[var(--text-primary)]">
-                  {lp.d_exit_median > 0 ? '+' : ''}{lp.d_exit_median.toFixed(1)}m
+                  {lp.d_exit_median > 0 ? '+' : ''}{convertDistance(lp.d_exit_median).toFixed(1)}{distanceUnit}
                 </div>
               </div>
             </div>

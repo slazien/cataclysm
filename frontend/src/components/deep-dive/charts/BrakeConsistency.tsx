@@ -4,6 +4,7 @@ import { useEffect, useMemo } from 'react';
 import * as d3 from 'd3';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
 import { useAllLapCorners } from '@/hooks/useAnalysis';
+import { useUnits } from '@/hooks/useUnits';
 import { useAnalysisStore } from '@/stores';
 import { colors, fonts } from '@/lib/design-tokens';
 import { parseCornerNumber } from '@/lib/cornerUtils';
@@ -84,6 +85,7 @@ function drawLabels(
 export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
   const selectedCorner = useAnalysisStore((s) => s.selectedCorner);
   const { data: allLapCorners } = useAllLapCorners(sessionId);
+  const { convertDistance, distanceUnit } = useUnits();
 
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx } =
     useCanvasChart(MARGINS);
@@ -186,7 +188,7 @@ export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
     ctx.font = `10px ${fonts.mono}`;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(`avg: ${mean.toFixed(0)}m`, MARGINS.left + dimensions.innerWidth - 4, meanY - 3);
+    ctx.fillText(`avg: ${convertDistance(mean).toFixed(0)}${distanceUnit}`, MARGINS.left + dimensions.innerWidth - 4, meanY - 3);
 
     // Dots
     for (let i = 0; i < brakePoints.length; i++) {
@@ -223,12 +225,12 @@ export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       ctx.fillText(
-        `std dev: ${stdDev.toFixed(1)}m`,
+        `std dev: ${convertDistance(stdDev).toFixed(1)}${distanceUnit}`,
         MARGINS.left + 4,
         MARGINS.top + 4,
       );
     }
-  }, [brakePoints, mean, stdDev, xScale, yScale, dimensions, getDataCtx]);
+  }, [brakePoints, mean, stdDev, xScale, yScale, dimensions, getDataCtx, convertDistance, distanceUnit]);
 
   if (!selectedCorner || cornerNumber === null) {
     return (

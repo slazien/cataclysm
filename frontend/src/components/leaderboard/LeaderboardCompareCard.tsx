@@ -1,6 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
+import { useUnits } from '@/hooks/useUnits';
 import type { CornerRecordEntry } from '@/lib/types';
 
 interface LeaderboardCompareCardProps {
@@ -14,10 +15,7 @@ function formatTime(seconds: number): string {
   return seconds.toFixed(3) + 's';
 }
 
-function formatSpeed(mps: number): string {
-  const mph = mps * 2.23694;
-  return mph.toFixed(1) + ' mph';
-}
+const MPS_TO_MPH = 2.23694;
 
 interface CompareRowProps {
   label: string;
@@ -58,6 +56,8 @@ export function LeaderboardCompareCard({
   cornerNumber,
   onClose,
 }: LeaderboardCompareCardProps) {
+  const { formatSpeed } = useUnits();
+  const fmtSpd = (mps: number) => formatSpeed(mps * MPS_TO_MPH);
   // Time: lower is better, so advantage = their - yours (positive = you're faster)
   const timeAdvantage = theirEntry.sector_time_s - yourEntry.sector_time_s;
   // Speed: higher is better, so advantage = yours - theirs (positive = you're faster)
@@ -98,8 +98,8 @@ export function LeaderboardCompareCard({
         />
         <CompareRow
           label="Min Speed"
-          yours={formatSpeed(yourEntry.min_speed_mps)}
-          theirs={formatSpeed(theirEntry.min_speed_mps)}
+          yours={fmtSpd(yourEntry.min_speed_mps)}
+          theirs={fmtSpd(theirEntry.min_speed_mps)}
           advantage={speedAdvantage}
         />
       </div>

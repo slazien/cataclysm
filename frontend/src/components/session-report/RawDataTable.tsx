@@ -5,6 +5,7 @@ import { ArrowUpDown, Download } from 'lucide-react';
 import { useSessionStore } from '@/stores';
 import { useSessionLaps } from '@/hooks/useSession';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
+import { useUnits } from '@/hooks/useUnits';
 import { formatLapTime } from '@/lib/formatters';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -16,6 +17,7 @@ type SortDir = 'asc' | 'desc';
 
 export function RawDataTable() {
   const { showFeature } = useSkillLevel();
+  const { formatSpeed, formatDistance } = useUnits();
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const { data: laps } = useSessionLaps(activeSessionId);
   const [sortKey, setSortKey] = useState<SortKey>('lap_number');
@@ -103,8 +105,8 @@ export function RawDataTable() {
               <tr key={lap.lap_number} className="border-b border-[var(--cata-border)]/50 hover:bg-[var(--bg-elevated)]">
                 <td className="px-3 py-1.5 text-[var(--text-primary)]">L{lap.lap_number}</td>
                 <td className="px-3 py-1.5 font-mono text-[var(--text-primary)]">{formatLapTime(lap.lap_time_s)}</td>
-                <td className="px-3 py-1.5 text-[var(--text-secondary)]">{(lap.max_speed_mps * MPS_TO_MPH).toFixed(1)} mph</td>
-                <td className="px-3 py-1.5 text-[var(--text-secondary)]">{lap.lap_distance_m.toFixed(0)} m</td>
+                <td className="px-3 py-1.5 text-[var(--text-secondary)]">{formatSpeed(lap.max_speed_mps * MPS_TO_MPH)}</td>
+                <td className="px-3 py-1.5 text-[var(--text-secondary)]">{formatDistance(lap.lap_distance_m)}</td>
                 <td className="px-3 py-1.5">
                   <span className={cn(
                     'inline-block rounded px-1.5 py-0.5 text-xs font-medium',

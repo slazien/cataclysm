@@ -6,6 +6,7 @@ import { motion } from 'motion/react';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
 import { useAnimationFrame } from '@/hooks/useAnimationFrame';
 import { useLineAnalysis, useCorners } from '@/hooks/useAnalysis';
+import { useUnits } from '@/hooks/useUnits';
 import { useAnalysisStore } from '@/stores';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { colors, fonts } from '@/lib/design-tokens';
@@ -71,6 +72,7 @@ export function LateralOffsetChart({ sessionId }: LateralOffsetChartProps) {
   const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
   const { data: lineData, isLoading } = useLineAnalysis(sessionId, selectedLaps);
   const { data: corners } = useCorners(sessionId);
+  const { convertDistance, distanceUnit } = useUnits();
 
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx } =
     useCanvasChart(MARGINS);
@@ -219,7 +221,7 @@ export function LateralOffsetChart({ sessionId }: LateralOffsetChartProps) {
               : colors.comparison.compare
             : colors.lap[li % colors.lap.length];
         const sign = offset >= 0 ? '+' : '';
-        const label = `L${trace.lap_number}: ${sign}${offset.toFixed(2)}m`;
+        const label = `L${trace.lap_number}: ${sign}${convertDistance(offset).toFixed(2)}${distanceUnit}`;
 
         const textWidth = ctx.measureText(label).width;
         const rightEdge = MARGINS.left + dims.innerWidth;

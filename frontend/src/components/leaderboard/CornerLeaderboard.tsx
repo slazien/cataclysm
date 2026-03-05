@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { useCornerLeaderboard } from '@/hooks/useLeaderboard';
+import { useUnits } from '@/hooks/useUnits';
 import type { CornerRecordEntry } from '@/lib/types';
 import { KingBadge } from './KingBadge';
 import { LeaderboardCompareCard } from './LeaderboardCompareCard';
@@ -26,14 +27,7 @@ function formatTime(seconds: number): string {
   return seconds.toFixed(3) + 's';
 }
 
-function formatSpeed(mps: number): string {
-  const mph = mps * 2.23694;
-  return mph.toFixed(1) + ' mph';
-}
-
-function formatDistance(meters: number): string {
-  return meters.toFixed(1) + ' m';
-}
+const MPS_TO_MPH = 2.23694;
 
 function formatCV(cv: number): string {
   return (cv * 100).toFixed(2) + '%';
@@ -46,6 +40,8 @@ function MetricColumns({
   category: CategoryKey;
   entry: CornerRecordEntry;
 }) {
+  const { formatSpeed, formatDistance } = useUnits();
+  const fmtSpd = (mps: number) => formatSpeed(mps * MPS_TO_MPH);
   switch (category) {
     case 'sector_time':
       return (
@@ -54,7 +50,7 @@ function MetricColumns({
             {formatTime(entry.sector_time_s)}
           </td>
           <td className="px-4 py-2 text-right text-zinc-400">
-            {formatSpeed(entry.min_speed_mps)}
+            {fmtSpd(entry.min_speed_mps)}
           </td>
         </>
       );
@@ -62,7 +58,7 @@ function MetricColumns({
       return (
         <>
           <td className="px-4 py-2 text-right font-mono text-zinc-300">
-            {formatSpeed(entry.min_speed_mps)}
+            {fmtSpd(entry.min_speed_mps)}
           </td>
           <td className="px-4 py-2 text-right text-zinc-400">
             {formatTime(entry.sector_time_s)}

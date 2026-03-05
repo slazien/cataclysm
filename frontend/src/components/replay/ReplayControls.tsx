@@ -2,6 +2,7 @@
 
 import { useCallback } from 'react';
 import { Play, Pause, SkipBack, Video, Square, Download } from 'lucide-react';
+import { useUnits } from '@/hooks/useUnits';
 import type { PlaybackSpeed, ReplayActions, ReplayState } from '@/hooks/useReplay';
 
 interface RecordingProps {
@@ -31,12 +32,7 @@ interface ReplayControlsProps extends ReplayState, ReplayActions {
 
 const SPEED_OPTIONS: PlaybackSpeed[] = [0.5, 1, 2, 4];
 
-function formatDistance(m: number): string {
-  if (m >= 1000) {
-    return `${(m / 1000).toFixed(2)} km`;
-  }
-  return `${Math.round(m)} m`;
-}
+// formatDistance defined via useUnits hook in the component
 
 function formatTime(s: number): string {
   const mins = Math.floor(s / 60);
@@ -68,6 +64,7 @@ export function ReplayControls({
   reset,
   recording,
 }: ReplayControlsProps) {
+  const { formatLength } = useUnits();
   const handleScrub = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       seek(parseInt(e.target.value, 10));
@@ -118,9 +115,9 @@ export function ReplayControls({
 
         {/* Center: distance / time readout */}
         <div className="flex items-center gap-3 font-mono text-xs text-[var(--text-secondary)]">
-          <span>{formatDistance(currentDistance)}</span>
+          <span>{formatLength(currentDistance)}</span>
           <span className="text-[var(--text-muted)]">/</span>
-          <span>{formatDistance(totalDistance)}</span>
+          <span>{formatLength(totalDistance)}</span>
           <span className="mx-1 text-[var(--text-muted)]">|</span>
           <span>{formatTime(currentTime)}</span>
         </div>

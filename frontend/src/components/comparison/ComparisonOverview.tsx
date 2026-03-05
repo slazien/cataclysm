@@ -5,6 +5,7 @@ import { ArrowLeft, Share2, Check, Trophy, Clock, MapPin } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { formatLapTime } from '@/lib/formatters';
+import { useUnits } from '@/hooks/useUnits';
 import { Button } from '@/components/ui/button';
 import { DeltaTimeChart } from './DeltaTimeChart';
 import { ComparisonTrackMap } from './ComparisonTrackMap';
@@ -19,6 +20,7 @@ interface ComparisonOverviewProps {
 export function ComparisonOverview({ data }: ComparisonOverviewProps) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
+  const { convertSpeed, speedUnit } = useUnits();
 
   const handleShare = useCallback(async () => {
     const url = `${window.location.origin}/compare/${data.session_a_id}?with=${data.session_b_id}`;
@@ -290,10 +292,10 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
                         T{cd.corner_number}
                       </td>
                       <td className="px-3 py-2 text-right font-mono text-[var(--text-secondary)]">
-                        {cd.a_min_speed_mph.toFixed(1)} mph
+                        {convertSpeed(cd.a_min_speed_mph).toFixed(1)} {speedUnit}
                       </td>
                       <td className="px-3 py-2 text-right font-mono text-[var(--text-secondary)]">
-                        {cd.b_min_speed_mph.toFixed(1)} mph
+                        {convertSpeed(cd.b_min_speed_mph).toFixed(1)} {speedUnit}
                       </td>
                       <td
                         className={cn(
@@ -304,7 +306,7 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
                         )}
                       >
                         {isPositive ? '+' : ''}
-                        {cd.speed_diff_mph.toFixed(1)} mph
+                        {convertSpeed(cd.speed_diff_mph).toFixed(1)} {speedUnit}
                       </td>
                     </tr>
                   );

@@ -109,7 +109,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
   const { data: corners } = useCorners(sessionId);
   const { data: allLapCorners } = useAllLapCorners(sessionId);
   const { data: report } = useCoachingReport(sessionId);
-  const { convertSpeed, speedUnit, resolveSpeed } = useUnits();
+  const { convertSpeed, convertDistance, speedUnit, distanceUnit, resolveSpeed } = useUnits();
   const { skillLevel, showFeature } = useSkillLevel();
   const showExplanations = showFeature('grade_explanations');
 
@@ -231,10 +231,10 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
         {corner.brake_point_m !== null && (
           <KpiRow
             label={<GlossaryTerm term="Brake Point">Brake Point</GlossaryTerm>}
-            value={corner.brake_point_m.toFixed(0)}
-            unit="m"
-            delta={brakePointDelta}
-            deltaUnit="m"
+            value={convertDistance(corner.brake_point_m).toFixed(0)}
+            unit={distanceUnit}
+            delta={brakePointDelta !== null ? convertDistance(brakePointDelta) : null}
+            deltaUnit={distanceUnit}
             invertDelta
           />
         )}
@@ -250,10 +250,10 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
         {corner.throttle_commit_m !== null && (
           <KpiRow
             label={<GlossaryTerm term="Throttle Commit">Throttle Commit</GlossaryTerm>}
-            value={corner.throttle_commit_m.toFixed(0)}
-            unit="m"
-            delta={throttleDelta}
-            deltaUnit="m"
+            value={convertDistance(corner.throttle_commit_m).toFixed(0)}
+            unit={distanceUnit}
+            delta={throttleDelta !== null ? convertDistance(throttleDelta) : null}
+            deltaUnit={distanceUnit}
             invertDelta
           />
         )}

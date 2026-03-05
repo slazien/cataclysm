@@ -33,6 +33,20 @@ export function useUnits() {
     [isMetric],
   );
 
+  /** Format a track-scale distance (km / mi) — for track length, long straights */
+  const formatLength = useCallback(
+    (meters: number, decimals = 2): string => {
+      if (isMetric) {
+        if (meters >= 1000) return `${(meters / 1000).toFixed(decimals)} km`;
+        return `${Math.round(meters)} m`;
+      }
+      const miles = meters / 1609.344;
+      if (miles >= 0.1) return `${miles.toFixed(decimals)} mi`;
+      return `${(meters * 3.28084).toFixed(0)} ft`;
+    },
+    [isMetric],
+  );
+
   /** Speed unit label (for chart axes) */
   const speedUnit = isMetric ? 'km/h' : 'mph';
 
@@ -81,6 +95,7 @@ export function useUnits() {
     isMetric,
     formatSpeed,
     formatDistance,
+    formatLength,
     formatTemp,
     speedUnit,
     distanceUnit,

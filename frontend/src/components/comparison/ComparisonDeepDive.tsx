@@ -11,6 +11,7 @@ import { ComparisonTrackMap } from '@/components/comparison/ComparisonTrackMap';
 import { SpeedTraceOverlay } from '@/components/comparison/SpeedTraceOverlay';
 import { RadarChart } from '@/components/shared/RadarChart';
 import { InfoTooltip } from '@/components/shared/InfoTooltip';
+import { useUnits } from '@/hooks/useUnits';
 import type { ShareComparisonResult } from '@/lib/types';
 
 interface ComparisonDeepDiveProps {
@@ -26,6 +27,7 @@ export function ComparisonDeepDive({
   challengerName,
   token,
 }: ComparisonDeepDiveProps) {
+  const { convertSpeed, speedUnit } = useUnits();
   const [aiNarrative, setAiNarrative] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -240,10 +242,10 @@ export function ComparisonDeepDive({
                         T{cd.corner_number}
                       </td>
                       <td className="px-3 py-2 text-right font-mono text-[var(--text-secondary)]">
-                        {cd.a_min_speed_mph.toFixed(1)} mph
+                        {convertSpeed(cd.a_min_speed_mph).toFixed(1)} {speedUnit}
                       </td>
                       <td className="px-3 py-2 text-right font-mono text-[var(--text-secondary)]">
-                        {cd.b_min_speed_mph.toFixed(1)} mph
+                        {convertSpeed(cd.b_min_speed_mph).toFixed(1)} {speedUnit}
                       </td>
                       <td
                         className={cn(
@@ -254,7 +256,7 @@ export function ComparisonDeepDive({
                         )}
                       >
                         {isPositive ? '+' : ''}
-                        {cd.speed_diff_mph.toFixed(1)} mph
+                        {convertSpeed(cd.speed_diff_mph).toFixed(1)} {speedUnit}
                       </td>
                     </tr>
                   );

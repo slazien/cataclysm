@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useUnits } from '@/hooks/useUnits';
 import {
   MapPin,
   Ruler,
@@ -104,6 +105,7 @@ function StatCard({ icon: Icon, label, value }: { icon: React.ComponentType<{ cl
 }
 
 function KeyCornerCard({ corner }: { corner: KeyCorner }) {
+  const { formatDistance } = useUnits();
   return (
     <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-3">
       <div className="flex items-center gap-2">
@@ -119,7 +121,7 @@ function KeyCornerCard({ corner }: { corner: KeyCorner }) {
           Exit speed critical
         </span>
         <span className="text-[10px] text-[var(--text-secondary)]">
-          {Math.round(corner.straight_after_m)}m straight after
+          {formatDistance(corner.straight_after_m)} straight after
         </span>
       </div>
 
@@ -211,7 +213,7 @@ function LandmarkIcon({ type }: { type: string }) {
   }
 }
 
-function LandmarkList({ landmarks }: { landmarks: TrackGuideLandmark[] }) {
+function LandmarkList({ landmarks, formatDistance }: { landmarks: TrackGuideLandmark[]; formatDistance: (m: number) => string }) {
   const [showAll, setShowAll] = useState(false);
   const visible = showAll ? landmarks : landmarks.slice(0, 5);
   const remaining = landmarks.length - 5;
@@ -223,7 +225,7 @@ function LandmarkList({ landmarks }: { landmarks: TrackGuideLandmark[] }) {
           <LandmarkIcon type={lm.landmark_type} />
           <div className="min-w-0">
             <span className="font-medium text-[var(--text-primary)]">{lm.name}</span>
-            <span className="ml-1.5 text-[var(--text-secondary)]">{Math.round(lm.distance_m)}m</span>
+            <span className="ml-1.5 text-[var(--text-secondary)]">{formatDistance(lm.distance_m)}</span>
             {lm.description && (
               <span className="ml-1 text-[var(--text-secondary)]">— {lm.description}</span>
             )}
@@ -243,15 +245,10 @@ function LandmarkList({ landmarks }: { landmarks: TrackGuideLandmark[] }) {
   );
 }
 
-function formatLength(m: number | null): string {
-  if (m == null) return '—';
-  if (m >= 1000) return `${(m / 1000).toFixed(2)} km`;
-  return `${Math.round(m)} m`;
-}
-
 export function TrackGuideCard({ sessionId }: TrackGuideCardProps) {
   const { data: guide, isError } = useTrackGuide(sessionId);
   const hasSeen = useHasSeen(sessionId, !!guide);
+  const { formatLength, formatDistance } = useUnits();
   const [collapsed, setCollapsed] = useState(true);
 
   // Once data loads, decide initial collapsed state
@@ -298,7 +295,7 @@ export function TrackGuideCard({ sessionId }: TrackGuideCardProps) {
           {/* Section 1: Track Overview */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatCard icon={MapPin} label="Track" value={guide.track_name} />
-            <StatCard icon={Ruler} label="Length" value={formatLength(guide.length_m)} />
+            <StatCard icon={Ruler} label="Length" value={guide.length_m ? formatLength(guide.length_m) : '—'} />
             <StatCard
               icon={Navigation}
               label="Turns"
@@ -307,7 +304,7 @@ export function TrackGuideCard({ sessionId }: TrackGuideCardProps) {
             <StatCard
               icon={Mountain}
               label="Elevation"
-              value={guide.elevation_range_m ? `${guide.elevation_range_m}m` : '—'}
+              value={guide.elevation_range_m ? formatDistance(guide.elevation_range_m) : '—'}
             />
           </div>
 
@@ -359,7 +356,7 @@ export function TrackGuideCard({ sessionId }: TrackGuideCardProps) {
               defaultOpen={false}
               count={guide.landmarks.length}
             >
-              <LandmarkList landmarks={guide.landmarks} />
+              <LandmarkList landmarks={guide.landmarks} formatDistance={formatDistance} />
             </CollapsibleSection>
           )}
         </div>
