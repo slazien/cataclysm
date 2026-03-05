@@ -179,6 +179,27 @@ assert not is_generating(session_id, "intermediate")
 
 **Error signature**: Tests that POST to trigger generation then GET/assert the result fail intermittently with 404, `status != "ready"`, or stale `is_generating` flags.
 
+## Examine All Evidence Before Diagnosing Root Cause ([2026-03-05])
+
+**Pattern**: When investigating a data discrepancy, read ALL the evidence (screenshots, labels, values) before proposing a root cause. Don't assume the first plausible explanation is correct — verify it against the evidence.
+
+**Why**: User reported T10 showing 76 mph in the corner card vs ~92 mph in the speed trace. First diagnosis was "lap-data mismatch" (card using best-lap, trace using selected lap). But the user's screenshot clearly showed "L18" labeled in BOTH places — same lap, different speed. Actual root cause was a corner boundary artifact where `np.argmin(corner_speed)` found a local minimum in the adjacent corner's deceleration zone, not the true apex. A careful look at the evidence would have caught this immediately.
+
+**Error signature**: Component shows a data label (e.g., "L18") matching the selected state, but the value doesn't match what the chart shows for that same data.
+
+**Anti-pattern**: "The card shows a different value → must be using wrong data source." This is a plausible guess but skips checking whether the label confirms the same data source. Always ask: "Does the evidence SUPPORT or CONTRADICT my hypothesis?"
+
+## CSS Sticky Containers Need Overflow + Max-Height Together ([2026-03-05])
+
+**Pattern**: When a container uses `lg:sticky lg:top-0`, it MUST also have `lg:max-h-[calc(100vh-Xrem)]` and `lg:overflow-y-auto` if its content might exceed viewport height. Removing ANY of these three properties breaks the layout:
+- No `max-h` → content clips at viewport bottom with no way to scroll
+- No `overflow-y-auto` → same clipping, no scrollbar
+- No `sticky` → column scrolls away with the page
+
+**Why**: Removed `overflow-y-auto` and `max-h` from SpeedAnalysis right column thinking the user wanted "no scroll." This made the corner card bottom completely unreachable — worse than the original. The correct fix was to keep the overflow/max-h but adjust the height calculation to give more space.
+
+**Anti-pattern**: "User says 'no scroll needed' → remove overflow constraints." Instead, maximize available space (reduce max-h deduction, let card flex-grow) while keeping the scroll mechanism as a fallback.
+
 ## Always Run Code Reviewer After Implementation
 - **When**: After finishing ANY implementation task — features, bug fixes, refactors
 - **Rule**: Dispatch the code reviewer agent (`superpowers:code-reviewer` or `code-review:code-review`) to review all changed files. This is in ADDITION to automated checks (ruff, mypy, tests), not a replacement.
