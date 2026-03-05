@@ -217,7 +217,7 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
         <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
           <h2 className="mb-1 flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)]">
             Delta Map
-            <InfoTooltip helpKey="chart.driving-line" />
+            <InfoTooltip helpKey="chart.delta-map" />
           </h2>
           <p className="mb-3 text-xs text-[var(--text-secondary)]">
             Green = Session A gaining time, Red = Session A losing time

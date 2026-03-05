@@ -66,6 +66,8 @@ export const helpContent: Record<string, string> = {
     'Key achievements and milestones across your sessions. Tracks when you hit personal bests and consistency targets.',
   'chart.skill-radar-evolution':
     'How your skill profile has changed across sessions. Faded shapes are historical — watch the profile expand as you improve.',
+  'chart.delta-map':
+    'Track map colored by time difference between sessions. Green = gaining time, red = losing time. Hotspots show where the biggest differences occur.',
 
   // ── Grades ───────────────────────────────────────────────
   'grade.braking':

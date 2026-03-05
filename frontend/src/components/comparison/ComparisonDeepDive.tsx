@@ -93,7 +93,7 @@ export function ComparisonDeepDive({
         <section className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
           <h3 className="mb-1 flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)]">
             Delta Map
-            <InfoTooltip helpKey="chart.driving-line" />
+            <InfoTooltip helpKey="chart.delta-map" />
           </h3>
           <p className="mb-3 text-xs text-[var(--text-secondary)]">
             Green = {inviterName} gaining, Red = {inviterName} losing

@@ -7,6 +7,7 @@ import { useAnalysisStore } from '@/stores';
 import { useUnits } from '@/hooks/useUnits';
 import { parseCornerNumber } from '@/lib/cornerUtils';
 import { SkeletonCard } from '@/components/shared/SkeletonCard';
+import { InfoTooltip } from '@/components/shared/InfoTooltip';
 import { cn } from '@/lib/utils';
 import type { CornerOpportunity } from '@/lib/types';
 
@@ -259,8 +260,9 @@ export function CornerSpeedGapPanel({ sessionId, selectedCorner }: CornerSpeedGa
       {/* Header */}
       <div className="mb-2 flex items-baseline justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-[var(--text-primary)] font-[family-name:var(--font-display)]">
+          <h3 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--text-primary)] font-[family-name:var(--font-display)]">
             Speed Gap vs Optimal
+            <InfoTooltip helpKey="chart.speed-gap" />
           </h3>
           <p className="text-[10px] text-[var(--text-muted)]">
             Per-corner time cost from speed deficit

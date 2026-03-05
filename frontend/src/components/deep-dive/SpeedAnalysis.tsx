@@ -73,8 +73,8 @@ export function SpeedAnalysis() {
         {/* Speed Trace -- tallest */}
         <div className="flex flex-col gap-1.5">
           <div className="relative h-[16rem] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:h-[20rem]">
-            <div className="absolute left-3 top-1.5 z-10 flex items-center gap-1.5">
-              <h3 className="pointer-events-none text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+            <div className="pointer-events-none absolute left-3 top-1.5 z-10 flex items-center gap-1.5">
+              <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
                 Speed Trace
               </h3>
               <InfoTooltip helpKey="chart.speed-trace" className="pointer-events-auto" />
@@ -96,9 +96,9 @@ export function SpeedAnalysis() {
 
         {/* Delta-T */}
         <div className="relative h-[16rem] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:h-[16rem]">
-          <div className="absolute left-3 top-1.5 z-10">
+          <div className="pointer-events-none absolute left-3 top-1.5 z-10">
             <div className="flex items-center gap-1.5">
-              <h3 className="pointer-events-none text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+              <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
                 Delta-T
               </h3>
               <InfoTooltip helpKey="chart.delta-t" className="pointer-events-auto" />
@@ -116,8 +116,8 @@ export function SpeedAnalysis() {
 
         {/* Brake/Throttle */}
         <div className="relative h-[16rem] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:h-[16rem]">
-          <div className="absolute left-3 top-1.5 z-10 flex items-center gap-1.5">
-            <h3 className="pointer-events-none text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+          <div className="pointer-events-none absolute left-3 top-1.5 z-10 flex items-center gap-1.5">
+            <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
               Brake / Throttle
             </h3>
             <InfoTooltip helpKey="chart.brake-throttle" className="pointer-events-auto" />
@@ -130,9 +130,9 @@ export function SpeedAnalysis() {
         {/* Driving Line -- lateral offset from reference line */}
         {showFeature('line_analysis') && (
           <div className="relative h-[14rem] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:h-[14rem]">
-            <div className="absolute left-3 top-1.5 z-10">
+            <div className="pointer-events-none absolute left-3 top-1.5 z-10">
               <div className="flex items-center gap-1.5">
-                <h3 className="pointer-events-none text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+                <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
                   Driving Line
                 </h3>
                 <InfoTooltip helpKey="chart.driving-line" className="pointer-events-auto" />

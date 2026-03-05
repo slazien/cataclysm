@@ -22,6 +22,8 @@ export function InfoTooltip({ helpKey, content, side = 'top', className }: InfoT
   const text = content ?? helpContent[helpKey];
   if (!text) return null;
 
+  const ariaLabel = `More info about ${helpKey.replace(/[.-]/g, ' ')}`;
+
   return (
     <TooltipProvider delayDuration={200}>
       <Tooltip>
@@ -29,10 +31,10 @@ export function InfoTooltip({ helpKey, content, side = 'top', className }: InfoT
           <button
             type="button"
             className={cn(
-              'inline-flex shrink-0 items-center justify-center opacity-40 transition-opacity hover:opacity-80 focus-visible:opacity-80 focus-visible:outline-none',
+              'inline-flex shrink-0 items-center justify-center opacity-40 transition-opacity hover:opacity-80 focus-visible:opacity-80 focus-visible:ring-1 focus-visible:ring-[var(--text-muted)]',
               className,
             )}
-            aria-label="More info"
+            aria-label={ariaLabel}
           >
             <CircleHelp className="h-3.5 w-3.5" />
           </button>

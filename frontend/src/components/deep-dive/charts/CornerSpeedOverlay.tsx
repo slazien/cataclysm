@@ -11,6 +11,7 @@ import { colors, fonts } from '@/lib/design-tokens';
 import { parseCornerNumber } from '@/lib/cornerUtils';
 import { CHART_MARGINS as MARGINS } from './chartHelpers';
 import { useUnits } from '@/hooks/useUnits';
+import { InfoTooltip } from '@/components/shared/InfoTooltip';
 import type { Corner } from '@/lib/types';
 
 interface CornerSpeedOverlayProps {
@@ -437,9 +438,12 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
 
   return (
     <div className="relative h-full w-full rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)]">
-      <h3 className="absolute left-3 top-2 z-10 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
-        Corner Speed Overlay — Turn {cornerNumber}
-      </h3>
+      <div className="pointer-events-none absolute left-3 top-2 z-10 flex items-center gap-1.5">
+        <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+          Corner Speed Overlay — Turn {cornerNumber}
+        </h3>
+        <InfoTooltip helpKey="chart.corner-speed-overlay" className="pointer-events-auto" />
+      </div>
       <div ref={containerRef} className="h-full w-full">
         <canvas
           ref={dataCanvasRef}

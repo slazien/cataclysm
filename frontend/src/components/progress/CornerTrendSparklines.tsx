@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { useUnits } from '@/hooks/useUnits';
+import { InfoTooltip } from '@/components/shared/InfoTooltip';
 
 interface CornerTrendSparklinesProps {
   cornerMinSpeedTrends: Record<string, (number | null)[]>;
@@ -141,8 +142,9 @@ export function CornerTrendSparklines({
         className,
       )}
     >
-      <h3 className="mb-3 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">
+      <h3 className="mb-3 flex items-center gap-1.5 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">
         Corner Speed Trends
+        <InfoTooltip helpKey="chart.corner-sparklines" />
       </h3>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {sparklines.map((data) => {
