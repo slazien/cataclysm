@@ -43,12 +43,12 @@ class VehicleParams:
     - NOTE: No tire thermal model — grip doesn't degrade with sustained use or
       change with tire temperature.
 
-    Tire load sensitivity is modelled via a power-law correction:
-        mu_eff = mu_ref * (Fz / Fz_ref)^(n-1)
-    where *n* = ``load_sensitivity_exponent``.  n < 1.0 means mu drops as
-    vertical load increases (always true for real tires).  The correction is
-    applied in :func:`_compute_max_cornering_speed` using an inner/outer tire
-    average under lateral weight transfer.
+    Tire load sensitivity is modelled via a power-law correction on total
+    lateral force from an inner/outer tire pair under weight transfer:
+        correction = 0.5 * ((1+dLT)^n + (1-dLT)^n)
+    where *n* = ``load_sensitivity_exponent`` and dLT = mu * h_cg / track_w.
+    For n < 1.0 the correction is < 1.0 (Jensen's inequality on concave x^n),
+    meaning total grip drops under load transfer — always true for real tires.
     """
 
     mu: float  # overall friction coefficient (G)
