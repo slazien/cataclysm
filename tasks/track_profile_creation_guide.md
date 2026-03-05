@@ -267,13 +267,21 @@ For EVERY corner, fill these fields by combining track guides with telemetry ana
 - Verify against GPS heading change in telemetry if unsure
 
 #### 3.2 Corner Type
+
+**IMPORTANT**: Corner type determines the corner's weight in the key-corner ranking algorithm (hairpin=3.0x, sweeper=1.5x, kink=0.5x). A wrong classification can bury a critical corner or inflate an unimportant one. Always cross-reference coaching sources — if a guide calls a corner "the slowest point on the track," it's a hairpin regardless of arc angle.
+
 | Type | Description | Telemetry Signature |
 |------|-------------|---------------------|
-| `"hairpin"` | 90+ degree turn, lowest speeds | Deep V in speed trace |
-| `"sweeper"` | Long-radius constant arc | Gradual speed dip, sustained |
-| `"kink"` | Slight direction change, high speed | Barely visible in speed trace |
+| `"hairpin"` | Tight turn OR slowest point on track. Includes 90+ degree turns, U-turns, and any corner where the driver must brake to near-minimum speeds, even if the arc is less than 90 degrees. | Deep V in speed trace, significant deceleration |
+| `"sweeper"` | Long-radius arc at moderate speed | Gradual speed dip, sustained yaw |
+| `"kink"` | Slight direction change, high speed, minimal braking | Barely visible in speed trace |
 | `"chicane"` | Quick left-right or right-left | Two close speed dips |
 | `"esses"` | Multiple linked curves | Oscillating speed trace |
+
+**Validation**: After assigning corner_type, verify that coaching_notes are consistent:
+- If notes say "slowest point", "heavy braking", or "threshold braking" → type should be `"hairpin"`, not `"sweeper"`
+- If notes say "flat out" or "brief lift" → type should be `"kink"` and character should be `"flat"` or `"lift"`
+- If notes say "sacrifice entry for exit" → likely a `"hairpin"` (slow-in-fast-out pattern)
 
 #### 3.3 Elevation Trend
 | Trend | Meaning | Effect on Driving |
@@ -509,19 +517,37 @@ For **every** corner, verify against the consensus table from Step 2.1:
 
 This step catches the most damaging class of errors — a wrong direction means coaching tells the driver to turn the wrong way.
 
-#### 6.3 Fraction Sanity Checks
+#### 6.3 Corner Type vs Coaching Notes Consistency (MANDATORY)
+For **every** corner, verify that `corner_type` is consistent with `coaching_notes`:
+- [ ] Corners with "slowest", "heavy braking", "threshold braking" in notes → must be `"hairpin"`
+- [ ] Corners with "flat out", "brief lift" in notes → must have `character="flat"` or `"lift"` and `corner_type="kink"`
+- [ ] No `"sweeper"` corners whose coaching notes describe hairpin-like behavior (heavy braking, slowest point)
+
+**Why this matters**: Corner type determines the severity weight in the key-corner algorithm. AMP T7 was classified as "sweeper" despite coaching notes saying "Slowest point on track" — this buried it from the key corners list even though every coaching source calls it "the most important corner on the track."
+
+**Quick audit command** (run after creating a profile):
+```python
+for c in layout.corners:
+    notes = (c.coaching_notes or "").lower()
+    if c.corner_type == "sweeper":
+        for kw in ["slowest", "heavy brak", "threshold brak"]:
+            if kw in notes:
+                print(f"WARNING: T{c.number} is 'sweeper' but notes say '{kw}'")
+```
+
+#### 6.4 Fraction Sanity Checks
 - All fractions between 0.0 and 1.0
 - Fractions are monotonically increasing
 - No two corners have the same fraction
 - Spacing is reasonable (no two corners within 0.01 fraction of each other unless they're a tight complex)
 
-#### 6.4 Landmark Distance Checks
+#### 6.5 Landmark Distance Checks
 - All distances between 0.0 and `length_m`
 - Distances are roughly increasing (landmarks are listed in track order)
 - Distances near corner apexes should be near `fraction * length_m`
 - No duplicate distances (suggests copy-paste errors)
 
-#### 6.5 Coaching Integration Test
+#### 6.6 Coaching Integration Test
 Upload a session at the new track and verify:
 1. Track auto-detection works (GPS centroid matches within 5km)
 2. Corner numbering matches official numbering
@@ -620,6 +646,7 @@ Not every track needs the full Barber-level treatment. Here's a tiered approach:
 - [ ] Camber noted for off-camber corners
 - [ ] Blind corners flagged
 - [ ] Coaching notes written (all corners)
+- [ ] Corner type vs coaching notes consistency checked (§6.3 audit)
 - [ ] Landmarks identified from satellite imagery (15–25)
 - [ ] Landmark GPS coordinates collected
 - [ ] Landmark distances projected onto telemetry
