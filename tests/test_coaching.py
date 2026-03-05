@@ -14,6 +14,7 @@ from cataclysm.coaching import (
     _build_coaching_prompt,
     _format_all_laps_corners,
     _format_corner_analysis,
+    _format_corner_priorities,
     _format_cross_condition_context,
     _format_equipment_context,
     _format_gains_for_prompt,
@@ -23,6 +24,7 @@ from cataclysm.coaching import (
     _format_weather_context,
     _parse_coaching_response,
     ask_followup,
+    build_track_introduction,
     generate_coaching_report,
     resolve_speed_markers,
 )
@@ -34,6 +36,7 @@ from cataclysm.corner_analysis import (
     SessionCornerAnalysis,
     TimeValue,
 )
+from cataclysm.corner_line import CornerLineProfile
 from cataclysm.corners import Corner
 from cataclysm.engine import LapSummary
 from cataclysm.gains import (
@@ -46,6 +49,7 @@ from cataclysm.gains import (
 )
 from cataclysm.landmarks import Landmark, LandmarkType
 from cataclysm.optimal_comparison import CornerOpportunity, OptimalComparisonResult
+from cataclysm.track_db import OfficialCorner, TrackLayout
 
 
 @pytest.fixture
@@ -2388,8 +2392,6 @@ class TestBuildCoachingPromptWithLineAnalysis:
         sample_summaries: list[LapSummary],
         sample_all_lap_corners: dict[int, list[Corner]],
     ) -> None:
-        from cataclysm.corner_line import CornerLineProfile
-
         profiles = [
             CornerLineProfile(
                 corner_number=3,
@@ -2439,10 +2441,8 @@ def _make_corner_line_profile(
     straight_after_m: float = 300.0,
     priority_rank: int = 1,
     **kwargs: object,
-) -> "CornerLineProfile":
+) -> CornerLineProfile:
     """Helper to create CornerLineProfile with reasonable defaults."""
-    from cataclysm.corner_line import CornerLineProfile
-
     defaults: dict[str, object] = {
         "n_laps": 10,
         "d_entry_median": 0.3,
@@ -2468,13 +2468,9 @@ class TestFormatCornerPriorities:
     """Tests for _format_corner_priorities."""
 
     def test_empty_list_returns_empty(self) -> None:
-        from cataclysm.coaching import _format_corner_priorities
-
         assert _format_corner_priorities([]) == ""
 
     def test_produces_xml_with_rank_and_straight(self) -> None:
-        from cataclysm.coaching import _format_corner_priorities
-
         profiles = [
             _make_corner_line_profile(
                 corner_number=5,
@@ -2509,8 +2505,6 @@ class TestFormatCornerPriorities:
         assert "Linking corner" in result
 
     def test_type_a_high_vs_highest_priority(self) -> None:
-        from cataclysm.coaching import _format_corner_priorities
-
         profiles = [
             _make_corner_line_profile(
                 corner_number=5, allen_berg_type="A", straight_after_m=320.0, priority_rank=1
@@ -2570,10 +2564,8 @@ def _make_track_layout(
     length_m: float = 3000.0,
     elevation_range_m: float = 30.0,
     n_corners: int = 3,
-) -> "TrackLayout":
+) -> TrackLayout:
     """Create a TrackLayout with N synthetic corners for testing."""
-    from cataclysm.track_db import OfficialCorner, TrackLayout
-
     corners = []
     for i in range(1, n_corners + 1):
         fraction = i / (n_corners + 1)
@@ -2601,20 +2593,13 @@ class TestBuildTrackIntroduction:
     """Tests for build_track_introduction."""
 
     def test_none_layout_returns_empty(self) -> None:
-        from cataclysm.coaching import build_track_introduction
-
         assert build_track_introduction(None) == ""
 
     def test_empty_corners_returns_empty(self) -> None:
-        from cataclysm.coaching import build_track_introduction
-        from cataclysm.track_db import TrackLayout
-
         layout = TrackLayout(name="Empty", corners=[], length_m=1000.0)
         assert build_track_introduction(layout) == ""
 
     def test_basic_structure(self) -> None:
-        from cataclysm.coaching import build_track_introduction
-
         layout = _make_track_layout()
         result = build_track_introduction(layout)
         assert "<track_introduction>" in result
@@ -2633,13 +2618,8 @@ class TestBuildTrackIntroduction:
         assert "blind" in result.lower()
 
     def test_landmarks_included(self) -> None:
-        from cataclysm.coaching import build_track_introduction
-        from cataclysm.track_db import TrackLayout
-
         layout = _make_track_layout()
         # Add landmarks to the layout
-        from cataclysm.landmarks import Landmark, LandmarkType
-
         layout_with_lm = TrackLayout(
             name=layout.name,
             corners=layout.corners,
@@ -2657,9 +2637,6 @@ class TestBuildTrackIntroduction:
 
     def test_key_corners_highlighted(self) -> None:
         """Corners with long straights after them should be identified as key corners."""
-        from cataclysm.coaching import build_track_introduction
-        from cataclysm.track_db import OfficialCorner, TrackLayout
-
         # Create corners with large fraction gaps (simulating long straights)
         # Track is 3000m long.  We need fraction_gap * 3000 > 150 for Type A.
         corners = [

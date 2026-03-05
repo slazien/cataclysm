@@ -33,6 +33,7 @@ from backend.api.schemas.coaching import (
     FollowUpMessage,
     PriorityCornerSchema,
     ReportRequest,
+    SkillLevel,
 )
 from backend.api.services import equipment_store, session_store
 from backend.api.services.coaching_store import (
@@ -71,7 +72,7 @@ def _track_task(task: asyncio.Task[None]) -> None:
 
 
 async def trigger_auto_coaching(
-    session_id: str, sd: SessionData, skill_level: str = "intermediate"
+    session_id: str, sd: SessionData, skill_level: SkillLevel = "intermediate"
 ) -> None:
     """Fire-and-forget coaching generation for a newly uploaded session.
 
@@ -265,6 +266,7 @@ async def _run_generation(
                         weather=weather,
                         corners_gained=corners_gained,
                         flow_laps=flow_laps,
+                        track_layout=layout,
                     )
                     # Treat JSON parse failures as retryable errors
                     if "Could not parse" in (report.summary or ""):
@@ -358,7 +360,7 @@ async def _run_generation(
 async def get_report(
     session_id: str,
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
-    skill_level: str = "intermediate",
+    skill_level: SkillLevel = "intermediate",
 ) -> CoachingReportResponse:
     """Get the coaching report for a session.
 

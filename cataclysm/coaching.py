@@ -621,13 +621,9 @@ def _format_corner_priorities(profiles: list[CornerLineProfile]) -> str:
     for p in sorted_profiles:
         if p.allen_berg_type == "A":
             priority_label = "Highest priority" if p.priority_rank == 1 else "High priority"
-            desc = (
-                f"Exit speed carries for {p.straight_after_m:.0f}m. {priority_label}."
-            )
+            desc = f"Exit speed carries for {p.straight_after_m:.0f}m. {priority_label}."
         elif p.allen_berg_type == "B":
-            desc = (
-                "Entry speed corner — maximize speed at end of preceding straight."
-            )
+            desc = "Entry speed corner — maximize speed at end of preceding straight."
         else:
             desc = "Linking corner — balance line to serve adjacent corners."
 
@@ -1095,6 +1091,7 @@ def generate_coaching_report(
     corners_gained: CornersGainedResult | None = None,
     flow_laps: FlowLapResult | None = None,
     line_profiles: list[CornerLineProfile] | None = None,
+    track_layout: TrackLayout | None = None,
 ) -> CoachingReport:
     """Generate an AI coaching report using the Claude API.
 
@@ -1131,6 +1128,7 @@ def generate_coaching_report(
         corners_gained=corners_gained,
         flow_laps=flow_laps,
         line_profiles=line_profiles,
+        track_layout=track_layout,
     )
 
     system = COACHING_SYSTEM_PROMPT
