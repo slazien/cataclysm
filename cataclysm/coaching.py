@@ -14,7 +14,12 @@ from cataclysm.causal_chains import SessionCausalAnalysis, format_causal_context
 from cataclysm.coaching_validator import CoachingValidator
 from cataclysm.constants import MPS_TO_MPH
 from cataclysm.corner_analysis import SessionCornerAnalysis
-from cataclysm.corner_line import CornerLineProfile, format_line_analysis_for_prompt
+from cataclysm.corner_line import (
+    CornerLineProfile,
+    format_line_analysis_for_prompt,
+    format_session_line_summary_for_prompt,
+    summarize_session_lines,
+)
 from cataclysm.corners import Corner
 from cataclysm.corners_gained import CornersGainedResult, format_corners_gained_for_prompt
 from cataclysm.driver_archetypes import ArchetypeResult, format_archetype_for_prompt
@@ -601,6 +606,39 @@ def _format_flow_laps_for_prompt(result: FlowLapResult | None) -> str:
     return "\n".join(lines)
 
 
+def _format_corner_priorities(profiles: list[CornerLineProfile]) -> str:
+    """Format corner priority rankings as XML for the coaching prompt.
+
+    Returns "" for empty list.  Sorts by priority_rank ascending
+    so the most important corners appear first.
+    """
+    if not profiles:
+        return ""
+
+    sorted_profiles = sorted(profiles, key=lambda p: p.priority_rank)
+    lines = ["<corner_priorities>"]
+    for p in sorted_profiles:
+        if p.allen_berg_type == "A":
+            priority_label = "Highest priority" if p.priority_rank == 1 else "High priority"
+            desc = (
+                f"Exit speed carries for {p.straight_after_m:.0f}m. {priority_label}."
+            )
+        elif p.allen_berg_type == "B":
+            desc = (
+                "Entry speed corner — maximize speed at end of preceding straight."
+            )
+        else:
+            desc = "Linking corner — balance line to serve adjacent corners."
+
+        lines.append(
+            f'  <corner number="{p.corner_number}" type="{p.allen_berg_type}" '
+            f'rank="{p.priority_rank}" straight_after="{p.straight_after_m:.0f}m">'
+            f"{desc}</corner>"
+        )
+    lines.append("</corner_priorities>")
+    return "\n".join(lines)
+
+
 def _build_coaching_prompt(
     summaries: list[LapSummary],
     all_lap_corners: dict[int, list[Corner]],
@@ -676,6 +714,10 @@ def _build_coaching_prompt(
     corners_gained_section = format_corners_gained_for_prompt(corners_gained)
     flow_laps_section = _format_flow_laps_for_prompt(flow_laps)
     line_analysis_section = format_line_analysis_for_prompt(line_profiles or [])
+    session_line_summary = format_session_line_summary_for_prompt(
+        summarize_session_lines(line_profiles or [])
+    )
+    corner_priorities_section = _format_corner_priorities(line_profiles or [])
 
     line_instruction = ""
     if line_analysis_section:
@@ -683,6 +725,13 @@ def _build_coaching_prompt(
             "\nWhen LINE ANALYSIS data is present, integrate it with speed/brake analysis. "
             "A corner with good brake data but an early apex error costs time on the exit — "
             "report these together as one issue, not two separate observations.\n"
+        )
+    if corner_priorities_section:
+        line_instruction += (
+            "\nWeight coaching emphasis proportionally to corner priority rank. "
+            "Type A corners (before long straights) should receive the most detailed advice. "
+            "When a driver's line is inconsistent at a Type A corner, flag this as high-impact "
+            "because exit speed compounds across the following straight.\n"
         )
 
     corner_analysis_section = ""
@@ -733,6 +782,8 @@ Number of corners: {num_corners} (T1 through T{num_corners})
 {equipment_section}{weather_section}{causal_section}{archetype_section}{skill_section_auto}\
 {corners_gained_section}{flow_laps_section}
 {line_analysis_section}
+{session_line_summary}
+{corner_priorities_section}
 </session_data>
 
 <instructions>

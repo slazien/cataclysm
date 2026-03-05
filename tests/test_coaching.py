@@ -2426,3 +2426,135 @@ class TestBuildCoachingPromptWithLineAnalysis:
             "Test Track",
         )
         assert "<line_analysis>" not in prompt
+
+
+# ---------------------------------------------------------------------------
+# Task 3: _format_corner_priorities
+# ---------------------------------------------------------------------------
+
+
+def _make_corner_line_profile(
+    corner_number: int = 1,
+    allen_berg_type: str = "A",
+    straight_after_m: float = 300.0,
+    priority_rank: int = 1,
+    **kwargs: object,
+) -> "CornerLineProfile":
+    """Helper to create CornerLineProfile with reasonable defaults."""
+    from cataclysm.corner_line import CornerLineProfile
+
+    defaults: dict[str, object] = {
+        "n_laps": 10,
+        "d_entry_median": 0.3,
+        "d_apex_median": -0.2,
+        "d_exit_median": 0.1,
+        "apex_fraction_median": 0.55,
+        "d_apex_sd": 0.4,
+        "line_error_type": "good_line",
+        "severity": "minor",
+        "consistency_tier": "consistent",
+    }
+    defaults.update(kwargs)
+    return CornerLineProfile(
+        corner_number=corner_number,
+        allen_berg_type=allen_berg_type,
+        straight_after_m=straight_after_m,
+        priority_rank=priority_rank,
+        **defaults,  # type: ignore[arg-type]
+    )
+
+
+class TestFormatCornerPriorities:
+    """Tests for _format_corner_priorities."""
+
+    def test_empty_list_returns_empty(self) -> None:
+        from cataclysm.coaching import _format_corner_priorities
+
+        assert _format_corner_priorities([]) == ""
+
+    def test_produces_xml_with_rank_and_straight(self) -> None:
+        from cataclysm.coaching import _format_corner_priorities
+
+        profiles = [
+            _make_corner_line_profile(
+                corner_number=5,
+                allen_berg_type="A",
+                straight_after_m=320.0,
+                priority_rank=1,
+            ),
+            _make_corner_line_profile(
+                corner_number=9,
+                allen_berg_type="B",
+                straight_after_m=0.0,
+                priority_rank=3,
+            ),
+            _make_corner_line_profile(
+                corner_number=7,
+                allen_berg_type="C",
+                straight_after_m=80.0,
+                priority_rank=4,
+            ),
+        ]
+        result = _format_corner_priorities(profiles)
+        assert "<corner_priorities>" in result
+        assert "</corner_priorities>" in result
+        # Check rank attribute — should be sorted by priority_rank
+        assert 'rank="1"' in result
+        assert 'rank="3"' in result
+        assert 'rank="4"' in result
+        # Check type-specific descriptions
+        assert "Exit speed carries for 320m" in result
+        assert "Highest priority" in result
+        assert "Entry speed corner" in result
+        assert "Linking corner" in result
+
+    def test_type_a_high_vs_highest_priority(self) -> None:
+        from cataclysm.coaching import _format_corner_priorities
+
+        profiles = [
+            _make_corner_line_profile(
+                corner_number=5, allen_berg_type="A", straight_after_m=320.0, priority_rank=1
+            ),
+            _make_corner_line_profile(
+                corner_number=9, allen_berg_type="A", straight_after_m=200.0, priority_rank=2
+            ),
+        ]
+        result = _format_corner_priorities(profiles)
+        assert "Highest priority" in result  # rank 1
+        assert "High priority" in result  # rank 2, also Type A but not rank 1
+
+    def test_corner_priorities_in_prompt(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        """Corner priorities section appears inside session_data when line_profiles provided."""
+        profiles = [
+            _make_corner_line_profile(
+                corner_number=1,
+                allen_berg_type="A",
+                straight_after_m=300.0,
+                priority_rank=1,
+            ),
+        ]
+        prompt = _build_coaching_prompt(
+            sample_summaries,
+            sample_all_lap_corners,
+            "Test Track",
+            line_profiles=profiles,
+        )
+        assert "<corner_priorities>" in prompt
+        assert "Weight coaching emphasis proportionally" in prompt
+
+    def test_no_priorities_without_profiles(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        prompt = _build_coaching_prompt(
+            sample_summaries,
+            sample_all_lap_corners,
+            "Test Track",
+        )
+        assert "<corner_priorities>" not in prompt
+        assert "Weight coaching emphasis proportionally" not in prompt
