@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel
+
+SkillLevel = Literal["novice", "intermediate", "advanced"]
 
 
 class CornerGradeSchema(BaseModel):
@@ -44,7 +48,7 @@ class CoachingReportResponse(BaseModel):
 class ReportRequest(BaseModel):
     """Request body for triggering report generation."""
 
-    skill_level: str = "intermediate"
+    skill_level: SkillLevel = "intermediate"
     force: bool = False
 
 

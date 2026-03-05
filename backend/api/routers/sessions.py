@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Annotated
+from typing import Annotated, cast
 
 from cataclysm.constants import MPS_TO_MPH
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
@@ -228,7 +228,12 @@ async def upload_sessions(
     user_row = (
         await db.execute(sa_select(UserModel).where(UserModel.id == current_user.user_id))
     ).scalar_one_or_none()
-    user_skill_level = user_row.skill_level if user_row else "intermediate"
+    _raw_level = user_row.skill_level if user_row else "intermediate"
+    if _raw_level not in ("novice", "intermediate", "advanced"):
+        _raw_level = "intermediate"
+    from backend.api.schemas.coaching import SkillLevel
+
+    user_skill_level = cast(SkillLevel, _raw_level)
 
     session_ids: list[str] = []
     errors: list[str] = []
