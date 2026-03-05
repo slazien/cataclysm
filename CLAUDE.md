@@ -56,6 +56,13 @@ Use subagents liberally to keep main context window clean
 5. *Document Results*: Add review section to tasks/todo.md
 6. *Capture Lessons*: Update tasks/lessons.md after corrections
 
+### 8. Domain Research Before Implementation
+- This is a **motorsport telemetry** project. You know code, but not vehicle dynamics, tire physics, racing data analysis, or coaching methodology.
+- **Before implementing any feature that involves domain knowledge** (signal processing, corner detection thresholds, G-force analysis, tire models, coaching advice, track geometry, driver skill metrics), do online research first using WebSearch.
+- **Research iteratively**: Start broad, then probe deeper based on what you find. If the first search gives surface-level results, refine your queries with technical terms from the initial results. Aim for 2-3 rounds of increasingly specific searches until you find authoritative sources (SAE papers, professional telemetry tool documentation, vehicle dynamics textbooks, racing engineering blogs like YourDataDriven, TrailBrake, Driver61).
+- **Cite sources** in your response so the user can verify. Never present domain-specific technical claims without backing them up.
+- **Anti-pattern**: Inventing algorithms based on coding intuition alone (e.g. using a symmetric circle when motorsport engineering uses a friction ellipse). Always check what the domain experts actually do before implementing.
+
 ## Core Principles
 
 - *Simplicity First*: Make every change as simple as possible. Impact minimal code.

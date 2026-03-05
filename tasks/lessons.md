@@ -128,6 +128,14 @@
 
 **Anti-pattern**: "iPhone 17 Pro Max is probably around 440×956" or "I'll estimate OnePlus 11 Pro as 412×915". NEVER estimate device specs — always look them up.
 
+## Research Domain Knowledge Before Implementing ([2026-03-05])
+
+**Pattern**: Before implementing any feature involving motorsport domain knowledge (vehicle dynamics, tire physics, G-force analysis, coaching methodology, signal processing thresholds), do iterative online research. Start broad, then probe deeper with technical terms from initial results. 2-3 rounds minimum for non-trivial domain topics. Cite sources.
+
+**Why**: Used a symmetric traction circle for G-G diagram grip utilization when the entire motorsport engineering community uses friction ellipses or observed-envelope methods. A car with 0.3G acceleration and 1.0G braking was being unfairly scored because the circle radius was set by braking. Online research immediately revealed the correct approach (angular sector envelope comparison). Coding intuition alone is insufficient for domain-specific algorithms.
+
+**Anti-pattern**: "I'll just use a circle because it's simpler" or "This formula seems reasonable" without checking what professional telemetry tools (MoTeC, AiM) or racing engineering resources (YourDataDriven, TrailBrake, SAE papers) actually use.
+
 ## Verify Components Are Actually Imported Before Wiring Into Them ([2026-03-05])
 
 **Pattern**: Before adding features to a component, `grep -rn "import.*ComponentName"` to confirm it's actually used in the app. Exported-but-never-imported components are dead code — your feature will be invisible.
