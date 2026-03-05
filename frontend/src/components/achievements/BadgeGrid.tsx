@@ -79,7 +79,7 @@ function AchievementBadge({ achievement }: { achievement: Achievement }) {
         {achievement.unlocked ? (
           <Icon className="h-6 w-6" style={{ color }} />
         ) : (
-          <Lock className="h-5 w-5 text-[var(--text-muted)]" />
+          <Lock className="h-5 w-5 text-[var(--text-secondary)]" />
         )}
         {achievement.tier === 'platinum' && achievement.unlocked && (
           <div

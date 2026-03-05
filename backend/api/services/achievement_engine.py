@@ -20,6 +20,8 @@ from backend.api.db.models import (
 
 logger = logging.getLogger(__name__)
 
+_seeded = False
+
 # ---------------------------------------------------------------------------
 # Seed data
 # ---------------------------------------------------------------------------
@@ -216,6 +218,10 @@ SEED_ACHIEVEMENTS: list[dict[str, object]] = [
 
 async def seed_achievements(db: AsyncSession) -> None:
     """Insert seed achievement definitions if they don't already exist."""
+    global _seeded  # noqa: PLW0603
+    if _seeded:
+        return
+
     existing = await db.execute(select(AchievementDefinition.id))
     existing_ids = {row[0] for row in existing.all()}
 
@@ -224,6 +230,7 @@ async def seed_achievements(db: AsyncSession) -> None:
             db.add(AchievementDefinition(**defn))
 
     await db.flush()
+    _seeded = True
 
 
 async def check_achievements(
@@ -324,7 +331,10 @@ async def _check_all_grades(
         return False
 
     result = await db.execute(
-        select(CoachingReport.report_json).where(CoachingReport.session_id == session_id)
+        select(CoachingReport.report_json)
+        .where(CoachingReport.session_id == session_id)
+        .order_by(CoachingReport.created_at.desc())
+        .limit(1)
     )
     row = result.scalar()
     if row is None:

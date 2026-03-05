@@ -1,6 +1,6 @@
 """Add achievement category column
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: e535e52061ee
 Revises: f5a9c2b7d301
 Create Date: 2026-03-05 18:00:00.000000
 
@@ -14,7 +14,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "a1b2c3d4e5f6"
+revision: str = "e535e52061ee"
 down_revision: str | Sequence[str] | None = "f5a9c2b7d301"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None

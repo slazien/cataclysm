@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+import backend.api.services.achievement_engine as _ae_mod
 from backend.api.services.achievement_engine import (
     SEED_ACHIEVEMENTS,
     _check_all_grades,
@@ -16,6 +17,12 @@ from backend.api.services.achievement_engine import (
     get_user_achievements,
     seed_achievements,
 )
+
+
+@pytest.fixture(autouse=True)
+def _reset_seed_flag() -> None:
+    """Reset the module-level seed cache between tests."""
+    _ae_mod._seeded = False
 
 
 class TestSeedAchievements:
@@ -35,7 +42,12 @@ class TestSeedAchievements:
 
     def test_categories_valid(self) -> None:
         valid_categories = {
-            "milestones", "laps", "consistency", "braking", "trail_braking", "exploration",
+            "milestones",
+            "laps",
+            "consistency",
+            "braking",
+            "trail_braking",
+            "exploration",
         }
         for a in SEED_ACHIEVEMENTS:
             assert a["category"] in valid_categories, f"{a['id']} has invalid category"
