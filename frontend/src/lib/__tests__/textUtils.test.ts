@@ -145,4 +145,20 @@ describe('extractActionTitle', () => {
     const text = 'word1 word2 word3 word4 word5';
     expect(extractActionTitle(text)).toBe(text);
   });
+
+  it('closes unclosed bold markdown when truncated', () => {
+    const text = '**Throttle commit scatter is your second-biggest time cost:** You are losing 0.3s per lap.';
+    const result = extractActionTitle(text);
+    // Should have balanced ** markers
+    const boldCount = (result.match(/\*\*/g) || []).length;
+    expect(boldCount % 2).toBe(0);
+  });
+
+  it('leaves already-balanced markdown alone', () => {
+    const text = '**Early braker archetype across the track:** Your driving shows consistent early braking.';
+    const result = extractActionTitle(text);
+    expect(result).toContain('**');
+    const boldCount = (result.match(/\*\*/g) || []).length;
+    expect(boldCount % 2).toBe(0);
+  });
 });

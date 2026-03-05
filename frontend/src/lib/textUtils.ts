@@ -78,12 +78,24 @@ export function formatCoachingText(text: string): string {
   return result;
 }
 
+/** Close any unclosed markdown bold/italic markers so truncated text renders cleanly. */
+function closeMarkdown(s: string): string {
+  // Count ** pairs (bold)
+  const boldCount = (s.match(/\*\*/g) || []).length;
+  if (boldCount % 2 !== 0) s += '**';
+  // Count remaining lone * (italic) after replacing ** with placeholder
+  const withoutBold = s.replace(/\*\*/g, '');
+  const italicCount = (withoutBold.match(/\*/g) || []).length;
+  if (italicCount % 2 !== 0) s += '*';
+  return s;
+}
+
 /** Extracts a short action phrase from long coaching text.
  *  Takes the first clause (before a comma, period, semicolon, colon, or dash) and caps it. */
 export function extractActionTitle(text: string): string {
   // Try to grab first short clause
   const match = text.match(/^(.{10,60}?)[.,;:\u2014\u2013-]\s/);
-  if (match) return match[1].trim();
+  if (match) return closeMarkdown(match[1].trim());
   // Fallback: first N words up to ~50 chars
   const words = text.split(/\s+/);
   let result = '';
@@ -91,5 +103,5 @@ export function extractActionTitle(text: string): string {
     if ((result + ' ' + w).trim().length > 50) break;
     result = (result + ' ' + w).trim();
   }
-  return result || text.slice(0, 50);
+  return closeMarkdown(result || text.slice(0, 50));
 }
