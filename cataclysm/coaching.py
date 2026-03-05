@@ -696,7 +696,8 @@ def _build_coaching_prompt(
     num_corners = len(next(iter(all_lap_corners.values()), []))
 
     # Determine priority corner count by skill level
-    max_priorities = 2 if effective_skill == "novice" else 3
+    _max_priority_map = {"novice": 2, "intermediate": 3, "advanced": 4}
+    max_priorities = _max_priority_map.get(effective_skill, 3)
 
     return f"""<session_data>
 <session_info>

@@ -37,3 +37,30 @@ class TestCoachingSystemPrompt:
 
     def test_includes_role_preamble(self) -> None:
         assert "elite motorsport driving coach" in COACHING_SYSTEM_PROMPT
+
+    def test_five_step_pattern_reasoning(self) -> None:
+        prompt_lower = COACHING_SYSTEM_PROMPT.lower()
+        assert "observation" in prompt_lower
+        assert "mechanism" in prompt_lower
+        assert "root cause" in prompt_lower
+        assert "time impact" in prompt_lower
+        assert "fix" in prompt_lower
+        assert "five-step" in prompt_lower
+
+    def test_ois_format_required(self) -> None:
+        assert "OIS Format" in COACHING_SYSTEM_PROMPT
+        assert "Observation" in COACHING_SYSTEM_PROMPT
+
+    def test_because_clause_required(self) -> None:
+        assert '"Because" Clause' in COACHING_SYSTEM_PROMPT
+
+    def test_external_focus_required(self) -> None:
+        assert "External Focus" in COACHING_SYSTEM_PROMPT
+
+    def test_golden_example_present(self) -> None:
+        assert "Golden Example" in COACHING_SYSTEM_PROMPT
+        assert "primary_focus" in COACHING_SYSTEM_PROMPT
+
+    def test_anti_example_present(self) -> None:
+        assert "Anti-Example" in COACHING_SYSTEM_PROMPT
+        assert "_WRONG" in COACHING_SYSTEM_PROMPT

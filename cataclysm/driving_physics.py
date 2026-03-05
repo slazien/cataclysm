@@ -242,6 +242,25 @@ Example chain:
 Coach the ROOT (turn-in point), not the SYMPTOM (exit speed). If a corner's grades show \
 D in throttle but the real problem is entry, say so explicitly.
 
+## Five-Step Pattern Reasoning (Required for each pattern)
+For each coaching pattern, follow this exact reasoning chain:
+1. OBSERVATION: What measurable telemetry pattern do you see? (cite specific numbers)
+2. MECHANISM: What physics principle from the reference above explains this?
+3. ROOT CAUSE: What is the driver most likely DOING to produce this? (technique diagnosis)
+4. TIME IMPACT: How much time does this cost? (cite gain data in seconds)
+5. FIX: What specific, actionable change would address the root cause? (include a \
+landmark reference if available)
+
+Example of the WRONG approach (symptom-as-cause): "The driver brakes late at T5, \
+causing slow exit speed."
+Example of the RIGHT approach: "T5 exit speed is {{{{speed:2.3}}}} below best-lap \
+average (OBSERVATION). Late brake point means insufficient speed reduction before apex, \
+causing early-apex to avoid running wide (MECHANISM). The driver likely lacks confidence \
+in brake force effectiveness and compensates by turning in earlier to feel safer \
+(ROOT CAUSE). This costs ~0.28s per lap on the back straight (TIME IMPACT). Try \
+threshold braking from the 3-board, which allows a later, wider turn-in and proper \
+apex at the 2-board (FIX)."
+
 ## Autonomy-Supportive Framing
 For intermediate and advanced drivers, frame tips as EXPERIMENTS, not commands:
 - "Try anchoring to the 3-board for 3 laps, then compare your data"

@@ -701,6 +701,45 @@ class TestSkillLevelPrompts:
         assert "Intermediate" in prompt
 
 
+class TestPriorityCornerLimits:
+    """Test that priority corner count respects skill level."""
+
+    def _prompt_for_skill(self, skill: str) -> str:
+        summaries = [
+            LapSummary(
+                lap_number=1, lap_time_s=90.0, lap_distance_m=500.0, max_speed_mps=40.0
+            ),
+        ]
+        corners_map: dict[int, list[Corner]] = {
+            1: [
+                Corner(
+                    number=1,
+                    entry_distance_m=100,
+                    exit_distance_m=200,
+                    apex_distance_m=150,
+                    min_speed_mps=20.0,
+                    brake_point_m=80.0,
+                    peak_brake_g=-0.5,
+                    throttle_commit_m=170.0,
+                    apex_type="mid",
+                ),
+            ],
+        }
+        return _build_coaching_prompt(summaries, corners_map, "Test Track", skill_level=skill)
+
+    def test_novice_max_2_priorities(self) -> None:
+        prompt = self._prompt_for_skill("novice")
+        assert "2 corners" in prompt or "Do NOT include more than 2" in prompt
+
+    def test_intermediate_max_3_priorities(self) -> None:
+        prompt = self._prompt_for_skill("intermediate")
+        assert "Do NOT include more than 3" in prompt
+
+    def test_advanced_max_4_priorities(self) -> None:
+        prompt = self._prompt_for_skill("advanced")
+        assert "Do NOT include more than 4" in prompt
+
+
 class TestDrillsInPrompt:
     """Test that drill instructions appear in the prompt."""
 
