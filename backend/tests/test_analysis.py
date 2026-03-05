@@ -237,13 +237,15 @@ async def test_get_optimal_profile_default_params(client: AsyncClient) -> None:
     assert isinstance(data["lap_time_s"], float)
     assert data["equipment_profile_id"] is None
 
-    # Default vehicle params (from default_vehicle_params)
+    # Vehicle params — auto-calibrated from observed G-G data when available
     vp = data["vehicle_params"]
-    assert vp["mu"] == 1.0
-    assert vp["max_accel_g"] == 0.5
-    assert vp["max_decel_g"] == 1.0
-    assert vp["max_lateral_g"] == 1.0
+    assert vp["mu"] > 0
+    assert vp["max_accel_g"] > 0
+    assert vp["max_decel_g"] > 0
+    assert vp["max_lateral_g"] > 0
     assert vp["top_speed_mps"] == 80.0
+    # Auto-calibration should have fired on synthetic data with G-G columns
+    assert vp["calibrated"] is True
 
 
 @pytest.mark.asyncio
@@ -285,19 +287,21 @@ async def test_optimal_profile_with_equipment(client: AsyncClient) -> None:
     assert resp_equip.status_code == 200
     equip_data = resp_equip.json()
 
-    # Vehicle params should reflect the low-grip tire
+    # Vehicle params: auto-calibration from G-G data overrides equipment grip
+    # values (mu, lateral, decel, accel) but equipment provides the base for
+    # non-grip fields (aero, drag, top_speed).  The calibrated flag should be True.
     vp = equip_data["vehicle_params"]
-    assert vp["mu"] == 0.85
-    assert vp["max_lateral_g"] == 0.85
-    assert vp["max_accel_g"] == 0.40  # STREET category
-    assert abs(vp["max_decel_g"] - 0.85 * 0.95) < 1e-6
+    assert vp["calibrated"] is True
+    assert vp["mu"] > 0
+    assert vp["max_lateral_g"] > 0
+    assert vp["max_accel_g"] > 0
+    assert vp["max_decel_g"] > 0
     assert equip_data["equipment_profile_id"] == "low-grip"
 
-    # Lower grip should produce a slower optimal lap time
+    # Both baseline and equipped use the same calibrated G-G data, so lap times
+    # should be identical (both get the same observed grip envelope).
     equip_lap_time = equip_data["lap_time_s"]
-    assert equip_lap_time > default_lap_time, (
-        f"Low-grip tire should produce slower lap time: {equip_lap_time} vs {default_lap_time}"
-    )
+    assert equip_lap_time == default_lap_time
 
     # Clean up
     equipment_store.delete_session_equipment(session_id)

@@ -129,6 +129,7 @@ class VehicleParamsSchema(BaseModel):
     max_decel_g: float
     max_lateral_g: float
     top_speed_mps: float
+    calibrated: bool = False
 
 
 class GPSQualityResponse(BaseModel):

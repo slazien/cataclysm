@@ -54,6 +54,7 @@ class VehicleParams:
     aero_coefficient: float = 0.0  # k in mu_effective = mu + k*v^2
     drag_coefficient: float = 0.0  # k in drag_g = k * v^2 / G (absorbs Cd*A*rho/2m)
     top_speed_mps: float = 80.0  # absolute speed cap
+    calibrated: bool = False  # True when params came from observed G-G data
 
 
 @dataclass

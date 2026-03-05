@@ -37,12 +37,17 @@ from cataclysm.gps_line import (
 )
 from cataclysm.gps_quality import GPSQualityReport, assess_gps_quality
 from cataclysm.grip import estimate_grip_limit
+from cataclysm.grip_calibration import apply_calibration_to_params, calibrate_grip_from_telemetry
 from cataclysm.optimal_comparison import compare_with_optimal
 from cataclysm.parser import ParsedSession, parse_racechrono_csv
 from cataclysm.track_db import locate_official_corners
 from cataclysm.track_match import detect_track_or_lookup
 from cataclysm.trends import SessionSnapshot, build_session_snapshot
-from cataclysm.velocity_profile import VehicleParams, compute_optimal_profile
+from cataclysm.velocity_profile import (
+    VehicleParams,
+    compute_optimal_profile,
+    default_vehicle_params,
+)
 
 from backend.api.services import equipment_store
 from backend.api.services.session_store import SessionData, store_session
@@ -344,6 +349,15 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
         # Equipment-aware vehicle params
         vehicle_params = resolve_vehicle_params(session_id)
 
+        # Auto-calibrate from observed G-G data
+        if "lateral_g" in best_lap_df.columns and "longitudinal_g" in best_lap_df.columns:
+            lat_g = best_lap_df["lateral_g"].to_numpy()
+            lon_g = best_lap_df["longitudinal_g"].to_numpy()
+            grip = calibrate_grip_from_telemetry(lat_g, lon_g)
+            if grip is not None:
+                base = vehicle_params or default_vehicle_params()
+                vehicle_params = apply_calibration_to_params(base, grip)
+
         # Solve optimal velocity profile
         optimal = compute_optimal_profile(curvature_result, params=vehicle_params)
 
@@ -364,6 +378,7 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
                 "max_decel_g": optimal.vehicle_params.max_decel_g,
                 "max_lateral_g": optimal.vehicle_params.max_lateral_g,
                 "top_speed_mps": optimal.vehicle_params.top_speed_mps,
+                "calibrated": optimal.vehicle_params.calibrated,
             },
             "equipment_profile_id": profile_id,
         }
@@ -387,6 +402,16 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
         # Build the optimal profile
         curvature_result = compute_curvature(best_lap_df)
         vehicle_params = resolve_vehicle_params(session_id)
+
+        # Auto-calibrate from observed G-G data
+        if "lateral_g" in best_lap_df.columns and "longitudinal_g" in best_lap_df.columns:
+            lat_g = best_lap_df["lateral_g"].to_numpy()
+            lon_g = best_lap_df["longitudinal_g"].to_numpy()
+            grip = calibrate_grip_from_telemetry(lat_g, lon_g)
+            if grip is not None:
+                base = vehicle_params or default_vehicle_params()
+                vehicle_params = apply_calibration_to_params(base, grip)
+
         optimal = compute_optimal_profile(curvature_result, params=vehicle_params)
 
         # Run the full comparison
