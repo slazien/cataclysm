@@ -706,9 +706,7 @@ class TestPriorityCornerLimits:
 
     def _prompt_for_skill(self, skill: str) -> str:
         summaries = [
-            LapSummary(
-                lap_number=1, lap_time_s=90.0, lap_distance_m=500.0, max_speed_mps=40.0
-            ),
+            LapSummary(lap_number=1, lap_time_s=90.0, lap_distance_m=500.0, max_speed_mps=40.0),
         ]
         corners_map: dict[int, list[Corner]] = {
             1: [

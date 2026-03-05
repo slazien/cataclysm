@@ -89,9 +89,7 @@ def _compute_progress_summary(track_history: list[SessionMemoryExtract]) -> str:
     trend_parts: list[str] = []
 
     if improvement > 0.1:
-        trend_parts.append(
-            f"Improved {improvement:.1f}s over {len(track_history)} sessions"
-        )
+        trend_parts.append(f"Improved {improvement:.1f}s over {len(track_history)} sessions")
     else:
         trend_parts.append(f"Consistent across {len(track_history)} sessions")
 
