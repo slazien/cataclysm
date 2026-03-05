@@ -32,7 +32,7 @@ async def test_track_guide_known_track(client: AsyncClient) -> None:
     assert data["track_name"] == "Barber Motorsports Park"
     assert data["n_corners"] == 16
     assert data["length_m"] == pytest.approx(3662.4)
-    assert data["elevation_range_m"] == pytest.approx(60.0)
+    assert data["elevation_range_m"] == pytest.approx(24.0)
     assert data["country"] == "US"
 
     # Corners

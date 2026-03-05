@@ -37,6 +37,7 @@ class VehicleSpec:
     hp: int
     torque_nm: int
     has_aero: bool
+    cd_a: float = 0.0  # Cd * frontal_area (m²); 0.0 = unknown
     notes: str | None = None
 
 
@@ -63,6 +64,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=116,
         torque_nm=136,
         has_aero=False,
+        cd_a=0.65,
         notes="1.6 L B6-ZE. Lightest Miata generation.",
     ),
     "mazda_miata_nb": VehicleSpec(
@@ -80,6 +82,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=142,
         torque_nm=168,
         has_aero=False,
+        cd_a=0.62,
         notes="1.8 L BP-4W. Refined NA platform.",
     ),
     "mazda_miata_nc": VehicleSpec(
@@ -97,6 +100,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=167,
         torque_nm=190,
         has_aero=False,
+        cd_a=0.64,
         notes="2.0 L MZR. Larger and heavier than NB.",
     ),
     "mazda_miata_nd": VehicleSpec(
@@ -114,6 +118,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=181,
         torque_nm=205,
         has_aero=False,
+        cd_a=0.56,
         notes="2.0 L Skyactiv-G. Returns to lightweight roots.",
     ),
     # -----------------------------------------------------------------------
@@ -134,6 +139,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=205,
         torque_nm=260,
         has_aero=False,
+        cd_a=0.64,
         notes="1.5 L turbo. Popular budget HPDE car.",
     ),
     "honda_civic_type_r_fk8": VehicleSpec(
@@ -151,6 +157,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=306,
         torque_nm=400,
         has_aero=True,
+        cd_a=0.77,
         notes="2.0 L K20C1 turbo. Functional rear wing.",
     ),
     "honda_civic_type_r_fl5": VehicleSpec(
@@ -168,6 +175,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=315,
         torque_nm=420,
         has_aero=True,
+        cd_a=0.77,
         notes="2.0 L K20C1 turbo revised. Improved aero.",
     ),
     "honda_s2000_ap1": VehicleSpec(
@@ -185,6 +193,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=240,
         torque_nm=208,
         has_aero=False,
+        cd_a=0.61,
         notes="2.0 L F20C, 9000 RPM redline.",
     ),
     # -----------------------------------------------------------------------
@@ -205,6 +214,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=200,
         torque_nm=205,
         has_aero=False,
+        cd_a=0.52,
         notes="2.0 L FA20. Also sold as Subaru BRZ / Scion FR-S.",
     ),
     "toyota_gr86_zn8": VehicleSpec(
@@ -222,6 +232,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=228,
         torque_nm=249,
         has_aero=False,
+        cd_a=0.54,
         notes="2.4 L FA24. Also sold as Subaru BRZ.",
     ),
     # -----------------------------------------------------------------------
@@ -242,6 +253,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=345,
         torque_nm=475,
         has_aero=False,
+        cd_a=0.57,
         notes="5.7 L LS1. Budget track car bargain.",
     ),
     "chevrolet_corvette_c6": VehicleSpec(
@@ -259,6 +271,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=430,
         torque_nm=542,
         has_aero=False,
+        cd_a=0.58,
         notes="6.2 L LS3. Exposed headlights.",
     ),
     "chevrolet_corvette_c7": VehicleSpec(
@@ -276,6 +289,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=455,
         torque_nm=610,
         has_aero=False,
+        cd_a=0.60,
         notes="6.2 L LT1. Last front-engine Corvette.",
     ),
     "chevrolet_corvette_c8": VehicleSpec(
@@ -293,6 +307,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=490,
         torque_nm=637,
         has_aero=False,
+        cd_a=0.61,
         notes="6.2 L LT2. Mid-engine layout.",
     ),
     # -----------------------------------------------------------------------
@@ -313,6 +328,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=333,
         torque_nm=365,
         has_aero=False,
+        cd_a=0.69,
         notes="3.2 L S54 inline-6. Classic track car.",
     ),
     "bmw_m3_f80": VehicleSpec(
@@ -330,6 +346,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=425,
         torque_nm=550,
         has_aero=False,
+        cd_a=0.73,
         notes="3.0 L S55 twin-turbo inline-6.",
     ),
     "bmw_m3_g80": VehicleSpec(
@@ -347,6 +364,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=473,
         torque_nm=550,
         has_aero=False,
+        cd_a=0.77,
         notes="3.0 L S58 twin-turbo. Competition model.",
     ),
     "bmw_m2_f87": VehicleSpec(
@@ -364,6 +382,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=365,
         torque_nm=465,
         has_aero=False,
+        cd_a=0.69,
         notes="3.0 L N55/S55 turbo. Compact M car.",
     ),
     "bmw_m2_g87": VehicleSpec(
@@ -381,6 +400,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=453,
         torque_nm=550,
         has_aero=False,
+        cd_a=0.71,
         notes="3.0 L S58 twin-turbo inline-6.",
     ),
     # -----------------------------------------------------------------------
@@ -401,6 +421,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=412,
         torque_nm=529,
         has_aero=False,
+        cd_a=0.75,
         notes="4.6 L / 5.0 L V8. Solid rear axle.",
     ),
     "ford_mustang_gt_s550": VehicleSpec(
@@ -418,6 +439,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=460,
         torque_nm=569,
         has_aero=False,
+        cd_a=0.73,
         notes="5.0 L Coyote V8. IRS upgrade.",
     ),
     "ford_mustang_gt_s650": VehicleSpec(
@@ -435,6 +457,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=480,
         torque_nm=569,
         has_aero=False,
+        cd_a=0.73,
         notes="5.0 L Coyote Gen-4 V8.",
     ),
     # -----------------------------------------------------------------------
@@ -455,6 +478,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=295,
         torque_nm=340,
         has_aero=False,
+        cd_a=0.56,
         notes="3.4 L flat-6 (Cayman S). Mid-engine.",
     ),
     "porsche_cayman_718": VehicleSpec(
@@ -472,6 +496,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=300,
         torque_nm=380,
         has_aero=False,
+        cd_a=0.59,
         notes="2.0 L turbo flat-4 (base). GTS has 4.0 flat-6.",
     ),
     "porsche_911_gt3_991": VehicleSpec(
@@ -489,6 +514,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=500,
         torque_nm=460,
         has_aero=True,
+        cd_a=0.68,
         notes="4.0 L flat-6 NA. Fixed rear wing.",
     ),
     "porsche_911_gt3_992": VehicleSpec(
@@ -506,6 +532,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=502,
         torque_nm=469,
         has_aero=True,
+        cd_a=0.68,
         notes="4.0 L flat-6 NA. Swan-neck wing.",
     ),
     # -----------------------------------------------------------------------
@@ -526,6 +553,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=287,
         torque_nm=363,
         has_aero=False,
+        cd_a=0.62,
         notes="3.5 L VQ35DE/HR V6.",
     ),
     "nissan_370z": VehicleSpec(
@@ -543,6 +571,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=332,
         torque_nm=363,
         has_aero=False,
+        cd_a=0.62,
         notes="3.7 L VQ37VHR V6.",
     ),
     # -----------------------------------------------------------------------
@@ -563,6 +592,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=310,
         torque_nm=393,
         has_aero=True,
+        cd_a=0.72,
         notes="2.5 L EJ257 turbo. DCCD AWD system.",
     ),
     # -----------------------------------------------------------------------
@@ -583,6 +613,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=382,
         torque_nm=500,
         has_aero=False,
+        cd_a=0.64,
         notes="3.0 L B58 turbo inline-6. BMW Z4 platform.",
     ),
     # -----------------------------------------------------------------------
@@ -603,6 +634,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=485,
         torque_nm=644,
         has_aero=False,
+        cd_a=0.88,
         notes="6.4 L HEMI V8. Heavy muscle car.",
     ),
     # -----------------------------------------------------------------------
@@ -623,6 +655,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=455,
         torque_nm=617,
         has_aero=False,
+        cd_a=0.73,
         notes="6.2 L LT1 V8. Alpha platform.",
     ),
     "chevrolet_camaro_zl1_6th": VehicleSpec(
@@ -640,6 +673,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=650,
         torque_nm=881,
         has_aero=True,
+        cd_a=0.79,
         notes="6.2 L LT4 supercharged V8.",
     ),
     # -----------------------------------------------------------------------
@@ -660,6 +694,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=228,
         torque_nm=350,
         has_aero=False,
+        cd_a=0.67,
         notes="2.0 L EA888 turbo. MQB platform.",
     ),
     "volkswagen_gti_mk8": VehicleSpec(
@@ -677,6 +712,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=241,
         torque_nm=370,
         has_aero=False,
+        cd_a=0.62,
         notes="2.0 L EA888 Evo4 turbo.",
     ),
     # -----------------------------------------------------------------------
@@ -697,6 +733,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=275,
         torque_nm=353,
         has_aero=False,
+        cd_a=0.67,
         notes="2.0 L Theta II turbo. eLSD available.",
     ),
     # -----------------------------------------------------------------------
@@ -717,6 +754,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=300,
         torque_nm=370,
         has_aero=True,
+        cd_a=0.72,
         notes="1.6 L G16E-GTS turbo 3-cyl. GR-Four AWD.",
     ),
     # -----------------------------------------------------------------------
@@ -737,6 +775,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=416,
         torque_nm=505,
         has_aero=False,
+        cd_a=0.69,
         notes="5.0 L 2UR-GSE V8.",
     ),
     "lexus_rc_f": VehicleSpec(
@@ -754,6 +793,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=472,
         torque_nm=535,
         has_aero=False,
+        cd_a=0.72,
         notes="5.0 L 2UR-GSE V8. Track Edition available.",
     ),
     # -----------------------------------------------------------------------
@@ -774,6 +814,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=189,
         torque_nm=180,
         has_aero=False,
+        cd_a=0.62,
         notes="1.8 L 2ZZ-GE Toyota. Ultralight.",
     ),
     "lotus_exige_s2": VehicleSpec(
@@ -791,6 +832,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=220,
         torque_nm=215,
         has_aero=True,
+        cd_a=0.62,
         notes="1.8 L 2ZZ-GE supercharged. Fixed roof + wing.",
     ),
     # -----------------------------------------------------------------------
@@ -811,6 +853,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=400,
         torque_nm=480,
         has_aero=False,
+        cd_a=0.70,
         notes="2.5 L TFSI inline-5 turbo. Quattro AWD.",
     ),
     "audi_ttrs_8s": VehicleSpec(
@@ -828,6 +871,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=394,
         torque_nm=480,
         has_aero=False,
+        cd_a=0.66,
         notes="2.5 L TFSI inline-5 turbo.",
     ),
     # -----------------------------------------------------------------------
@@ -848,6 +892,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=469,
         torque_nm=650,
         has_aero=False,
+        cd_a=0.69,
         notes="4.0 L M177 twin-turbo V8.",
     ),
     # -----------------------------------------------------------------------
@@ -868,6 +913,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=565,
         torque_nm=637,
         has_aero=False,
+        cd_a=0.60,
         notes="3.8 L VR38DETT twin-turbo V6. ATTESA E-TS AWD.",
     ),
     # -----------------------------------------------------------------------
@@ -888,6 +934,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=276,
         torque_nm=392,
         has_aero=False,
+        cd_a=0.63,
         notes="2.0 L Theta III turbo. Spiritual Veloster N successor.",
     ),
     # -----------------------------------------------------------------------
@@ -908,6 +955,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=382,
         torque_nm=500,
         has_aero=False,
+        cd_a=0.71,
         notes="3.0 L B58 turbo inline-6. xDrive AWD.",
     ),
     # -----------------------------------------------------------------------
@@ -928,6 +976,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=350,
         torque_nm=440,
         has_aero=True,
+        cd_a=0.78,
         notes="2.3 L EcoBoost turbo. Twin-clutch rear axle.",
     ),
     # -----------------------------------------------------------------------
@@ -948,6 +997,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         hp=263,
         torque_nm=380,
         has_aero=False,
+        cd_a=0.66,
         notes="2.3 L MZR DISI turbo. Torque steer monster.",
     ),
 }

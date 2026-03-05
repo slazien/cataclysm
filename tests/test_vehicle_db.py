@@ -87,6 +87,17 @@ class TestVehicleSpec:
                 f"{slug}: rear track {spec.track_width_rear_m} out of range"
             )
 
+    def test_all_vehicles_have_reasonable_cd_a(self) -> None:
+        """CdA values should be 0 (unknown) or between 0.4 and 1.0 m^2."""
+        for slug, spec in VEHICLE_DATABASE.items():
+            if spec.cd_a > 0:
+                assert 0.4 <= spec.cd_a <= 1.0, f"{slug}: cd_a={spec.cd_a} out of range"
+
+    def test_all_vehicles_have_cd_a_populated(self) -> None:
+        """All vehicles in the database should have cd_a > 0 (fully populated)."""
+        for slug, spec in VEHICLE_DATABASE.items():
+            assert spec.cd_a > 0, f"{slug}: cd_a not populated"
+
     def test_database_has_at_least_40_entries(self) -> None:
         assert len(VEHICLE_DATABASE) >= 40
 

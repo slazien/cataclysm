@@ -544,6 +544,42 @@ class TestEquipmentToVehicleParams:
                 f"{cat.value}: expected {expected[cat]}, got {params.friction_circle_exponent}"
             )
 
+    def test_drag_coefficient_with_vehicle(self) -> None:
+        """drag_coefficient should be computed from vehicle CdA and weight."""
+        from cataclysm.vehicle_db import VEHICLE_DATABASE
+
+        tire = TireSpec(
+            model="Test",
+            compound_category=TireCompoundCategory.ENDURANCE_200TW,
+            size="205/50R15",
+            treadwear_rating=200,
+            estimated_mu=1.0,
+            mu_source=MuSource.FORMULA_ESTIMATE,
+            mu_confidence="medium",
+        )
+        vehicle = VEHICLE_DATABASE["mazda_miata_nd"]
+        profile = EquipmentProfile(id="test", name="test", tires=tire, vehicle=vehicle)
+        params = equipment_to_vehicle_params(profile)
+
+        # drag_coefficient = CdA * rho / (2 * m) = 0.56 * 1.225 / (2 * 1058) ≈ 0.000324
+        assert params.drag_coefficient > 0.0
+        assert 0.0002 < params.drag_coefficient < 0.0005
+
+    def test_drag_coefficient_zero_without_vehicle(self) -> None:
+        """drag_coefficient should be 0 when no vehicle is attached."""
+        tire = TireSpec(
+            model="Test",
+            compound_category=TireCompoundCategory.STREET,
+            size="205/50R15",
+            treadwear_rating=300,
+            estimated_mu=1.0,
+            mu_source=MuSource.FORMULA_ESTIMATE,
+            mu_confidence="medium",
+        )
+        profile = EquipmentProfile(id="test", name="test", tires=tire)
+        params = equipment_to_vehicle_params(profile)
+        assert params.drag_coefficient == 0.0
+
     def test_returns_vehicle_params_type(self) -> None:
         """Return type should be VehicleParams from velocity_profile module."""
         from cataclysm.velocity_profile import VehicleParams

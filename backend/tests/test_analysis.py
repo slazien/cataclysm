@@ -298,10 +298,14 @@ async def test_optimal_profile_with_equipment(client: AsyncClient) -> None:
     assert vp["max_decel_g"] > 0
     assert equip_data["equipment_profile_id"] == "low-grip"
 
-    # Both baseline and equipped use the same calibrated G-G data, so lap times
-    # should be identical (both get the same observed grip envelope).
+    # Both baseline and equipped use the same calibrated G-G data for grip.
+    # However, equipment-derived non-grip fields (friction_circle_exponent)
+    # may differ from defaults, so lap times can differ slightly.
     equip_lap_time = equip_data["lap_time_s"]
-    assert equip_lap_time == default_lap_time
+    assert equip_lap_time > 0
+    # Lap times should be close (same grip envelope) but not necessarily
+    # identical due to friction_circle_exponent and other non-grip fields.
+    assert abs(equip_lap_time - default_lap_time) / default_lap_time < 0.02
 
     # Clean up
     equipment_store.delete_session_equipment(session_id)

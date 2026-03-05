@@ -106,6 +106,7 @@ CATEGORY_FRICTION_CIRCLE_EXPONENT: dict[TireCompoundCategory, float] = {
 }
 
 _BRAKE_EFFICIENCY = 0.95  # real-world brake efficiency factor
+_AIR_DENSITY = 1.225  # kg/m^3, sea level ISA standard atmosphere
 
 
 # ---------------------------------------------------------------------------
@@ -262,6 +263,12 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
         pw_factor = min(pw_ratio / 250.0, 1.5)  # cap at 1.5x
         accel_g = base_accel_g * max(pw_factor, 0.7)  # floor at 0.7x
 
+    # Compute aerodynamic drag coefficient: k = CdA * rho / (2 * m)
+    # Used in solver: drag_g = k * v^2 / G
+    drag_coeff = 0.0
+    if profile.vehicle is not None and profile.vehicle.cd_a > 0:
+        drag_coeff = profile.vehicle.cd_a * _AIR_DENSITY / (2.0 * weight_kg)
+
     return VehicleParams(
         mu=mu,
         max_lateral_g=mu,
@@ -269,4 +276,5 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
         max_decel_g=mu * _BRAKE_EFFICIENCY,
         top_speed_mps=80.0,
         friction_circle_exponent=CATEGORY_FRICTION_CIRCLE_EXPONENT[category],
+        drag_coefficient=drag_coeff,
     )
