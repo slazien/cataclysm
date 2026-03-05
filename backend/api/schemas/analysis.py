@@ -242,3 +242,39 @@ class OptimalComparisonResponse(BaseModel):
     actual_lap_time_s: float
     optimal_lap_time_s: float
     total_gap_s: float  # actual - optimal (positive = driver is slower)
+
+
+class CornerLineProfileSchema(BaseModel):
+    """Line analysis for a single corner across all laps."""
+
+    corner_number: int
+    n_laps: int
+    d_entry_median: float  # meters from reference at entry
+    d_apex_median: float  # meters from reference at apex
+    d_exit_median: float  # meters from reference at exit
+    apex_fraction_median: float  # 0.0=entry, 1.0=exit
+    d_apex_sd: float  # lateral SD at apex (consistency)
+    line_error_type: str  # early_apex, late_apex, wide_entry, etc.
+    severity: str  # minor, moderate, major
+    consistency_tier: str  # expert, consistent, developing, novice
+    allen_berg_type: str  # A, B, C
+
+
+class LateralOffsetTraceSchema(BaseModel):
+    """Lateral offset trace for a single lap."""
+
+    lap_number: int
+    offsets_m: list[float]  # signed offset at each distance point
+
+
+class LineAnalysisResponse(BaseModel):
+    """Full line analysis: corner profiles + per-lap lateral offsets."""
+
+    session_id: str
+    available: bool  # False if GPS quality too low or too few laps
+    corner_profiles: list[CornerLineProfileSchema]
+    distance_m: list[float]  # shared distance grid
+    traces: list[LateralOffsetTraceSchema]  # per-lap lateral offsets
+    reference_e: list[float]  # reference centerline East coords
+    reference_n: list[float]  # reference centerline North coords
+    n_laps_used: int  # laps used to build reference

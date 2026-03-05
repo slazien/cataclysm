@@ -13,6 +13,7 @@ from backend.api.schemas.analysis import (
     AllLapsCornerResponse,
     ConsistencyResponse,
     CornerGGSummarySchema,
+    CornerLineProfileSchema,
     CornerOpportunitySchema,
     CornerResponse,
     CornerSchema,
@@ -27,6 +28,8 @@ from backend.api.schemas.analysis import (
     GripResponse,
     IdealLapResponse,
     LapSectorSplitsSchema,
+    LateralOffsetTraceSchema,
+    LineAnalysisResponse,
     LinkedChartResponse,
     OptimalComparisonResponse,
     OptimalProfileResponse,
@@ -595,4 +598,96 @@ async def get_speed_sensitivity(
             max_lateral_g=vehicle.max_lateral_g,
             top_speed_mps=vehicle.top_speed_mps,
         ),
+    )
+
+
+@router.get(
+    "/{session_id}/line-analysis",
+    response_model=LineAnalysisResponse,
+)
+async def get_line_analysis(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    laps: Annotated[
+        list[int] | None,
+        Query(description="Lap numbers for lateral offset traces (default: all coaching laps)"),
+    ] = None,
+) -> LineAnalysisResponse:
+    """Return driving line analysis: corner profiles + per-lap lateral offsets.
+
+    Requires GPS quality grade A or B and at least 3 coaching laps.
+    Returns ``available=False`` with empty data if analysis was not computed.
+    """
+    sd = _get_session_or_404(session_id, current_user.user_id)
+
+    # Not available — return empty response rather than 404
+    if not sd.gps_traces or sd.reference_centerline is None:
+        return LineAnalysisResponse(
+            session_id=session_id,
+            available=False,
+            corner_profiles=[],
+            distance_m=[],
+            traces=[],
+            reference_e=[],
+            reference_n=[],
+            n_laps_used=0,
+        )
+
+    from cataclysm.gps_line import compute_lateral_offsets
+
+    ref = sd.reference_centerline
+    traces = sd.gps_traces
+
+    # Filter to requested laps or all coaching laps
+    if laps is not None:
+        lap_set = set(laps)
+        traces = [t for t in traces if t.lap_number in lap_set]
+
+    # Compute lateral offsets for requested traces
+    min_len = min(len(t.e) for t in traces)
+    min_len = min(min_len, len(ref.e))
+
+    def _compute_offsets() -> list[LateralOffsetTraceSchema]:
+        result = []
+        for trace in traces:
+            offsets = compute_lateral_offsets(trace, ref)
+            result.append(
+                LateralOffsetTraceSchema(
+                    lap_number=trace.lap_number,
+                    offsets_m=offsets[:min_len].tolist(),
+                )
+            )
+        return result
+
+    offset_traces = await asyncio.to_thread(_compute_offsets)
+
+    # Distance grid from shortest trace
+    distance_m = traces[0].distance_m[:min_len].tolist() if traces else []
+
+    corner_profiles = [
+        CornerLineProfileSchema(
+            corner_number=p.corner_number,
+            n_laps=p.n_laps,
+            d_entry_median=round(p.d_entry_median, 2),
+            d_apex_median=round(p.d_apex_median, 2),
+            d_exit_median=round(p.d_exit_median, 2),
+            apex_fraction_median=round(p.apex_fraction_median, 3),
+            d_apex_sd=round(p.d_apex_sd, 3),
+            line_error_type=p.line_error_type,
+            severity=p.severity,
+            consistency_tier=p.consistency_tier,
+            allen_berg_type=p.allen_berg_type,
+        )
+        for p in sd.corner_line_profiles
+    ]
+
+    return LineAnalysisResponse(
+        session_id=session_id,
+        available=True,
+        corner_profiles=corner_profiles,
+        distance_m=distance_m,
+        traces=offset_traces,
+        reference_e=ref.e[:min_len].tolist(),
+        reference_n=ref.n[:min_len].tolist(),
+        n_laps_used=ref.n_laps_used,
     )
