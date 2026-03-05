@@ -3,9 +3,11 @@
 Tests cover:
 - store_coaching_report: memory insert, eviction trigger, DB upsert
 - get_coaching_report: memory hit, lazy DB load, cache population, DB error
+- get_any_coaching_report: most recently stored report for any skill level
 - _evict_oldest_reports: FIFO eviction at MAX_COACHING_CACHE boundary
 - store_coaching_context / get_coaching_context: parallel structure to reports
 - clear_coaching_data: memory removal + async DB delete
+- clear_coaching_report: single skill level removal
 - mark_generating / unmark_generating / is_generating: race-condition flags
 - clear_all_coaching: full memory wipe
 """
@@ -27,6 +29,8 @@ from backend.api.services.coaching_store import (
     _evict_oldest_reports,
     clear_all_coaching,
     clear_coaching_data,
+    clear_coaching_report,
+    get_any_coaching_report,
     get_coaching_context,
     get_coaching_report,
     is_generating,
@@ -96,7 +100,7 @@ def _patch_all_db_helpers(
     upsert_context_side_effect: object = None,
     delete_side_effect: object = None,
 ) -> Iterator[dict[str, AsyncMock]]:
-    """Patch async_session_factory + all three DB helpers.
+    """Patch async_session_factory + all DB helpers.
 
     Returns the mock objects so callers can inspect call args.
     Applies side_effect to each helper when provided.
@@ -119,7 +123,9 @@ def _patch_all_db_helpers(
     upsert_report_mock = AsyncMock(side_effect=upsert_report_side_effect)
     upsert_context_mock = AsyncMock(side_effect=upsert_context_side_effect)
     delete_mock = AsyncMock(side_effect=delete_side_effect)
+    delete_skill_mock = AsyncMock(side_effect=delete_side_effect)
     get_report_mock = AsyncMock(return_value=None)
+    get_any_report_mock = AsyncMock(return_value=None)
     get_context_mock = AsyncMock(return_value=None)
 
     with (
@@ -129,24 +135,35 @@ def _patch_all_db_helpers(
             "backend.api.services.coaching_store.upsert_coaching_context_db", upsert_context_mock
         ),
         patch("backend.api.services.coaching_store.delete_coaching_data_db", delete_mock),
+        patch(
+            "backend.api.services.coaching_store.delete_coaching_report_for_skill_db",
+            delete_skill_mock,
+        ),
         patch("backend.api.services.coaching_store.get_coaching_report_db", get_report_mock),
+        patch(
+            "backend.api.services.coaching_store.get_any_coaching_report_db", get_any_report_mock
+        ),
         patch("backend.api.services.coaching_store.get_coaching_context_db", get_context_mock),
     ):
         yield {
             "upsert_report": upsert_report_mock,
             "upsert_context": upsert_context_mock,
             "delete": delete_mock,
+            "delete_skill": delete_skill_mock,
             "get_report": get_report_mock,
+            "get_any_report": get_any_report_mock,
             "get_context": get_context_mock,
         }
 
 
 def _make_lazy_db_factory(
     report_return: CoachingReportResponse | None = None,
+    any_report_return: CoachingReportResponse | None = None,
     context_return: list[dict[str, str]] | None = None,
     report_side_effect: object = None,
+    any_report_side_effect: object = None,
     context_side_effect: object = None,
-) -> tuple[_patch[MagicMock], _patch[AsyncMock], _patch[AsyncMock]]:
+) -> tuple[_patch[MagicMock], _patch[AsyncMock], _patch[AsyncMock], _patch[AsyncMock]]:
     """Patch async_session_factory + DB getters for lazy-load tests."""
     db_session = AsyncMock()
     db_session.commit = AsyncMock()
@@ -163,11 +180,17 @@ def _make_lazy_db_factory(
     factory = MagicMock(return_value=cm)
 
     get_report_mock = AsyncMock(return_value=report_return, side_effect=report_side_effect)
+    get_any_report_mock = AsyncMock(
+        return_value=any_report_return, side_effect=any_report_side_effect
+    )
     get_context_mock = AsyncMock(return_value=context_return, side_effect=context_side_effect)
 
     return (
         patch("backend.api.services.coaching_store.async_session_factory", factory),
         patch("backend.api.services.coaching_store.get_coaching_report_db", get_report_mock),
+        patch(
+            "backend.api.services.coaching_store.get_any_coaching_report_db", get_any_report_mock
+        ),
         patch("backend.api.services.coaching_store.get_coaching_context_db", get_context_mock),
     )
 
@@ -178,47 +201,67 @@ def _make_lazy_db_factory(
 
 
 def test_mark_generating_sets_flag() -> None:
-    """mark_generating adds the session_id to the generating set."""
-    mark_generating("session-abc")
-    assert is_generating("session-abc")
+    """mark_generating adds the (session_id, skill_level) to the generating set."""
+    mark_generating("session-abc", "intermediate")
+    assert is_generating("session-abc", "intermediate")
 
 
 def test_unmark_generating_removes_flag() -> None:
-    """unmark_generating removes the generating flag for a session."""
-    mark_generating("session-abc")
-    unmark_generating("session-abc")
-    assert not is_generating("session-abc")
+    """unmark_generating removes the generating flag for a session+skill_level."""
+    mark_generating("session-abc", "intermediate")
+    unmark_generating("session-abc", "intermediate")
+    assert not is_generating("session-abc", "intermediate")
 
 
 def test_unmark_generating_unknown_session_is_noop() -> None:
     """unmark_generating on an unknown session_id does not raise."""
-    unmark_generating("never-marked")
-    assert not is_generating("never-marked")
+    unmark_generating("never-marked", "intermediate")
+    assert not is_generating("never-marked", "intermediate")
 
 
 def test_is_generating_returns_false_for_unknown() -> None:
     """is_generating returns False for a session that was never marked."""
-    assert not is_generating("ghost-session")
+    assert not is_generating("ghost-session", "intermediate")
 
 
 def test_mark_generating_idempotent() -> None:
     """Marking the same session twice does not duplicate entries."""
-    mark_generating("dup")
-    mark_generating("dup")
-    assert is_generating("dup")
-    unmark_generating("dup")
-    assert not is_generating("dup")
+    mark_generating("dup", "intermediate")
+    mark_generating("dup", "intermediate")
+    assert is_generating("dup", "intermediate")
+    unmark_generating("dup", "intermediate")
+    assert not is_generating("dup", "intermediate")
 
 
 def test_multiple_sessions_generating_independently() -> None:
     """Generating flags are tracked independently per session."""
+    mark_generating("s1", "intermediate")
+    mark_generating("s2", "intermediate")
+    assert is_generating("s1", "intermediate")
+    assert is_generating("s2", "intermediate")
+    unmark_generating("s1", "intermediate")
+    assert not is_generating("s1", "intermediate")
+    assert is_generating("s2", "intermediate")
+
+
+def test_generating_tracks_skill_level_independently() -> None:
+    """Different skill levels for the same session are tracked independently."""
+    mark_generating("s1", "beginner")
+    mark_generating("s1", "advanced")
+    assert is_generating("s1", "beginner")
+    assert is_generating("s1", "advanced")
+    assert not is_generating("s1", "intermediate")
+    unmark_generating("s1", "beginner")
+    assert not is_generating("s1", "beginner")
+    assert is_generating("s1", "advanced")
+
+
+def test_mark_generating_default_skill_level() -> None:
+    """mark_generating defaults to 'intermediate' skill level."""
     mark_generating("s1")
-    mark_generating("s2")
     assert is_generating("s1")
-    assert is_generating("s2")
-    unmark_generating("s1")
-    assert not is_generating("s1")
-    assert is_generating("s2")
+    assert is_generating("s1", "intermediate")
+    assert not is_generating("s1", "advanced")
 
 
 # ---------------------------------------------------------------------------
@@ -229,7 +272,7 @@ def test_multiple_sessions_generating_independently() -> None:
 def test_evict_oldest_reports_noop_when_under_limit() -> None:
     """No eviction when cache size is at or below MAX_COACHING_CACHE."""
     for i in range(5):
-        coaching_store_mod._reports[f"s{i}"] = _make_report(session_id=f"s{i}")
+        coaching_store_mod._reports[f"s{i}"] = {"intermediate": _make_report(session_id=f"s{i}")}
 
     _evict_oldest_reports()
 
@@ -239,7 +282,7 @@ def test_evict_oldest_reports_noop_when_under_limit() -> None:
 def test_evict_oldest_reports_removes_oldest_entry() -> None:
     """When cache exceeds MAX_COACHING_CACHE, the oldest entry is removed first."""
     for i in range(MAX_COACHING_CACHE + 1):
-        coaching_store_mod._reports[f"s{i}"] = _make_report(session_id=f"s{i}")
+        coaching_store_mod._reports[f"s{i}"] = {"intermediate": _make_report(session_id=f"s{i}")}
 
     _evict_oldest_reports()
 
@@ -253,7 +296,7 @@ def test_evict_oldest_reports_removes_oldest_entry() -> None:
 def test_evict_oldest_reports_also_evicts_context() -> None:
     """Eviction removes the paired context entry when it exists."""
     for i in range(MAX_COACHING_CACHE + 1):
-        coaching_store_mod._reports[f"s{i}"] = _make_report(session_id=f"s{i}")
+        coaching_store_mod._reports[f"s{i}"] = {"intermediate": _make_report(session_id=f"s{i}")}
         coaching_store_mod._contexts[f"s{i}"] = _make_context()
 
     _evict_oldest_reports()
@@ -264,7 +307,7 @@ def test_evict_oldest_reports_also_evicts_context() -> None:
 def test_evict_oldest_reports_multiple_overflow() -> None:
     """Eviction removes all overflowing entries in a single call."""
     for i in range(MAX_COACHING_CACHE + 10):
-        coaching_store_mod._reports[f"s{i}"] = _make_report(session_id=f"s{i}")
+        coaching_store_mod._reports[f"s{i}"] = {"intermediate": _make_report(session_id=f"s{i}")}
 
     _evict_oldest_reports()
 
@@ -274,7 +317,7 @@ def test_evict_oldest_reports_multiple_overflow() -> None:
 def test_evict_oldest_reports_context_not_required() -> None:
     """Eviction does not fail if the context for the evicted session does not exist."""
     for i in range(MAX_COACHING_CACHE + 1):
-        coaching_store_mod._reports[f"s{i}"] = _make_report(session_id=f"s{i}")
+        coaching_store_mod._reports[f"s{i}"] = {"intermediate": _make_report(session_id=f"s{i}")}
     # No contexts added — eviction should not raise
 
     _evict_oldest_reports()
@@ -285,7 +328,7 @@ def test_evict_oldest_reports_context_not_required() -> None:
 def test_evict_oldest_reports_noop_when_exactly_at_limit() -> None:
     """No eviction when cache is exactly at MAX_COACHING_CACHE."""
     for i in range(MAX_COACHING_CACHE):
-        coaching_store_mod._reports[f"s{i}"] = _make_report(session_id=f"s{i}")
+        coaching_store_mod._reports[f"s{i}"] = {"intermediate": _make_report(session_id=f"s{i}")}
 
     _evict_oldest_reports()
 
@@ -300,11 +343,11 @@ def test_evict_oldest_reports_noop_when_exactly_at_limit() -> None:
 
 @pytest.mark.asyncio
 async def test_store_coaching_report_adds_to_memory() -> None:
-    """store_coaching_report puts the report in the _reports dict."""
+    """store_coaching_report puts the report in the nested _reports dict."""
     report = _make_report("s1")
     with _patch_all_db_helpers():
         await store_coaching_report("s1", report)
-    assert coaching_store_mod._reports["s1"] is report
+    assert coaching_store_mod._reports["s1"]["intermediate"] is report
 
 
 @pytest.mark.asyncio
@@ -337,14 +380,14 @@ async def test_store_coaching_report_db_error_does_not_raise() -> None:
     with _patch_all_db_helpers(upsert_report_side_effect=SQLAlchemyError("connection refused")):
         await store_coaching_report("s1", report)
     # Report is still in memory despite DB failure
-    assert coaching_store_mod._reports["s1"] is report
+    assert coaching_store_mod._reports["s1"]["intermediate"] is report
 
 
 @pytest.mark.asyncio
 async def test_store_coaching_report_triggers_eviction() -> None:
     """Storing one extra report when cache is full evicts the oldest entry."""
     for i in range(MAX_COACHING_CACHE):
-        coaching_store_mod._reports[f"s{i}"] = _make_report(session_id=f"s{i}")
+        coaching_store_mod._reports[f"s{i}"] = {"intermediate": _make_report(session_id=f"s{i}")}
 
     new_report = _make_report("new-session")
     with _patch_all_db_helpers():
@@ -353,6 +396,18 @@ async def test_store_coaching_report_triggers_eviction() -> None:
     assert len(coaching_store_mod._reports) == MAX_COACHING_CACHE
     assert "new-session" in coaching_store_mod._reports
     assert "s0" not in coaching_store_mod._reports
+
+
+@pytest.mark.asyncio
+async def test_store_multiple_skill_levels() -> None:
+    """Storing reports for different skill levels in the same session keeps both."""
+    report_int = _make_report("s1", summary="Intermediate report")
+    report_adv = _make_report("s1", summary="Advanced report")
+    with _patch_all_db_helpers():
+        await store_coaching_report("s1", report_int, "intermediate")
+        await store_coaching_report("s1", report_adv, "advanced")
+    assert coaching_store_mod._reports["s1"]["intermediate"].summary == "Intermediate report"
+    assert coaching_store_mod._reports["s1"]["advanced"].summary == "Advanced report"
 
 
 # ---------------------------------------------------------------------------
@@ -364,13 +419,13 @@ async def test_store_coaching_report_triggers_eviction() -> None:
 async def test_get_coaching_report_returns_memory_hit() -> None:
     """get_coaching_report returns the in-memory report without touching the DB."""
     report = _make_report("s1")
-    coaching_store_mod._reports["s1"] = report
+    coaching_store_mod._reports["s1"] = {"intermediate": report}
 
     with patch(
         "backend.api.services.coaching_store.async_session_factory",
         side_effect=AssertionError("DB should not be called"),
     ):
-        result = await get_coaching_report("s1")
+        result = await get_coaching_report("s1", "intermediate")
 
     assert result is report
 
@@ -379,22 +434,22 @@ async def test_get_coaching_report_returns_memory_hit() -> None:
 async def test_get_coaching_report_lazy_loads_from_db() -> None:
     """Cache miss triggers DB load and populates in-memory cache."""
     db_report = _make_report("s1", status="ready")
-    factory_patch, report_db_patch, _ = _make_lazy_db_factory(report_return=db_report)
+    factory_patch, report_db_patch, _, _ = _make_lazy_db_factory(report_return=db_report)
 
     with factory_patch, report_db_patch:
-        result = await get_coaching_report("s1")
+        result = await get_coaching_report("s1", "intermediate")
 
     assert result is db_report
-    assert coaching_store_mod._reports["s1"] is db_report
+    assert coaching_store_mod._reports["s1"]["intermediate"] is db_report
 
 
 @pytest.mark.asyncio
 async def test_get_coaching_report_db_miss_returns_none() -> None:
     """Cache + DB miss returns None."""
-    factory_patch, report_db_patch, _ = _make_lazy_db_factory(report_return=None)
+    factory_patch, report_db_patch, _, _ = _make_lazy_db_factory(report_return=None)
 
     with factory_patch, report_db_patch:
-        result = await get_coaching_report("missing")
+        result = await get_coaching_report("missing", "intermediate")
 
     assert result is None
     assert "missing" not in coaching_store_mod._reports
@@ -404,10 +459,10 @@ async def test_get_coaching_report_db_miss_returns_none() -> None:
 async def test_get_coaching_report_db_non_ready_report_not_cached() -> None:
     """A DB report with status != 'ready' is not stored in the memory cache."""
     db_report = _make_report("s1", status="error")
-    factory_patch, report_db_patch, _ = _make_lazy_db_factory(report_return=db_report)
+    factory_patch, report_db_patch, _, _ = _make_lazy_db_factory(report_return=db_report)
 
     with factory_patch, report_db_patch:
-        result = await get_coaching_report("s1")
+        result = await get_coaching_report("s1", "intermediate")
 
     assert result is None
     assert "s1" not in coaching_store_mod._reports
@@ -416,12 +471,72 @@ async def test_get_coaching_report_db_non_ready_report_not_cached() -> None:
 @pytest.mark.asyncio
 async def test_get_coaching_report_db_error_returns_none() -> None:
     """SQLAlchemyError during DB lazy load is caught, returns None."""
-    factory_patch, report_db_patch, _ = _make_lazy_db_factory(
+    factory_patch, report_db_patch, _, _ = _make_lazy_db_factory(
         report_side_effect=SQLAlchemyError("timeout")
     )
 
     with factory_patch, report_db_patch:
-        result = await get_coaching_report("s1")
+        result = await get_coaching_report("s1", "intermediate")
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_coaching_report_different_skill_level_misses() -> None:
+    """Requesting a different skill level than what's stored misses the cache."""
+    report = _make_report("s1")
+    coaching_store_mod._reports["s1"] = {"intermediate": report}
+
+    factory_patch, report_db_patch, _, _ = _make_lazy_db_factory(report_return=None)
+    with factory_patch, report_db_patch:
+        result = await get_coaching_report("s1", "advanced")
+
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# get_any_coaching_report
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_any_coaching_report_returns_most_recent() -> None:
+    """get_any_coaching_report returns the most recently stored report."""
+    report_int = _make_report("s1", summary="Intermediate")
+    report_adv = _make_report("s1", summary="Advanced")
+    coaching_store_mod._reports["s1"] = {"intermediate": report_int, "advanced": report_adv}
+
+    with patch(
+        "backend.api.services.coaching_store.async_session_factory",
+        side_effect=AssertionError("DB should not be called"),
+    ):
+        result = await get_any_coaching_report("s1")
+
+    # Most recently added (last in dict) is "advanced"
+    assert result is report_adv
+
+
+@pytest.mark.asyncio
+async def test_get_any_coaching_report_db_fallback() -> None:
+    """get_any_coaching_report falls back to DB when no memory cache exists."""
+    db_report = _make_report("s1", status="ready")
+    db_report.skill_level = "advanced"
+    factory_patch, _, any_report_db_patch, _ = _make_lazy_db_factory(any_report_return=db_report)
+
+    with factory_patch, any_report_db_patch:
+        result = await get_any_coaching_report("s1")
+
+    assert result is db_report
+    assert coaching_store_mod._reports["s1"]["advanced"] is db_report
+
+
+@pytest.mark.asyncio
+async def test_get_any_coaching_report_returns_none_when_empty() -> None:
+    """get_any_coaching_report returns None when no reports exist."""
+    factory_patch, _, any_report_db_patch, _ = _make_lazy_db_factory(any_report_return=None)
+
+    with factory_patch, any_report_db_patch:
+        result = await get_any_coaching_report("missing")
 
     assert result is None
 
@@ -480,7 +595,7 @@ async def test_get_coaching_context_returns_memory_hit() -> None:
 async def test_get_coaching_context_lazy_loads_from_db() -> None:
     """Cache miss triggers DB load and populates in-memory context cache."""
     messages = [{"role": "user", "content": "test question"}]
-    factory_patch, _, context_db_patch = _make_lazy_db_factory(context_return=messages)
+    factory_patch, _, _, context_db_patch = _make_lazy_db_factory(context_return=messages)
 
     with factory_patch, context_db_patch:
         result = await get_coaching_context("s1")
@@ -494,7 +609,7 @@ async def test_get_coaching_context_lazy_loads_from_db() -> None:
 @pytest.mark.asyncio
 async def test_get_coaching_context_db_miss_returns_none() -> None:
     """Cache + DB miss returns None for context."""
-    factory_patch, _, context_db_patch = _make_lazy_db_factory(context_return=None)
+    factory_patch, _, _, context_db_patch = _make_lazy_db_factory(context_return=None)
 
     with factory_patch, context_db_patch:
         result = await get_coaching_context("missing")
@@ -506,7 +621,7 @@ async def test_get_coaching_context_db_miss_returns_none() -> None:
 @pytest.mark.asyncio
 async def test_get_coaching_context_db_error_returns_none() -> None:
     """SQLAlchemyError during context DB load is caught, returns None."""
-    factory_patch, _, context_db_patch = _make_lazy_db_factory(
+    factory_patch, _, _, context_db_patch = _make_lazy_db_factory(
         context_side_effect=SQLAlchemyError("db unavailable")
     )
 
@@ -524,7 +639,7 @@ async def test_get_coaching_context_db_error_returns_none() -> None:
 @pytest.mark.asyncio
 async def test_clear_coaching_data_removes_from_memory() -> None:
     """clear_coaching_data deletes both report and context from memory."""
-    coaching_store_mod._reports["s1"] = _make_report("s1")
+    coaching_store_mod._reports["s1"] = {"intermediate": _make_report("s1")}
     coaching_store_mod._contexts["s1"] = _make_context()
     with _patch_all_db_helpers():
         await clear_coaching_data("s1")
@@ -535,7 +650,7 @@ async def test_clear_coaching_data_removes_from_memory() -> None:
 @pytest.mark.asyncio
 async def test_clear_coaching_data_calls_db_delete() -> None:
     """clear_coaching_data calls delete_coaching_data_db with the correct session_id."""
-    coaching_store_mod._reports["s1"] = _make_report("s1")
+    coaching_store_mod._reports["s1"] = {"intermediate": _make_report("s1")}
     with _patch_all_db_helpers() as mocks:
         await clear_coaching_data("s1")
     mocks["delete"].assert_awaited_once()
@@ -555,7 +670,7 @@ async def test_clear_coaching_data_unknown_session_is_noop() -> None:
 @pytest.mark.asyncio
 async def test_clear_coaching_data_db_error_does_not_raise() -> None:
     """A SQLAlchemyError during DB delete is swallowed; memory is still cleared."""
-    coaching_store_mod._reports["s1"] = _make_report("s1")
+    coaching_store_mod._reports["s1"] = {"intermediate": _make_report("s1")}
     coaching_store_mod._contexts["s1"] = _make_context()
     with _patch_all_db_helpers(delete_side_effect=SQLAlchemyError("delete failed")):
         await clear_coaching_data("s1")
@@ -566,8 +681,8 @@ async def test_clear_coaching_data_db_error_does_not_raise() -> None:
 @pytest.mark.asyncio
 async def test_clear_coaching_data_only_affects_target_session() -> None:
     """clear_coaching_data removes exactly the target session, not others."""
-    coaching_store_mod._reports["s1"] = _make_report("s1")
-    coaching_store_mod._reports["s2"] = _make_report("s2")
+    coaching_store_mod._reports["s1"] = {"intermediate": _make_report("s1")}
+    coaching_store_mod._reports["s2"] = {"intermediate": _make_report("s2")}
     coaching_store_mod._contexts["s1"] = _make_context()
     coaching_store_mod._contexts["s2"] = _make_context()
     with _patch_all_db_helpers():
@@ -579,15 +694,52 @@ async def test_clear_coaching_data_only_affects_target_session() -> None:
 
 
 # ---------------------------------------------------------------------------
+# clear_coaching_report (single skill level)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_clear_coaching_report_removes_single_skill() -> None:
+    """clear_coaching_report removes only the specified skill level."""
+    coaching_store_mod._reports["s1"] = {
+        "intermediate": _make_report("s1", summary="Int"),
+        "advanced": _make_report("s1", summary="Adv"),
+    }
+    with _patch_all_db_helpers() as mocks:
+        await clear_coaching_report("s1", "intermediate")
+    # Only intermediate removed; advanced stays
+    assert "intermediate" not in coaching_store_mod._reports["s1"]
+    assert "advanced" in coaching_store_mod._reports["s1"]
+    mocks["delete_skill"].assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_clear_coaching_report_removes_session_when_last() -> None:
+    """clear_coaching_report removes the session key when last skill level is removed."""
+    coaching_store_mod._reports["s1"] = {"intermediate": _make_report("s1")}
+    with _patch_all_db_helpers():
+        await clear_coaching_report("s1", "intermediate")
+    assert "s1" not in coaching_store_mod._reports
+
+
+@pytest.mark.asyncio
+async def test_clear_coaching_report_noop_for_missing() -> None:
+    """clear_coaching_report does not raise for a nonexistent session/skill."""
+    with _patch_all_db_helpers():
+        await clear_coaching_report("ghost", "advanced")
+    assert "ghost" not in coaching_store_mod._reports
+
+
+# ---------------------------------------------------------------------------
 # clear_all_coaching
 # ---------------------------------------------------------------------------
 
 
 def test_clear_all_coaching_empties_all_caches() -> None:
     """clear_all_coaching wipes reports, contexts, and generating flags."""
-    coaching_store_mod._reports["s1"] = _make_report("s1")
+    coaching_store_mod._reports["s1"] = {"intermediate": _make_report("s1")}
     coaching_store_mod._contexts["s1"] = _make_context()
-    coaching_store_mod._generating.add("s1")
+    coaching_store_mod._generating.add(("s1", "intermediate"))
 
     clear_all_coaching()
 
@@ -619,7 +771,7 @@ async def test_store_then_get_coaching_report_roundtrip() -> None:
         "backend.api.services.coaching_store.async_session_factory",
         side_effect=AssertionError("DB should not be called on memory hit"),
     ):
-        result = await get_coaching_report("roundtrip-1")
+        result = await get_coaching_report("roundtrip-1", "intermediate")
 
     assert result is report
 
@@ -642,35 +794,35 @@ async def test_store_then_get_coaching_context_roundtrip() -> None:
 
 @pytest.mark.asyncio
 async def test_report_overwrite_replaces_previous() -> None:
-    """Storing a new report for the same session_id replaces the old one."""
+    """Storing a new report for the same session_id+skill replaces the old one."""
     report_v1 = _make_report("s1", summary="First version")
     report_v2 = _make_report("s1", summary="Second version")
     with _patch_all_db_helpers():
         await store_coaching_report("s1", report_v1)
         await store_coaching_report("s1", report_v2)
-    assert coaching_store_mod._reports["s1"].summary == "Second version"
+    assert coaching_store_mod._reports["s1"]["intermediate"].summary == "Second version"
 
 
 @pytest.mark.asyncio
 async def test_generating_flag_cleared_after_report_stored() -> None:
-    """Typical generation flow: mark → store → unmark leaves no generating flag."""
-    mark_generating("s1")
-    assert is_generating("s1")
+    """Typical generation flow: mark -> store -> unmark leaves no generating flag."""
+    mark_generating("s1", "intermediate")
+    assert is_generating("s1", "intermediate")
 
     report = _make_report("s1")
     with _patch_all_db_helpers():
         await store_coaching_report("s1", report)
 
-    unmark_generating("s1")
-    assert not is_generating("s1")
-    assert coaching_store_mod._reports["s1"] is report
+    unmark_generating("s1", "intermediate")
+    assert not is_generating("s1", "intermediate")
+    assert coaching_store_mod._reports["s1"]["intermediate"] is report
 
 
 @pytest.mark.asyncio
 async def test_context_evicted_with_report() -> None:
     """When a report is evicted from cache, its paired context is also removed."""
     for i in range(MAX_COACHING_CACHE):
-        coaching_store_mod._reports[f"s{i}"] = _make_report(session_id=f"s{i}")
+        coaching_store_mod._reports[f"s{i}"] = {"intermediate": _make_report(session_id=f"s{i}")}
         coaching_store_mod._contexts[f"s{i}"] = _make_context()
 
     # Adding one more report triggers eviction of s0

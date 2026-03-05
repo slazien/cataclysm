@@ -37,7 +37,8 @@ from backend.api.schemas.coaching import (
 )
 from backend.api.services import equipment_store, session_store
 from backend.api.services.coaching_store import (
-    clear_coaching_data,
+    clear_coaching_report,
+    get_any_coaching_report,
     get_coaching_context,
     get_coaching_report,
     is_generating,
@@ -80,15 +81,15 @@ async def trigger_auto_coaching(
     Called from the upload endpoint so coaching is ready when the user opens
     the session.
     """
-    if is_generating(session_id):
+    if is_generating(session_id, skill_level):
         return
-    existing = await get_coaching_report(session_id)
+    existing = await get_coaching_report(session_id, skill_level)
     if existing is not None:
         # Skip if report exists (including errors — errors are retried lazily
         # when the user views the session via GET /report, not on startup).
         return
 
-    mark_generating(session_id)
+    mark_generating(session_id, skill_level)
     _track_task(asyncio.create_task(_run_generation(session_id, sd, skill_level)))
 
 
@@ -110,22 +111,22 @@ async def generate_report(
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
     # If already generating, return current status
-    if is_generating(session_id):
+    if is_generating(session_id, body.skill_level):
         return CoachingReportResponse(session_id=session_id, status="generating")
 
-    # Force regeneration: clear existing report first
+    # Force regeneration: clear existing report for this skill level
     if body.force:
-        await clear_coaching_data(session_id)
+        await clear_coaching_report(session_id, body.skill_level)
     else:
         # If report already exists and succeeded, return it.
         # If it errored, clear it so the user can retry.
-        existing = await get_coaching_report(session_id)
+        existing = await get_coaching_report(session_id, body.skill_level)
         if existing is not None:
             if existing.status != "error":
                 return existing
-            await clear_coaching_data(session_id)
+            await clear_coaching_report(session_id, body.skill_level)
 
-    mark_generating(session_id)
+    mark_generating(session_id, body.skill_level)
 
     # Background task with tracking to prevent GC collection
     _track_task(asyncio.create_task(_run_generation(session_id, sd, body.skill_level)))
@@ -353,7 +354,7 @@ async def _run_generation(
             ),
         )
     finally:
-        unmark_generating(session_id)
+        unmark_generating(session_id, skill_level)
 
 
 @router.get("/{session_id}/report", response_model=CoachingReportResponse)
@@ -372,13 +373,13 @@ async def get_report(
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
-    report = await get_coaching_report(session_id)
+    report = await get_coaching_report(session_id, skill_level)
     if report is not None:
         # Error/unparseable reports should not be served — clear them so the
         # frontend sees a 404 and auto-triggers a fresh generation attempt.
         is_parse_failure = "Could not parse" in (report.summary or "")
         if report.status == "error" or is_parse_failure:
-            await clear_coaching_data(session_id)
+            await clear_coaching_report(session_id, skill_level)
         else:
             # Filter out hallucinated corners beyond the actual corner count.
             num_corners = len(next(iter(sd.all_lap_corners.values()), []))
@@ -392,12 +393,12 @@ async def get_report(
                     ]
             return report
 
-    if is_generating(session_id):
+    if is_generating(session_id, skill_level):
         return CoachingReportResponse(session_id=session_id, status="generating")
 
     # Auto-trigger generation instead of returning 404 — the frontend's
     # auto-trigger POST doesn't always fire reliably after error clearing.
-    mark_generating(session_id)
+    mark_generating(session_id, skill_level)
     task = asyncio.create_task(_run_generation(session_id, sd, skill_level))
     _track_task(task)
     return CoachingReportResponse(session_id=session_id, status="generating")
@@ -474,7 +475,7 @@ async def download_pdf_report(
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
-    coaching_response = await get_coaching_report(session_id)
+    coaching_response = await get_any_coaching_report(session_id)
     if coaching_response is None or coaching_response.status != "ready":
         raise HTTPException(
             status_code=404,
@@ -507,7 +508,7 @@ async def coaching_chat_http(
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
-    report_response = await get_coaching_report(session_id)
+    report_response = await get_any_coaching_report(session_id)
     if report_response is None:
         raise HTTPException(
             status_code=404,
@@ -599,7 +600,7 @@ async def coaching_chat(
         await websocket.close()
         return
 
-    report_response = await get_coaching_report(session_id)
+    report_response = await get_any_coaching_report(session_id)
     if report_response is None:
         await websocket.send_json(
             FollowUpMessage(

@@ -17,6 +17,8 @@ from backend.api.db.database import async_session_factory
 from backend.api.schemas.coaching import CoachingReportResponse
 from backend.api.services.db_coaching_store import (
     delete_coaching_data_db,
+    delete_coaching_report_for_skill_db,
+    get_any_coaching_report_db,
     get_coaching_context_db,
     get_coaching_report_db,
     upsert_coaching_context_db,
@@ -29,13 +31,16 @@ logger = logging.getLogger(__name__)
 MAX_COACHING_CACHE: int = 300
 
 # Module-level in-memory caches
-_reports: dict[str, CoachingReportResponse] = {}
+_reports: dict[str, dict[str, CoachingReportResponse]] = {}  # session_id -> {skill_level: report}
 _contexts: dict[str, CoachingContext] = {}
-_generating: set[str] = set()  # session IDs currently generating
+_generating: set[tuple[str, str]] = set()  # (session_id, skill_level) pairs currently generating
 
 
 def _evict_oldest_reports() -> None:
-    """Evict oldest coaching report(s) when cache exceeds MAX_COACHING_CACHE."""
+    """Evict oldest coaching report(s) when cache exceeds MAX_COACHING_CACHE.
+
+    Counts sessions (not individual skill-level reports) for the eviction limit.
+    """
     while len(_reports) > MAX_COACHING_CACHE:
         oldest_id = next(iter(_reports))
         _reports.pop(oldest_id)
@@ -54,7 +59,7 @@ async def store_coaching_report(
     skill_level: str = "intermediate",
 ) -> None:
     """Persist a coaching report in-memory and to the database."""
-    _reports[session_id] = report
+    _reports.setdefault(session_id, {})[skill_level] = report
     _evict_oldest_reports()
     try:
         async with async_session_factory() as db:
@@ -64,18 +69,46 @@ async def store_coaching_report(
         logger.warning("Failed to persist coaching report to DB for %s", session_id, exc_info=True)
 
 
-async def get_coaching_report(session_id: str) -> CoachingReportResponse | None:
-    """Retrieve a coaching report — memory first, lazy DB fallback on miss."""
-    cached = _reports.get(session_id)
+async def get_coaching_report(
+    session_id: str, skill_level: str = "intermediate"
+) -> CoachingReportResponse | None:
+    """Retrieve a coaching report for a specific skill level.
+
+    Memory first, lazy DB fallback on miss.
+    """
+    inner = _reports.get(session_id, {})
+    cached = inner.get(skill_level)
     if cached is not None:
         return cached
 
     # Lazy load from DB
     try:
         async with async_session_factory() as db:
-            report = await get_coaching_report_db(db, session_id)
+            report = await get_coaching_report_db(db, session_id, skill_level)
         if report is not None and report.status == "ready":
-            _reports[session_id] = report
+            _reports.setdefault(session_id, {})[skill_level] = report
+            return report
+    except SQLAlchemyError:
+        logger.warning("Failed to load coaching report from DB for %s", session_id, exc_info=True)
+    return None
+
+
+async def get_any_coaching_report(session_id: str) -> CoachingReportResponse | None:
+    """Retrieve the most recently stored report for a session (any skill level).
+
+    Used by chat/PDF endpoints that don't know the skill level.
+    """
+    inner = _reports.get(session_id)
+    if inner:
+        return next(reversed(inner.values()))
+
+    # DB fallback: get most recent by created_at
+    try:
+        async with async_session_factory() as db:
+            report = await get_any_coaching_report_db(db, session_id)
+        if report is not None and report.status == "ready":
+            sl = report.skill_level or "intermediate"
+            _reports.setdefault(session_id, {})[sl] = report
             return report
     except SQLAlchemyError:
         logger.warning("Failed to load coaching report from DB for %s", session_id, exc_info=True)
@@ -113,7 +146,7 @@ async def get_coaching_context(session_id: str) -> CoachingContext | None:
 
 
 async def clear_coaching_data(session_id: str) -> None:
-    """Remove coaching data for a session from memory and the database."""
+    """Remove ALL coaching data for a session from memory and the database."""
     _reports.pop(session_id, None)
     _contexts.pop(session_id, None)
     try:
@@ -124,19 +157,39 @@ async def clear_coaching_data(session_id: str) -> None:
         logger.warning("Failed to delete coaching data from DB for %s", session_id, exc_info=True)
 
 
-def mark_generating(session_id: str) -> None:
-    """Mark a session as currently generating a coaching report."""
-    _generating.add(session_id)
+async def clear_coaching_report(session_id: str, skill_level: str) -> None:
+    """Remove a single skill level's coaching report from memory and the database."""
+    inner = _reports.get(session_id)
+    if inner:
+        inner.pop(skill_level, None)
+        if not inner:
+            _reports.pop(session_id, None)
+    try:
+        async with async_session_factory() as db:
+            await delete_coaching_report_for_skill_db(db, session_id, skill_level)
+            await db.commit()
+    except SQLAlchemyError:
+        logger.warning(
+            "Failed to delete coaching report from DB for %s/%s",
+            session_id,
+            skill_level,
+            exc_info=True,
+        )
 
 
-def unmark_generating(session_id: str) -> None:
-    """Remove the generating flag for a session."""
-    _generating.discard(session_id)
+def mark_generating(session_id: str, skill_level: str = "intermediate") -> None:
+    """Mark a session+skill_level as currently generating a coaching report."""
+    _generating.add((session_id, skill_level))
 
 
-def is_generating(session_id: str) -> bool:
-    """Check if a session is currently generating a coaching report."""
-    return session_id in _generating
+def unmark_generating(session_id: str, skill_level: str = "intermediate") -> None:
+    """Remove the generating flag for a session+skill_level."""
+    _generating.discard((session_id, skill_level))
+
+
+def is_generating(session_id: str, skill_level: str = "intermediate") -> bool:
+    """Check if a session+skill_level is currently generating a coaching report."""
+    return (session_id, skill_level) in _generating
 
 
 def clear_all_coaching() -> None:

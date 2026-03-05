@@ -27,7 +27,7 @@ from backend.api.schemas.sharing import (
     ShareCreateResponse,
     ShareMetadata,
 )
-from backend.api.services.coaching_store import get_coaching_report
+from backend.api.services.coaching_store import get_any_coaching_report
 from backend.api.services.comparison import compare_sessions as run_comparison
 from backend.api.services.pipeline import process_upload
 from backend.api.services.session_store import get_session
@@ -208,7 +208,7 @@ async def get_public_view(
             consistency_score = sd.consistency.lap_consistency.consistency_score
 
         # Coaching report: skill dimensions + summary
-        report = await get_coaching_report(shared.session_id)
+        report = await get_any_coaching_report(shared.session_id)
         if report and report.corner_grades:
             grade_scores = {"A": 100, "B": 80, "C": 60, "D": 40, "F": 20}
             dims: dict[str, list[int]] = {

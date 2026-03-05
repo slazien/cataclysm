@@ -11,7 +11,7 @@ from cataclysm.corners import Corner
 from cataclysm.delta import compute_delta
 
 from backend.api.schemas.coaching import CoachingReportResponse, CornerGradeSchema
-from backend.api.services.coaching_store import get_coaching_report
+from backend.api.services.coaching_store import get_any_coaching_report
 from backend.api.services.session_store import SessionData
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ def _compute_skill_dims(grades: list[CornerGradeSchema]) -> dict[str, float]:
 
 async def _get_skill_dimensions(session_id: str) -> dict[str, float] | None:
     """Extract skill dimensions from a session's coaching report, if available."""
-    report: CoachingReportResponse | None = await get_coaching_report(session_id)
+    report: CoachingReportResponse | None = await get_any_coaching_report(session_id)
     if report is None or not report.corner_grades:
         return None
     return _compute_skill_dims(report.corner_grades)

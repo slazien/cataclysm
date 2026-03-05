@@ -25,7 +25,7 @@ from backend.api.schemas.session import (
     UploadResponse,
 )
 from backend.api.services import equipment_store, session_store
-from backend.api.services.coaching_store import clear_coaching_data, get_coaching_report
+from backend.api.services.coaching_store import clear_coaching_data, get_any_coaching_report
 from backend.api.services.comparison import compare_sessions as run_comparison
 from backend.api.services.db_session_store import (
     delete_session_db,
@@ -187,7 +187,7 @@ async def _compute_session_score(sd: session_store.SessionData) -> float | None:
         components.append((pace_value, 0.3))
 
     # Corner grades (30%)
-    report = await get_coaching_report(sd.session_id)
+    report = await get_any_coaching_report(sd.session_id)
     if report and report.corner_grades:
         grade_map = {"A": 100, "B": 80, "C": 60, "D": 40, "F": 20}
         total = 0

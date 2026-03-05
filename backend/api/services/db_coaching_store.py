@@ -24,9 +24,12 @@ async def upsert_coaching_report_db(
     report: CoachingReportResponse,
     skill_level: str,
 ) -> None:
-    """Insert or update a coaching report row for the given session."""
+    """Insert or update a coaching report row for the given session and skill level."""
     result = await db.execute(
-        select(CoachingReportModel).where(CoachingReportModel.session_id == session_id)
+        select(CoachingReportModel).where(
+            CoachingReportModel.session_id == session_id,
+            CoachingReportModel.skill_level == skill_level,
+        )
     )
     existing = result.scalar_one_or_none()
     if existing is not None:
@@ -46,16 +49,40 @@ async def upsert_coaching_report_db(
 async def get_coaching_report_db(
     db: AsyncSession,
     session_id: str,
+    skill_level: str = "intermediate",
 ) -> CoachingReportResponse | None:
-    """Load a coaching report from DB, or None if not found."""
+    """Load a coaching report from DB for a specific skill level, or None if not found."""
     result = await db.execute(
-        select(CoachingReportModel).where(CoachingReportModel.session_id == session_id)
+        select(CoachingReportModel).where(
+            CoachingReportModel.session_id == session_id,
+            CoachingReportModel.skill_level == skill_level,
+        )
     )
     row = result.scalar_one_or_none()
     if row is None or row.report_json is None:
         return None
     report = CoachingReportResponse.model_validate(row.report_json)
     # Merge skill_level from the DB row (stored separately from report_json)
+    if row.skill_level:
+        report.skill_level = row.skill_level
+    return report
+
+
+async def get_any_coaching_report_db(
+    db: AsyncSession,
+    session_id: str,
+) -> CoachingReportResponse | None:
+    """Load the most recent coaching report for a session (any skill level)."""
+    result = await db.execute(
+        select(CoachingReportModel)
+        .where(CoachingReportModel.session_id == session_id)
+        .order_by(CoachingReportModel.created_at.desc())
+        .limit(1)
+    )
+    row = result.scalar_one_or_none()
+    if row is None or row.report_json is None:
+        return None
+    report = CoachingReportResponse.model_validate(row.report_json)
     if row.skill_level:
         report.skill_level = row.skill_level
     return report
@@ -107,5 +134,20 @@ async def delete_coaching_data_db(
     )
     await db.execute(
         delete(CoachingContextModel).where(CoachingContextModel.session_id == session_id)
+    )
+    await db.flush()
+
+
+async def delete_coaching_report_for_skill_db(
+    db: AsyncSession,
+    session_id: str,
+    skill_level: str,
+) -> None:
+    """Delete a single skill level's coaching report for a session."""
+    await db.execute(
+        delete(CoachingReportModel).where(
+            CoachingReportModel.session_id == session_id,
+            CoachingReportModel.skill_level == skill_level,
+        )
     )
     await db.flush()

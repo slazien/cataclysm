@@ -263,7 +263,7 @@ async def test_compute_wrapped_year_filter_excludes_wrong_year() -> None:
     with (
         patch("backend.api.services.wrapped.session_store") as mock_store,
         patch(
-            "backend.api.services.wrapped.get_coaching_report", new_callable=AsyncMock
+            "backend.api.services.wrapped.get_any_coaching_report", new_callable=AsyncMock
         ) as mock_cr,
     ):
         mock_store.list_sessions.return_value = [sd_2024, sd_2026]
@@ -294,7 +294,7 @@ async def test_compute_wrapped_single_session_basics() -> None:
     with (
         patch("backend.api.services.wrapped.session_store") as mock_store,
         patch(
-            "backend.api.services.wrapped.get_coaching_report", new_callable=AsyncMock
+            "backend.api.services.wrapped.get_any_coaching_report", new_callable=AsyncMock
         ) as mock_cr,
     ):
         mock_store.list_sessions.return_value = [sd]
@@ -318,7 +318,7 @@ async def test_compute_wrapped_single_session_no_improvement_field() -> None:
     with (
         patch("backend.api.services.wrapped.session_store") as mock_store,
         patch(
-            "backend.api.services.wrapped.get_coaching_report", new_callable=AsyncMock
+            "backend.api.services.wrapped.get_any_coaching_report", new_callable=AsyncMock
         ) as mock_cr,
     ):
         mock_store.list_sessions.return_value = [sd]
@@ -338,7 +338,7 @@ async def test_compute_wrapped_single_session_highlights_basic_stats() -> None:
     with (
         patch("backend.api.services.wrapped.session_store") as mock_store,
         patch(
-            "backend.api.services.wrapped.get_coaching_report", new_callable=AsyncMock
+            "backend.api.services.wrapped.get_any_coaching_report", new_callable=AsyncMock
         ) as mock_cr,
     ):
         mock_store.list_sessions.return_value = [sd]
@@ -378,7 +378,7 @@ async def test_compute_wrapped_biggest_improvement_detected() -> None:
     with (
         patch("backend.api.services.wrapped.session_store") as mock_store,
         patch(
-            "backend.api.services.wrapped.get_coaching_report", new_callable=AsyncMock
+            "backend.api.services.wrapped.get_any_coaching_report", new_callable=AsyncMock
         ) as mock_cr,
     ):
         mock_store.list_sessions.return_value = [sd_first, sd_last]
@@ -405,7 +405,7 @@ async def test_compute_wrapped_biggest_improvement_selects_largest_delta() -> No
     with (
         patch("backend.api.services.wrapped.session_store") as mock_store,
         patch(
-            "backend.api.services.wrapped.get_coaching_report", new_callable=AsyncMock
+            "backend.api.services.wrapped.get_any_coaching_report", new_callable=AsyncMock
         ) as mock_cr,
     ):
         mock_store.list_sessions.return_value = [a1, a2, b1, b2]
@@ -427,7 +427,7 @@ async def test_compute_wrapped_no_improvement_highlight_when_regressed() -> None
     with (
         patch("backend.api.services.wrapped.session_store") as mock_store,
         patch(
-            "backend.api.services.wrapped.get_coaching_report", new_callable=AsyncMock
+            "backend.api.services.wrapped.get_any_coaching_report", new_callable=AsyncMock
         ) as mock_cr,
     ):
         mock_store.list_sessions.return_value = [sd_first, sd_last]
@@ -449,7 +449,7 @@ async def test_compute_wrapped_improvement_highlight_appended() -> None:
     with (
         patch("backend.api.services.wrapped.session_store") as mock_store,
         patch(
-            "backend.api.services.wrapped.get_coaching_report", new_callable=AsyncMock
+            "backend.api.services.wrapped.get_any_coaching_report", new_callable=AsyncMock
         ) as mock_cr,
     ):
         mock_store.list_sessions.return_value = [sd_first, sd_last]
@@ -480,7 +480,7 @@ async def test_compute_wrapped_multiple_tracks_counted() -> None:
     with (
         patch("backend.api.services.wrapped.session_store") as mock_store,
         patch(
-            "backend.api.services.wrapped.get_coaching_report", new_callable=AsyncMock
+            "backend.api.services.wrapped.get_any_coaching_report", new_callable=AsyncMock
         ) as mock_cr,
     ):
         mock_store.list_sessions.return_value = sessions
@@ -505,7 +505,7 @@ async def test_compute_wrapped_distance_computed_from_lap_df() -> None:
     with (
         patch("backend.api.services.wrapped.session_store") as mock_store,
         patch(
-            "backend.api.services.wrapped.get_coaching_report", new_callable=AsyncMock
+            "backend.api.services.wrapped.get_any_coaching_report", new_callable=AsyncMock
         ) as mock_cr,
     ):
         mock_store.list_sessions.return_value = [sd]
@@ -525,7 +525,7 @@ async def test_compute_wrapped_distance_zero_when_no_lap_df() -> None:
     with (
         patch("backend.api.services.wrapped.session_store") as mock_store,
         patch(
-            "backend.api.services.wrapped.get_coaching_report", new_callable=AsyncMock
+            "backend.api.services.wrapped.get_any_coaching_report", new_callable=AsyncMock
         ) as mock_cr,
     ):
         mock_store.list_sessions.return_value = [sd]
@@ -544,7 +544,7 @@ async def test_compute_wrapped_time_computed_from_avg_lap_time() -> None:
     with (
         patch("backend.api.services.wrapped.session_store") as mock_store,
         patch(
-            "backend.api.services.wrapped.get_coaching_report", new_callable=AsyncMock
+            "backend.api.services.wrapped.get_any_coaching_report", new_callable=AsyncMock
         ) as mock_cr,
     ):
         mock_store.list_sessions.return_value = [sd]
@@ -565,7 +565,7 @@ async def test_compute_wrapped_distance_uses_last_row_of_lap_distance() -> None:
     with (
         patch("backend.api.services.wrapped.session_store") as mock_store,
         patch(
-            "backend.api.services.wrapped.get_coaching_report", new_callable=AsyncMock
+            "backend.api.services.wrapped.get_any_coaching_report", new_callable=AsyncMock
         ) as mock_cr,
     ):
         mock_store.list_sessions.return_value = [sd]
@@ -598,7 +598,7 @@ async def test_compute_wrapped_coaching_grades_aggregated() -> None:
 
     with (
         patch("backend.api.services.wrapped.session_store") as mock_store,
-        patch("backend.api.services.wrapped.get_coaching_report", side_effect=_get_report),
+        patch("backend.api.services.wrapped.get_any_coaching_report", side_effect=_get_report),
     ):
         mock_store.list_sessions.return_value = [sd1, sd2]
         result = await compute_wrapped(2025)
@@ -624,7 +624,7 @@ async def test_compute_wrapped_top_corner_grade_a_wins() -> None:
     with (
         patch("backend.api.services.wrapped.session_store") as mock_store,
         patch(
-            "backend.api.services.wrapped.get_coaching_report", new_callable=AsyncMock
+            "backend.api.services.wrapped.get_any_coaching_report", new_callable=AsyncMock
         ) as mock_cr,
     ):
         mock_store.list_sessions.return_value = [sd]
@@ -647,7 +647,7 @@ async def test_compute_wrapped_top_corner_grade_b_when_no_a() -> None:
     with (
         patch("backend.api.services.wrapped.session_store") as mock_store,
         patch(
-            "backend.api.services.wrapped.get_coaching_report", new_callable=AsyncMock
+            "backend.api.services.wrapped.get_any_coaching_report", new_callable=AsyncMock
         ) as mock_cr,
     ):
         mock_store.list_sessions.return_value = [sd]
@@ -666,7 +666,7 @@ async def test_compute_wrapped_top_corner_grade_none_without_coaching() -> None:
     with (
         patch("backend.api.services.wrapped.session_store") as mock_store,
         patch(
-            "backend.api.services.wrapped.get_coaching_report", new_callable=AsyncMock
+            "backend.api.services.wrapped.get_any_coaching_report", new_callable=AsyncMock
         ) as mock_cr,
     ):
         mock_store.list_sessions.return_value = [sd]
@@ -691,7 +691,7 @@ async def test_compute_wrapped_personality_braking_with_coaching() -> None:
     with (
         patch("backend.api.services.wrapped.session_store") as mock_store,
         patch(
-            "backend.api.services.wrapped.get_coaching_report", new_callable=AsyncMock
+            "backend.api.services.wrapped.get_any_coaching_report", new_callable=AsyncMock
         ) as mock_cr,
     ):
         mock_store.list_sessions.return_value = sessions
@@ -710,7 +710,7 @@ async def test_compute_wrapped_sessions_no_coaching_reports() -> None:
     with (
         patch("backend.api.services.wrapped.session_store") as mock_store,
         patch(
-            "backend.api.services.wrapped.get_coaching_report", new_callable=AsyncMock
+            "backend.api.services.wrapped.get_any_coaching_report", new_callable=AsyncMock
         ) as mock_cr,
     ):
         mock_store.list_sessions.return_value = [sd]
@@ -745,7 +745,7 @@ async def test_compute_wrapped_best_consistency_taken_from_max() -> None:
     with (
         patch("backend.api.services.wrapped.session_store") as mock_store,
         patch(
-            "backend.api.services.wrapped.get_coaching_report", new_callable=AsyncMock
+            "backend.api.services.wrapped.get_any_coaching_report", new_callable=AsyncMock
         ) as mock_cr,
     ):
         mock_store.list_sessions.return_value = sessions
@@ -769,7 +769,7 @@ async def test_compute_wrapped_return_value_is_rounded() -> None:
     with (
         patch("backend.api.services.wrapped.session_store") as mock_store,
         patch(
-            "backend.api.services.wrapped.get_coaching_report", new_callable=AsyncMock
+            "backend.api.services.wrapped.get_any_coaching_report", new_callable=AsyncMock
         ) as mock_cr,
     ):
         mock_store.list_sessions.return_value = [sd]

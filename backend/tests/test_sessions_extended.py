@@ -416,7 +416,7 @@ async def test_compute_session_score_no_components_returns_none() -> None:
     sd.consistency = None
 
     with patch(
-        "backend.api.routers.sessions.get_coaching_report",
+        "backend.api.routers.sessions.get_any_coaching_report",
         new_callable=AsyncMock,
         return_value=None,
     ):
@@ -441,7 +441,7 @@ async def test_compute_session_score_with_corner_grades(client: AsyncClient) -> 
 
     with (
         patch(
-            "backend.api.routers.sessions.get_coaching_report",
+            "backend.api.routers.sessions.get_any_coaching_report",
             new_callable=AsyncMock,
             return_value=mock_report,
         ),
@@ -467,7 +467,7 @@ async def test_compute_session_score_consistency_only() -> None:
     sd.consistency = consistency
 
     with patch(
-        "backend.api.routers.sessions.get_coaching_report",
+        "backend.api.routers.sessions.get_any_coaching_report",
         new_callable=AsyncMock,
         return_value=None,
     ):
@@ -493,7 +493,7 @@ async def test_compute_session_score_corner_grades_with_empty_grade() -> None:
     mock_report.corner_grades = [mock_corner_grade]
 
     with patch(
-        "backend.api.routers.sessions.get_coaching_report",
+        "backend.api.routers.sessions.get_any_coaching_report",
         new_callable=AsyncMock,
         return_value=mock_report,
     ):

@@ -9,7 +9,7 @@ import logging
 from typing import Any
 
 from backend.api.services import session_store
-from backend.api.services.coaching_store import get_coaching_report
+from backend.api.services.coaching_store import get_any_coaching_report
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +138,7 @@ async def compute_wrapped(year: int) -> dict[str, Any]:
     grade_counts: dict[str, dict[str, int]] = {}
     top_grade: str | None = None
     for sd in year_sessions:
-        report = await get_coaching_report(sd.session_id)
+        report = await get_any_coaching_report(sd.session_id)
         if report and report.corner_grades:
             for cg in report.corner_grades:
                 for dim in ("braking", "trail_braking", "throttle"):

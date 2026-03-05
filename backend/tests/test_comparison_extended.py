@@ -201,7 +201,7 @@ async def test_comparison_skill_dimensions_with_coaching(client: AsyncClient) ->
         return None
 
     with patch(
-        "backend.api.services.comparison.get_coaching_report",
+        "backend.api.services.comparison.get_any_coaching_report",
         side_effect=mock_get_report,
     ):
         resp = await client.get(f"/api/sessions/{sid_a}/compare/{sid_b}")
@@ -239,7 +239,7 @@ async def test_comparison_skill_dimensions_partial_coaching(
         return None
 
     with patch(
-        "backend.api.services.comparison.get_coaching_report",
+        "backend.api.services.comparison.get_any_coaching_report",
         side_effect=mock_get_report,
     ):
         resp = await client.get(f"/api/sessions/{sid_a}/compare/{sid_b}")

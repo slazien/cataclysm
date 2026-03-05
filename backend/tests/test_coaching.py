@@ -260,10 +260,14 @@ async def test_force_regeneration_clears_and_regenerates(client: AsyncClient) ->
         assert response.json()["status"] == "generating"
         await asyncio.sleep(0.2)
 
-    # GET should return the new report
-    resp = await client.get(f"/api/coaching/{session_id}/report")
+    # GET with skill_level=advanced should return the new report
+    resp = await client.get(f"/api/coaching/{session_id}/report?skill_level=advanced")
     assert resp.json()["summary"] == "Advanced report"
     assert resp.json()["skill_level"] == "advanced"
+
+    # Intermediate report should still be available
+    resp_int = await client.get(f"/api/coaching/{session_id}/report")
+    assert resp_int.json()["summary"] == "First report"
 
 
 @pytest.mark.asyncio
@@ -283,10 +287,10 @@ async def test_force_false_preserves_existing(client: AsyncClient) -> None:
         )
         await asyncio.sleep(0.2)
 
-    # POST without force should return existing report
+    # POST with same skill level without force should return existing report
     response = await client.post(
         f"/api/coaching/{session_id}/report",
-        json={"skill_level": "advanced", "force": False},
+        json={"skill_level": "intermediate", "force": False},
     )
     assert response.status_code == 200
     assert response.json()["summary"] == "Original report"
@@ -294,7 +298,7 @@ async def test_force_false_preserves_existing(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_generate_report_returns_existing(client: AsyncClient) -> None:
-    """POST returns existing report without regenerating when one exists."""
+    """POST returns existing report without regenerating when one exists for that skill level."""
     session_id = await _upload_session(client)
 
     # Generate first report
@@ -310,10 +314,10 @@ async def test_generate_report_returns_existing(client: AsyncClient) -> None:
         )
         await asyncio.sleep(0.2)
 
-    # Second POST should return existing report without regenerating
+    # Second POST with same skill level should return existing report
     response = await client.post(
         f"/api/coaching/{session_id}/report",
-        json={"skill_level": "advanced"},
+        json={"skill_level": "intermediate"},
     )
     assert response.status_code == 200
     assert response.json()["summary"] == "First report summary"
@@ -338,7 +342,7 @@ async def test_generate_report_retries_after_error(client: AsyncClient) -> None:
         # Wait for background task to finish
         for _ in range(20):
             await asyncio.sleep(0.1)
-            if not is_generating(session_id):
+            if not is_generating(session_id, "intermediate"):
                 break
 
     # GET clears error and auto-triggers generation. Keep mock active so the
@@ -355,7 +359,7 @@ async def test_generate_report_retries_after_error(client: AsyncClient) -> None:
         # Wait for the auto-triggered background task to complete
         for _ in range(20):
             await asyncio.sleep(0.1)
-            if not is_generating(session_id):
+            if not is_generating(session_id, "intermediate"):
                 break
 
 
@@ -371,7 +375,7 @@ async def test_trigger_auto_coaching_skips_if_generating(client: AsyncClient) ->
     from backend.api.services.coaching_store import mark_generating
 
     session_id = await _upload_session(client)
-    mark_generating(session_id)
+    mark_generating(session_id, "intermediate")
 
     from backend.api.services import session_store
 
@@ -494,7 +498,7 @@ async def test_generate_report_returns_generating_when_in_progress(
     from backend.api.services.coaching_store import mark_generating
 
     session_id = await _upload_session(client)
-    mark_generating(session_id)
+    mark_generating(session_id, "intermediate")
 
     response = await client.post(
         f"/api/coaching/{session_id}/report",
@@ -518,7 +522,7 @@ async def test_get_report_returns_generating_when_no_stored_report(
     from backend.api.services.coaching_store import mark_generating
 
     session_id = await _upload_session(client)
-    mark_generating(session_id)
+    mark_generating(session_id, "intermediate")
 
     response = await client.get(f"/api/coaching/{session_id}/report")
     assert response.status_code == 200
@@ -853,7 +857,7 @@ async def test_websocket_chat_no_report_sends_error(client: AsyncClient) -> None
             return_value=sd,
         ),
         patch(
-            "backend.api.routers.coaching.get_coaching_report",
+            "backend.api.routers.coaching.get_any_coaching_report",
             new=AsyncMock(return_value=None),
         ),
     ):
@@ -912,7 +916,7 @@ async def test_websocket_chat_handles_message_exchange(client: AsyncClient) -> N
             return_value=sd,
         ),
         patch(
-            "backend.api.routers.coaching.get_coaching_report",
+            "backend.api.routers.coaching.get_any_coaching_report",
             new=AsyncMock(return_value=stored_report),
         ),
         patch(
@@ -975,7 +979,7 @@ async def test_websocket_chat_off_topic_question(client: AsyncClient) -> None:
             return_value=sd,
         ),
         patch(
-            "backend.api.routers.coaching.get_coaching_report",
+            "backend.api.routers.coaching.get_any_coaching_report",
             new=AsyncMock(return_value=stored_report),
         ),
         patch(
@@ -1029,7 +1033,7 @@ async def test_websocket_chat_empty_question(client: AsyncClient) -> None:
             return_value=sd,
         ),
         patch(
-            "backend.api.routers.coaching.get_coaching_report",
+            "backend.api.routers.coaching.get_any_coaching_report",
             new=AsyncMock(return_value=stored_report),
         ),
     ):
@@ -1170,7 +1174,7 @@ async def test_run_generation_stores_error_on_exception(client: AsyncClient) -> 
         # Wait for auto-triggered background task to complete
         for _ in range(20):
             await asyncio.sleep(0.1)
-            if not is_generating(session_id):
+            if not is_generating(session_id, "intermediate"):
                 break
 
 
@@ -1191,7 +1195,7 @@ async def test_run_generation_unmarks_generating_on_error(client: AsyncClient) -
         )
         await asyncio.sleep(0.2)
 
-    assert not is_generating(session_id)
+    assert not is_generating(session_id, "intermediate")
 
 
 # ---------------------------------------------------------------------------
