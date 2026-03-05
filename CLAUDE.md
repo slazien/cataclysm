@@ -189,6 +189,26 @@ Use specialized agents (via the `Agent` tool with `subagent_type`) instead of do
 | **Technical documentation** | `code-documentation:docs-architect` | Architecture docs, module documentation |
 | **Comment quality** | `pr-review-toolkit:comment-analyzer` | After adding docstrings or documentation comments |
 
+### Model Routing: Opus vs Sonnet for Subagents
+
+**Default: Sonnet 4.6 for subagents** — handles 90%+ of coding tasks at 5× lower cost with near-identical quality (within 1.2pp on SWE-bench Verified).
+
+| Task type | Model | Why |
+|-----------|-------|-----|
+| Code review, linting, simple searches | **Sonnet** | Well-scoped, no deep reasoning needed |
+| File exploration, codebase grep | **Sonnet** | Fast, focused, doesn't need Opus |
+| Standard feature implementation | **Sonnet** | Clear scope, known patterns |
+| Test writing | **Sonnet** | Follows existing conventions |
+| Frontend component work | **Sonnet** | Template-driven, design tokens known |
+| **Architectural decisions** | **Opus** | Ambiguity, multi-system trade-offs |
+| **Complex debugging** (multi-file, non-obvious root cause) | **Opus** | Needs deep reasoning chains |
+| **Large-scale refactoring** (>10K lines, cross-cutting) | **Opus** | Must hold full system model in context |
+| **Domain research + implementation design** | **Opus** | Needs iterative reasoning about unfamiliar topics |
+| **Security audit** | **Opus** | Subtle vulnerabilities need thorough analysis |
+| **Coaching prompt engineering** | **Opus** | Prompt quality directly impacts user-facing output |
+
+**Rule of thumb**: Start with Sonnet. Escalate to Opus when the task involves ambiguity, high failure cost, or multi-step reasoning chains that must stay coherent across 10+ steps.
+
 ### Parallel Agent Patterns
 
 For complex tasks, dispatch multiple agents simultaneously:
