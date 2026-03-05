@@ -14,6 +14,7 @@ from cataclysm.causal_chains import SessionCausalAnalysis, format_causal_context
 from cataclysm.coaching_validator import CoachingValidator
 from cataclysm.constants import MPS_TO_MPH
 from cataclysm.corner_analysis import SessionCornerAnalysis
+from cataclysm.corner_line import CornerLineProfile, format_line_analysis_for_prompt
 from cataclysm.corners import Corner
 from cataclysm.corners_gained import CornersGainedResult, format_corners_gained_for_prompt
 from cataclysm.driver_archetypes import ArchetypeResult, format_archetype_for_prompt
@@ -618,6 +619,7 @@ def _build_coaching_prompt(
     weather: SessionConditions | None = None,
     corners_gained: CornersGainedResult | None = None,
     flow_laps: FlowLapResult | None = None,
+    line_profiles: list[CornerLineProfile] | None = None,
 ) -> str:
     """Build the full coaching prompt for Claude."""
     lap_text = _format_lap_summaries(summaries)
@@ -673,6 +675,15 @@ def _build_coaching_prompt(
     skill_section_auto = format_skill_for_prompt(skill_assessment)
     corners_gained_section = format_corners_gained_for_prompt(corners_gained)
     flow_laps_section = _format_flow_laps_for_prompt(flow_laps)
+    line_analysis_section = format_line_analysis_for_prompt(line_profiles or [])
+
+    line_instruction = ""
+    if line_analysis_section:
+        line_instruction = (
+            "\nWhen LINE ANALYSIS data is present, integrate it with speed/brake analysis. "
+            "A corner with good brake data but an early apex error costs time on the exit — "
+            "report these together as one issue, not two separate observations.\n"
+        )
 
     corner_analysis_section = ""
     corner_analysis_instruction = ""
@@ -721,11 +732,13 @@ Number of corners: {num_corners} (T1 through T{num_corners})
 {gains_section}{optimal_section}{landmark_section}{skill_section}\
 {equipment_section}{weather_section}{causal_section}{archetype_section}{skill_section_auto}\
 {corners_gained_section}{flow_laps_section}
+{line_analysis_section}
 </session_data>
 
 <instructions>
 {corner_analysis_instruction}\
 {landmark_instruction}\
+{line_instruction}\
 Analyze the FULL session. Look at every lap's data for each corner to identify:
 - Consistency: which corners are repeatable vs high-variance across laps
 - Trends: whether the driver improved or degraded through the session AND WHY \
@@ -918,6 +931,7 @@ def generate_coaching_report(
     weather: SessionConditions | None = None,
     corners_gained: CornersGainedResult | None = None,
     flow_laps: FlowLapResult | None = None,
+    line_profiles: list[CornerLineProfile] | None = None,
 ) -> CoachingReport:
     """Generate an AI coaching report using the Claude API.
 
@@ -953,6 +967,7 @@ def generate_coaching_report(
         weather=weather,
         corners_gained=corners_gained,
         flow_laps=flow_laps,
+        line_profiles=line_profiles,
     )
 
     system = COACHING_SYSTEM_PROMPT

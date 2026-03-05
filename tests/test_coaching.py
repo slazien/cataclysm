@@ -2380,3 +2380,51 @@ class TestBuildCoachingPromptWithOptimalComparison:
         )
         # optimal section and instruction should be in prompt
         assert "Optimal" in prompt or "optimal" in prompt or "physics" in prompt.lower()
+
+
+class TestBuildCoachingPromptWithLineAnalysis:
+    """Test line_profiles parameter in _build_coaching_prompt."""
+
+    def test_line_analysis_section_included(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        from cataclysm.corner_line import CornerLineProfile
+
+        profiles = [
+            CornerLineProfile(
+                corner_number=3,
+                n_laps=8,
+                d_entry_median=0.4,
+                d_apex_median=-0.3,
+                d_exit_median=0.2,
+                apex_fraction_median=0.35,
+                d_apex_sd=0.5,
+                line_error_type="early_apex",
+                severity="moderate",
+                consistency_tier="consistent",
+                allen_berg_type="A",
+            )
+        ]
+        prompt = _build_coaching_prompt(
+            sample_summaries,
+            sample_all_lap_corners,
+            "Test Track",
+            line_profiles=profiles,
+        )
+        assert "<line_analysis>" in prompt
+        assert "early_apex" in prompt
+        assert 'corner number="3"' in prompt
+
+    def test_no_line_profiles_backward_compatible(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        prompt = _build_coaching_prompt(
+            sample_summaries,
+            sample_all_lap_corners,
+            "Test Track",
+        )
+        assert "<line_analysis>" not in prompt

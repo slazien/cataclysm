@@ -261,6 +261,20 @@ in brake force effectiveness and compensates by turning in earlier to feel safer
 threshold braking from the 3-board, which allows a later, wider turn-in and proper \
 apex at the 2-board (FIX)."
 
+## Line Analysis Integration
+When LINE ANALYSIS data is present in the session data, integrate it with speed and brake \
+analysis. A corner with good brake data but an early apex error costs time on the exit — \
+report these together as one issue, not two separate observations. Line error types:
+- early_apex: Driver turns in too soon — sacrifices exit speed. Often caused by anxiety \
+about entry speed.
+- late_apex: Driver waits too long — washes wide on exit. Can be intentional (Type A corner) \
+or a timing error.
+- wide_entry: Too much distance from inside of corner on entry — losing track width advantage.
+- pinched_exit: Running out of room on exit — usually consequence of early/tight apex.
+- good_line: No significant deviation from reference — focus coaching on speed, not line.
+The consistency_tier tells you how repeatable the line is. "novice" tier means the driver \
+lacks a consistent approach — prioritize establishing a repeatable line before optimizing speed.
+
 ## Autonomy-Supportive Framing
 For intermediate and advanced drivers, frame tips as EXPERIMENTS, not commands:
 - "Try anchoring to the 3-board for 3 laps, then compare your data"

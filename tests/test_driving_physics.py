@@ -64,3 +64,8 @@ class TestCoachingSystemPrompt:
     def test_anti_example_present(self) -> None:
         assert "Anti-Example" in COACHING_SYSTEM_PROMPT
         assert "_WRONG" in COACHING_SYSTEM_PROMPT
+
+    def test_line_analysis_integration_instructions(self) -> None:
+        assert "Line Analysis Integration" in COACHING_SYSTEM_PROMPT
+        assert "early_apex" in COACHING_SYSTEM_PROMPT
+        assert "consistency_tier" in COACHING_SYSTEM_PROMPT
