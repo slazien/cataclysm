@@ -3,6 +3,7 @@
 import { AiInsight } from '@/components/shared/AiInsight';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { MarkdownText } from '@/components/shared/MarkdownText';
+import { SkillLevelMismatchBanner } from '@/components/coach/SkillLevelMismatchBanner';
 import { useAutoReport } from '@/hooks/useAutoReport';
 import { useUiStore, useAnalysisStore } from '@/stores';
 import { useUnits } from '@/hooks/useUnits';
@@ -65,7 +66,8 @@ function PriorityCard({
 }
 
 export function TopPriorities({ sessionId }: TopPrioritiesProps) {
-  const { report, isLoading, isError, retry } = useAutoReport(sessionId);
+  const { report, isLoading, isError, isSkillMismatch, retry, regenerate } = useAutoReport(sessionId);
+  const skillLevel = useUiStore((s) => s.skillLevel);
 
   if (isLoading) {
     return (
@@ -127,6 +129,13 @@ export function TopPriorities({ sessionId }: TopPrioritiesProps) {
       <h2 className="text-sm font-medium uppercase tracking-wider text-[var(--text-muted)]">
         Top Priorities
       </h2>
+      {isSkillMismatch && report.skill_level && (
+        <SkillLevelMismatchBanner
+          reportLevel={report.skill_level}
+          currentLevel={skillLevel}
+          onRegenerate={regenerate}
+        />
+      )}
       <div className="flex flex-col gap-3">
         {priorities.map((p, i) => (
           <PriorityCard key={p.corner} priority={p} index={i} />
