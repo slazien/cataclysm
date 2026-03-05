@@ -2,12 +2,14 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCoachingReport, generateCoachingReport, getIdealLap } from "@/lib/api";
+import { useUiStore } from "@/stores";
 import type { CoachingReport, IdealLapData } from "@/lib/types";
 
 export function useCoachingReport(sessionId: string | null) {
+  const skillLevel = useUiStore((s) => s.skillLevel);
   return useQuery<CoachingReport>({
     queryKey: ["coaching-report", sessionId],
-    queryFn: () => getCoachingReport(sessionId!),
+    queryFn: () => getCoachingReport(sessionId!, skillLevel),
     enabled: !!sessionId,
     retry: false,
     refetchOnWindowFocus: false,

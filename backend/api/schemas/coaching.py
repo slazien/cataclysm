@@ -45,6 +45,7 @@ class ReportRequest(BaseModel):
     """Request body for triggering report generation."""
 
     skill_level: str = "intermediate"
+    force: bool = False
 
 
 class FollowUpMessage(BaseModel):

@@ -148,6 +148,7 @@ export interface CornerGrade {
 export interface CoachingReport {
   session_id: string;
   status: string; // "ready" | "generating" | "error"
+  skill_level?: string;
   summary: string | null;
   primary_focus?: string;
   priority_corners: PriorityCorner[];

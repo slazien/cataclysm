@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AlertTriangle, ChevronDown, ChevronRight, Volume2, VolumeX } from 'lucide-react';
+import { SkillLevelMismatchBanner } from '@/components/coach/SkillLevelMismatchBanner';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { GradeChip } from '@/components/shared/GradeChip';
 import { AiInsight } from '@/components/shared/AiInsight';
 import { MarkdownText } from '@/components/shared/MarkdownText';
 import { Button } from '@/components/ui/button';
-import { useSessionStore } from '@/stores';
+import { useSessionStore, useUiStore } from '@/stores';
 import { useAutoReport } from '@/hooks/useAutoReport';
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
 import { useUnits } from '@/hooks/useUnits';
@@ -66,7 +67,8 @@ function buildSpeechText(
 
 export function ReportSummary() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
-  const { report, isLoading, isGenerating, isError, retry } = useAutoReport(activeSessionId);
+  const { report, isLoading, isGenerating, isError, isSkillMismatch, retry, regenerate } = useAutoReport(activeSessionId);
+  const skillLevel = useUiStore((s) => s.skillLevel);
   const [gradesExpanded, setGradesExpanded] = useState(false);
   const speech = useSpeechSynthesis();
   const { resolveSpeed } = useUnits();
@@ -125,6 +127,17 @@ export function ReportSummary() {
 
   return (
     <div className="border-b border-[var(--cata-border)]">
+      {/* Skill level mismatch banner */}
+      {isSkillMismatch && report.skill_level && (
+        <div className="pt-2">
+          <SkillLevelMismatchBanner
+            reportLevel={report.skill_level}
+            currentLevel={skillLevel}
+            onRegenerate={regenerate}
+          />
+        </div>
+      )}
+
       {/* Primary Focus — the ONE thing to work on */}
       {report.primary_focus && (
         <div className="px-4 pt-3 pb-1">
@@ -286,6 +299,15 @@ export function ReportSummary() {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Report provenance */}
+      {report.skill_level && (
+        <div className="px-4 pb-2">
+          <p className="text-[10px] text-[var(--text-tertiary)]">
+            Generated for {report.skill_level.charAt(0).toUpperCase() + report.skill_level.slice(1)}
+          </p>
         </div>
       )}
     </div>

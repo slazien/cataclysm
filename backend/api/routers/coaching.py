@@ -112,13 +112,17 @@ async def generate_report(
     if is_generating(session_id):
         return CoachingReportResponse(session_id=session_id, status="generating")
 
-    # If report already exists and succeeded, return it.
-    # If it errored, clear it so the user can retry.
-    existing = await get_coaching_report(session_id)
-    if existing is not None:
-        if existing.status != "error":
-            return existing
+    # Force regeneration: clear existing report first
+    if body.force:
         await clear_coaching_data(session_id)
+    else:
+        # If report already exists and succeeded, return it.
+        # If it errored, clear it so the user can retry.
+        existing = await get_coaching_report(session_id)
+        if existing is not None:
+            if existing.status != "error":
+                return existing
+            await clear_coaching_data(session_id)
 
     mark_generating(session_id)
 
@@ -354,6 +358,7 @@ async def _run_generation(
 async def get_report(
     session_id: str,
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    skill_level: str = "intermediate",
 ) -> CoachingReportResponse:
     """Get the coaching report for a session.
 
@@ -391,7 +396,7 @@ async def get_report(
     # Auto-trigger generation instead of returning 404 — the frontend's
     # auto-trigger POST doesn't always fire reliably after error clearing.
     mark_generating(session_id)
-    task = asyncio.create_task(_run_generation(session_id, sd, "intermediate"))
+    task = asyncio.create_task(_run_generation(session_id, sd, skill_level))
     _track_task(task)
     return CoachingReportResponse(session_id=session_id, status="generating")
 

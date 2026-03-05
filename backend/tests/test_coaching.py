@@ -184,9 +184,14 @@ async def test_get_report_not_found(client: AsyncClient) -> None:
     """GET /api/coaching/{id}/report with no generated report auto-triggers generation."""
     session_id = await _upload_session(client)
 
-    response = await client.get(f"/api/coaching/{session_id}/report")
-    assert response.status_code == 200
-    assert response.json()["status"] == "generating"
+    with patch(
+        "cataclysm.coaching.generate_coaching_report",
+        return_value=_mock_coaching_report(),
+    ):
+        response = await client.get(f"/api/coaching/{session_id}/report")
+        assert response.status_code == 200
+        assert response.json()["status"] == "generating"
+        await asyncio.sleep(0.2)
 
 
 @pytest.mark.asyncio
@@ -216,6 +221,75 @@ async def test_generate_report_with_advanced_skill(client: AsyncClient) -> None:
 
     call_kwargs = mock_gen.call_args
     assert call_kwargs.kwargs.get("skill_level") == "advanced"
+
+
+@pytest.mark.asyncio
+async def test_force_regeneration_clears_and_regenerates(client: AsyncClient) -> None:
+    """POST with force=True clears existing report and triggers regeneration."""
+    session_id = await _upload_session(client)
+
+    # Generate first report
+    report1 = _mock_coaching_report()
+    report1.summary = "First report"
+    with patch(
+        "cataclysm.coaching.generate_coaching_report",
+        return_value=report1,
+    ):
+        await client.post(
+            f"/api/coaching/{session_id}/report",
+            json={"skill_level": "intermediate"},
+        )
+        await asyncio.sleep(0.2)
+
+    # Verify first report is stored
+    resp = await client.get(f"/api/coaching/{session_id}/report")
+    assert resp.json()["summary"] == "First report"
+
+    # Force regeneration with new skill level
+    report2 = _mock_coaching_report()
+    report2.summary = "Advanced report"
+    with patch(
+        "cataclysm.coaching.generate_coaching_report",
+        return_value=report2,
+    ):
+        response = await client.post(
+            f"/api/coaching/{session_id}/report",
+            json={"skill_level": "advanced", "force": True},
+        )
+        assert response.status_code == 200
+        assert response.json()["status"] == "generating"
+        await asyncio.sleep(0.2)
+
+    # GET should return the new report
+    resp = await client.get(f"/api/coaching/{session_id}/report")
+    assert resp.json()["summary"] == "Advanced report"
+    assert resp.json()["skill_level"] == "advanced"
+
+
+@pytest.mark.asyncio
+async def test_force_false_preserves_existing(client: AsyncClient) -> None:
+    """POST with force=False (default) returns existing report without regenerating."""
+    session_id = await _upload_session(client)
+
+    report1 = _mock_coaching_report()
+    report1.summary = "Original report"
+    with patch(
+        "cataclysm.coaching.generate_coaching_report",
+        return_value=report1,
+    ):
+        await client.post(
+            f"/api/coaching/{session_id}/report",
+            json={"skill_level": "intermediate"},
+        )
+        await asyncio.sleep(0.2)
+
+    # POST without force should return existing report
+    response = await client.post(
+        f"/api/coaching/{session_id}/report",
+        json={"skill_level": "advanced", "force": False},
+    )
+    assert response.status_code == 200
+    assert response.json()["summary"] == "Original report"
 
 
 @pytest.mark.asyncio

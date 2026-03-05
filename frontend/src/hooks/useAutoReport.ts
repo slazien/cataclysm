@@ -1,8 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCoachingReport, useGenerateReport } from '@/hooks/useCoaching';
 import { useUiStore } from '@/stores';
+import { clearAndRegenerateReport } from '@/lib/api';
 import type { CoachingReport } from '@/lib/types';
 
 interface UseAutoReportResult {
@@ -10,7 +12,9 @@ interface UseAutoReportResult {
   isLoading: boolean;
   isGenerating: boolean;
   isError: boolean;
+  isSkillMismatch: boolean;
   retry: () => void;
+  regenerate: () => void;
 }
 
 /**
@@ -25,6 +29,7 @@ interface UseAutoReportResult {
 export function useAutoReport(sessionId: string | null): UseAutoReportResult {
   const { data: report, isLoading, isError: queryError, isFetching } = useCoachingReport(sessionId);
   const generateReport = useGenerateReport();
+  const queryClient = useQueryClient();
   const skillLevel = useUiStore((s) => s.skillLevel);
   const hasTriggered = useRef(false);
 
@@ -57,9 +62,24 @@ export function useAutoReport(sessionId: string | null): UseAutoReportResult {
     }
   }, [sessionId, skillLevel]);
 
+  const regenerate = useCallback(() => {
+    if (sessionId !== null) {
+      hasTriggered.current = false;
+      void clearAndRegenerateReport(sessionId, skillLevel).then(() => {
+        void queryClient.invalidateQueries({
+          queryKey: ['coaching-report', sessionId],
+        });
+      });
+    }
+  }, [sessionId, skillLevel, queryClient]);
+
   const isGenerating = report?.status === 'generating' || generateReport.isPending;
   const hasError = generateReport.isError || report?.status === 'error';
   const isReady = report?.status === 'ready';
+
+  // Detect mismatch between report's skill level and current user setting
+  const isSkillMismatch =
+    isReady && !!report?.skill_level && report.skill_level !== skillLevel;
 
   return {
     report: isReady ? report : undefined,
@@ -67,6 +87,8 @@ export function useAutoReport(sessionId: string | null): UseAutoReportResult {
     isLoading: isLoading || generateReport.isPending || isGenerating || (isFetching && !isReady),
     isGenerating,
     isError: hasError && !isGenerating,
+    isSkillMismatch,
     retry,
+    regenerate,
   };
 }

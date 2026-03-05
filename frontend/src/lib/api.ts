@@ -219,8 +219,16 @@ export async function generateCoachingReport(
   });
 }
 
-export async function getCoachingReport(sessionId: string) {
-  return fetchApi<CoachingReport>(`/api/coaching/${sessionId}/report`);
+export async function getCoachingReport(sessionId: string, skillLevel?: string) {
+  const params = skillLevel ? `?skill_level=${encodeURIComponent(skillLevel)}` : '';
+  return fetchApi<CoachingReport>(`/api/coaching/${sessionId}/report${params}`);
+}
+
+export async function clearAndRegenerateReport(sessionId: string, skillLevel: string) {
+  return fetchApi<CoachingReport>(`/api/coaching/${sessionId}/report`, {
+    method: "POST",
+    body: JSON.stringify({ skill_level: skillLevel, force: true }),
+  });
 }
 
 export async function downloadPdfReport(sessionId: string): Promise<void> {
