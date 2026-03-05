@@ -169,7 +169,8 @@ def compute_lateral_offsets_raw(
     cross = tang_e * dn - tang_n * de
     sign = np.where(cross >= 0, 1.0, -1.0)
 
-    return dist * sign
+    result: np.ndarray = dist * sign
+    return result
 
 
 def compute_lateral_offsets(
@@ -182,9 +183,7 @@ def compute_lateral_offsets(
     Truncates to the shorter of lap or reference length.
     """
     min_len = min(len(lap.e), len(ref.e))
-    return compute_lateral_offsets_raw(
-        lap.e[:min_len], lap.n[:min_len], ref.e, ref.n, ref.kdtree
-    )
+    return compute_lateral_offsets_raw(lap.e[:min_len], lap.n[:min_len], ref.e, ref.n, ref.kdtree)
 
 
 def should_enable_line_analysis(gps_quality: GPSQualityReport) -> bool:

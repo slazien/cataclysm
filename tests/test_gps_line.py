@@ -2,21 +2,17 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import numpy as np
-import pytest
 
 from cataclysm.gps_line import (
     GPSTrace,
-    ReferenceCenterline,
-    build_gps_trace,
     compute_lateral_offsets,
     compute_reference_centerline,
     gps_to_enu,
     should_enable_line_analysis,
     smooth_gps_trace,
 )
+from cataclysm.gps_quality import GPSQualityReport
 
 
 class TestGPSToENU:
@@ -115,7 +111,6 @@ class TestReferenceCenterline:
         """An outlier lap should not distort the reference."""
         traces = self._make_traces(n_laps=5)
         # Add an outlier lap with huge offset
-        n_pts = len(traces[0].e)
         outlier = GPSTrace(
             e=traces[0].e + 100,  # 100m off
             n=traces[0].n,
@@ -149,8 +144,7 @@ class TestLateralOffsets:
         trace = GPSTrace(e=e, n=n, distance_m=distance, lap_number=1)
         # Build a fake reference from the same trace
         traces = [
-            GPSTrace(e=e.copy(), n=n.copy(), distance_m=distance, lap_number=i)
-            for i in range(3)
+            GPSTrace(e=e.copy(), n=n.copy(), distance_m=distance, lap_number=i) for i in range(3)
         ]
         ref = compute_reference_centerline(traces)
         assert ref is not None
@@ -203,7 +197,6 @@ def _make_gps_report(grade: str) -> GPSQualityReport:
     """Create a minimal GPSQualityReport for testing."""
     from cataclysm.gps_quality import (
         AccuracyStats,
-        GPSQualityReport,
         HeadingJitterStats,
         LateralScatterStats,
         SatelliteStats,
@@ -217,7 +210,9 @@ def _make_gps_report(grade: str) -> GPSQualityReport:
         accuracy=AccuracyStats(p50=0.5, p90=1.0, score=80.0),
         satellites=SatelliteStats(p10=10.0, p50=12.0, score=80.0),
         lap_distance_cv=None,
-        speed_spikes=SpeedSpikeStats(spikes_per_km=0.0, total_spikes=0, total_distance_km=5.0, score=100.0),
+        speed_spikes=SpeedSpikeStats(
+            spikes_per_km=0.0, total_spikes=0, total_distance_km=5.0, score=100.0
+        ),
         heading_jitter=HeadingJitterStats(jitter_std=0.1, straight_fraction=0.5, score=80.0),
         lateral_scatter=LateralScatterStats(scatter_p90=0.3, score=80.0),
         metric_weights={"accuracy_p90": 0.3},

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from cataclysm.corner_line import (
     CornerLineProfile,
@@ -59,45 +58,31 @@ class TestDetectApexFraction:
 
 class TestClassifyLineError:
     def test_early_apex_classified(self) -> None:
-        error, severity = classify_line_error(
-            apex_fraction=0.25, d_entry=0.0, d_exit=0.0
-        )
+        error, severity = classify_line_error(apex_fraction=0.25, d_entry=0.0, d_exit=0.0)
         assert error == "early_apex"
 
     def test_late_apex_classified(self) -> None:
-        error, severity = classify_line_error(
-            apex_fraction=0.75, d_entry=0.0, d_exit=0.0
-        )
+        error, severity = classify_line_error(apex_fraction=0.75, d_entry=0.0, d_exit=0.0)
         assert error == "late_apex"
 
     def test_good_line(self) -> None:
-        error, severity = classify_line_error(
-            apex_fraction=0.55, d_entry=0.2, d_exit=0.2
-        )
+        error, severity = classify_line_error(apex_fraction=0.55, d_entry=0.2, d_exit=0.2)
         assert error == "good_line"
 
     def test_wide_entry(self) -> None:
-        error, severity = classify_line_error(
-            apex_fraction=0.55, d_entry=1.5, d_exit=0.2
-        )
+        error, severity = classify_line_error(apex_fraction=0.55, d_entry=1.5, d_exit=0.2)
         assert error == "wide_entry"
 
     def test_pinched_exit(self) -> None:
-        error, severity = classify_line_error(
-            apex_fraction=0.55, d_entry=0.2, d_exit=-1.5
-        )
+        error, severity = classify_line_error(apex_fraction=0.55, d_entry=0.2, d_exit=-1.5)
         assert error == "pinched_exit"
 
     def test_minor_severity(self) -> None:
-        _, severity = classify_line_error(
-            apex_fraction=0.55, d_entry=0.1, d_exit=0.1
-        )
+        _, severity = classify_line_error(apex_fraction=0.55, d_entry=0.1, d_exit=0.1)
         assert severity == "minor"
 
     def test_major_severity(self) -> None:
-        _, severity = classify_line_error(
-            apex_fraction=0.15, d_entry=2.0, d_exit=2.0
-        )
+        _, severity = classify_line_error(apex_fraction=0.15, d_entry=2.0, d_exit=2.0)
         assert severity == "major"
 
 

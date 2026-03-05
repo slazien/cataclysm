@@ -231,18 +231,14 @@ def format_line_analysis_for_prompt(profiles: list[CornerLineProfile]) -> str:
 
     lines = ["<line_analysis>"]
     for p in profiles:
-        lines.append(
-            f'  <corner number="{p.corner_number}" type="{p.allen_berg_type}">'
-        )
+        lines.append(f'  <corner number="{p.corner_number}" type="{p.allen_berg_type}">')
         lines.append(f"    <entry_offset>{p.d_entry_median:+.1f}m from reference</entry_offset>")
         lines.append(
             f"    <apex_offset>{p.d_apex_median:+.1f}m | fraction {p.apex_fraction_median:.0%}"
             f" (ideal: 50-65% for Type A)</apex_offset>"
         )
         lines.append(f"    <exit_offset>{p.d_exit_median:+.1f}m from reference</exit_offset>")
-        lines.append(
-            f"    <error_type>{p.line_error_type} ({p.severity})</error_type>"
-        )
+        lines.append(f"    <error_type>{p.line_error_type} ({p.severity})</error_type>")
         lines.append(
             f"    <consistency>apex SD {p.d_apex_sd:.2f}m ({p.consistency_tier})</consistency>"
         )
