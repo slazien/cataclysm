@@ -1101,3 +1101,98 @@ class TestElevationIntegration:
         interior_flat = profile_flat.max_cornering_speed_mps[100:-100]
         interior_steep = profile_steep.max_cornering_speed_mps[100:-100]
         assert np.all(interior_steep <= interior_flat + 1e-10)
+
+
+# ---------------------------------------------------------------------------
+# TestPerPointMu — mu_array in solver
+# ---------------------------------------------------------------------------
+
+
+class TestPerPointMu:
+    """Tests for per-point mu_array support in the velocity solver."""
+
+    def test_per_point_mu_changes_cornering_speed(self) -> None:
+        """Higher mu_array values at curved points produce higher max cornering speed."""
+        n = 500
+        kappa = 0.01  # uniform curvature
+        curvature = np.full(n, kappa)
+        abs_curvature = np.abs(curvature)
+        params = default_vehicle_params()  # mu=1.0
+
+        # mu_array with higher grip at the first half, lower at second half
+        mu_high = np.full(n, 1.5)
+        mu_low = np.full(n, 0.5)
+
+        speed_high = _compute_max_cornering_speed(abs_curvature, params, mu_array=mu_high)
+        speed_low = _compute_max_cornering_speed(abs_curvature, params, mu_array=mu_low)
+
+        # Higher mu should produce higher cornering speed everywhere
+        assert np.all(speed_high > speed_low)
+
+        # Verify the expected relationship: v = sqrt(mu * G / kappa)
+        # At each point, speed should scale with sqrt(mu)
+        ratio = speed_high[0] / speed_low[0]
+        expected_ratio = np.sqrt(1.5 / 0.5)
+        assert ratio == pytest.approx(expected_ratio, rel=0.01)
+
+    def test_none_mu_array_backward_compatible(self) -> None:
+        """mu_array=None produces identical results to the current behavior."""
+        curvature = np.concatenate(
+            [
+                np.zeros(200),
+                np.full(100, 0.01),
+                np.zeros(200),
+            ]
+        )
+        cr = _make_curvature_result(curvature, step_m=0.7)
+        params = default_vehicle_params()
+
+        profile_default = compute_optimal_profile(cr, params)
+        profile_none_mu = compute_optimal_profile(cr, params, mu_array=None)
+
+        np.testing.assert_array_equal(
+            profile_default.optimal_speed_mps,
+            profile_none_mu.optimal_speed_mps,
+        )
+        assert profile_default.lap_time_s == profile_none_mu.lap_time_s
+
+    def test_mu_array_with_gradient_sin(self) -> None:
+        """mu_array works correctly alongside gradient_sin (both Task 2 and P5)."""
+        n = 500
+        kappa = 0.01
+        curvature = np.full(n, kappa)
+        abs_curvature = np.abs(curvature)
+        params = default_vehicle_params()
+
+        gradient_sin = np.full(n, 0.05)
+        mu_array = np.full(n, 1.2)
+
+        # With both gradient and mu_array: should produce valid output
+        speed = _compute_max_cornering_speed(
+            abs_curvature, params, gradient_sin=gradient_sin, mu_array=mu_array
+        )
+
+        assert np.all(np.isfinite(speed))
+        assert np.all(speed >= MIN_SPEED_MPS)
+        assert np.all(speed <= params.top_speed_mps)
+
+    def test_mu_array_threaded_through_compute_optimal_profile(self) -> None:
+        """mu_array parameter is correctly threaded through compute_optimal_profile."""
+        n = 500
+        curvature = np.concatenate(
+            [
+                np.zeros(200),
+                np.full(100, 0.01),
+                np.zeros(200),
+            ]
+        )
+        cr = _make_curvature_result(curvature, step_m=0.7)
+        params = default_vehicle_params()  # mu=1.0
+
+        # Use a higher mu_array → should produce a faster lap
+        mu_high = np.full(n, 1.5)
+        profile_default = compute_optimal_profile(cr, params)
+        profile_high_mu = compute_optimal_profile(cr, params, mu_array=mu_high)
+
+        # Higher mu everywhere should yield a faster (or equal) lap time
+        assert profile_high_mu.lap_time_s <= profile_default.lap_time_s

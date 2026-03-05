@@ -93,6 +93,7 @@ def _compute_max_cornering_speed(
     abs_curvature: np.ndarray,
     params: VehicleParams,
     gradient_sin: np.ndarray | None = None,
+    mu_array: np.ndarray | None = None,
 ) -> np.ndarray:
     """Compute the maximum speed at each point from curvature and grip.
 
@@ -106,6 +107,10 @@ def _compute_max_cornering_speed(
 
     If *gradient_sin* is provided, the normal force is reduced by cos(theta),
     which slightly reduces available lateral grip on steep grades.
+
+    If *mu_array* is provided, it overrides the scalar effective mu at each
+    point.  Points where mu_array is used get ``mu_array[i]`` instead of the
+    global ``min(params.mu, params.max_lateral_g)``.
     """
     n = len(abs_curvature)
     max_speed = np.full(n, params.top_speed_mps, dtype=np.float64)
@@ -113,6 +118,12 @@ def _compute_max_cornering_speed(
     # Use the tighter of overall mu and max_lateral_g as the effective lateral grip.
     # mu is the overall friction budget; max_lateral_g caps lateral independently.
     effective_mu_scalar = min(params.mu, params.max_lateral_g)
+
+    # Build per-point effective mu: mu_array overrides scalar where provided.
+    if mu_array is not None:
+        effective_mu = mu_array.astype(np.float64)
+    else:
+        effective_mu = np.full(n, effective_mu_scalar, dtype=np.float64)
 
     # On a slope, the normal force is reduced by cos(theta), reducing grip.
     if gradient_sin is not None:
@@ -131,11 +142,11 @@ def _compute_max_cornering_speed(
         curved_indices = np.where(curved_mask)[0]
         bounded_indices = curved_indices[bounded_mask]
         effective_k = effective_curvature[bounded_mask]
-        effective_mu_arr = effective_mu_scalar * cos_theta[bounded_indices]
-        max_speed[bounded_indices] = np.sqrt(effective_mu_arr * G / effective_k)
+        mu_at_pts = effective_mu[bounded_indices] * cos_theta[bounded_indices]
+        max_speed[bounded_indices] = np.sqrt(mu_at_pts * G / effective_k)
     else:
-        effective_mu_arr = effective_mu_scalar * cos_theta[curved_mask]
-        max_speed[curved_mask] = np.sqrt(effective_mu_arr * G / abs_curvature[curved_mask])
+        mu_at_pts = effective_mu[curved_mask] * cos_theta[curved_mask]
+        max_speed[curved_mask] = np.sqrt(mu_at_pts * G / abs_curvature[curved_mask])
 
     # Replace any NaN or inf with top_speed
     bad_mask = ~np.isfinite(max_speed)
@@ -313,6 +324,7 @@ def compute_optimal_profile(
     *,
     closed_circuit: bool = True,
     gradient_sin: np.ndarray | None = None,
+    mu_array: np.ndarray | None = None,
 ) -> OptimalProfile:
     """Compute the physics-optimal velocity profile for a track.
 
@@ -333,6 +345,11 @@ def compute_optimal_profile(
         :func:`cataclysm.elevation_profile.compute_gradient_array`.
         Positive = uphill, negative = downhill.  If *None* (default), the
         track is treated as flat (backward compatible).
+    mu_array
+        Per-point friction coefficient override.  If provided, overrides the
+        scalar ``min(params.mu, params.max_lateral_g)`` at each point.
+        Points outside corner zones typically keep the global mu.
+        If *None* (default), the global scalar mu is used (backward compatible).
 
     Returns
     -------
@@ -351,7 +368,7 @@ def compute_optimal_profile(
     abs_k = curvature_result.abs_curvature
 
     # Step 1: cornering speed limit at every point
-    max_corner_speed = _compute_max_cornering_speed(abs_k, params, gradient_sin)
+    max_corner_speed = _compute_max_cornering_speed(abs_k, params, gradient_sin, mu_array)
 
     if closed_circuit and n >= 4:
         # Track tripling: tile curvature and max_speed 3x, solve on the

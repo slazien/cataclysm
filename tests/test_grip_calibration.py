@@ -5,10 +5,12 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from cataclysm.corners import Corner
 from cataclysm.grip_calibration import (
     CalibratedGrip,
     apply_calibration_to_params,
     calibrate_grip_from_telemetry,
+    calibrate_per_corner_grip,
 )
 from cataclysm.velocity_profile import VehicleParams, default_vehicle_params
 
@@ -343,3 +345,136 @@ class TestVehicleParamsCalibratedField:
             calibrated=True,
         )
         assert params.calibrated is True
+
+
+# ---------------------------------------------------------------------------
+# Helpers for per-corner tests
+# ---------------------------------------------------------------------------
+
+
+def _make_corner(
+    number: int,
+    entry_m: float,
+    exit_m: float,
+    apex_m: float | None = None,
+) -> Corner:
+    """Create a minimal Corner for testing per-corner grip."""
+    if apex_m is None:
+        apex_m = (entry_m + exit_m) / 2
+    return Corner(
+        number=number,
+        entry_distance_m=entry_m,
+        exit_distance_m=exit_m,
+        apex_distance_m=apex_m,
+        min_speed_mps=20.0,
+        brake_point_m=None,
+        peak_brake_g=None,
+        throttle_commit_m=None,
+        apex_type="mid",
+    )
+
+
+# ---------------------------------------------------------------------------
+# TestCalibratePerCornerGrip
+# ---------------------------------------------------------------------------
+
+
+class TestCalibratePerCornerGrip:
+    """Tests for calibrate_per_corner_grip()."""
+
+    def test_per_corner_grip_extraction(self) -> None:
+        """Synthetic data with different lat-G per corner zone gives per-corner mu."""
+        # Track: 0 to 1000m.  Two corners:
+        #   Corner 1: 100-300m  (high grip zone, |lat_g| ~ 1.2)
+        #   Corner 2: 600-800m  (low grip zone, |lat_g| ~ 0.6)
+        n = 1500  # points at 0.7m spacing → ~1050m
+        step_m = 0.7
+        distance_m = np.arange(n) * step_m
+
+        # Background lateral G is ~0.3 everywhere
+        rng = np.random.default_rng(42)
+        lateral_g = rng.uniform(-0.3, 0.3, size=n)
+
+        # Corner 1 zone: indices for distance 100-300m → indices ~143-429
+        c1_mask = (distance_m >= 100.0) & (distance_m <= 300.0)
+        lateral_g[c1_mask] = rng.choice([-1, 1], size=int(c1_mask.sum())) * rng.uniform(
+            1.0, 1.3, size=int(c1_mask.sum())
+        )
+
+        # Corner 2 zone: indices for distance 600-800m → indices ~857-1143
+        c2_mask = (distance_m >= 600.0) & (distance_m <= 800.0)
+        lateral_g[c2_mask] = rng.choice([-1, 1], size=int(c2_mask.sum())) * rng.uniform(
+            0.4, 0.7, size=int(c2_mask.sum())
+        )
+
+        corners = [
+            _make_corner(1, 100.0, 300.0),
+            _make_corner(2, 600.0, 800.0),
+        ]
+
+        result = calibrate_per_corner_grip(lateral_g, distance_m, corners)
+
+        # Both corners should be present
+        assert 1 in result
+        assert 2 in result
+
+        # Corner 1 should have higher mu than corner 2
+        assert result[1] > result[2]
+
+        # Corner 1: 99th percentile of |lat_g| in [1.0, 1.3] → should be ~1.2+
+        assert result[1] > 0.9
+
+        # Corner 2: 99th percentile of |lat_g| in [0.4, 0.7] → should be ~0.65
+        assert result[2] < 0.8
+        assert result[2] > 0.3
+
+    def test_per_corner_grip_min_points_filter(self) -> None:
+        """Corners with too few points are excluded from the result."""
+        n = 200
+        step_m = 0.7
+        distance_m = np.arange(n) * step_m
+        # Total distance ~ 140m
+
+        rng = np.random.default_rng(99)
+        lateral_g = rng.uniform(-1.0, 1.0, size=n)
+
+        # Corner 1: 10-100m → has many points (~129 at 0.7m step)
+        # Corner 2: 120-125m → only ~7 points (too few for default min_points=10)
+        corners = [
+            _make_corner(1, 10.0, 100.0),
+            _make_corner(2, 120.0, 125.0),
+        ]
+
+        result = calibrate_per_corner_grip(lateral_g, distance_m, corners, min_points=10)
+
+        # Corner 1 should be present (many points)
+        assert 1 in result
+        # Corner 2 should be excluded (too few points)
+        assert 2 not in result
+
+    def test_per_corner_grip_empty_corners(self) -> None:
+        """Empty corners list returns empty dict."""
+        distance_m = np.arange(100) * 0.7
+        lateral_g = np.ones(100) * 0.5
+
+        result = calibrate_per_corner_grip(lateral_g, distance_m, [])
+        assert result == {}
+
+    def test_per_corner_grip_custom_percentile(self) -> None:
+        """Custom percentile parameter is respected."""
+        n = 500
+        step_m = 0.7
+        distance_m = np.arange(n) * step_m
+
+        rng = np.random.default_rng(42)
+        lateral_g = rng.uniform(-1.0, 1.0, size=n)
+
+        corners = [_make_corner(1, 10.0, 300.0)]
+
+        result_99 = calibrate_per_corner_grip(lateral_g, distance_m, corners, percentile=99.0)
+        result_50 = calibrate_per_corner_grip(lateral_g, distance_m, corners, percentile=50.0)
+
+        assert 1 in result_99
+        assert 1 in result_50
+        # 99th percentile should be higher than 50th
+        assert result_99[1] > result_50[1]
