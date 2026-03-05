@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+
 from cataclysm.clothoid_fitting import (
     compute_clothoid_curvature,
     fit_clothoid_segment,

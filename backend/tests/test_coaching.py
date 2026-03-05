@@ -9,8 +9,16 @@ import pytest
 from cataclysm.coaching import CoachingReport, CornerGrade
 from httpx import AsyncClient
 
-from backend.api.services.coaching_store import clear_all_coaching
+from backend.api.services.coaching_store import clear_all_coaching, is_generating
 from backend.tests.conftest import build_synthetic_csv
+
+
+async def _wait_for_generation(session_id: str, skill_level: str = "intermediate") -> None:
+    """Poll until the background coaching task finishes (max ~2 seconds)."""
+    for _ in range(200):
+        await asyncio.sleep(0.01)
+        if not is_generating(session_id, skill_level):
+            return
 
 
 async def _upload_session(
@@ -100,8 +108,8 @@ async def test_generate_report(client: AsyncClient) -> None:
         assert response.status_code == 200
         assert response.json()["status"] == "generating"
 
-        # Yield to event loop so the mocked background task completes
-        await asyncio.sleep(0.01)
+        # Wait for the mocked background task to complete
+        await _wait_for_generation(session_id)
 
     # GET should now return the completed report
     response = await client.get(f"/api/coaching/{session_id}/report")
@@ -144,7 +152,7 @@ async def test_generate_report_default_skill_level(client: AsyncClient) -> None:
         )
         assert response.status_code == 200
         # Let the background task complete while mock is still active
-        await asyncio.sleep(0.01)
+        await _wait_for_generation(session_id)
 
     # The mock was called — verify skill_level passed
     call_kwargs = mock_gen.call_args
@@ -166,7 +174,7 @@ async def test_get_report_after_generation(client: AsyncClient) -> None:
             json={"skill_level": "intermediate"},
         )
         # Let the background task complete
-        await asyncio.sleep(0.01)
+        await _wait_for_generation(session_id)
 
     # Now GET should return the stored report
     response = await client.get(f"/api/coaching/{session_id}/report")
@@ -191,7 +199,7 @@ async def test_get_report_not_found(client: AsyncClient) -> None:
         response = await client.get(f"/api/coaching/{session_id}/report")
         assert response.status_code == 200
         assert response.json()["status"] == "generating"
-        await asyncio.sleep(0.01)
+        await _wait_for_generation(session_id)
 
 
 @pytest.mark.asyncio
@@ -217,7 +225,7 @@ async def test_generate_report_with_advanced_skill(client: AsyncClient) -> None:
         )
         assert response.status_code == 200
         # Let the background task complete while mock is still active
-        await asyncio.sleep(0.01)
+        await _wait_for_generation(session_id, "advanced")
 
     call_kwargs = mock_gen.call_args
     assert call_kwargs.kwargs.get("skill_level") == "advanced"
@@ -239,7 +247,7 @@ async def test_force_regeneration_clears_and_regenerates(client: AsyncClient) ->
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "intermediate"},
         )
-        await asyncio.sleep(0.01)
+        await _wait_for_generation(session_id)
 
     # Verify first report is stored
     resp = await client.get(f"/api/coaching/{session_id}/report")
@@ -258,7 +266,7 @@ async def test_force_regeneration_clears_and_regenerates(client: AsyncClient) ->
         )
         assert response.status_code == 200
         assert response.json()["status"] == "generating"
-        await asyncio.sleep(0.01)
+        await _wait_for_generation(session_id, "advanced")
 
     # GET with skill_level=advanced should return the new report
     resp = await client.get(f"/api/coaching/{session_id}/report?skill_level=advanced")
@@ -285,7 +293,7 @@ async def test_force_false_preserves_existing(client: AsyncClient) -> None:
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "intermediate"},
         )
-        await asyncio.sleep(0.01)
+        await _wait_for_generation(session_id)
 
     # POST with same skill level without force should return existing report
     response = await client.post(
@@ -312,7 +320,7 @@ async def test_generate_report_returns_existing(client: AsyncClient) -> None:
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "intermediate"},
         )
-        await asyncio.sleep(0.01)
+        await _wait_for_generation(session_id)
 
     # Second POST with same skill level should return existing report
     response = await client.post(
@@ -327,8 +335,6 @@ async def test_generate_report_returns_existing(client: AsyncClient) -> None:
 async def test_generate_report_retries_after_error(client: AsyncClient) -> None:
     """GET clears error reports and auto-triggers fresh generation."""
     session_id = await _upload_session(client)
-
-    from backend.api.services.coaching_store import is_generating
 
     # First generation fails (API overloaded)
     with patch(
@@ -1095,7 +1101,7 @@ async def test_download_pdf_success(client: AsyncClient) -> None:
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "intermediate"},
         )
-        await asyncio.sleep(0.01)
+        await _wait_for_generation(session_id)
 
     # Mock PDF generation to return dummy bytes
     dummy_pdf = b"%PDF-1.4 dummy"
@@ -1124,7 +1130,7 @@ async def test_download_pdf_filename_uses_short_id(client: AsyncClient) -> None:
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "intermediate"},
         )
-        await asyncio.sleep(0.01)
+        await _wait_for_generation(session_id)
 
     with patch(
         "backend.api.routers.coaching.generate_pdf",
@@ -1147,8 +1153,6 @@ async def test_run_generation_stores_error_on_exception(client: AsyncClient) -> 
     """When generation raises, _run_generation stores an error-status report."""
     session_id = await _upload_session(client)
 
-    from backend.api.services.coaching_store import is_generating
-
     with patch(
         "cataclysm.coaching.generate_coaching_report",
         side_effect=RuntimeError("Claude API down"),
@@ -1158,7 +1162,7 @@ async def test_run_generation_stores_error_on_exception(client: AsyncClient) -> 
             json={"skill_level": "intermediate"},
         )
         assert response.json()["status"] == "generating"
-        await asyncio.sleep(0.01)
+        await _wait_for_generation(session_id)
 
     # GET clears error and auto-triggers fresh generation. Keep mock active so
     # the background task spawned by GET doesn't hang on the real coaching API.
@@ -1172,7 +1176,7 @@ async def test_run_generation_stores_error_on_exception(client: AsyncClient) -> 
         assert report.json()["status"] == "generating"
 
         # Wait for auto-triggered background task to complete
-        for _ in range(20):
+        for _ in range(200):
             await asyncio.sleep(0.01)
             if not is_generating(session_id, "intermediate"):
                 break
@@ -1181,7 +1185,6 @@ async def test_run_generation_stores_error_on_exception(client: AsyncClient) -> 
 @pytest.mark.asyncio
 async def test_run_generation_unmarks_generating_on_error(client: AsyncClient) -> None:
     """After a failed generation, is_generating returns False for the session."""
-    from backend.api.services.coaching_store import is_generating
 
     session_id = await _upload_session(client)
 
@@ -1241,7 +1244,7 @@ async def test_run_generation_handles_non_numeric_priority_corner(
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "intermediate"},
         )
-        await asyncio.sleep(0.01)
+        await _wait_for_generation(session_id)
 
     response = await client.get(f"/api/coaching/{session_id}/report")
     assert response.status_code == 200
