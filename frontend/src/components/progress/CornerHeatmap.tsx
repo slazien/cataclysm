@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
+import { useUnits } from '@/hooks/useUnits';
 import { useUiStore, useAnalysisStore } from '@/stores';
 import { colors, fonts } from '@/lib/design-tokens';
 import { parseSessionDate } from '@/lib/formatters';
@@ -43,6 +44,7 @@ export function CornerHeatmap({
   cornerConsistencyTrends,
   className,
 }: CornerHeatmapProps) {
+  const { convertSpeed, convertDistance, speedUnit, distanceUnit } = useUnits();
   const setActiveView = useUiStore((s) => s.setActiveView);
   const selectCorner = useAnalysisStore((s) => s.selectCorner);
   const setDeepDiveMode = useAnalysisStore((s) => s.setMode);
@@ -204,17 +206,20 @@ export function CornerHeatmap({
       let unit = '';
       let label = '';
       if (metric === 'min_speed') {
-        unit = ' mph';
+        unit = ` ${speedUnit}`;
         label = 'Min Speed';
       } else if (metric === 'brake_consistency') {
-        unit = ' m (std)';
+        unit = ` ${distanceUnit} (std)`;
         label = 'Brake Std';
       } else {
         unit = '';
         label = 'Consistency';
       }
 
-      const valStr = val != null ? val.toFixed(1) : 'N/A';
+      const converted = val != null
+        ? metric === 'min_speed' ? convertSpeed(val) : metric === 'brake_consistency' ? convertDistance(val) : val
+        : null;
+      const valStr = converted != null ? converted.toFixed(1) : 'N/A';
       const dateStr = sessions[col]?.session_date ?? '';
 
       setTooltip({

@@ -1,6 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
+import { useUnits } from '@/hooks/useUnits';
 
 interface CornerDeltaRow {
   corner_number: number;
@@ -24,6 +25,7 @@ export function CornerScorecard({
   onSelectCorner,
   selectedCorner,
 }: CornerScorecardProps) {
+  const { convertSpeed, speedUnit } = useUnits();
   if (cornerDeltas.length === 0) {
     return (
       <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-6 text-center">
@@ -91,7 +93,7 @@ export function CornerScorecard({
                         : 'text-[var(--text-secondary)]',
                     )}
                   >
-                    {cd.a_min_speed_mph.toFixed(1)} mph
+                    {convertSpeed(cd.a_min_speed_mph).toFixed(1)} {speedUnit}
                   </td>
                   <td
                     className={cn(
@@ -101,7 +103,7 @@ export function CornerScorecard({
                         : 'text-[var(--text-secondary)]',
                     )}
                   >
-                    {cd.b_min_speed_mph.toFixed(1)} mph
+                    {convertSpeed(cd.b_min_speed_mph).toFixed(1)} {speedUnit}
                   </td>
                   <td
                     className={cn(
@@ -112,7 +114,7 @@ export function CornerScorecard({
                     )}
                   >
                     {isPositive ? '+' : ''}
-                    {cd.speed_diff_mph.toFixed(1)} mph
+                    {convertSpeed(cd.speed_diff_mph).toFixed(1)} {speedUnit}
                   </td>
                 </tr>
               );

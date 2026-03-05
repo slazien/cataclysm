@@ -79,7 +79,7 @@ function CornerCard({
   onClick: () => void;
 }) {
   const { cornerNumber, corner, overallGrade, cornerGrade, priorityCorner } = card;
-  const { resolveSpeed } = useUnits();
+  const { convertSpeed, speedUnit, resolveSpeed } = useUnits();
 
   return (
     <button
@@ -139,7 +139,7 @@ function CornerCard({
       <div className="flex items-center justify-between">
         <span className="text-xs text-[var(--text-muted)]">Min Speed</span>
         <span className="text-xs font-medium tabular-nums text-[var(--text-primary)]">
-          {corner.min_speed_mph.toFixed(1)} mph
+          {convertSpeed(corner.min_speed_mph).toFixed(1)} {speedUnit}
         </span>
       </div>
 
