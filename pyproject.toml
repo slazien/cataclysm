@@ -76,6 +76,10 @@ module = [
     "alembic.*",
     "pymap3d",
     "pymap3d.*",
+    "slowapi",
+    "slowapi.*",
+    "prometheus_fastapi_instrumentator",
+    "prometheus_fastapi_instrumentator.*",
 ]
 ignore_missing_imports = true
 disable_error_code = ["import-untyped"]

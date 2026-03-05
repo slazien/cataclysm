@@ -64,7 +64,7 @@ export function useAutoReport(sessionId: string | null): UseAutoReportResult {
 
   const regenerate = useCallback(() => {
     if (sessionId !== null) {
-      hasTriggered.current = false;
+      hasTriggered.current = true;
       void clearAndRegenerateReport(sessionId, skillLevel).then(() => {
         void queryClient.invalidateQueries({
           queryKey: ['coaching-report', sessionId],

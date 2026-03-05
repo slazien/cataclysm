@@ -44,7 +44,7 @@ def _make_token(
     raw_key = _derive_encryption_key(secret, salt)
     key = OctKey.import_key(raw_key)
     protected = {"alg": "dir", "enc": "A256CBC-HS512"}
-    return jwe.encrypt_compact(protected, json.dumps(payload).encode(), key)
+    return str(jwe.encrypt_compact(protected, json.dumps(payload).encode(), key))
 
 
 def _settings(secret: str = _SECRET) -> Settings:

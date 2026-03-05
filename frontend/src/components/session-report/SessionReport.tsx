@@ -1,14 +1,12 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 import { useSessionStore, useUiStore } from '@/stores';
 import { useSession, useSessionLaps } from '@/hooks/useSession';
-import { useCoachingReport } from '@/hooks/useCoaching';
+import { useAutoReport } from '@/hooks/useAutoReport';
 import { useCorners, useConsistency, useGPSQuality } from '@/hooks/useAnalysis';
 import { useRecentAchievements } from '@/hooks/useAchievements';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
-import { clearAndRegenerateReport } from '@/lib/api';
 import { OptimalGapChart } from './OptimalGapChart';
 import { SessionReportHeader } from './SessionReportHeader';
 import { CoachingSummaryHero } from './CoachingSummaryHero';
@@ -31,27 +29,13 @@ export function SessionReport() {
   const { data: session } = useSession(activeSessionId);
   const { data: laps } = useSessionLaps(activeSessionId);
   const { data: _corners } = useCorners(activeSessionId);
-  const { data: report } = useCoachingReport(activeSessionId);
+  const { report, isSkillMismatch, regenerate } = useAutoReport(activeSessionId);
   const { data: consistency } = useConsistency(activeSessionId);
   const { data: gpsQuality } = useGPSQuality(activeSessionId);
   const { data: recentAchievementsData } = useRecentAchievements(!!activeSessionId);
   const { isNovice, isAdvanced, showFeature } = useSkillLevel();
   const skillLevel = useUiStore((s) => s.skillLevel);
-  const queryClient = useQueryClient();
   const [badgesOpen, setBadgesOpen] = useState(false);
-
-  const isSkillMismatch =
-    report?.status === 'ready' && !!report?.skill_level && report.skill_level !== skillLevel;
-
-  const handleRegenerate = useCallback(() => {
-    if (activeSessionId) {
-      void clearAndRegenerateReport(activeSessionId, skillLevel).then(() => {
-        void queryClient.invalidateQueries({
-          queryKey: ['coaching-report', activeSessionId],
-        });
-      });
-    }
-  }, [activeSessionId, skillLevel, queryClient]);
 
   const recentAchievements = recentAchievementsData?.newly_unlocked ?? [];
 
@@ -87,13 +71,13 @@ export function SessionReport() {
           <SkillLevelMismatchBanner
             reportLevel={report.skill_level}
             currentLevel={skillLevel}
-            onRegenerate={handleRegenerate}
+            onRegenerate={regenerate}
           />
         )}
 
         <CoachingSummaryHero report={report ?? null} />
 
-        {report?.status === 'ready' && report.skill_level && (
+        {report?.skill_level && (
           <p className="text-[10px] text-[var(--text-tertiary)] -mt-4">
             Generated for {report.skill_level.charAt(0).toUpperCase() + report.skill_level.slice(1)}
           </p>
