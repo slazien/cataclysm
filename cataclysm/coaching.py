@@ -707,7 +707,7 @@ def build_track_introduction(layout: TrackLayout | None) -> str:
     for c in layout.corners:
         if c.blind:
             peculiarities.append(f"T{c.number} ({c.name}): blind apex/exit")
-        if c.camber == "off-camber" or c.camber == "negative":
+        if c.camber in ("off-camber", "negative"):
             peculiarities.append(f"T{c.number} ({c.name}): {c.camber} camber")
         if c.elevation_trend in ("crest", "compression"):
             peculiarities.append(f"T{c.number} ({c.name}): {c.elevation_trend}")

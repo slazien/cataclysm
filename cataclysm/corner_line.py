@@ -141,6 +141,9 @@ def _infer_berg_type_and_gap(corner: Corner, corners: list[Corner]) -> tuple[str
 
     Returns (berg_type, gap_to_next_m) where gap_to_next_m is the distance
     from this corner's exit to the next corner's entry (0.0 for the last corner).
+
+    Note: assumes corners are 1-indexed and contiguous (corner.number == index + 1),
+    which is guaranteed by the standard corner detection pipeline in corners.py.
     """
     idx = corner.number - 1
     if idx < 0 or idx >= len(corners):
@@ -310,6 +313,8 @@ def summarize_session_lines(
 
     # Overall consistency: median tier
     tier_ints = [_TIER_TO_INT[p.consistency_tier] for p in profiles]
+    # int() truncates toward 0 (= better tier), which is intentional —
+    # gives drivers benefit-of-the-doubt in the overall assessment.
     median_tier_int = int(np.median(tier_ints))
     overall_tier = _INT_TO_TIER[median_tier_int]
 
