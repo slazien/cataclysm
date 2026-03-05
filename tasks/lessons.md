@@ -158,13 +158,26 @@
 
 **Anti-pattern**: Staging only the file you were "working in" without checking if dependent files also changed. Partial commits that break cross-file contracts are production killers.
 
-## asyncio.sleep(0) Is Not Enough for FastAPI BackgroundTasks ([2026-03-05])
+## Use Polling Loops for Async Background Task Completion in Tests ([2026-03-05])
 
-**Pattern**: When testing FastAPI endpoints that spawn `BackgroundTasks`, use `await asyncio.sleep(0.01)` (not `sleep(0)`) to let the mocked background task complete. `sleep(0)` yields the event loop once, but Starlette's task runner needs multiple iterations to schedule, execute, and store results.
+**Pattern**: When testing endpoints that spawn background tasks via `asyncio.create_task()` or `BackgroundTasks`, use a polling loop — not a fixed sleep. Fixed sleeps (`sleep(0)`, `sleep(0.01)`, even `sleep(0.2)`) are all unreliable because task completion time varies with system load.
 
-**Why**: Replaced 22 `sleep(0.2)` calls with `sleep(0)` and 13 tests failed — the background tasks hadn't finished yet. `sleep(0.01)` is 20x faster than the original `sleep(0.2)` while being reliable.
+```python
+# GOOD — polling loop, fast and reliable
+for _ in range(50):
+    await asyncio.sleep(0.05)
+    if not is_generating(session_id, "intermediate"):
+        break
+assert not is_generating(session_id, "intermediate")
 
-**Error signature**: Tests that POST to trigger generation then GET to verify the result fail with 404 or `status != "ready"`.
+# BAD — fixed sleep, flaky
+await asyncio.sleep(0.01)
+assert not is_generating(session_id, "intermediate")
+```
+
+**Why**: `sleep(0)` yields once (insufficient for Starlette's task runner). `sleep(0.01)` works most of the time but is flaky under load — caused `test_run_generation_unmarks_generating_on_error` to fail intermittently. The polling loop converges in ~50-100ms on average but tolerates up to 2.5s, making it both fast and reliable.
+
+**Error signature**: Tests that POST to trigger generation then GET/assert the result fail intermittently with 404, `status != "ready"`, or stale `is_generating` flags.
 
 ## Always Run Code Reviewer After Implementation
 - **When**: After finishing ANY implementation task — features, bug fixes, refactors
