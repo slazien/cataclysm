@@ -158,6 +158,14 @@
 
 **Anti-pattern**: Staging only the file you were "working in" without checking if dependent files also changed. Partial commits that break cross-file contracts are production killers.
 
+## asyncio.sleep(0) Is Not Enough for FastAPI BackgroundTasks ([2026-03-05])
+
+**Pattern**: When testing FastAPI endpoints that spawn `BackgroundTasks`, use `await asyncio.sleep(0.01)` (not `sleep(0)`) to let the mocked background task complete. `sleep(0)` yields the event loop once, but Starlette's task runner needs multiple iterations to schedule, execute, and store results.
+
+**Why**: Replaced 22 `sleep(0.2)` calls with `sleep(0)` and 13 tests failed — the background tasks hadn't finished yet. `sleep(0.01)` is 20x faster than the original `sleep(0.2)` while being reliable.
+
+**Error signature**: Tests that POST to trigger generation then GET to verify the result fail with 404 or `status != "ready"`.
+
 ## Always Run Code Reviewer After Implementation
 - **When**: After finishing ANY implementation task — features, bug fixes, refactors
 - **Rule**: Dispatch the code reviewer agent (`superpowers:code-reviewer` or `code-review:code-review`) to review all changed files. This is in ADDITION to automated checks (ruff, mypy, tests), not a replacement.
