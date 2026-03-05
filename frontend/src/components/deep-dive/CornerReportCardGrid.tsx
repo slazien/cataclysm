@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { motion as m } from 'motion/react';
 import { useSessionStore, useAnalysisStore } from '@/stores';
-import { useCorners } from '@/hooks/useAnalysis';
+import { useCorners, useAllLapCorners } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { GradeChip } from '@/components/shared/GradeChip';
 import { cn } from '@/lib/utils';
@@ -167,15 +167,26 @@ function CornerCard({
 export function CornerReportCardGrid({ onSelectCorner }: CornerReportCardGridProps) {
   const sessionId = useSessionStore((s) => s.activeSessionId);
   const selectedCorner = useAnalysisStore((s) => s.selectedCorner);
+  const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
   const selectCorner = useAnalysisStore((s) => s.selectCorner);
 
   const { data: corners } = useCorners(sessionId);
+  const { data: allLapCorners } = useAllLapCorners(sessionId);
   const { data: report } = useCoachingReport(sessionId);
 
+  // Use selected lap's corners when exactly one lap is selected
+  const effectiveCorners = useMemo(() => {
+    if (selectedLaps.length === 1 && allLapCorners) {
+      const lapCorners = allLapCorners[String(selectedLaps[0])];
+      if (lapCorners && lapCorners.length > 0) return lapCorners;
+    }
+    return corners ?? [];
+  }, [corners, allLapCorners, selectedLaps]);
+
   const cards = useMemo(() => {
-    if (!corners || corners.length === 0) return [];
-    return buildCardData(corners, report ?? undefined);
-  }, [corners, report]);
+    if (effectiveCorners.length === 0) return [];
+    return buildCardData(effectiveCorners, report ?? undefined);
+  }, [effectiveCorners, report]);
 
   if (!sessionId) {
     return (

@@ -103,6 +103,7 @@ function GradeRow({ label, grade, explanation }: GradeRowProps) {
 
 export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
   const selectedCorner = useAnalysisStore((s) => s.selectedCorner);
+  const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const { data: session } = useSession(activeSessionId);
   const { data: corners } = useCorners(sessionId);
@@ -125,7 +126,20 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
   const cornerNumber = parseCornerNumber(selectedCorner);
   if (cornerNumber === null) return null;
 
-  const corner = corners?.find((c) => c.number === cornerNumber);
+  // Use selected lap's corner data when exactly one lap is selected,
+  // otherwise fall back to best-lap corners.
+  const bestLapCorner = corners?.find((c) => c.number === cornerNumber) ?? null;
+  let corner: Corner | null = bestLapCorner;
+  let displayLap: number | null = null;
+  if (selectedLaps.length === 1 && allLapCorners) {
+    const lapKey = String(selectedLaps[0]);
+    const lapCorners = allLapCorners[lapKey];
+    const lapCorner = lapCorners?.find((c) => c.number === cornerNumber);
+    if (lapCorner) {
+      corner = lapCorner;
+      displayLap = selectedLaps[0];
+    }
+  }
   if (!corner) return null;
 
   // Grade info
@@ -201,7 +215,9 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
           </h3>
           {overallGrade && <GradeChip grade={overallGrade} />}
         </div>
-        <span className="text-xs text-[var(--text-muted)]">{apexLabel}</span>
+        <span className="text-xs text-[var(--text-muted)]">
+          {displayLap ? `L${displayLap}` : 'Best lap'}{apexLabel ? ` · ${apexLabel}` : ''}
+        </span>
       </div>
 
       {/* KPIs with vs-best deltas */}
