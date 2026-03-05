@@ -9,6 +9,7 @@ import { renderSessionCard } from '@/lib/shareCardRenderer';
 import type { ShareCardData } from '@/lib/shareCardRenderer';
 import { getIdentityLabel, computeSkillDimensions } from '@/lib/skillDimensions';
 import { createShareLink } from '@/lib/api';
+import { useUnits } from '@/hooks/useUnits';
 
 interface UseShareCardReturn {
   share: () => Promise<void>;
@@ -17,6 +18,7 @@ interface UseShareCardReturn {
 
 export function useShareCard(sessionId: string | null): UseShareCardReturn {
   const [isRendering, setIsRendering] = useState(false);
+  const { convertSpeed, speedUnit } = useUnits();
   const { data: session } = useSession(sessionId);
   const { data: coachingReport } = useCoachingReport(sessionId);
   const { data: consistency } = useConsistency(sessionId);
@@ -72,10 +74,11 @@ export function useShareCard(sessionId: string | null): UseShareCardReturn {
         // Share link creation failed — continue without QR code
       }
 
-      // Compute top speed from lap summaries
-      let topSpeedMph: number | null = null;
+      // Compute top speed from lap summaries (converted to user's unit)
+      let topSpeed: number | null = null;
       if (laps && laps.length > 0) {
-        topSpeedMph = Math.max(...laps.map((l) => l.max_speed_mps)) * 2.23694;
+        const topSpeedMph = Math.max(...laps.map((l) => l.max_speed_mps)) * 2.23694;
+        topSpeed = convertSpeed(topSpeedMph);
       }
 
       // Compute skill dimensions from corner grades
@@ -92,7 +95,8 @@ export function useShareCard(sessionId: string | null): UseShareCardReturn {
         consistencyScore,
         identityLabel,
         gpsCoords,
-        topSpeedMph,
+        topSpeed,
+        speedUnit,
         skillDimensions,
         viewUrl,
       };
@@ -125,7 +129,7 @@ export function useShareCard(sessionId: string | null): UseShareCardReturn {
     } finally {
       setIsRendering(false);
     }
-  }, [session, sessionId, consistency, bestLapData, identityLabel, laps, coachingReport]);
+  }, [session, sessionId, consistency, bestLapData, identityLabel, laps, coachingReport, convertSpeed, speedUnit]);
 
   return { share, isRendering };
 }

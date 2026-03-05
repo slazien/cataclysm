@@ -10,7 +10,8 @@ export interface ShareCardData {
   consistencyScore: number | null;
   identityLabel: string;
   gpsCoords?: { lat: number[]; lon: number[] };
-  topSpeedMph: number | null;
+  topSpeed: number | null;
+  speedUnit: string;
   skillDimensions: {
     braking: number;
     trailBraking: number;
@@ -314,8 +315,8 @@ export async function renderSessionCard(
   if (data.consistencyScore != null) {
     drawStatPill(ctx, CARD_W / 2, y, `${Math.round(data.consistencyScore * 100)}%`, 'CONSISTENCY');
   }
-  if (data.topSpeedMph != null) {
-    drawStatPill(ctx, CARD_W / 2 + 200, y, `${Math.round(data.topSpeedMph)}`, 'TOP SPEED');
+  if (data.topSpeed != null) {
+    drawStatPill(ctx, CARD_W / 2 + 200, y, `${Math.round(data.topSpeed)} ${data.speedUnit}`, 'TOP SPEED');
   }
 
   // Skill radar chart
