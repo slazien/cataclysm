@@ -755,10 +755,11 @@ git commit -m "feat: piecewise clothoid curvature fitting (P9)"
 
 ## Task 10: Tire Thermal Model (P10)
 
-**Goal:** Simple first-lap warmup multiplier that reduces grip from 0.75 to 1.0 over the first lap, capturing the dominant thermal effect.
+**Goal:** Simple first-lap warmup multiplier that reduces grip from 0.75 to 1.0 over the first lap, capturing the dominant thermal effect. **Extended with per-compound warmup rates** from tire-grip research (`tasks/tire_grip_model_integration_research.md`).
 
 **Files:**
 - Modify: `cataclysm/grip_calibration.py` — add `compute_warmup_factor()`
+- Modify: `cataclysm/equipment.py` — add `warmup_laps` default per `TireCompoundCategory`
 - Modify: `tests/test_grip_calibration.py` — add warmup tests
 
 ### Detailed Design
@@ -779,6 +780,14 @@ def compute_warmup_factor(
     """
 ```
 
+**Per-compound warmup rates** (from tire-grip research):
+- Street tires (400+ TW): `warmup_laps = 0.5` — warm up quickly
+- 200TW Performance: `warmup_laps = 1.0`
+- R-compound (40-100 TW): `warmup_laps = 1.5`
+- Slick: `warmup_laps = 2.5` — need most warmup
+
+Add a `warmup_laps` default per `TireCompoundCategory` in `equipment.py`, similar to the existing `_CATEGORY_ACCEL_G` table. When the user has an equipment profile with a known tire compound, use the compound-specific warmup rate instead of the generic default.
+
 This is applied as a multiplier to the calibrated grip values for first-lap analysis.
 
 ### Step 1: Write failing tests
@@ -786,28 +795,30 @@ This is applied as a multiplier to the calibrated grip values for first-lap anal
 1. `test_warmup_factor_first_lap` — lap 1 → ~0.875 (midpoint of warmup)
 2. `test_warmup_factor_second_lap` — lap 2 → 1.0
 3. `test_warmup_factor_custom_cold` — custom cold_factor
+4. `test_warmup_factor_compound_specific` — R-compound warmup_laps=1.5 vs street warmup_laps=0.5
 
 ### Step 2: Implement
 
 ### Step 3: Quality gates + commit
 
 ```bash
-ruff format cataclysm/grip_calibration.py tests/test_grip_calibration.py
+ruff format cataclysm/grip_calibration.py cataclysm/equipment.py tests/test_grip_calibration.py
 ruff check cataclysm/ tests/
 dmypy run -- cataclysm/
 pytest tests/ -v
-git add cataclysm/grip_calibration.py tests/test_grip_calibration.py
-git commit -m "feat: tire thermal warmup model for first-lap grip reduction (P10)"
+git add cataclysm/grip_calibration.py cataclysm/equipment.py tests/test_grip_calibration.py
+git commit -m "feat: tire thermal warmup model with per-compound rates (P10)"
 ```
 
 ---
 
 ## Task 11: Tire Load Sensitivity (P11)
 
-**Goal:** Model how tire friction decreases with increasing vertical load using a simple degressive formula.
+**Goal:** Model how tire friction decreases with increasing vertical load using a simple degressive formula. **Extended with per-compound load sensitivity exponents** from tire-grip research (`tasks/tire_grip_model_integration_research.md`).
 
 **Files:**
 - Modify: `cataclysm/grip_calibration.py` — add `load_sensitive_mu()`
+- Modify: `cataclysm/equipment.py` — add `load_sensitivity_exponent` default per `TireCompoundCategory`
 - Modify: `tests/test_grip_calibration.py` — add load sensitivity tests
 
 ### Detailed Design
@@ -827,6 +838,27 @@ def load_sensitive_mu(
     """
 ```
 
+**Per-compound load sensitivity** (from tire-grip research):
+
+Power-law model: `Fy = mu_ref * Fz^n` where n < 1 makes grip degressive.
+
+| Compound | Load sensitivity exponent (n) |
+|----------|------------------------------|
+| Street (400+ TW) | ~0.85 (less sensitive) |
+| 200TW Performance | ~0.82 |
+| R-compound (40-100 TW) | ~0.78 (more sensitive) |
+| Slick | ~0.75 (most sensitive) |
+
+Softer compounds have *higher* load sensitivity (lower n) because softer rubber deforms more under high contact pressure. Add `load_sensitivity_exponent` default per `TireCompoundCategory` in `equipment.py`.
+
+**Also add per-compound friction circle shape** (from research):
+- Street: p ≈ 1.8 (diamond-like, less combined grip)
+- 200TW: p ≈ 2.0 (standard ellipse)
+- R-compound: p ≈ 2.2 (more square, better combined grip)
+- Slick: p ≈ 2.3 (most square)
+
+Add `friction_circle_exponent` default per compound in `equipment_to_vehicle_params()`.
+
 This is the lowest-priority item because most of the load sensitivity effect is already captured by the data-driven grip calibration (P0). It's primarily useful when we have vehicle weight data from the equipment system and want to model weight transfer effects explicitly.
 
 ### Step 1: Write failing tests
@@ -834,18 +866,20 @@ This is the lowest-priority item because most of the load sensitivity effect is 
 1. `test_load_sensitivity_higher_load_lower_mu` — more load → lower mu
 2. `test_load_sensitivity_at_reference` — Fz = Fz_ref → mu = mu_ref
 3. `test_load_sensitivity_clamped` — mu never goes below 0.1
+4. `test_compound_specific_load_sensitivity` — R-compound (n=0.78) more sensitive than street (n=0.85)
+5. `test_compound_friction_circle_exponent` — R-compound p=2.2 vs street p=1.8
 
 ### Step 2: Implement
 
 ### Step 3: Quality gates + commit
 
 ```bash
-ruff format cataclysm/grip_calibration.py tests/test_grip_calibration.py
+ruff format cataclysm/grip_calibration.py cataclysm/equipment.py tests/test_grip_calibration.py
 ruff check cataclysm/ tests/
 dmypy run -- cataclysm/
 pytest tests/ -v
-git add cataclysm/grip_calibration.py tests/test_grip_calibration.py
-git commit -m "feat: tire load sensitivity model for weight transfer effects (P11)"
+git add cataclysm/grip_calibration.py cataclysm/equipment.py tests/test_grip_calibration.py
+git commit -m "feat: tire load sensitivity with per-compound exponents (P11)"
 ```
 
 ---
