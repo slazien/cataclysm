@@ -2558,3 +2558,172 @@ class TestFormatCornerPriorities:
         )
         assert "<corner_priorities>" not in prompt
         assert "Weight coaching emphasis proportionally" not in prompt
+
+
+# ---------------------------------------------------------------------------
+# Task 4: build_track_introduction
+# ---------------------------------------------------------------------------
+
+
+def _make_track_layout(
+    name: str = "Test Circuit",
+    length_m: float = 3000.0,
+    elevation_range_m: float = 30.0,
+    n_corners: int = 3,
+) -> "TrackLayout":
+    """Create a TrackLayout with N synthetic corners for testing."""
+    from cataclysm.track_db import OfficialCorner, TrackLayout
+
+    corners = []
+    for i in range(1, n_corners + 1):
+        fraction = i / (n_corners + 1)
+        corners.append(
+            OfficialCorner(
+                number=i,
+                name=f"Corner {i}",
+                fraction=fraction,
+                direction="left" if i % 2 else "right",
+                corner_type="sweeper" if i % 2 else "hairpin",
+                elevation_trend="uphill" if i == 1 else "flat",
+                blind=i == 2,
+                coaching_notes=f"Note for corner {i}.",
+            )
+        )
+    return TrackLayout(
+        name=name,
+        corners=corners,
+        length_m=length_m,
+        elevation_range_m=elevation_range_m,
+    )
+
+
+class TestBuildTrackIntroduction:
+    """Tests for build_track_introduction."""
+
+    def test_none_layout_returns_empty(self) -> None:
+        from cataclysm.coaching import build_track_introduction
+
+        assert build_track_introduction(None) == ""
+
+    def test_empty_corners_returns_empty(self) -> None:
+        from cataclysm.coaching import build_track_introduction
+        from cataclysm.track_db import TrackLayout
+
+        layout = TrackLayout(name="Empty", corners=[], length_m=1000.0)
+        assert build_track_introduction(layout) == ""
+
+    def test_basic_structure(self) -> None:
+        from cataclysm.coaching import build_track_introduction
+
+        layout = _make_track_layout()
+        result = build_track_introduction(layout)
+        assert "<track_introduction>" in result
+        assert "</track_introduction>" in result
+        assert "<overview>" in result
+        assert "Test Circuit" in result
+        assert "3000" in result  # length
+        assert "<corner_guide>" in result
+        # Check corner names
+        assert "Corner 1" in result
+        assert "Corner 2" in result
+        assert "Corner 3" in result
+        # Check coaching notes
+        assert "Note for corner 1" in result
+        # Check blind flag on corner 2
+        assert "blind" in result.lower()
+
+    def test_landmarks_included(self) -> None:
+        from cataclysm.coaching import build_track_introduction
+        from cataclysm.track_db import TrackLayout
+
+        layout = _make_track_layout()
+        # Add landmarks to the layout
+        from cataclysm.landmarks import Landmark, LandmarkType
+
+        layout_with_lm = TrackLayout(
+            name=layout.name,
+            corners=layout.corners,
+            landmarks=[
+                Landmark("Pit entry", 2800.0, LandmarkType.road, description="On the left"),
+                Landmark("T1 board", 100.0, LandmarkType.brake_board),
+            ],
+            length_m=layout.length_m,
+            elevation_range_m=layout.elevation_range_m,
+        )
+        result = build_track_introduction(layout_with_lm)
+        assert "<landmark_guide>" in result
+        assert "Pit entry" in result
+        assert "T1 board" in result
+
+    def test_key_corners_highlighted(self) -> None:
+        """Corners with long straights after them should be identified as key corners."""
+        from cataclysm.coaching import build_track_introduction
+        from cataclysm.track_db import OfficialCorner, TrackLayout
+
+        # Create corners with large fraction gaps (simulating long straights)
+        # Track is 3000m long.  We need fraction_gap * 3000 > 150 for Type A.
+        corners = [
+            OfficialCorner(1, "Hairpin", 0.10, direction="left", corner_type="hairpin"),
+            OfficialCorner(2, "Kink", 0.50, direction="right", corner_type="kink"),
+            OfficialCorner(3, "Sweeper", 0.90, direction="left", corner_type="sweeper"),
+        ]
+        # Gaps: T1->T2 = 0.40*3000 = 1200m, T2->T3 = 0.40*3000 = 1200m
+        # Wrap-around: T3->T1 = (1.0 - 0.90 + 0.10)*3000 = 0.20*3000 = 600m
+        # All > 150m, so all are Type A key corners.  Top 3 by gap length desc.
+        layout = TrackLayout(
+            name="Key Corner Track",
+            corners=corners,
+            length_m=3000.0,
+        )
+        result = build_track_introduction(layout)
+        assert "<key_corners>" in result
+        assert "Hairpin" in result
+        assert "Kink" in result
+
+
+class TestTrackIntroNoviceOnly:
+    """Track introduction should appear only for novice drivers."""
+
+    def test_novice_gets_track_intro(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        layout = _make_track_layout()
+        prompt = _build_coaching_prompt(
+            sample_summaries,
+            sample_all_lap_corners,
+            "Test Track",
+            skill_level="novice",
+            track_layout=layout,
+        )
+        assert "<track_introduction>" in prompt
+        assert "TRACK INTRODUCTION is provided" in prompt
+
+    def test_intermediate_no_track_intro(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        layout = _make_track_layout()
+        prompt = _build_coaching_prompt(
+            sample_summaries,
+            sample_all_lap_corners,
+            "Test Track",
+            skill_level="intermediate",
+            track_layout=layout,
+        )
+        assert "<track_introduction>" not in prompt
+
+    def test_no_layout_no_intro(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        prompt = _build_coaching_prompt(
+            sample_summaries,
+            sample_all_lap_corners,
+            "Test Track",
+            skill_level="novice",
+        )
+        assert "<track_introduction>" not in prompt

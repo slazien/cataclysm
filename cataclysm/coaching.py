@@ -38,6 +38,7 @@ from cataclysm.landmarks import (
 from cataclysm.optimal_comparison import OptimalComparisonResult
 from cataclysm.skill_detection import SkillAssessment, format_skill_for_prompt
 from cataclysm.topic_guardrail import TOPIC_RESTRICTION_PROMPT
+from cataclysm.track_db import OfficialCorner, TrackLayout
 
 logger = logging.getLogger(__name__)
 
@@ -639,6 +640,103 @@ def _format_corner_priorities(profiles: list[CornerLineProfile]) -> str:
     return "\n".join(lines)
 
 
+def build_track_introduction(layout: TrackLayout | None) -> str:
+    """Build a track introduction XML block for novice drivers.
+
+    Returns "" for None layout or empty corners list.
+    Includes overview, corner guide, key corners (Type A by gap analysis),
+    peculiarities (blind, off-camber, crests, compressions), and landmarks.
+    """
+    if layout is None or not layout.corners:
+        return ""
+
+    length_str = f"{layout.length_m:.0f}m" if layout.length_m else "unknown length"
+    elev_str = f"{layout.elevation_range_m:.0f}m" if layout.elevation_range_m else "unknown"
+
+    lines = [
+        "<track_introduction>",
+        "<overview>",
+        f"  {layout.name} | {length_str} | elevation range: {elev_str}",
+        "</overview>",
+        "<corner_guide>",
+    ]
+
+    for c in layout.corners:
+        attrs: list[str] = [f'number="{c.number}"', f'name="{c.name}"']
+        if c.direction:
+            attrs.append(f'direction="{c.direction}"')
+        if c.corner_type:
+            attrs.append(f'type="{c.corner_type}"')
+        if c.elevation_trend:
+            attrs.append(f'elevation="{c.elevation_trend}"')
+        if c.blind:
+            attrs.append('blind="true"')
+        lines.append(f"  <corner {' '.join(attrs)}>")
+        if c.character:
+            lines.append(f"    <character>{c.character}</character>")
+        if c.coaching_notes:
+            lines.append(f"    <coaching_notes>{c.coaching_notes}</coaching_notes>")
+        lines.append("  </corner>")
+
+    lines.append("</corner_guide>")
+
+    # Key corners: identify Type A corners by gap analysis.
+    # A corner is Type A if the fraction gap to the next corner * length_m > 150m.
+    track_len = layout.length_m or 0.0
+    if track_len > 0 and len(layout.corners) >= 2:
+        key_corners: list[tuple[OfficialCorner, float]] = []
+        sorted_corners = sorted(layout.corners, key=lambda c: c.fraction)
+        for i, c in enumerate(sorted_corners):
+            if i + 1 < len(sorted_corners):
+                gap = sorted_corners[i + 1].fraction - c.fraction
+            else:
+                # Wrap-around: last corner to first corner (through S/F)
+                gap = (1.0 - c.fraction) + sorted_corners[0].fraction
+            gap_m = gap * track_len
+            if gap_m > 150:
+                key_corners.append((c, gap_m))
+
+        if key_corners:
+            key_corners.sort(key=lambda x: x[1], reverse=True)
+            lines.append("<key_corners>")
+            for c, gap_m in key_corners[:3]:
+                lines.append(
+                    f'  <corner number="{c.number}" name="{c.name}" '
+                    f'straight_after="{gap_m:.0f}m">Type A — exit speed critical</corner>'
+                )
+            lines.append("</key_corners>")
+
+    # Peculiarities: blind corners, off-camber, crests, compressions
+    peculiarities: list[str] = []
+    for c in layout.corners:
+        if c.blind:
+            peculiarities.append(f"T{c.number} ({c.name}): blind apex/exit")
+        if c.camber == "off-camber" or c.camber == "negative":
+            peculiarities.append(f"T{c.number} ({c.name}): {c.camber} camber")
+        if c.elevation_trend in ("crest", "compression"):
+            peculiarities.append(f"T{c.number} ({c.name}): {c.elevation_trend}")
+
+    if peculiarities:
+        lines.append("<peculiarities>")
+        for p in peculiarities:
+            lines.append(f"  {p}")
+        lines.append("</peculiarities>")
+
+    # Landmarks
+    if layout.landmarks:
+        lines.append("<landmark_guide>")
+        for lm in layout.landmarks:
+            desc_part = f" — {lm.description}" if lm.description else ""
+            lines.append(
+                f'  <landmark name="{lm.name}" type="{lm.landmark_type.value}" '
+                f'distance="{lm.distance_m:.0f}m">{lm.name}{desc_part}</landmark>'
+            )
+        lines.append("</landmark_guide>")
+
+    lines.append("</track_introduction>")
+    return "\n".join(lines)
+
+
 def _build_coaching_prompt(
     summaries: list[LapSummary],
     all_lap_corners: dict[int, list[Corner]],
@@ -658,6 +756,7 @@ def _build_coaching_prompt(
     corners_gained: CornersGainedResult | None = None,
     flow_laps: FlowLapResult | None = None,
     line_profiles: list[CornerLineProfile] | None = None,
+    track_layout: TrackLayout | None = None,
 ) -> str:
     """Build the full coaching prompt for Claude."""
     lap_text = _format_lap_summaries(summaries)
@@ -682,6 +781,17 @@ def _build_coaching_prompt(
         else skill_level
     )
     skill_section = _SKILL_PROMPTS.get(effective_skill, _SKILL_PROMPTS["intermediate"])
+
+    track_intro_section = ""
+    track_intro_instruction = ""
+    if effective_skill == "novice" and track_layout is not None:
+        track_intro_section = build_track_introduction(track_layout)
+        track_intro_instruction = (
+            "\nA TRACK INTRODUCTION is provided. In your summary, help the driver "
+            "understand the track layout and which corners to prioritize. Frame this as "
+            "'here\\'s what matters most at this track' rather than an exhaustive tour "
+            "of every corner. Reference key corners by name.\n"
+        )
 
     landmark_section = ""
     landmark_instruction = ""
@@ -784,12 +894,14 @@ Number of corners: {num_corners} (T1 through T{num_corners})
 {line_analysis_section}
 {session_line_summary}
 {corner_priorities_section}
+{track_intro_section}
 </session_data>
 
 <instructions>
 {corner_analysis_instruction}\
 {landmark_instruction}\
 {line_instruction}\
+{track_intro_instruction}\
 Analyze the FULL session. Look at every lap's data for each corner to identify:
 - Consistency: which corners are repeatable vs high-variance across laps
 - Trends: whether the driver improved or degraded through the session AND WHY \
