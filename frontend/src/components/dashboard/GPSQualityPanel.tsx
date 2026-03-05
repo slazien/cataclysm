@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ChevronDown, ChevronRight, Signal } from 'lucide-react';
 import type { GPSQualityReport } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { useUnits } from '@/hooks/useUnits';
 
 const GRADE_COLORS: Record<string, string> = {
   A: 'text-emerald-400',
@@ -47,6 +48,7 @@ function MetricRow({ label, score, detail, weight }: MetricRowProps) {
 
 export function GPSQualityPanel({ report }: { report: GPSQualityReport }) {
   const [expanded, setExpanded] = useState(false);
+  const { formatDistance } = useUnits();
   const gradeColor = GRADE_COLORS[report.grade] ?? 'text-[var(--text-secondary)]';
 
   return (
@@ -75,7 +77,7 @@ export function GPSQualityPanel({ report }: { report: GPSQualityReport }) {
           <MetricRow
             label="Accuracy"
             score={report.accuracy.score}
-            detail={`p90: ${report.accuracy.p90.toFixed(2)}m`}
+            detail={`p90: ${formatDistance(report.accuracy.p90, 2)}`}
             weight={report.metric_weights.accuracy}
           />
           <MetricRow
@@ -109,7 +111,7 @@ export function GPSQualityPanel({ report }: { report: GPSQualityReport }) {
           <MetricRow
             label="Lateral Scatter"
             score={report.lateral_scatter.score}
-            detail={`p90: ${report.lateral_scatter.scatter_p90.toFixed(2)}m`}
+            detail={`p90: ${formatDistance(report.lateral_scatter.scatter_p90, 2)}`}
             weight={report.metric_weights.lateral_scatter}
           />
         </div>

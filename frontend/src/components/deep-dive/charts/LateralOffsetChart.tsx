@@ -25,6 +25,7 @@ function drawAxes(
   margins: typeof MARGINS,
   distLabel: string,
   convertDist: (m: number) => number,
+  distUnit: string,
 ) {
   ctx.strokeStyle = colors.axis;
   ctx.lineWidth = 1;
@@ -43,7 +44,7 @@ function drawAxes(
     ctx.lineTo(margins.left + innerWidth, y);
     ctx.stroke();
     ctx.fillStyle = colors.axis;
-    ctx.fillText(`${tick.toFixed(1)}`, margins.left - 6, y);
+    ctx.fillText(`${convertDist(tick).toFixed(1)}`, margins.left - 6, y);
   }
 
   // X-axis ticks
@@ -66,7 +67,7 @@ function drawAxes(
   ctx.translate(14, margins.top + innerHeight / 2);
   ctx.rotate(-Math.PI / 2);
   ctx.textAlign = 'center';
-  ctx.fillText('Lateral Offset (m)', 0, 0);
+  ctx.fillText(`Lateral Offset (${distUnit})`, 0, 0);
   ctx.restore();
 }
 
@@ -164,7 +165,7 @@ export function LateralOffsetChart({ sessionId }: LateralOffsetChartProps) {
     }
 
     // Axes
-    drawAxes(ctx, xScale, yScale, dimensions.innerWidth, dimensions.innerHeight, MARGINS, `Distance (${distanceUnit})`, convertDistance);
+    drawAxes(ctx, xScale, yScale, dimensions.innerWidth, dimensions.innerHeight, MARGINS, `Distance (${distanceUnit})`, convertDistance, distanceUnit);
   }, [lineData, corners, xScale, yScale, dimensions, distanceUnit, convertDistance]);
 
   // Mouse handlers
