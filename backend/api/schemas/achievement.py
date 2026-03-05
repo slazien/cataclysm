@@ -15,6 +15,7 @@ class AchievementSchema(BaseModel):
     criteria_value: float
     tier: str
     icon: str
+    category: str = "milestones"
     unlocked: bool = False
     session_id: str | None = None
     unlocked_at: str | None = None

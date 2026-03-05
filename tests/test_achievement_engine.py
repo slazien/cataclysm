@@ -29,9 +29,23 @@ class TestSeedAchievements:
         assert len(ids) == len(set(ids))
 
     def test_tiers_valid(self) -> None:
-        valid_tiers = {"bronze", "silver", "gold"}
+        valid_tiers = {"bronze", "silver", "gold", "platinum"}
         for a in SEED_ACHIEVEMENTS:
             assert a["tier"] in valid_tiers, f"{a['id']} has invalid tier {a['tier']}"
+
+    def test_categories_valid(self) -> None:
+        valid_categories = {
+            "milestones", "laps", "consistency", "braking", "trail_braking", "exploration",
+        }
+        for a in SEED_ACHIEVEMENTS:
+            assert a["category"] in valid_categories, f"{a['id']} has invalid category"
+
+    def test_all_have_category(self) -> None:
+        for a in SEED_ACHIEVEMENTS:
+            assert "category" in a, f"{a['id']} is missing 'category' key"
+
+    def test_expanded_count(self) -> None:
+        assert len(SEED_ACHIEVEMENTS) >= 18, "Expected at least 18 achievements after expansion"
 
 
 class TestCheckAllGrades:
@@ -601,6 +615,54 @@ class TestCheckCriteriaAllGrades:
         mock_db.execute.assert_not_awaited()
 
 
+class TestCheckCriteriaAllTrailGradesA:
+    """Tests for the all_trail_grades_a criteria type."""
+
+    @pytest.mark.asyncio
+    async def test_all_trail_grades_a_passes(self) -> None:
+        """all_trail_grades_a checks trail_braking against {A, A+}."""
+        mock_db = MagicMock()
+        report_result = MagicMock()
+        report_result.scalar.return_value = {
+            "corner_grades": [
+                {"corner": 1, "trail_braking": "A"},
+                {"corner": 2, "trail_braking": "A+"},
+            ]
+        }
+        mock_db.execute = AsyncMock(return_value=report_result)
+
+        defn = _make_defn("all_trail_grades_a")
+        result = await _check_criteria(mock_db, "user-1", "sess-1", defn)
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_all_trail_grades_a_fails_for_b_plus(self) -> None:
+        """B+ on trail_braking should fail for all_trail_grades_a."""
+        mock_db = MagicMock()
+        report_result = MagicMock()
+        report_result.scalar.return_value = {
+            "corner_grades": [
+                {"corner": 1, "trail_braking": "A"},
+                {"corner": 2, "trail_braking": "B+"},
+            ]
+        }
+        mock_db.execute = AsyncMock(return_value=report_result)
+
+        defn = _make_defn("all_trail_grades_a")
+        result = await _check_criteria(mock_db, "user-1", "sess-1", defn)
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_all_trail_grades_a_none_session(self) -> None:
+        """None session_id should short-circuit to False."""
+        mock_db = MagicMock()
+        mock_db.execute = AsyncMock()
+
+        defn = _make_defn("all_trail_grades_a")
+        result = await _check_criteria(mock_db, "user-1", None, defn)
+        assert result is False
+
+
 class TestCheckCriteriaUnknownType:
     """The fallback path for unrecognised criteria types (line 187)."""
 
@@ -646,6 +708,7 @@ class TestGetUserAchievements:
         defn.criteria_value = 1
         defn.tier = "bronze"
         defn.icon = "trophy"
+        defn.category = "milestones"
 
         defn_result = MagicMock()
         defn_result.scalars.return_value.all.return_value = [defn]
@@ -689,6 +752,7 @@ class TestGetUserAchievements:
         defn.criteria_value = 10
         defn.tier = "silver"
         defn.icon = "flame"
+        defn.category = "milestones"
 
         defn_result = MagicMock()
         defn_result.scalars.return_value.all.return_value = [defn]
@@ -726,6 +790,7 @@ class TestGetUserAchievements:
         defn.criteria_value = 100
         defn.tier = "bronze"
         defn.icon = "repeat"
+        defn.category = "laps"
 
         defn_result = MagicMock()
         defn_result.scalars.return_value.all.return_value = [defn]
@@ -745,6 +810,7 @@ class TestGetUserAchievements:
             "criteria_value",
             "tier",
             "icon",
+            "category",
             "unlocked",
             "session_id",
             "unlocked_at",
@@ -803,6 +869,7 @@ class TestGetRecentAchievements:
         defn.criteria_value = 1
         defn.tier = "bronze"
         defn.icon = "trophy"
+        defn.category = "milestones"
 
         join_result = MagicMock()
         join_result.all.return_value = [(ua, defn)]
@@ -861,6 +928,7 @@ class TestGetRecentAchievements:
             defn.criteria_value = 1
             defn.tier = "bronze"
             defn.icon = "trophy"
+            defn.category = "milestones"
 
             return ua, defn
 
@@ -899,6 +967,7 @@ class TestGetRecentAchievements:
         defn.criteria_value = 85
         defn.tier = "gold"
         defn.icon = "target"
+        defn.category = "consistency"
 
         join_result = MagicMock()
         join_result.all.return_value = [(ua, defn)]
@@ -914,6 +983,7 @@ class TestGetRecentAchievements:
             "criteria_value",
             "tier",
             "icon",
+            "category",
             "unlocked",
             "session_id",
             "unlocked_at",

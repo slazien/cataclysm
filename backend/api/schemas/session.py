@@ -73,3 +73,4 @@ class UploadResponse(BaseModel):
 
     session_ids: list[str]
     message: str
+    newly_unlocked: list[str] = []

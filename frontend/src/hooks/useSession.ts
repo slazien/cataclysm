@@ -85,6 +85,29 @@ export function useUploadSessions() {
         store().setUploadProgress(0);
       }, 1500);
 
+      // Show achievement toasts if any were unlocked
+      if (data.newly_unlocked && data.newly_unlocked.length > 0) {
+        // Invalidate achievement queries so BadgeGrid picks up new unlocks
+        queryClient.invalidateQueries({ queryKey: ['achievements'] });
+        // Fetch full achievement details for toast messages
+        try {
+          const achResp = await fetchApi<{ newly_unlocked: Array<{ name: string }> }>(
+            '/api/achievements/recent',
+          );
+          for (const ach of achResp.newly_unlocked) {
+            addToast({ type: 'achievement', message: ach.name, duration: 8000 });
+          }
+        } catch {
+          // Fallback: show generic achievement toast
+          const count = data.newly_unlocked.length;
+          addToast({
+            type: 'achievement',
+            message: `${count} achievement${count > 1 ? 's' : ''} unlocked!`,
+            duration: 8000,
+          });
+        }
+      }
+
       // Check for PB milestones after upload
       try {
         if (data.session_ids.length > 0) {

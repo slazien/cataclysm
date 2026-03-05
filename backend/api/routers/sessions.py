@@ -320,11 +320,25 @@ async def upload_sessions(
             logger.warning("Failed to process %s: %s", f.filename, exc, exc_info=True)
             errors.append(f"{f.filename}: {exc}")
 
+    # Check achievements after all files are processed
+    all_newly_unlocked: list[str] = []
+    if session_ids:
+        try:
+            from backend.api.services.achievement_engine import check_achievements
+
+            for sid in session_ids:
+                unlocked = await check_achievements(db, current_user.user_id, session_id=sid)
+                all_newly_unlocked.extend(unlocked)
+            await db.commit()
+        except Exception:
+            logger.warning("Achievement check failed", exc_info=True)
+            await db.rollback()
+
     msg = f"Processed {len(session_ids)} file(s)"
     if errors:
         msg += f"; {len(errors)} error(s): {'; '.join(errors)}"
 
-    return UploadResponse(session_ids=session_ids, message=msg)
+    return UploadResponse(session_ids=session_ids, message=msg, newly_unlocked=all_newly_unlocked)
 
 
 @router.get("", response_model=SessionList)

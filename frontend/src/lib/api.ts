@@ -78,7 +78,7 @@ export async function fetchApi<T>(
 export async function uploadSessions(
   files: File[],
   onUploadProgress?: (fraction: number) => void,
-): Promise<{ session_ids: string[] }> {
+): Promise<{ session_ids: string[]; newly_unlocked?: string[] }> {
   const formData = new FormData();
   files.forEach((f) => formData.append("files", f));
 

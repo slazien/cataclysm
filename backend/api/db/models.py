@@ -195,8 +195,9 @@ class AchievementDefinition(Base):
     description: Mapped[str] = mapped_column(String, nullable=False)
     criteria_type: Mapped[str] = mapped_column(String, nullable=False)
     criteria_value: Mapped[float] = mapped_column(Float, nullable=False)
-    tier: Mapped[str] = mapped_column(String, nullable=False)  # bronze / silver / gold
+    tier: Mapped[str] = mapped_column(String, nullable=False)  # bronze / silver / gold / platinum
     icon: Mapped[str] = mapped_column(String, nullable=False)
+    category: Mapped[str] = mapped_column(String, nullable=False, server_default="milestones")
 
 
 class UserAchievement(Base):

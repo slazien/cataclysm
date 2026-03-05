@@ -8,7 +8,7 @@ type ActiveView = 'session-report' | 'deep-dive' | 'progress' | 'debrief';
 export interface Toast {
   id: string;
   message: string;
-  type: 'pb' | 'milestone' | 'info';
+  type: 'pb' | 'milestone' | 'info' | 'achievement';
   duration?: number;
 }
 

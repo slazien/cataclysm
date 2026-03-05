@@ -453,6 +453,7 @@ export interface Achievement {
   criteria_value: number;
   tier: string;
   icon: string;
+  category: string;
   unlocked: boolean;
   session_id: string | null;
   unlocked_at: string | null;
