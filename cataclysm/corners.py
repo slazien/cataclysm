@@ -62,6 +62,10 @@ BRAKE_G_THRESHOLD = -0.1  # longitudinal G threshold for braking
 THROTTLE_G_THRESHOLD = 0.1  # longitudinal G threshold for throttle application
 THROTTLE_SUSTAIN_M = 10.0  # throttle must be sustained for this distance
 
+# Apex refinement: if argmin is far from geometric apex, use geo-window instead
+APEX_DISTANCE_FRACTION = 0.4  # max fraction of corner length between speed/geo apex
+APEX_WINDOW_FRACTION = 0.3  # ± fraction of corner length around geo apex for speed search
+
 # Corner type classification thresholds (mph)
 SLOW_CORNER_MPH = 40.0
 MEDIUM_CORNER_MPH = 80.0
@@ -99,6 +103,35 @@ CORNER_TYPE_TIPS: dict[str, str] = {
         "Minimize steering input, use progressive brake release, and trust the car's grip."
     ),
 }
+
+
+def _refine_apex(
+    corner_speed: np.ndarray,
+    argmin_local: int,
+    geo_apex_local: int,
+) -> int:
+    """Refine the speed apex index to avoid boundary artifacts.
+
+    For fast corners (esses, kinks), the global argmin may land at the
+    corner boundary where speed from a *previous* corner's deceleration
+    bleeds in.  If argmin is far from the geometric apex (peak curvature),
+    search for the speed minimum in a window around the geometric apex
+    instead.
+    """
+    n = len(corner_speed)
+    if n == 0:
+        return argmin_local
+
+    # How far is the speed minimum from the geometric apex?
+    dist_fraction = abs(argmin_local - geo_apex_local) / max(n, 1)
+    if dist_fraction <= APEX_DISTANCE_FRACTION:
+        return argmin_local  # close enough — argmin is fine
+
+    # argmin is far from geometry — search near the geometric apex instead
+    half_window = max(1, int(n * APEX_WINDOW_FRACTION))
+    lo = max(0, geo_apex_local - half_window)
+    hi = min(n, geo_apex_local + half_window + 1)
+    return lo + int(np.argmin(corner_speed[lo:hi]))
 
 
 def _compute_heading_rate(heading_deg: np.ndarray, step_m: float) -> np.ndarray:
@@ -304,12 +337,16 @@ def _detect_heading_rate(
             prev_exit = exit_idx
             continue
 
-        apex_local = int(np.argmin(corner_speed))
-        apex_idx = entry_idx + apex_local
+        argmin_local = int(np.argmin(corner_speed))
 
         # Geometric apex = peak curvature (max heading rate) within corner
         corner_rate = smoothed_rate[entry_idx:exit_idx]
-        geo_apex_idx = entry_idx + int(np.argmax(corner_rate))
+        geo_apex_local = int(np.argmax(corner_rate))
+        geo_apex_idx = entry_idx + geo_apex_local
+
+        # Refine: avoid boundary artifacts for fast corners
+        apex_local = _refine_apex(corner_speed, argmin_local, geo_apex_local)
+        apex_idx = entry_idx + apex_local
 
         # Brake point
         brake_idx, peak_g = _find_brake_point(
@@ -401,12 +438,16 @@ def _detect_advanced(
             prev_exit = exit_idx
             continue
 
-        apex_local = int(np.argmin(corner_speed))
-        apex_idx = entry_idx + apex_local
+        argmin_local = int(np.argmin(corner_speed))
 
         # Use curvature peak as geometric apex
         curv_slice = curvature_result.abs_curvature[entry_idx:exit_idx]
-        geo_apex_idx = entry_idx + int(np.argmax(curv_slice))
+        geo_apex_local = int(np.argmax(curv_slice))
+        geo_apex_idx = entry_idx + geo_apex_local
+
+        # Refine: avoid boundary artifacts for fast corners
+        apex_local = _refine_apex(corner_speed, argmin_local, geo_apex_local)
+        apex_idx = entry_idx + apex_local
 
         brake_idx, peak_g = _find_brake_point(
             lon_g,
@@ -556,18 +597,23 @@ def extract_corner_kpis_for_lap(
             prev_exit = exit_idx
             continue
 
-        apex_local = int(np.argmin(corner_speed))
-        apex_idx = entry_idx + apex_local
+        argmin_local = int(np.argmin(corner_speed))
 
         # Geometric apex = peak curvature within corner
         corner_rate = smoothed_rate[entry_idx:exit_idx]
-        geo_apex_idx = entry_idx + int(np.argmax(corner_rate))
+        geo_apex_local = int(np.argmax(corner_rate))
+        geo_apex_idx = entry_idx + geo_apex_local
 
         # Override with spline curvature if available
         if spline_curvature is not None:
             curv_slice = spline_curvature[entry_idx:exit_idx]
             if len(curv_slice) > 0:
-                geo_apex_idx = entry_idx + int(np.argmax(curv_slice))
+                geo_apex_local = int(np.argmax(curv_slice))
+                geo_apex_idx = entry_idx + geo_apex_local
+
+        # Refine: avoid boundary artifacts for fast corners
+        apex_local = _refine_apex(corner_speed, argmin_local, geo_apex_local)
+        apex_idx = entry_idx + apex_local
 
         brake_idx, peak_g = _find_brake_point(
             lon_g, entry_idx, apex_idx, step_m, prev_exit_idx=prev_exit
