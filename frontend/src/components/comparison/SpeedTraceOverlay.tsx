@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from 'react';
 import * as d3 from 'd3';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
+import { useUnits } from '@/hooks/useUnits';
 import { colors, fonts } from '@/lib/design-tokens';
 
 const MARGINS = { top: 16, right: 16, bottom: 36, left: 56 };
@@ -22,6 +23,7 @@ export function SpeedTraceOverlay({
   labelB,
   height = 256,
 }: SpeedTraceOverlayProps) {
+  const { convertSpeed, convertDistance, speedUnit, distanceUnit } = useUnits();
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx } =
     useCanvasChart(MARGINS);
 
@@ -94,7 +96,7 @@ export function SpeedTraceOverlay({
       ctx.lineTo(MARGINS.left + dimensions.innerWidth, y);
       ctx.stroke();
       ctx.fillStyle = colors.axis;
-      ctx.fillText(`${tick}`, MARGINS.left - 6, y);
+      ctx.fillText(`${Math.round(convertSpeed(tick))}`, MARGINS.left - 6, y);
     }
 
     // Draw reference trace (A) — on top of gridlines
@@ -108,7 +110,7 @@ export function SpeedTraceOverlay({
     ctx.textBaseline = 'top';
     for (const tick of xTicks) {
       ctx.fillStyle = colors.axis;
-      ctx.fillText(`${tick}`, xScale(tick), MARGINS.top + dimensions.innerHeight + 6);
+      ctx.fillText(`${Math.round(convertDistance(tick))}`, xScale(tick), MARGINS.top + dimensions.innerHeight + 6);
     }
 
     // Axis labels
@@ -116,7 +118,7 @@ export function SpeedTraceOverlay({
     ctx.font = `11px ${fonts.sans}`;
     ctx.textAlign = 'center';
     ctx.fillText(
-      'Distance (m)',
+      `Distance (${distanceUnit})`,
       MARGINS.left + dimensions.innerWidth / 2,
       MARGINS.top + dimensions.innerHeight + 24,
     );
@@ -125,9 +127,9 @@ export function SpeedTraceOverlay({
     ctx.translate(14, MARGINS.top + dimensions.innerHeight / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = 'center';
-    ctx.fillText('Speed (mph)', 0, 0);
+    ctx.fillText(`Speed (${speedUnit})`, 0, 0);
     ctx.restore();
-  }, [traceA, traceB, xScale, yScale, dimensions, getDataCtx]);
+  }, [traceA, traceB, xScale, yScale, dimensions, getDataCtx, convertSpeed, convertDistance, speedUnit, distanceUnit]);
 
   return (
     <div className="flex flex-col gap-2">

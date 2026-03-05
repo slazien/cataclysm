@@ -23,7 +23,9 @@ function drawAxes(
   innerWidth: number,
   innerHeight: number,
   margins: typeof MARGINS,
-  speedLabel = 'Speed (mph)',
+  speedLabel: string,
+  distLabel: string,
+  convertDist: (m: number) => number,
 ) {
   ctx.strokeStyle = colors.axis;
   ctx.lineWidth = 1;
@@ -54,14 +56,14 @@ function drawAxes(
   for (const tick of xTicks) {
     const x = xScale(tick);
     ctx.fillStyle = colors.axis;
-    ctx.fillText(`${tick}`, x, margins.top + innerHeight + 6);
+    ctx.fillText(`${Math.round(convertDist(tick))}`, x, margins.top + innerHeight + 6);
   }
 
   // Axis labels
   ctx.fillStyle = colors.text.secondary;
   ctx.font = `11px ${fonts.sans}`;
   ctx.textAlign = 'center';
-  ctx.fillText('Distance (m)', margins.left + innerWidth / 2, margins.top + innerHeight + 24);
+  ctx.fillText(distLabel, margins.left + innerWidth / 2, margins.top + innerHeight + 24);
 
   ctx.save();
   ctx.translate(14, margins.top + innerHeight / 2);
@@ -73,7 +75,7 @@ function drawAxes(
 
 export function SpeedTrace({ sessionId }: SpeedTraceProps) {
   const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
-  const { convertSpeed, speedUnit } = useUnits();
+  const { convertSpeed, convertDistance, speedUnit, distanceUnit } = useUnits();
 
   const { data: lapDataArr, isLoading } = useMultiLapData(sessionId, selectedLaps);
   const { data: corners } = useCorners(sessionId);
@@ -151,8 +153,8 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
     }
 
     // Axes
-    drawAxes(ctx, xScale, yScale, dimensions.innerWidth, dimensions.innerHeight, MARGINS, `Speed (${speedUnit})`);
-  }, [lapDataArr, corners, xScale, yScale, dimensions, convertSpeed, speedUnit]);
+    drawAxes(ctx, xScale, yScale, dimensions.innerWidth, dimensions.innerHeight, MARGINS, `Speed (${speedUnit})`, `Distance (${distanceUnit})`, convertDistance);
+  }, [lapDataArr, corners, xScale, yScale, dimensions, convertSpeed, convertDistance, speedUnit, distanceUnit]);
 
   // Mouse handlers as React event props — avoids stale listener bug when
   // canvas unmounts/remounts during loading transitions (useEffect with

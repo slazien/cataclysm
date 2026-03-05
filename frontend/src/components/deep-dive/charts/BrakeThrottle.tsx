@@ -10,12 +10,14 @@ import { useAnalysisStore } from '@/stores';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { colors, fonts } from '@/lib/design-tokens';
 import { CHART_MARGINS as MARGINS, drawCornerZones } from './chartHelpers';
+import { useUnits } from '@/hooks/useUnits';
 
 interface BrakeThrottleProps {
   sessionId: string;
 }
 
 export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
+  const { convertDistance, distanceUnit } = useUnits();
   const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
 
   const { data: lapDataArr, isLoading } = useMultiLapData(sessionId, selectedLaps);
@@ -153,7 +155,7 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
     ctx.textBaseline = 'top';
     for (const tick of xTicks) {
       ctx.fillStyle = colors.axis;
-      ctx.fillText(`${tick}`, xScale(tick), MARGINS.top + dimensions.innerHeight + 6);
+      ctx.fillText(`${Math.round(convertDistance(tick))}`, xScale(tick), MARGINS.top + dimensions.innerHeight + 6);
     }
 
     // Axis labels
@@ -161,7 +163,7 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
     ctx.font = `11px ${fonts.sans}`;
     ctx.textAlign = 'center';
     ctx.fillText(
-      'Distance (m)',
+      `Distance (${distanceUnit})`,
       MARGINS.left + dimensions.innerWidth / 2,
       MARGINS.top + dimensions.innerHeight + 24,
     );
@@ -172,7 +174,7 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
     ctx.textAlign = 'center';
     ctx.fillText('Long. G', 0, 0);
     ctx.restore();
-  }, [lapDataArr, corners, xScale, yScale, dimensions]);
+  }, [lapDataArr, corners, xScale, yScale, dimensions, convertDistance, distanceUnit]);
 
   // Mouse handlers as React event props — avoids stale listener bug when
   // canvas unmounts/remounts during loading transitions.

@@ -10,12 +10,14 @@ import { useAnalysisStore } from '@/stores';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { colors, fonts } from '@/lib/design-tokens';
 import { CHART_MARGINS as MARGINS } from './chartHelpers';
+import { useUnits } from '@/hooks/useUnits';
 
 interface DeltaTProps {
   sessionId: string;
 }
 
 export function DeltaT({ sessionId }: DeltaTProps) {
+  const { convertDistance, distanceUnit } = useUnits();
   const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
 
   const refLap = selectedLaps.length >= 2 ? selectedLaps[0] : null;
@@ -138,7 +140,7 @@ export function DeltaT({ sessionId }: DeltaTProps) {
     ctx.textBaseline = 'top';
     for (const tick of xTicks) {
       ctx.fillStyle = colors.axis;
-      ctx.fillText(`${tick}`, xScale(tick), MARGINS.top + dimensions.innerHeight + 6);
+      ctx.fillText(`${Math.round(convertDistance(tick))}`, xScale(tick), MARGINS.top + dimensions.innerHeight + 6);
     }
 
     // Axis labels
@@ -146,7 +148,7 @@ export function DeltaT({ sessionId }: DeltaTProps) {
     ctx.font = `11px ${fonts.sans}`;
     ctx.textAlign = 'center';
     ctx.fillText(
-      'Distance (m)',
+      `Distance (${distanceUnit})`,
       MARGINS.left + dimensions.innerWidth / 2,
       MARGINS.top + dimensions.innerHeight + 24,
     );
@@ -168,7 +170,7 @@ export function DeltaT({ sessionId }: DeltaTProps) {
         delta.total_delta_s > 0 ? colors.motorsport.brake : colors.motorsport.throttle;
       ctx.fillText(totalStr, MARGINS.left + dimensions.innerWidth - 4, MARGINS.top + 4);
     }
-  }, [delta, xScale, yScale, dimensions]);
+  }, [delta, xScale, yScale, dimensions, convertDistance, distanceUnit]);
 
   // Mouse handlers as React event props — avoids stale listener bug when
   // canvas unmounts/remounts during loading transitions.

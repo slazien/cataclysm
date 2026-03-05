@@ -17,7 +17,7 @@ type SortDir = 'asc' | 'desc';
 
 export function RawDataTable() {
   const { showFeature } = useSkillLevel();
-  const { formatSpeed, formatDistance } = useUnits();
+  const { formatSpeed, formatDistance, speedUnit, distanceUnit, convertSpeed, convertDistance } = useUnits();
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const { data: laps } = useSessionLaps(activeSessionId);
   const [sortKey, setSortKey] = useState<SortKey>('lap_number');
@@ -45,13 +45,13 @@ export function RawDataTable() {
 
   function handleExport() {
     if (!laps) return;
-    const headers = ['Lap', 'Time (s)', 'Clean', 'Distance (m)', 'Max Speed (mph)'];
+    const headers = ['Lap', 'Time (s)', 'Clean', `Distance (${distanceUnit})`, `Max Speed (${speedUnit})`];
     const rows = laps.map((l) => [
       l.lap_number,
       l.lap_time_s?.toFixed(3) ?? '',
       l.is_clean ? 'Yes' : 'No',
-      l.lap_distance_m?.toFixed(1) ?? '',
-      (l.max_speed_mps * MPS_TO_MPH).toFixed(1),
+      l.lap_distance_m != null ? convertDistance(l.lap_distance_m).toFixed(1) : '',
+      convertSpeed(l.max_speed_mps * MPS_TO_MPH).toFixed(1),
     ]);
     const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });

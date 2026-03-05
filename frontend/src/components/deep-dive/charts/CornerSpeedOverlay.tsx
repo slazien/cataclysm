@@ -47,7 +47,9 @@ function drawLabels(
   innerWidth: number,
   innerHeight: number,
   margins: typeof MARGINS,
-  speedLabel = 'Speed (mph)',
+  speedLabel: string,
+  distLabel: string,
+  convertDist: (m: number) => number,
 ) {
   ctx.font = `10px ${fonts.mono}`;
 
@@ -66,14 +68,14 @@ function drawLabels(
   ctx.textBaseline = 'top';
   for (const tick of xTicks) {
     ctx.fillStyle = colors.axis;
-    ctx.fillText(`${tick}`, xScale(tick), margins.top + innerHeight + 6);
+    ctx.fillText(`${Math.round(convertDist(tick))}`, xScale(tick), margins.top + innerHeight + 6);
   }
 
   // Axis labels
   ctx.fillStyle = colors.text.secondary;
   ctx.font = `11px ${fonts.sans}`;
   ctx.textAlign = 'center';
-  ctx.fillText('Distance (m)', margins.left + innerWidth / 2, margins.top + innerHeight + 24);
+  ctx.fillText(distLabel, margins.left + innerWidth / 2, margins.top + innerHeight + 24);
 
   ctx.save();
   ctx.translate(14, margins.top + innerHeight / 2);
@@ -87,7 +89,7 @@ function drawLabels(
 const G_STRIP_RATIO = 0.25;
 
 export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
-  const { convertSpeed, speedUnit } = useUnits();
+  const { convertSpeed, convertDistance, speedUnit, distanceUnit } = useUnits();
   const selectedCorner = useAnalysisStore((s) => s.selectedCorner);
   const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
 
@@ -371,7 +373,7 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
     }
 
     // --- 4. Axis tick labels and axis labels (on top) ---
-    drawLabels(ctx, xScale, yScale, dimensions.innerWidth, speedAreaHeight, MARGINS, `Speed (${speedUnit})`);
+    drawLabels(ctx, xScale, yScale, dimensions.innerWidth, speedAreaHeight, MARGINS, `Speed (${speedUnit})`, `Distance (${distanceUnit})`, convertDistance);
 
     // Entry/apex/exit marker labels
     for (const m of markers) {
@@ -425,7 +427,9 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
     dimensions,
     getDataCtx,
     convertSpeed,
+    convertDistance,
     speedUnit,
+    distanceUnit,
   ]);
 
   if (!selectedCorner || cornerNumber === null) {

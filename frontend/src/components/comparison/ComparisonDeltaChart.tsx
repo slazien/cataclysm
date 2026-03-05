@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from 'react';
 import * as d3 from 'd3';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
+import { useUnits } from '@/hooks/useUnits';
 import { colors, fonts } from '@/lib/design-tokens';
 
 const MARGINS = { top: 16, right: 16, bottom: 36, left: 56 };
@@ -18,6 +19,7 @@ export function ComparisonDeltaChart({
   distanceM,
   deltaTimeS,
 }: ComparisonDeltaChartProps) {
+  const { convertDistance, distanceUnit } = useUnits();
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx } =
     useCanvasChart(MARGINS);
 
@@ -123,7 +125,7 @@ export function ComparisonDeltaChart({
     ctx.textBaseline = 'top';
     for (const tick of xTicks) {
       ctx.fillStyle = colors.axis;
-      ctx.fillText(`${Math.round(tick)}`, xScale(tick), MARGINS.top + dimensions.innerHeight + 6);
+      ctx.fillText(`${Math.round(convertDistance(tick))}`, xScale(tick), MARGINS.top + dimensions.innerHeight + 6);
     }
 
     // Axis labels
@@ -131,7 +133,7 @@ export function ComparisonDeltaChart({
     ctx.font = `11px ${fonts.sans}`;
     ctx.textAlign = 'center';
     ctx.fillText(
-      'Distance (m)',
+      `Distance (${distanceUnit})`,
       MARGINS.left + dimensions.innerWidth / 2,
       MARGINS.top + dimensions.innerHeight + 24,
     );
@@ -149,7 +151,7 @@ export function ComparisonDeltaChart({
     ctx.textBaseline = 'top';
     ctx.fillStyle = colors.text.primary;
     ctx.fillText(`Turn ${cornerNumber}`, MARGINS.left + 4, MARGINS.top + 4);
-  }, [cornerNumber, distanceM, deltaTimeS, xScale, yScale, dimensions, getDataCtx]);
+  }, [cornerNumber, distanceM, deltaTimeS, xScale, yScale, dimensions, getDataCtx, convertDistance, distanceUnit]);
 
   return (
     <div ref={containerRef} className="relative h-full w-full">
