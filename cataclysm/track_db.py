@@ -797,16 +797,48 @@ _DEFAULT_SEVERITY = 1.0
 _KEY_CORNER_MIN_GAP_M = 100.0
 
 
+def _effective_gap_m(
+    idx: int,
+    sorted_corners: list[OfficialCorner],
+    track_len: float,
+) -> float:
+    """Gap from corner *idx* to the next braking corner.
+
+    Flat-out corners (character="flat") are taken at full throttle and don't
+    interrupt the acceleration zone, so we skip over them.  Lift corners
+    still require steering and brief deceleration, so they DO count as the
+    end of a "straight."
+    """
+    n = len(sorted_corners)
+    cur_frac = sorted_corners[idx].fraction
+    # Walk forward, skipping only flat-out corners
+    for step in range(1, n):
+        j = (idx + step) % n
+        nxt = sorted_corners[j]
+        if nxt.character == "flat":
+            continue
+        # Found the next non-flat corner
+        nxt_frac = nxt.fraction
+        if nxt_frac > cur_frac:
+            return (nxt_frac - cur_frac) * track_len
+        # Wrapped around
+        return (1.0 - cur_frac + nxt_frac) * track_len
+    # All other corners are flat — entire track is a "straight"
+    return track_len
+
+
 def get_key_corners(layout: TrackLayout) -> list[tuple[OfficialCorner, float]]:
     """Identify the most important corners for lap time.
 
     Uses a composite score that combines straight length after the corner
     (Type A factor) with corner severity (speed-delta proxy from corner_type).
-    Flat-out corners are excluded since they have no braking/technique element.
+    Flat-out and lift corners are excluded since they have minimal technique
+    element.  When computing the gap, flat-out and lift corners are skipped
+    so the effective "straight" extends to the next real braking corner.
 
     Returns up to 5 results sorted by composite score descending.
-    The second element of each tuple is the straight length after the corner
-    in meters (preserving the existing API contract).
+    The second element of each tuple is the effective straight length after
+    the corner in meters.
     """
     track_len = layout.length_m or 0.0
     if track_len <= 0 or len(layout.corners) < 2:
@@ -816,16 +848,11 @@ def get_key_corners(layout: TrackLayout) -> list[tuple[OfficialCorner, float]]:
     candidates: list[tuple[OfficialCorner, float, float]] = []
     sorted_corners = sorted(layout.corners, key=lambda c: c.fraction)
     for i, c in enumerate(sorted_corners):
-        # Skip flat-out corners — no braking, no technique element
-        if c.character == "flat":
+        # Skip flat-out and lift corners — no meaningful braking/technique
+        if c.character in ("flat", "lift"):
             continue
 
-        if i + 1 < len(sorted_corners):
-            gap = sorted_corners[i + 1].fraction - c.fraction
-        else:
-            # Wrap-around: last corner to first corner (through S/F)
-            gap = (1.0 - c.fraction) + sorted_corners[0].fraction
-        gap_m = gap * track_len
+        gap_m = _effective_gap_m(i, sorted_corners, track_len)
         if gap_m > _KEY_CORNER_MIN_GAP_M:
             severity = _CORNER_TYPE_SEVERITY.get(c.corner_type or "", _DEFAULT_SEVERITY)
             score = gap_m * severity
