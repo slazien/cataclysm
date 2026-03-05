@@ -666,8 +666,8 @@ async def get_line_analysis(
             corner_profiles=corner_profiles,
             distance_m=[],
             traces=[],
-            reference_e=ref.e[:len(ref.e)].tolist(),
-            reference_n=ref.n[:len(ref.n)].tolist(),
+            reference_e=ref.e.tolist(),
+            reference_n=ref.n.tolist(),
             n_laps_used=ref.n_laps_used,
         )
 
