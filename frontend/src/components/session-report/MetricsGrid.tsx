@@ -38,21 +38,25 @@ export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced }
           label="Best Lap"
           value={bestLap != null ? formatTime(bestLap) : '\u2014'}
           highlight="pb"
+          helpKey="metric.best-lap"
         />
         {!isNovice && (
           <MetricCard
             label="Top 3 Average"
             value={top3Avg != null ? formatTime(top3Avg) : '\u2014'}
             subtitle="Pace benchmark"
+            helpKey="metric.top3-avg"
           />
         )}
         <MetricCard
           label="Clean Laps"
           value={`${session?.n_clean_laps ?? '\u2014'} / ${nLaps ?? '\u2014'}`}
           subtitle="Total laps driven"
+          helpKey="metric.clean-laps"
         />
         <MetricCard
           label="Consistency"
+          helpKey="metric.consistency"
           value={consistencyScore != null ? `${consistencyScore.toFixed(0)}%` : '\u2014'}
           highlight={consistencyScore != null ? (consistencyScore >= 80 ? 'good' : consistencyScore >= 60 ? 'none' : 'bad') : 'none'}
         />
@@ -61,6 +65,7 @@ export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced }
             label="Pace Spread"
             value={`${((top3Avg - bestLap) * 1000).toFixed(0)}ms`}
             subtitle="Top 3 avg - best lap"
+            helpKey="metric.pace-spread"
           />
         )}
       </m.div>

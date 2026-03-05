@@ -8,6 +8,7 @@ import { useAnimationFrame } from '@/hooks/useAnimationFrame';
 import { useGGDiagram } from '@/hooks/useAnalysis';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { colors, fonts } from '@/lib/design-tokens';
+import { InfoTooltip } from '@/components/shared/InfoTooltip';
 import type { GGPoint, CornerGGSummary } from '@/lib/types';
 
 const MARGINS = { top: 36, right: 24, bottom: 36, left: 48 };
@@ -358,8 +359,9 @@ export function GGDiagramChart({ sessionId }: GGDiagramChartProps) {
             <span className="text-2xl font-bold tabular-nums text-[var(--text-primary)]">
               {Math.round(ggData.overall_utilization_pct)}%
             </span>
-            <span className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
               Grip Utilization
+              <InfoTooltip helpKey="chart.gg-diagram" />
             </span>
           </div>
           <p className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">

@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { InfoTooltip } from '@/components/shared/InfoTooltip';
 import { motion as motionTokens } from '@/lib/design-tokens';
 import { useRecentAchievements } from '@/hooks/useAchievements';
 import { BadgeGrid } from '@/components/achievements/BadgeGrid';
@@ -402,19 +403,23 @@ export function ProgressView() {
               label="Best Lap"
               value={formatTimeShort(heroMetrics.bestLap)}
               highlight="pb"
+              helpKey="metric.best-lap"
             />
             <MetricCard
               label="Top 3 Average"
               value={formatTimeShort(heroMetrics.latestTop3)}
               subtitle="Latest session"
+              helpKey="metric.top3-avg"
             />
             <MetricCard
               label="Sessions"
               value={heroMetrics.sessionCount}
               subtitle={trendData.track_name}
+              helpKey="metric.sessions"
             />
             <MetricCard
               label="Consistency"
+              helpKey="metric.consistency"
               value={heroMetrics.latestConsistency.toFixed(0)}
               subtitle={
                 heroMetrics.consistencyDelta !== undefined
@@ -482,7 +487,10 @@ export function ProgressView() {
 
         {/* 5. Milestone Timeline */}
         <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-          <h3 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Milestone Timeline</h3>
+          <h3 className="mb-2 flex items-center gap-1.5 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">
+            Milestone Timeline
+            <InfoTooltip helpKey="chart.milestone-timeline" />
+          </h3>
           <ChartErrorBoundary name="Milestone Timeline">
             <MilestoneTimeline sessions={trendData.sessions} milestones={milestones} />
           </ChartErrorBoundary>
@@ -496,7 +504,10 @@ export function ProgressView() {
         {/* 6. Two-column trend charts */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-            <h3 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Lap Time Trend</h3>
+            <h3 className="mb-2 flex items-center gap-1.5 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">
+              Lap Time Trend
+              <InfoTooltip helpKey="chart.lap-time-trend" />
+            </h3>
             <div className="h-[260px]">
               <ChartErrorBoundary name="Lap Time Trend">
                 <LapTimeTrend
@@ -510,8 +521,9 @@ export function ProgressView() {
             </div>
           </div>
           <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-            <h3 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">
+            <h3 className="mb-2 flex items-center gap-1.5 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">
               Consistency Trend
+              <InfoTooltip helpKey="chart.consistency-trend" />
             </h3>
             <div className="h-[260px]">
               <ChartErrorBoundary name="Consistency Trend">
@@ -533,7 +545,10 @@ export function ProgressView() {
                 'rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4',
                 !showBothSkillCharts && 'lg:col-span-2',
               )}>
-                <h3 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Corner Heatmap</h3>
+                <h3 className="mb-2 flex items-center gap-1.5 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">
+                  Corner Heatmap
+                  <InfoTooltip helpKey="chart.corner-heatmap" />
+                </h3>
                 <div className="h-[280px]">
                   <ChartErrorBoundary name="Corner Heatmap">
                     <CornerHeatmap
@@ -551,8 +566,9 @@ export function ProgressView() {
                 'rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4',
                 !showBothSkillCharts && 'lg:col-span-2',
               )}>
-                <h3 className="mb-2 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">
+                <h3 className="mb-2 flex items-center gap-1.5 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">
                   Session Lap Time Distribution
+                  <InfoTooltip helpKey="chart.session-boxplot" />
                 </h3>
                 <div className="h-[280px]">
                   <ChartErrorBoundary name="Session Box Plot">

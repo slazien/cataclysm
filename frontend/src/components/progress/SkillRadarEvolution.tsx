@@ -11,6 +11,7 @@ import {
   SKILL_AXES,
 } from '@/lib/skillDimensions';
 import { ChartErrorBoundary } from '@/components/shared/ChartErrorBoundary';
+import { InfoTooltip } from '@/components/shared/InfoTooltip';
 import { cn } from '@/lib/utils';
 
 interface SkillRadarEvolutionProps {
@@ -118,8 +119,9 @@ export function SkillRadarEvolution({ sessionId, trackName }: SkillRadarEvolutio
       {/* Header */}
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <h3 className="font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">
+          <h3 className="flex items-center gap-1.5 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">
             Skill Evolution
+            <InfoTooltip helpKey="chart.skill-radar-evolution" />
           </h3>
           <p className="text-xs text-[var(--text-muted)]">{trackName}</p>
         </div>

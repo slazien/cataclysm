@@ -229,6 +229,7 @@ export function SessionDashboard() {
           value={formatLapTime(session.best_lap_time_s ?? 0)}
           subtitle={`Lap ${bestLapNumber ?? '--'}`}
           highlight="pb"
+          helpKey="metric.best-lap"
         />
 
         <MetricCard
@@ -236,6 +237,7 @@ export function SessionDashboard() {
           value={formatLapTime(session.top3_avg_time_s ?? 0)}
           delta={(session.top3_avg_time_s ?? 0) - (session.best_lap_time_s ?? 0)}
           deltaLabel="vs best"
+          helpKey="metric.top3-avg"
         />
 
         <MetricCard
@@ -243,6 +245,7 @@ export function SessionDashboard() {
           value={formatLapTime(session.avg_lap_time_s ?? 0)}
           delta={(session.avg_lap_time_s ?? 0) - (session.best_lap_time_s ?? 0)}
           deltaLabel="vs best"
+          helpKey="metric.session-avg"
         />
       </m.div>
 
@@ -285,6 +288,7 @@ export function SessionDashboard() {
       >
         <MetricCard
           label="Consistency"
+          helpKey="metric.consistency"
           value={
             consistency?.lap_consistency
               ? `${Math.round(normalizeScore(consistency.lap_consistency.consistency_score))}%`
@@ -306,6 +310,7 @@ export function SessionDashboard() {
 
         <MetricCard
           label="Clean Laps"
+          helpKey="metric.clean-laps"
           value={`${session.n_clean_laps ?? 0} / ${session.n_laps ?? 0}`}
           subtitle={
             (session.n_laps ?? 0) > 0
@@ -321,11 +326,13 @@ export function SessionDashboard() {
 
         <MetricCard
           label="Top Speed"
+          helpKey="metric.top-speed"
           value={topSpeedMph !== null ? formatSpeed(topSpeedMph) : '--'}
         />
 
         <MetricCard
           label="Optimal Lap"
+          helpKey="metric.optimal-lap"
           value={idealLapInfo ? formatLapTime(idealLapInfo.time) : '--'}
           delta={idealLapInfo ? idealLapInfo.delta : undefined}
           deltaLabel={idealLapInfo ? 'potential gain' : undefined}

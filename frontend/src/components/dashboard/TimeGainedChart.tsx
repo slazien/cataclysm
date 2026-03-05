@@ -5,6 +5,7 @@ import { motion } from 'motion/react';
 import { useGains } from '@/hooks/useAnalysis';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
 import { SkeletonCard } from '@/components/shared/SkeletonCard';
+import { InfoTooltip } from '@/components/shared/InfoTooltip';
 
 interface CornerGain {
   name: string;
@@ -139,8 +140,9 @@ export function TimeGainedChart({ sessionId }: TimeGainedChartProps) {
 
   return (
     <div className="rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-      <h3 className="mb-1 text-sm font-semibold text-[var(--text-primary)]">
+      <h3 className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-[var(--text-primary)]">
         Time Left on Table by Corner
+        <InfoTooltip helpKey="chart.time-gained" />
       </h3>
       <p className="mb-3 text-[10px] text-[var(--text-tertiary)]">
         Average vs. personal best per corner — where to focus practice

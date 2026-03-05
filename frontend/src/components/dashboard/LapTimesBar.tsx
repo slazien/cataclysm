@@ -9,6 +9,7 @@ import { formatLapTime } from '@/lib/formatters';
 import { colors, fonts } from '@/lib/design-tokens';
 import { useUnits } from '@/hooks/useUnits';
 import { AiInsight } from '@/components/shared/AiInsight';
+import { InfoTooltip } from '@/components/shared/InfoTooltip';
 import type { LapSummary } from '@/lib/types';
 
 interface LapTimesBarProps {
@@ -372,8 +373,9 @@ export function LapTimesBar({ sessionId }: LapTimesBarProps) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-4">
-        <h2 className="text-sm font-medium uppercase tracking-wider text-[var(--text-muted)]">
+        <h2 className="flex items-center gap-1.5 text-sm font-medium uppercase tracking-wider text-[var(--text-muted)]">
           Lap Times
+          <InfoTooltip helpKey="chart.lap-times-bar" />
         </h2>
         <div className="flex items-center gap-3 text-xs text-[var(--text-secondary)]">
           <span className="flex items-center gap-1.5">

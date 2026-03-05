@@ -10,6 +10,7 @@ import { DeltaTimeChart } from '@/components/comparison/DeltaTimeChart';
 import { ComparisonTrackMap } from '@/components/comparison/ComparisonTrackMap';
 import { SpeedTraceOverlay } from '@/components/comparison/SpeedTraceOverlay';
 import { RadarChart } from '@/components/shared/RadarChart';
+import { InfoTooltip } from '@/components/shared/InfoTooltip';
 import type { ShareComparisonResult } from '@/lib/types';
 
 interface ComparisonDeepDiveProps {
@@ -90,8 +91,9 @@ export function ComparisonDeepDive({
       {/* 1. Delta Track Map */}
       {comparison.track_coords && comparison.distance_m.length > 0 && (
         <section className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-          <h3 className="mb-1 text-sm font-medium text-[var(--text-primary)]">
+          <h3 className="mb-1 flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)]">
             Delta Map
+            <InfoTooltip helpKey="chart.driving-line" />
           </h3>
           <p className="mb-3 text-xs text-[var(--text-secondary)]">
             Green = {inviterName} gaining, Red = {inviterName} losing
@@ -110,8 +112,9 @@ export function ComparisonDeepDive({
       {/* 2. Time Delta Chart */}
       {comparison.distance_m.length > 0 && (
         <section className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-          <h3 className="mb-3 text-sm font-medium text-[var(--text-primary)]">
+          <h3 className="mb-3 flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)]">
             Time Delta Over Distance
+            <InfoTooltip helpKey="chart.delta-t" />
           </h3>
           <div className="h-64">
             <DeltaTimeChart
@@ -126,8 +129,9 @@ export function ComparisonDeepDive({
       {/* 3. Speed Comparison */}
       {comparison.speed_traces && (
         <section className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-          <h3 className="mb-3 text-sm font-medium text-[var(--text-primary)]">
+          <h3 className="mb-3 flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)]">
             Speed Comparison
+            <InfoTooltip helpKey="chart.speed-trace" />
           </h3>
           <SpeedTraceOverlay
             traceA={comparison.speed_traces.a}
@@ -142,8 +146,9 @@ export function ComparisonDeepDive({
       {/* 4. Skill Comparison Radar */}
       {radarDatasets && (
         <section className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-          <h3 className="mb-3 text-sm font-medium text-[var(--text-primary)]">
+          <h3 className="mb-3 flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)]">
             Skill Comparison
+            <InfoTooltip helpKey="chart.skill-radar" />
           </h3>
           <div className="flex flex-col items-center gap-3">
             <RadarChart axes={SKILL_AXES} datasets={radarDatasets} size={240} />

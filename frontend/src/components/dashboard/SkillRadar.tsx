@@ -10,6 +10,7 @@ import {
   dimensionsToArray,
   SKILL_AXES,
 } from '@/lib/skillDimensions';
+import { InfoTooltip } from '@/components/shared/InfoTooltip';
 interface SkillRadarProps {
   sessionId: string;
 }
@@ -109,7 +110,10 @@ export function SkillRadar({ sessionId }: SkillRadarProps) {
     <div className="self-start rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
       {/* Header */}
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-[var(--text-primary)]">Skill Profile</h3>
+        <h3 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--text-primary)]">
+          Skill Profile
+          <InfoTooltip helpKey="chart.skill-radar" />
+        </h3>
         <div className="flex items-center gap-2">
           {hasHistory && (
             <button

@@ -9,6 +9,7 @@ import { MarkdownText } from '@/components/shared/MarkdownText';
 import { motion as motionTokens } from '@/lib/design-tokens';
 import { useUnits } from '@/hooks/useUnits';
 import { formatCoachingText } from '@/lib/textUtils';
+import { InfoTooltip } from '@/components/shared/InfoTooltip';
 import type { CornerGrade } from '@/lib/types';
 
 const rowVariants = {
@@ -46,16 +47,27 @@ export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
 
   return (
     <div>
-      <h3 className="mb-3 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Corner Grades</h3>
+      <h3 className="mb-3 flex items-center gap-1.5 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">
+        Corner Grades
+        <InfoTooltip helpKey="section.corner-grades" />
+      </h3>
       <div className="overflow-x-auto rounded-lg border border-[var(--cata-border)]">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--cata-border)] bg-[var(--bg-surface)]">
               <th className="px-2 py-1.5 text-left font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">Corner</th>
-              <th className="px-2 py-1.5 text-center font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">Braking</th>
-              <th className="px-2 py-1.5 text-center font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">Trail Braking</th>
-              <th className="px-2 py-1.5 text-center font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">Min Speed</th>
-              <th className="px-2 py-1.5 text-center font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">Throttle</th>
+              <th className="px-2 py-1.5 text-center font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">
+                <span className="inline-flex items-center gap-1">Braking <InfoTooltip helpKey="grade.braking" side="bottom" /></span>
+              </th>
+              <th className="px-2 py-1.5 text-center font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">
+                <span className="inline-flex items-center gap-1">Trail Braking <InfoTooltip helpKey="grade.trail-braking" side="bottom" /></span>
+              </th>
+              <th className="px-2 py-1.5 text-center font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">
+                <span className="inline-flex items-center gap-1">Min Speed <InfoTooltip helpKey="grade.min-speed" side="bottom" /></span>
+              </th>
+              <th className="px-2 py-1.5 text-center font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">
+                <span className="inline-flex items-center gap-1">Throttle <InfoTooltip helpKey="grade.throttle" side="bottom" /></span>
+              </th>
             </tr>
           </thead>
           <m.tbody

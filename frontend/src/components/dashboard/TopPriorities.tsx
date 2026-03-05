@@ -8,6 +8,7 @@ import { useAutoReport } from '@/hooks/useAutoReport';
 import { useUiStore, useAnalysisStore } from '@/stores';
 import { useUnits } from '@/hooks/useUnits';
 import { cn } from '@/lib/utils';
+import { InfoTooltip } from '@/components/shared/InfoTooltip';
 import type { PriorityCorner } from '@/lib/types';
 
 interface TopPrioritiesProps {
@@ -126,8 +127,9 @@ export function TopPriorities({ sessionId }: TopPrioritiesProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium uppercase tracking-wider text-[var(--text-muted)]">
+      <h2 className="flex items-center gap-1.5 text-sm font-medium uppercase tracking-wider text-[var(--text-muted)]">
         Top Priorities
+        <InfoTooltip helpKey="section.top-priorities" />
       </h2>
       {isSkillMismatch && report.skill_level && (
         <SkillLevelMismatchBanner

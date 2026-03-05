@@ -8,6 +8,7 @@ import { formatLapTime } from '@/lib/formatters';
 import { Button } from '@/components/ui/button';
 import { DeltaTimeChart } from './DeltaTimeChart';
 import { ComparisonTrackMap } from './ComparisonTrackMap';
+import { InfoTooltip } from '@/components/shared/InfoTooltip';
 import type { ComparisonResult } from '@/lib/types';
 import { ConditionsMismatchAlert } from '@/components/shared/ConditionsMismatchAlert';
 
@@ -214,8 +215,9 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
       {/* Delta-colored track map */}
       {data.track_coords && data.distance_m.length > 0 && (
         <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-          <h2 className="mb-1 text-sm font-medium text-[var(--text-primary)]">
+          <h2 className="mb-1 flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)]">
             Delta Map
+            <InfoTooltip helpKey="chart.driving-line" />
           </h2>
           <p className="mb-3 text-xs text-[var(--text-secondary)]">
             Green = Session A gaining time, Red = Session A losing time
@@ -234,8 +236,9 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
       {/* Delta-T Chart */}
       {data.distance_m.length > 0 && (
         <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-          <h2 className="mb-3 text-sm font-medium text-[var(--text-primary)]">
+          <h2 className="mb-3 flex items-center gap-1.5 text-sm font-medium text-[var(--text-primary)]">
             Delta-T Over Distance
+            <InfoTooltip helpKey="chart.delta-t" />
           </h2>
           <p className="mb-4 text-xs text-[var(--text-secondary)]">
             Green = Session A gaining time, Red = Session A losing time

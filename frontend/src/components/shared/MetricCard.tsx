@@ -3,6 +3,7 @@
 import { motion as m } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { motion as motionTokens } from '@/lib/design-tokens';
+import { InfoTooltip } from './InfoTooltip';
 
 type Highlight = 'pb' | 'good' | 'bad' | 'none';
 
@@ -13,6 +14,7 @@ interface MetricCardProps {
   delta?: number;
   deltaLabel?: string;
   highlight?: Highlight;
+  helpKey?: string;
   className?: string;
 }
 
@@ -35,6 +37,7 @@ export function MetricCard({
   delta,
   deltaLabel,
   highlight = 'none',
+  helpKey,
   className,
 }: MetricCardProps) {
   const isPositive = delta !== undefined && delta > 0;
@@ -52,8 +55,9 @@ export function MetricCard({
         className,
       )}
     >
-      <p className="truncate font-[family-name:var(--font-display)] text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
-        {label}
+      <p className="flex items-center gap-1 font-[family-name:var(--font-display)] text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+        <span className="truncate">{label}</span>
+        {helpKey && <InfoTooltip helpKey={helpKey} />}
       </p>
       <p className="mt-0.5 truncate font-[family-name:var(--font-display)] text-base font-semibold tracking-tight tabular-nums text-[var(--text-primary)] sm:text-lg">
         {value}

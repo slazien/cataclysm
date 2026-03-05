@@ -15,6 +15,7 @@ import { parseCornerNumber } from '@/lib/cornerUtils';
 import { useUnits } from '@/hooks/useUnits';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
 import { gradeExplanation } from '@/lib/skill-content';
+import { InfoTooltip } from '@/components/shared/InfoTooltip';
 import type { Corner, CornerGrade, PriorityCorner } from '@/lib/types';
 
 interface CornerDetailPanelProps {
@@ -245,8 +246,9 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
       {/* Per-category grades */}
       {cornerGrade && (
         <div className="space-y-0.5">
-          <h4 className="mb-1 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+          <h4 className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
             Grades
+            <InfoTooltip helpKey="section.corner-grades" />
           </h4>
           {cornerGrade.braking && (
             <GradeRow
