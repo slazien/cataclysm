@@ -17,6 +17,7 @@ from typing import Any
 
 from cataclysm.consistency import compute_session_consistency
 from cataclysm.constants import MPS_TO_MPH
+from cataclysm.corner_line import analyze_corner_lines
 from cataclysm.corners import Corner, detect_corners, extract_corner_kpis_for_lap
 from cataclysm.curvature import compute_curvature
 from cataclysm.elevation import compute_corner_elevation, enrich_corners_with_elevation
@@ -28,6 +29,11 @@ from cataclysm.gains import (
     compute_segment_times,
     estimate_gains,
     reconstruct_ideal_lap,
+)
+from cataclysm.gps_line import (
+    build_gps_trace,
+    compute_reference_centerline,
+    should_enable_line_analysis,
 )
 from cataclysm.gps_quality import GPSQualityReport, assess_gps_quality
 from cataclysm.grip import estimate_grip_limit
@@ -69,6 +75,41 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
     except (ValueError, KeyError, IndexError):
         logger.warning("Failed to assess GPS quality for %s", filename, exc_info=True)
 
+    # 3c. Line analysis: GPS traces + reference centerline (requires grade A/B)
+    gps_traces = []
+    reference_centerline = None
+    line_ok = gps_quality is not None and should_enable_line_analysis(gps_quality)
+    if line_ok and len(coaching_laps) >= 3:
+        try:
+            # Shared ENU origin: first point of first coaching lap
+            first_lap_df = processed.resampled_laps[coaching_laps[0]]
+            lat0 = float(first_lap_df["lat"].iloc[0])
+            lon0 = float(first_lap_df["lon"].iloc[0])
+
+            for lap_num in coaching_laps:
+                lap_df = processed.resampled_laps[lap_num]
+                trace = build_gps_trace(
+                    lat=lap_df["lat"].to_numpy(),
+                    lon=lap_df["lon"].to_numpy(),
+                    distance_m=lap_df["lap_distance_m"].to_numpy(),
+                    lap_number=lap_num,
+                    lat0=lat0,
+                    lon0=lon0,
+                )
+                gps_traces.append(trace)
+
+            reference_centerline = compute_reference_centerline(gps_traces)
+            logger.info(
+                "Line analysis: %d traces, ref=%s for %s",
+                len(gps_traces),
+                reference_centerline is not None,
+                filename,
+            )
+        except (ValueError, KeyError, IndexError):
+            logger.warning("Failed line analysis for %s", filename, exc_info=True)
+            gps_traces = []
+            reference_centerline = None
+
     # 4. Detect corners (track_db lookup first, fallback to detect_corners)
     best_lap_df = processed.resampled_laps[processed.best_lap]
     layout = detect_track_or_lookup(parsed.data, parsed.metadata.track_name)
@@ -94,6 +135,19 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
             enrich_corners_with_elevation(all_lap_corners, elev)
     except (ValueError, KeyError, IndexError):
         logger.warning("Failed to compute elevation for %s", filename, exc_info=True)
+
+    # 5c. Corner line analysis (if reference centerline available)
+    corner_line_profiles = []
+    if reference_centerline is not None and gps_traces and corners:
+        try:
+            corner_line_profiles = analyze_corner_lines(gps_traces, reference_centerline, corners)
+            logger.info(
+                "Corner line profiles: %d corners analysed for %s",
+                len(corner_line_profiles),
+                filename,
+            )
+        except (ValueError, KeyError, IndexError):
+            logger.warning("Failed corner line analysis for %s", filename, exc_info=True)
 
     # 6. Compute consistency
     consistency = None
@@ -165,6 +219,9 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
         gps_quality=gps_quality,
         coaching_laps=coaching_laps,
         anomalous_laps=anomalous,
+        gps_traces=gps_traces,
+        reference_centerline=reference_centerline,
+        corner_line_profiles=corner_line_profiles,
     )
 
 

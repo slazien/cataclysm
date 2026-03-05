@@ -15,10 +15,12 @@ import logging
 from dataclasses import dataclass, field
 
 from cataclysm.consistency import SessionConsistency
+from cataclysm.corner_line import CornerLineProfile
 from cataclysm.corners import Corner
 from cataclysm.engine import ProcessedSession
 from cataclysm.equipment import SessionConditions
 from cataclysm.gains import GainEstimate
+from cataclysm.gps_line import GPSTrace, ReferenceCenterline
 from cataclysm.gps_quality import GPSQualityReport
 from cataclysm.grip import GripEstimate
 from cataclysm.lap_tags import LapTagStore
@@ -47,6 +49,10 @@ class SessionData:
     coaching_laps: list[int] = field(default_factory=list)
     anomalous_laps: set[int] = field(default_factory=set)
     user_id: str | None = None
+    # Line analysis (Phase 5) — populated when GPS quality is A or B
+    gps_traces: list[GPSTrace] = field(default_factory=list)
+    reference_centerline: ReferenceCenterline | None = None
+    corner_line_profiles: list[CornerLineProfile] = field(default_factory=list)
 
 
 # Maximum sessions to keep in memory before evicting oldest.
