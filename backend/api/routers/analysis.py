@@ -643,6 +643,34 @@ async def get_line_analysis(
         lap_set = set(laps)
         traces = [t for t in traces if t.lap_number in lap_set]
 
+    if not traces:
+        corner_profiles = [
+            CornerLineProfileSchema(
+                corner_number=p.corner_number,
+                n_laps=p.n_laps,
+                d_entry_median=round(p.d_entry_median, 2),
+                d_apex_median=round(p.d_apex_median, 2),
+                d_exit_median=round(p.d_exit_median, 2),
+                apex_fraction_median=round(p.apex_fraction_median, 3),
+                d_apex_sd=round(p.d_apex_sd, 3),
+                line_error_type=p.line_error_type,
+                severity=p.severity,
+                consistency_tier=p.consistency_tier,
+                allen_berg_type=p.allen_berg_type,
+            )
+            for p in sd.corner_line_profiles
+        ]
+        return LineAnalysisResponse(
+            session_id=session_id,
+            available=True,
+            corner_profiles=corner_profiles,
+            distance_m=[],
+            traces=[],
+            reference_e=ref.e[:len(ref.e)].tolist(),
+            reference_n=ref.n[:len(ref.n)].tolist(),
+            n_laps_used=ref.n_laps_used,
+        )
+
     # Compute lateral offsets for requested traces
     min_len = min(len(t.e) for t in traces)
     min_len = min(min_len, len(ref.e))

@@ -191,6 +191,27 @@ async def test_line_analysis_not_available(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_line_analysis_nonexistent_lap_filter(client: AsyncClient) -> None:
+    """GET /line-analysis?laps=999 returns available with empty traces."""
+    session_id = await _upload_session(client)
+    _inject_line_analysis(session_id)
+
+    resp = await client.get(
+        f"/api/sessions/{session_id}/line-analysis",
+        params={"laps": [999]},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+
+    assert data["available"] is True
+    assert data["traces"] == []
+    assert data["distance_m"] == []
+    # Corner profiles should still be returned
+    assert len(data["corner_profiles"]) == 2
+    assert data["n_laps_used"] == 3
+
+
+@pytest.mark.asyncio
 async def test_line_analysis_not_found(client: AsyncClient) -> None:
     """GET /line-analysis with bad session ID returns 404."""
     resp = await client.get("/api/sessions/nonexistent/line-analysis")
