@@ -34,9 +34,12 @@ MIN_SPEED_MPS = 5.0  # floor speed to avoid singularities
 class VehicleParams:
     """Vehicle grip and performance parameters for the velocity solver.
 
+    When ``wheel_power_w`` and ``mass_kg`` are both > 0, the forward pass
+    caps acceleration at ``P / (m * v * g)`` — modelling the power-limited
+    regime where engine output, not tire grip, is the bottleneck.  In this
+    mode ``max_accel_g`` acts as the low-speed (grip-limited) cap.
+
     Known simplifications (potential future improvements):
-    - NOTE: max_accel_g / max_decel_g are speed-independent.  Real cars have
-      gear-limited acceleration curves (torque x gear ratio / (tire radius x mass)).
     - NOTE: No tire thermal model — grip doesn't degrade with sustained use or
       change with tire temperature.
 
@@ -60,6 +63,8 @@ class VehicleParams:
     load_sensitivity_exponent: float = 1.0  # tire load sensitivity (n<1 = mu drops with load)
     cg_height_m: float = 0.0  # CG height for weight transfer estimation
     track_width_m: float = 0.0  # average track width for weight transfer estimation
+    wheel_power_w: float = 0.0  # Wheel power in Watts (after drivetrain loss); 0 = disabled
+    mass_kg: float = 0.0  # Vehicle mass in kg; 0 = use max_accel_g only
 
 
 @dataclass
@@ -142,8 +147,7 @@ def _compute_max_cornering_speed(
         dlt = effective_mu * params.cg_height_m / params.track_width_m
         dlt_clamp = np.clip(dlt, 0.0, 0.95)
         correction = 0.5 * (
-            np.power(1.0 + dlt_clamp, n_exp)
-            + np.power(np.maximum(1.0 - dlt_clamp, 0.05), n_exp)
+            np.power(1.0 + dlt_clamp, n_exp) + np.power(np.maximum(1.0 - dlt_clamp, 0.05), n_exp)
         )
         effective_mu = effective_mu * correction
 
@@ -243,6 +247,10 @@ def _forward_pass(
         avg_k = 0.5 * (abs_curvature[i - 1] + abs_curvature[i])
         lateral_g = v_prev**2 * avg_k / G
         accel_g = _available_accel(v_prev, lateral_g, params, "accel")
+        # Power-limited regime: a = P/(m*v) at high speed
+        if params.wheel_power_w > 0 and params.mass_kg > 0 and v_prev > MIN_SPEED_MPS:
+            power_accel_g = params.wheel_power_w / (params.mass_kg * v_prev * G)
+            accel_g = min(accel_g, power_accel_g)
         # Vertical curvature scales available traction via normal force:
         # N_eff/N_static = 1 + v²·κ_v/g.  Scale accel budget accordingly.
         if vertical_curvature is not None:

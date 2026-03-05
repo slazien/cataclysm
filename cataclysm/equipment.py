@@ -107,6 +107,7 @@ CATEGORY_FRICTION_CIRCLE_EXPONENT: dict[TireCompoundCategory, float] = {
 
 _BRAKE_EFFICIENCY = 0.95  # real-world brake efficiency factor
 _AIR_DENSITY = 1.225  # kg/m^3, sea level ISA standard atmosphere
+_DRIVETRAIN_EFFICIENCY: dict[str, float] = {"RWD": 0.85, "FWD": 0.82, "AWD": 0.80}
 
 
 # ---------------------------------------------------------------------------
@@ -269,6 +270,14 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
     if profile.vehicle is not None and profile.vehicle.cd_a > 0:
         drag_coeff = profile.vehicle.cd_a * _AIR_DENSITY / (2.0 * weight_kg)
 
+    # Compute wheel power for power-limited acceleration model
+    wheel_power_w = 0.0
+    mass_for_params = 0.0
+    if profile.vehicle is not None:
+        dt_eff = _DRIVETRAIN_EFFICIENCY.get(profile.vehicle.drivetrain, 0.85)
+        wheel_power_w = profile.vehicle.hp * 745.7 * dt_eff
+        mass_for_params = weight_kg
+
     return VehicleParams(
         mu=mu,
         max_lateral_g=mu,
@@ -284,4 +293,6 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
             if profile.vehicle is not None
             else 0.0
         ),
+        wheel_power_w=wheel_power_w,
+        mass_kg=mass_for_params,
     )

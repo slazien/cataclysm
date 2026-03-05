@@ -1559,3 +1559,152 @@ class TestLoadSensitivity:
             profile_base.optimal_speed_mps,
             profile_ls.optimal_speed_mps,
         )
+
+
+# ---------------------------------------------------------------------------
+# TestPowerLimitedAcceleration
+# ---------------------------------------------------------------------------
+
+
+class TestPowerLimitedAcceleration:
+    """Tests for the power-limited acceleration model in the forward pass."""
+
+    def test_power_limited_acceleration_at_high_speed(self) -> None:
+        """Above crossover speed, acceleration should be power-limited."""
+        # Tight corner followed by a long straight — forces acceleration from low speed
+        corner = np.full(50, 0.04)  # tight corner (~25m radius, ~15 m/s)
+        straight = np.zeros(400)
+        curvature = np.concatenate([corner, straight])
+        cr = _make_curvature_result(curvature, step_m=1.0)
+
+        # Without power limit — high top speed so the cap isn't the bottleneck
+        params_const = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+            top_speed_mps=120.0,
+        )
+        profile_const = compute_optimal_profile(cr, params_const, closed_circuit=False)
+
+        # With power limit (155hp Miata-like)
+        params_power = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+            top_speed_mps=120.0,
+            wheel_power_w=115_000 * 0.85,  # ~97.75 kW at wheels
+            mass_kg=1050.0,
+        )
+        profile_power = compute_optimal_profile(cr, params_power, closed_circuit=False)
+
+        # Power-limited car should be slower at end of straight
+        assert profile_power.optimal_speed_mps[-1] < profile_const.optimal_speed_mps[-1]
+
+        # In the corner (low speed), speeds should be identical (grip-limited regime)
+        assert abs(profile_power.optimal_speed_mps[25] - profile_const.optimal_speed_mps[25]) < 0.1
+
+    def test_power_limit_disabled_when_zero(self) -> None:
+        """wheel_power_w=0 should not affect results (backward compatible)."""
+        n = 200
+        curvature = np.zeros(n)
+        cr = _make_curvature_result(curvature, step_m=1.0)
+
+        params_base = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+        )
+        params_zero = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+            wheel_power_w=0.0,
+            mass_kg=0.0,
+        )
+
+        p1 = compute_optimal_profile(cr, params_base, closed_circuit=False)
+        p2 = compute_optimal_profile(cr, params_zero, closed_circuit=False)
+
+        np.testing.assert_array_almost_equal(p1.optimal_speed_mps, p2.optimal_speed_mps)
+
+    def test_power_limit_only_affects_forward_pass(self) -> None:
+        """Power limit should not affect braking (backward pass)."""
+        n = 500
+        curvature = np.zeros(n)
+        abs_k = np.abs(curvature)
+        max_speed = np.full(n, 80.0)
+        max_speed[-1] = 20.0  # end slow (backward pass starts here)
+        step_m = 1.0
+
+        params = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+            wheel_power_w=100_000.0,
+            mass_kg=1050.0,
+        )
+        params_no_power = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+        )
+
+        v_power = _backward_pass(max_speed, step_m, params, abs_k)
+        v_no_power = _backward_pass(max_speed, step_m, params_no_power, abs_k)
+
+        # Backward pass should be identical — power limit is not in braking
+        np.testing.assert_array_almost_equal(v_power, v_no_power)
+
+    def test_crossover_speed_physics(self) -> None:
+        """Verify the crossover speed where grip-limit meets power-limit.
+
+        Crossover: max_accel_g * G = P / (m * v_cross)
+        v_cross = P / (m * max_accel_g * G)
+        """
+        wheel_power_w = 100_000.0
+        mass_kg = 1050.0
+        max_accel_g = 0.5
+
+        v_crossover = wheel_power_w / (mass_kg * max_accel_g * G)
+
+        # Below crossover, grip-limited: accel_g = 0.5
+        v_low = v_crossover * 0.5
+        power_accel = wheel_power_w / (mass_kg * v_low * G)
+        assert power_accel > max_accel_g  # power not the bottleneck
+
+        # Above crossover, power-limited: accel_g < 0.5
+        v_high = v_crossover * 2.0
+        power_accel_high = wheel_power_w / (mass_kg * v_high * G)
+        assert power_accel_high < max_accel_g  # power IS the bottleneck
+
+    def test_power_limit_with_mass_zero_disabled(self) -> None:
+        """When mass_kg=0 but wheel_power_w>0, power limit should be disabled."""
+        n = 200
+        curvature = np.zeros(n)
+        cr = _make_curvature_result(curvature, step_m=1.0)
+
+        params_base = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+        )
+        params_no_mass = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+            wheel_power_w=100_000.0,
+            mass_kg=0.0,
+        )
+
+        p1 = compute_optimal_profile(cr, params_base, closed_circuit=False)
+        p2 = compute_optimal_profile(cr, params_no_mass, closed_circuit=False)
+
+        np.testing.assert_array_almost_equal(p1.optimal_speed_mps, p2.optimal_speed_mps)

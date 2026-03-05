@@ -641,6 +641,45 @@ class TestEquipmentToVehicleParams:
         assert params.cg_height_m == 0.0
         assert params.track_width_m == 0.0
 
+    def test_wheel_power_with_vehicle(self) -> None:
+        """Wheel power and mass should be populated from vehicle specs."""
+        from cataclysm.vehicle_db import VEHICLE_DATABASE
+
+        tire = TireSpec(
+            model="Test",
+            compound_category=TireCompoundCategory.ENDURANCE_200TW,
+            size="205/50R15",
+            treadwear_rating=200,
+            estimated_mu=1.0,
+            mu_source=MuSource.FORMULA_ESTIMATE,
+            mu_confidence="medium",
+        )
+        vehicle = VEHICLE_DATABASE["mazda_miata_nd"]
+        profile = EquipmentProfile(id="test", name="test", tires=tire, vehicle=vehicle)
+        params = equipment_to_vehicle_params(profile)
+
+        # ND Miata: 181hp * 745.7 * 0.85 (RWD) = ~114,700 W
+        assert params.wheel_power_w > 100_000
+        assert params.wheel_power_w < 150_000
+        assert params.mass_kg > 1000
+        assert params.mass_kg < 1200
+
+    def test_wheel_power_without_vehicle(self) -> None:
+        """Without a vehicle, wheel_power_w and mass_kg should be 0."""
+        tire = TireSpec(
+            model="Test",
+            compound_category=TireCompoundCategory.STREET,
+            size="225/45R17",
+            treadwear_rating=400,
+            estimated_mu=0.85,
+            mu_source=MuSource.FORMULA_ESTIMATE,
+            mu_confidence="medium",
+        )
+        profile = EquipmentProfile(id="test", name="test", tires=tire)
+        params = equipment_to_vehicle_params(profile)
+        assert params.wheel_power_w == 0.0
+        assert params.mass_kg == 0.0
+
     def test_load_sensitivity_all_categories(self) -> None:
         """Every category should wire the correct load sensitivity exponent."""
         for cat in TireCompoundCategory:
