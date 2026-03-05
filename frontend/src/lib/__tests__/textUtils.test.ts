@@ -1,4 +1,4 @@
-import { resolveSpeedMarkers, extractActionTitle } from '../textUtils';
+import { resolveSpeedMarkers, extractActionTitle, extractDetailText } from '../textUtils';
 
 describe('resolveSpeedMarkers', () => {
   describe('imperial mode (isMetric=false)', () => {
@@ -146,19 +146,43 @@ describe('extractActionTitle', () => {
     expect(extractActionTitle(text)).toBe(text);
   });
 
-  it('closes unclosed bold markdown when truncated', () => {
+  it('extracts full bold title when text starts with **bold**', () => {
     const text = '**Throttle commit scatter is your second-biggest time cost:** You are losing 0.3s per lap.';
-    const result = extractActionTitle(text);
-    // Should have balanced ** markers
-    const boldCount = (result.match(/\*\*/g) || []).length;
-    expect(boldCount % 2).toBe(0);
+    expect(extractActionTitle(text)).toBe('**Throttle commit scatter is your second-biggest time cost**');
   });
 
-  it('leaves already-balanced markdown alone', () => {
+  it('extracts full bold title regardless of length', () => {
     const text = '**Early braker archetype across the track:** Your driving shows consistent early braking.';
-    const result = extractActionTitle(text);
-    expect(result).toContain('**');
-    const boldCount = (result.match(/\*\*/g) || []).length;
-    expect(boldCount % 2).toBe(0);
+    expect(extractActionTitle(text)).toBe('**Early braker archetype across the track**');
+  });
+
+  it('falls back to clause extraction when no bold prefix', () => {
+    expect(extractActionTitle('Late braking into T5, causing overshoot')).toBe('Late braking into T5');
+  });
+});
+
+describe('extractDetailText', () => {
+  it('extracts text after bold title with colon separator', () => {
+    const text = '**Brake consistency is strong:** However, T5 shows 15m variance.';
+    expect(extractDetailText(text)).toBe('However, T5 shows 15m variance.');
+  });
+
+  it('extracts text after bold title without separator', () => {
+    const text = '**Early apex habit** You are turning in too soon.';
+    expect(extractDetailText(text)).toBe('You are turning in too soon.');
+  });
+
+  it('returns empty string when no detail exists', () => {
+    expect(extractDetailText('Short text no bold')).toBe('');
+  });
+
+  it('handles bold title with dash separator', () => {
+    const text = '**T5 Brake Drill** - Pick T5 as your focus. Laps 1-3: brake at the 2-board.';
+    expect(extractDetailText(text)).toBe('Pick T5 as your focus. Laps 1-3: brake at the 2-board.');
+  });
+
+  it('falls back to clause-based split when no bold', () => {
+    const text = 'Late braking into T5, causing consistent overshoot at the apex.';
+    expect(extractDetailText(text)).toBe('causing consistent overshoot at the apex.');
   });
 });

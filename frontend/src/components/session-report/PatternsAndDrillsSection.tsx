@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { TrendingUp, Target, ChevronDown, ChevronUp } from 'lucide-react';
-import { extractActionTitle, formatCoachingText } from '@/lib/textUtils';
+import { extractActionTitle, extractDetailText, formatCoachingText } from '@/lib/textUtils';
 import { useUnits } from '@/hooks/useUnits';
 import { MarkdownText } from '@/components/shared/MarkdownText';
 
@@ -16,19 +16,16 @@ interface PatternsAndDrillsSectionProps {
 function ExpandableItem({ text, bullet }: { text: string; bullet: string }) {
   const [expanded, setExpanded] = useState(false);
   const title = extractActionTitle(text);
-  const isTruncated = title !== text;
+  const detail = extractDetailText(text);
+  const hasDetail = detail.length > 0;
 
   return (
     <li className="text-sm text-[var(--text-secondary)]">
       <div className="flex items-start gap-1">
         <span className="mt-0.5 shrink-0 text-[var(--text-muted)]">{bullet}</span>
         <div className="min-w-0">
-          {expanded ? (
-            <MarkdownText block>{text}</MarkdownText>
-          ) : (
-            <span><MarkdownText>{title + (isTruncated ? '…' : '')}</MarkdownText></span>
-          )}
-          {isTruncated && (
+          <span><MarkdownText>{title}</MarkdownText></span>
+          {hasDetail && (
             <button
               type="button"
               onClick={() => setExpanded(!expanded)}
@@ -40,6 +37,11 @@ function ExpandableItem({ text, bullet }: { text: string; bullet: string }) {
                 <>More <ChevronDown className="inline h-3 w-3" /></>
               )}
             </button>
+          )}
+          {expanded && detail && (
+            <div className="mt-1 text-[var(--text-muted)]">
+              <MarkdownText block>{detail}</MarkdownText>
+            </div>
           )}
         </div>
       </div>

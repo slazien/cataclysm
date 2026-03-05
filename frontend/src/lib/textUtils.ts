@@ -90,9 +90,13 @@ function closeMarkdown(s: string): string {
   return s;
 }
 
-/** Extracts a short action phrase from long coaching text.
- *  Takes the first clause (before a comma, period, semicolon, colon, or dash) and caps it. */
+/** Extracts the title from coaching text.
+ *  If text starts with **bold title**, returns the full bold portion.
+ *  Otherwise falls back to extracting the first clause. */
 export function extractActionTitle(text: string): string {
+  // If text starts with a bold section, extract it entirely
+  const boldMatch = text.match(/^(\*\*[^*]+\*\*)/);
+  if (boldMatch) return boldMatch[1];
   // Try to grab first short clause
   const match = text.match(/^(.{10,60}?)[.,;:\u2014\u2013-]\s/);
   if (match) return closeMarkdown(match[1].trim());
@@ -104,4 +108,15 @@ export function extractActionTitle(text: string): string {
     result = (result + ' ' + w).trim();
   }
   return closeMarkdown(result || text.slice(0, 50));
+}
+
+/** Extracts the detail text after a bold title.
+ *  Strips the leading **bold**: separator, returning just the body. */
+export function extractDetailText(text: string): string {
+  const boldMatch = text.match(/^\*\*[^*]+\*\*\s*[:;\u2014\u2013-]?\s*/);
+  if (boldMatch) return text.slice(boldMatch[0].length).trim();
+  // No bold prefix — return everything after the title clause
+  const clauseMatch = text.match(/^.{10,60}?[.,;:\u2014\u2013-]\s/);
+  if (clauseMatch) return text.slice(clauseMatch[0].length).trim();
+  return '';
 }
