@@ -216,6 +216,14 @@ assert not is_generating(session_id, "intermediate")
 
 **Verification**: For each code snippet in the plan, grep the codebase for the column/field names used: `grep -rn "latitude\|lat" cataclysm/` to confirm which variant is actually used.
 
+## Flat vs Lift Corner Characters Have Different Physical Meanings ([2026-03-05])
+
+**Pattern**: When building algorithms that reason about corner `character` types, treat `"flat"` and `"lift"` as fundamentally different. Flat-out corners require zero braking/steering input — the car stays at full throttle. Lift corners require brief deceleration and steering input. In gap/straight calculations, flat-out corners don't interrupt the acceleration zone (skip them), but lift corners DO terminate a "straight" because the driver must slow down.
+
+**Why**: First implementation of `_effective_gap_m()` skipped both flat AND lift corners when calculating the straight after a key corner. This inflated Barber T9's gap from ~450m to 879m (it was looking through T10-lift, T11-flat, all the way to T12). The fix: only skip `character="flat"` in gap calculation, while still excluding both flat and lift from being *candidates* for key corners (since neither requires significant technique).
+
+**Error signature**: A corner's "straight_after" gap is suspiciously large (>500m on a 3.7km track), or a low-speed corner ranks below a fast sweeper despite having a longer actual straight.
+
 ## Always Run Code Reviewer After Implementation
 - **When**: After finishing ANY implementation task — features, bug fixes, refactors
 - **Rule**: Dispatch the code reviewer agent (`superpowers:code-reviewer` or `code-review:code-review`) to review all changed files. This is in ADDITION to automated checks (ruff, mypy, tests), not a replacement.
