@@ -33,11 +33,6 @@ function buildGeoJson(
   const chunkSize = Math.max(1, Math.floor(n / 100));
   const features: GeoJSON.Feature[] = [];
 
-  // Close the loop: append the first point so the trace connects back to S/F
-  const closedLon = [...lapData.lon, lapData.lon[0]];
-  const closedLat = [...lapData.lat, lapData.lat[0]];
-  const closedN = closedLon.length;
-
   if (delta && delta.distance_m.length > 0) {
     const deltaScale = d3
       .scaleLinear()
@@ -50,11 +45,11 @@ function buildGeoJson(
       .domain([0, 0.5, 1])
       .range([colors.motorsport.throttle, colors.text.muted, colors.motorsport.brake]);
 
-    for (let i = 0; i < closedN - 1; i += chunkSize) {
-      const end = Math.min(i + chunkSize + 1, closedN);
+    for (let i = 0; i < n - 1; i += chunkSize) {
+      const end = Math.min(i + chunkSize + 1, n);
       const coords: [number, number][] = [];
       for (let j = i; j < end; j++) {
-        coords.push([closedLon[j], closedLat[j]]);
+        coords.push([lapData.lon[j], lapData.lat[j]]);
       }
       const midDist = lapData.distance_m[Math.min(i + Math.floor(chunkSize / 2), n - 1)];
       const dIdx = Math.min(d3.bisectLeft(delta.distance_m, midDist), delta.delta_s.length - 1);
@@ -74,11 +69,11 @@ function buildGeoJson(
       .domain([minSpeed, (minSpeed + maxSpeed) / 2, maxSpeed])
       .range([colors.motorsport.brake, colors.motorsport.neutral, colors.motorsport.throttle]);
 
-    for (let i = 0; i < closedN - 1; i += chunkSize) {
-      const end = Math.min(i + chunkSize + 1, closedN);
+    for (let i = 0; i < n - 1; i += chunkSize) {
+      const end = Math.min(i + chunkSize + 1, n);
       const coords: [number, number][] = [];
       for (let j = i; j < end; j++) {
-        coords.push([closedLon[j], closedLat[j]]);
+        coords.push([lapData.lon[j], lapData.lat[j]]);
       }
       const midIdx = Math.min(i + Math.floor(chunkSize / 2), n - 1);
 
