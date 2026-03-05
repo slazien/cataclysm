@@ -47,6 +47,8 @@ function drawLabels(
   innerWidth: number,
   innerHeight: number,
   margins: typeof MARGINS,
+  convertDist: (m: number) => number,
+  distUnit: string,
 ) {
   ctx.font = `10px ${fonts.mono}`;
 
@@ -56,7 +58,7 @@ function drawLabels(
   ctx.textBaseline = 'middle';
   for (const tick of yTicks) {
     ctx.fillStyle = colors.axis;
-    ctx.fillText(`${tick.toFixed(0)}`, margins.left - 6, yScale(tick));
+    ctx.fillText(`${convertDist(tick).toFixed(0)}`, margins.left - 6, yScale(tick));
   }
 
   // X-axis tick labels
@@ -78,7 +80,7 @@ function drawLabels(
   ctx.translate(14, margins.top + innerHeight / 2);
   ctx.rotate(-Math.PI / 2);
   ctx.textAlign = 'center';
-  ctx.fillText('Brake Point (m)', 0, 0);
+  ctx.fillText(`Brake Point (${distUnit})`, 0, 0);
   ctx.restore();
 }
 
@@ -216,7 +218,7 @@ export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
     }
 
     // --- 3. Axis labels (on top of data) ---
-    drawLabels(ctx, xScale, yScale, dimensions.innerWidth, dimensions.innerHeight, MARGINS);
+    drawLabels(ctx, xScale, yScale, dimensions.innerWidth, dimensions.innerHeight, MARGINS, convertDistance, distanceUnit);
 
     // Std dev annotation
     if (stdDev > 0) {
