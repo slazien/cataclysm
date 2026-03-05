@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { Maximize2, Minimize2 } from 'lucide-react';
+import { Maximize2, Minimize2, Satellite } from 'lucide-react';
 import { TrackMapInteractive } from './TrackMapInteractive';
 import { cn } from '@/lib/utils';
 
-type MapMode = '2d' | 'sat' | '3d';
+type ViewMode = '2d' | '3d';
 
 const TrackMap3D = dynamic(
   () => import('./TrackMap3D').then((mod) => mod.TrackMap3D),
@@ -22,17 +22,24 @@ interface TrackMapContainerProps {
   sessionId: string;
 }
 
-const MODE_LABELS: { mode: MapMode; label: string }[] = [
+const VIEW_MODES: { mode: ViewMode; label: string }[] = [
   { mode: '2d', label: '2D' },
-  { mode: 'sat', label: 'SAT' },
   { mode: '3d', label: '3D' },
 ];
 
+const EXAGGERATION_MIN = 1.0;
+const EXAGGERATION_MAX = 4.0;
+const EXAGGERATION_STEP = 0.5;
+const EXAGGERATION_DEFAULT = 2.0;
+
 export function TrackMapContainer({ sessionId }: TrackMapContainerProps) {
-  const [mode, setMode] = useState<MapMode>('2d');
+  const [viewMode, setViewMode] = useState<ViewMode>('2d');
+  const [satEnabled, setSatEnabled] = useState(false);
+  const [exaggeration, setExaggeration] = useState(EXAGGERATION_DEFAULT);
   const [fullscreen, setFullscreen] = useState(false);
 
   const toggleFullscreen = useCallback(() => setFullscreen((f) => !f), []);
+  const toggleSat = useCallback(() => setSatEnabled((s) => !s), []);
 
   useEffect(() => {
     if (!fullscreen) return;
@@ -43,24 +50,32 @@ export function TrackMapContainer({ sessionId }: TrackMapContainerProps) {
     return () => window.removeEventListener('keydown', handleKey);
   }, [fullscreen]);
 
-  const mapContent = (
-    <>
-      {mode === '3d' && <TrackMap3D sessionId={sessionId} />}
-      {mode === 'sat' && <TrackMapSatellite sessionId={sessionId} />}
-      {mode === '2d' && <TrackMapInteractive sessionId={sessionId} />}
-    </>
-  );
+  const mapContent = (() => {
+    if (satEnabled) {
+      return (
+        <TrackMapSatellite
+          sessionId={sessionId}
+          terrain={viewMode === '3d'}
+          exaggeration={exaggeration}
+        />
+      );
+    }
+    if (viewMode === '3d') return <TrackMap3D sessionId={sessionId} />;
+    return <TrackMapInteractive sessionId={sessionId} />;
+  })();
+
+  const showExaggerationSlider = viewMode === '3d' && satEnabled;
 
   const controls = (
     <div className="absolute right-2 top-2 z-20 flex items-center gap-1">
       <div className="flex overflow-hidden rounded-md border border-[var(--cata-border)] bg-[var(--bg-elevated)]">
-        {MODE_LABELS.map(({ mode: m, label }) => (
+        {VIEW_MODES.map(({ mode, label }) => (
           <button
-            key={m}
-            onClick={() => setMode(m)}
+            key={mode}
+            onClick={() => setViewMode(mode)}
             className={cn(
               'px-2 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors',
-              mode === m
+              viewMode === mode
                 ? 'bg-[var(--bg-overlay)] text-[var(--text-primary)]'
                 : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
             )}
@@ -69,6 +84,37 @@ export function TrackMapContainer({ sessionId }: TrackMapContainerProps) {
           </button>
         ))}
       </div>
+
+      <button
+        onClick={toggleSat}
+        className={cn(
+          'flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors',
+          satEnabled
+            ? 'border-[var(--motorsport-optimal)] bg-[var(--bg-overlay)] text-[var(--text-primary)]'
+            : 'border-[var(--cata-border)] bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+        )}
+        title="Toggle satellite overlay"
+      >
+        <Satellite size={12} />
+        SAT
+      </button>
+
+      {showExaggerationSlider && (
+        <div className="flex items-center gap-1 rounded-md border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-2 py-1">
+          <span className="text-[9px] text-[var(--text-muted)]">{exaggeration.toFixed(1)}×</span>
+          <input
+            type="range"
+            min={EXAGGERATION_MIN}
+            max={EXAGGERATION_MAX}
+            step={EXAGGERATION_STEP}
+            value={exaggeration}
+            onChange={(e) => setExaggeration(Number(e.target.value))}
+            className="h-1 w-16 cursor-pointer accent-[var(--motorsport-optimal)]"
+            title={`Terrain exaggeration: ${exaggeration.toFixed(1)}×`}
+          />
+        </div>
+      )}
+
       <button
         onClick={toggleFullscreen}
         className="flex items-center justify-center rounded-md border border-[var(--cata-border)] bg-[var(--bg-elevated)] p-1 text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
@@ -82,9 +128,7 @@ export function TrackMapContainer({ sessionId }: TrackMapContainerProps) {
   if (fullscreen) {
     return (
       <>
-        {/* Placeholder to keep layout stable */}
         <div className="h-full" />
-        {/* Fullscreen overlay */}
         <div className="fixed inset-0 z-50 bg-[var(--bg-base)]">
           <div className="relative h-full w-full">
             {controls}
