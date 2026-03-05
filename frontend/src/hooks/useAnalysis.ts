@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useQueries } from "@tanstack/react-query";
+import { useQuery, useQueries, keepPreviousData } from "@tanstack/react-query";
 import { getCorners, getAllLapCorners, getConsistency, getGains, getGrip, getDelta, getLapData, getGPSQuality, getMiniSectors, getDegradation, getOptimalComparison, getGGDiagram, getLineAnalysis } from "@/lib/api";
 import type { Corner, SessionConsistency, DeltaData, LapData, GPSQualityReport, MiniSectorData, DegradationData, OptimalComparisonData, GGDiagramData, LineAnalysisData } from "@/lib/types";
 
@@ -117,6 +117,7 @@ export function useGGDiagram(sessionId: string | null, corner?: number) {
     queryKey: ["gg-diagram", sessionId, corner],
     queryFn: () => getGGDiagram(sessionId!, corner),
     enabled: !!sessionId,
+    placeholderData: keepPreviousData,
   });
 }
 
