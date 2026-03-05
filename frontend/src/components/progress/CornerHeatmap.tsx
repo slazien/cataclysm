@@ -228,7 +228,7 @@ export function CornerHeatmap({
         text: `T${key} | ${dateStr} | ${label}: ${valStr}${unit}`,
       });
     },
-    [cornerKeys, data, metric, nCorners, nSessions, sessions],
+    [cornerKeys, data, metric, nCorners, nSessions, sessions, speedUnit, distanceUnit, convertSpeed, convertDistance],
   );
 
   const handleClick = useCallback(

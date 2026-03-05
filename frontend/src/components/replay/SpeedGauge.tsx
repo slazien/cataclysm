@@ -37,7 +37,7 @@ function describeArc(cx: number, cy: number, r: number, startDeg: number, endDeg
  * - Background arc in dark grey
  * - Filled arc with gradient colour from green (slow) to yellow to red (fast)
  * - Large speed number in the centre
- * - "mph" label below
+ * - Unit label below (mph or km/h based on preference)
  */
 export function SpeedGauge({ speed, maxSpeed }: SpeedGaugeProps) {
   const { convertSpeed, speedUnit } = useUnits();
