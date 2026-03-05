@@ -7,6 +7,7 @@ import pytest
 from cataclysm.equipment import (
     _BRAKE_EFFICIENCY,
     _CATEGORY_ACCEL_G,
+    CATEGORY_FRICTION_CIRCLE_EXPONENT,
     CATEGORY_MU_DEFAULTS,
     BrakeSpec,
     EquipmentProfile,
@@ -514,6 +515,34 @@ class TestEquipmentToVehicleParams:
             assert params.max_accel_g == _CATEGORY_ACCEL_G[cat]
             assert params.max_decel_g == pytest.approx(mu * _BRAKE_EFFICIENCY)
             assert params.top_speed_mps == 80.0
+            assert params.friction_circle_exponent == CATEGORY_FRICTION_CIRCLE_EXPONENT[cat]
+
+    def test_friction_circle_exponent_all_categories(self) -> None:
+        """Every TireCompoundCategory wires the correct friction circle exponent."""
+        expected = {
+            TireCompoundCategory.STREET: 1.8,
+            TireCompoundCategory.ENDURANCE_200TW: 2.0,
+            TireCompoundCategory.SUPER_200TW: 2.0,
+            TireCompoundCategory.TW_100: 2.1,
+            TireCompoundCategory.R_COMPOUND: 2.2,
+            TireCompoundCategory.SLICK: 2.3,
+        }
+        for cat in TireCompoundCategory:
+            mu = CATEGORY_MU_DEFAULTS[cat]
+            tire = TireSpec(
+                model="Test",
+                compound_category=cat,
+                size="255/40R17",
+                treadwear_rating=200,
+                estimated_mu=mu,
+                mu_source=MuSource.CURATED_TABLE,
+                mu_confidence="test",
+            )
+            profile = EquipmentProfile(id=f"fce-{cat}", name=f"FCE {cat}", tires=tire)
+            params = equipment_to_vehicle_params(profile)
+            assert params.friction_circle_exponent == expected[cat], (
+                f"{cat.value}: expected {expected[cat]}, got {params.friction_circle_exponent}"
+            )
 
     def test_returns_vehicle_params_type(self) -> None:
         """Return type should be VehicleParams from velocity_profile module."""

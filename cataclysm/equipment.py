@@ -268,4 +268,5 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
         max_accel_g=accel_g,
         max_decel_g=mu * _BRAKE_EFFICIENCY,
         top_speed_mps=80.0,
+        friction_circle_exponent=CATEGORY_FRICTION_CIRCLE_EXPONENT[category],
     )
