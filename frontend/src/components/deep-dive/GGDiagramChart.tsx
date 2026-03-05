@@ -328,10 +328,17 @@ export function GGDiagramChart({ sessionId }: GGDiagramChartProps) {
     }
   });
 
-  // Corner selector options from per_corner data
+  // Corner selector options from per_corner data.
+  // Cache options from the unfiltered response so the dropdown stays visible
+  // when a corner is selected (the filtered API response has per_corner=[]).
+  const cachedCornerOptionsRef = useRef<CornerGGSummary[]>([]);
   const cornerOptions = useMemo(() => {
-    if (!ggData?.per_corner) return [];
-    return [...ggData.per_corner].sort((a, b) => a.corner_number - b.corner_number);
+    if (ggData?.per_corner && ggData.per_corner.length > 0) {
+      const sorted = [...ggData.per_corner].sort((a, b) => a.corner_number - b.corner_number);
+      cachedCornerOptionsRef.current = sorted;
+      return sorted;
+    }
+    return cachedCornerOptionsRef.current;
   }, [ggData]);
 
   if (isLoading) {
