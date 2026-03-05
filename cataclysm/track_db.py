@@ -429,7 +429,7 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
             "Back Straight Entry",
             0.498,
             direction="right",
-            corner_type="sweeper",
+            corner_type="hairpin",
             elevation_trend="flat",
             camber="positive",
             coaching_notes=(
