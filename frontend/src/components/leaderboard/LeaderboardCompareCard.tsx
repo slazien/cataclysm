@@ -2,6 +2,7 @@
 
 import { X } from 'lucide-react';
 import { useUnits } from '@/hooks/useUnits';
+import { MPS_TO_MPH } from '@/lib/constants';
 import type { CornerRecordEntry } from '@/lib/types';
 
 interface LeaderboardCompareCardProps {
@@ -14,8 +15,6 @@ interface LeaderboardCompareCardProps {
 function formatTime(seconds: number): string {
   return seconds.toFixed(3) + 's';
 }
-
-const MPS_TO_MPH = 2.23694;
 
 interface CompareRowProps {
   label: string;

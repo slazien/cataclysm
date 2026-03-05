@@ -6,6 +6,7 @@ import { useUnits } from '@/hooks/useUnits';
 import type { CornerRecordEntry } from '@/lib/types';
 import { KingBadge } from './KingBadge';
 import { LeaderboardCompareCard } from './LeaderboardCompareCard';
+import { MPS_TO_MPH } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
 const CATEGORIES = [
@@ -26,8 +27,6 @@ interface CornerLeaderboardProps {
 function formatTime(seconds: number): string {
   return seconds.toFixed(3) + 's';
 }
-
-const MPS_TO_MPH = 2.23694;
 
 function formatCV(cv: number): string {
   return (cv * 100).toFixed(2) + '%';

@@ -8,9 +8,8 @@ import { useSkillLevel } from '@/hooks/useSkillLevel';
 import { useUnits } from '@/hooks/useUnits';
 import { formatLapTime } from '@/lib/formatters';
 import { Button } from '@/components/ui/button';
+import { MPS_TO_MPH } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-
-const MPS_TO_MPH = 2.23694;
 
 type SortKey = 'lap_number' | 'lap_time_s' | 'max_speed_mps' | 'lap_distance_m';
 type SortDir = 'asc' | 'desc';
