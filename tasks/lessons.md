@@ -62,12 +62,19 @@
 - **Anti-pattern**: "That's ambitious", "we might run out of time", "let's prioritize in case we can't finish", "stretch goal". These phrases signal a human pace mindset. Delete them from your vocabulary.
 - **Why**: User called this out directly. Claude Code with subagents can parallelize massively. A 6-feature scope that would take a human team weeks is hours of agent work.
 
-## Use Real Device Emulators for Mobile Testing
-- **When**: Testing responsive/mobile layouts with Playwright MCP or any browser automation
-- **Rule**: Use real device emulation profiles (e.g. Playwright's `devices['Pixel 7']`, `devices['iPhone 14']`) that set viewport, deviceScaleFactor, userAgent, and hasTouch — not just `page.setViewportSize()`. A resized desktop viewport misses touch events, device pixel ratio differences, and mobile browser chrome behavior.
-- **Minimum coverage**: Test on at least one Android profile and one iOS profile.
-- **Check for**: text clipping/overflow, horizontal scroll, touch targets < 44x44px, bottom nav overlapping content, chart/SVG scaling, fixed positioning issues.
-- **Why**: User explicitly requested this. A plain viewport resize misses real mobile rendering differences.
+## Use Research-Verified CSS Viewport Sizes for Mobile Testing ([2026-03-05])
+
+**Pattern**: Always use real, research-verified CSS viewport sizes for mobile testing — never guess or estimate. Cite the source (blisk.io, yesviz.com). Always clarify "CSS viewport" vs "physical resolution" when discussing sizes with the user.
+
+**Why**: User pushed back TWICE when I listed viewport sizes without sources — they thought I was making up numbers. CSS viewport (what the browser reports) differs from physical resolution (actual pixels). E.g., Galaxy S24 is 1080×2340 physical but 360×780 CSS viewport at DPR 3. Without citing sources, the user can't verify correctness.
+
+**Device matrix** (see CLAUDE.md for full table):
+- Samsung Galaxy S24: 360×780 (DPR 3)
+- iPhone 14: 390×844 (DPR 3)
+- Pixel 9: 412×915 (DPR 2.625)
+- iPhone 16 Pro Max: 440×956 (DPR 3)
+
+**Anti-pattern**: Guessing viewport sizes from physical specs, or listing devices without research. ALWAYS web-search for "[device name] CSS viewport size" from yesviz.com or blisk.io before testing.
 
 ## Canvas Charts Need Explicit Height, Not min-height
 - **When**: Changing mobile layout for D3 canvas chart containers (SpeedTrace, DeltaT, BrakeThrottle, CornerSpeedOverlay, BrakeConsistency)
@@ -112,6 +119,14 @@
 - **Rule**: Check the ORM model for ALL `Mapped[str]` / `Mapped[bool]` (non-Optional) columns with `default=`. Raw SQL bypasses ORM `default=` values. You must explicitly include those columns with their default values in the INSERT statement.
 - **Pattern**: Compare `text("INSERT INTO users (id, email, name, avatar_url)")` against `class User` model — if `skill_level`, `role` are NOT NULL with ORM defaults, they MUST be in the raw SQL.
 - **Why**: Hit this TWICE in `ensure_user_exists` migration path. First: FK violation (UPDATE FKs before new user row existed). Second: NOT NULL violation on `skill_level` because raw INSERT didn't include it. Both caused production 500 errors on CSV upload.
+
+## Research Before Guessing — Don't Present Unverified Facts ([2026-03-05])
+
+**Pattern**: When presenting technical specifications (device sizes, API versions, library features), ALWAYS research first. Never present estimated or assumed values as fact. If the user asks for something you don't know, say "let me research that" and use WebSearch — don't guess.
+
+**Why**: User had to tell me THREE times: (1) "perhaps some online research would be needed", (2) "use real resolutions, 17 pro max doesn't have 440x956 resolution cmon" (it actually does — but I hadn't cited sources), (3) "where did you get those from?!?!" Each correction was friction that could have been avoided by researching upfront and citing sources.
+
+**Anti-pattern**: "iPhone 17 Pro Max is probably around 440×956" or "I'll estimate OnePlus 11 Pro as 412×915". NEVER estimate device specs — always look them up.
 
 ## Always Run Code Reviewer After Implementation
 - **When**: After finishing ANY implementation task — features, bug fixes, refactors
