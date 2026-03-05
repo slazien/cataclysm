@@ -138,6 +138,18 @@
 
 **Anti-pattern**: Seeing a component that looks like the right place (e.g. `ReportSummary` for coaching reports) and wiring into it without checking if it's actually rendered. Always trace the import chain back to a page or layout.
 
+## Verify ALL Files Are Committed After Multi-File Changes ([2026-03-05])
+
+**Pattern**: After any commit that touches imports or cross-file references, run `git status` and verify that ALL modified files were included. Pay special attention when file A imports a new symbol from file B — both files must be committed together.
+
+**Why**: Commit `cc8d9dd` added `from backend.api.schemas.coaching import SkillLevel` to the coaching router but forgot to commit the schema file that actually defines `SkillLevel`. This crashed the **entire backend** in production with `ImportError`. Every request failed. The fix was trivial (commit the missing file) but the outage was total.
+
+**Error signature**: `ImportError: cannot import name 'X' from 'module.Y'` in Railway deploy logs.
+
+**Verification**: After `git commit`, immediately run `git diff --stat` to check for remaining unstaged changes in related files. If your commit added an import, grep the imported module to see if it has uncommitted changes: `git diff -- <imported_file>`.
+
+**Anti-pattern**: Staging only the file you were "working in" without checking if dependent files also changed. Partial commits that break cross-file contracts are production killers.
+
 ## Always Run Code Reviewer After Implementation
 - **When**: After finishing ANY implementation task — features, bug fixes, refactors
 - **Rule**: Dispatch the code reviewer agent (`superpowers:code-reviewer` or `code-review:code-review`) to review all changed files. This is in ADDITION to automated checks (ruff, mypy, tests), not a replacement.
