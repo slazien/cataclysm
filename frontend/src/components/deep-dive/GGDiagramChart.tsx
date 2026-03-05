@@ -147,9 +147,9 @@ export function GGDiagramChart({ sessionId }: GGDiagramChartProps) {
       if (sectorMax[i] <= 0) sectorMax[i] = envAvg;
     }
 
-    ctx.strokeStyle = colors.text.muted;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = colors.text.secondary;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 3]);
     ctx.beginPath();
     for (let i = 0; i <= N_ENV_SECTORS; i++) {
       const si = i % N_ENV_SECTORS;
