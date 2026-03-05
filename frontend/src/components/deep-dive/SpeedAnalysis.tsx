@@ -64,14 +64,14 @@ export function SpeedAnalysis() {
   }
 
   return (
-    <div className="flex min-h-0 flex-col gap-3 overflow-y-auto p-3 lg:h-full">
+    <div className="flex min-h-0 flex-col gap-3 overflow-y-auto p-3">
       {showLegend && <ComparisonLegend />}
-      <div className="flex min-h-0 flex-col gap-3 lg:flex-1 lg:flex-row">
-      {/* Left column -- 65% on desktop, full width on mobile -- three stacked charts */}
-      <div className="flex w-full flex-col gap-3 lg:min-h-0 lg:h-full lg:w-[65%]">
+      <div className="flex min-h-0 flex-col gap-3 lg:flex-row">
+      {/* Left column -- 65% on desktop, full width on mobile */}
+      <div className="flex w-full flex-col gap-3 lg:w-[65%]">
         {/* Speed Trace -- tallest */}
-        <div className="flex flex-col gap-1.5 lg:flex-[2] lg:min-h-0">
-          <div className="relative h-[16rem] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:h-auto lg:flex-1">
+        <div className="flex flex-col gap-1.5">
+          <div className="relative h-[16rem] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:h-[20rem]">
             <h3 className="pointer-events-none absolute left-3 top-1.5 z-10 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
               Speed Trace
             </h3>
@@ -91,7 +91,7 @@ export function SpeedAnalysis() {
         </div>
 
         {/* Delta-T */}
-        <div className="relative h-[16rem] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:h-auto lg:flex-1">
+        <div className="relative h-[16rem] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:h-[16rem]">
           <div className="pointer-events-none absolute left-3 top-1.5 z-10">
             <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
               Delta-T
@@ -108,7 +108,7 @@ export function SpeedAnalysis() {
         </div>
 
         {/* Brake/Throttle */}
-        <div className="relative h-[16rem] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:h-auto lg:flex-1">
+        <div className="relative h-[16rem] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:h-[16rem]">
           <h3 className="pointer-events-none absolute left-3 top-1.5 z-10 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
             Brake / Throttle
           </h3>
@@ -119,7 +119,7 @@ export function SpeedAnalysis() {
 
         {/* Driving Line -- lateral offset from reference line */}
         {showFeature('line_analysis') && (
-          <div className="relative h-[14rem] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:h-auto lg:flex-1">
+          <div className="relative h-[14rem] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:h-[14rem]">
             <div className="pointer-events-none absolute left-3 top-1.5 z-10">
               <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
                 Driving Line
@@ -145,7 +145,7 @@ export function SpeedAnalysis() {
       </div>
 
       {/* Right column -- 35% on desktop, full width on mobile -- track map + corner quick card */}
-      <div className="flex w-full min-h-0 flex-col gap-3 lg:w-[35%] lg:overflow-y-auto">
+      <div className="flex w-full min-h-0 flex-col gap-3 lg:w-[35%] lg:sticky lg:top-0 lg:self-start lg:overflow-y-auto lg:max-h-[calc(100vh-8rem)]">
         {/* Track Map -- fixed height so it never resizes when card content changes */}
         <div className="h-[250px] shrink-0 lg:h-[400px]">
           <ChartErrorBoundary name="Track Map">
