@@ -45,6 +45,8 @@ class Corner:
     gradient_pct: float | None = None
     # Linked corner grouping (from linked_corners.py)
     linked_group_id: int | None = None
+    # Banking / camber angle in degrees (from banking.py / track_db)
+    banking_deg: float | None = None
 
 
 # Detection parameters

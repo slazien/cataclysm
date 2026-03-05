@@ -252,8 +252,7 @@ def _compute_heading(
     if win >= 5:
         heading = savgol_filter(heading, window_length=win, polyorder=3)
 
-    result: np.ndarray = heading
-    return result
+    return np.asarray(heading)
 
 
 def _find_knots(
