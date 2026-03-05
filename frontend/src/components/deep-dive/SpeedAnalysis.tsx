@@ -158,7 +158,7 @@ export function SpeedAnalysis() {
       </div>
 
       {/* Right column -- 35% on desktop, full width on mobile -- track map + corner quick card */}
-      <div className="flex w-full min-h-0 flex-col gap-3 lg:w-[35%] lg:sticky lg:top-0 lg:self-start lg:overflow-y-auto lg:max-h-[calc(100vh-8rem)]">
+      <div className="flex w-full min-h-0 flex-col gap-3 lg:w-[35%] lg:sticky lg:top-0 lg:self-start">
         {/* Track Map -- fixed height so it never resizes when card content changes */}
         <div className="h-[250px] shrink-0 lg:h-[400px]">
           <ChartErrorBoundary name="Track Map">
