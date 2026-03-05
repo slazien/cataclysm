@@ -92,7 +92,7 @@ async def test_pdf_download_success(client: AsyncClient) -> None:
         )
         assert resp.status_code == 200
         # Let the background task complete
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(0.01)
 
     # Verify coaching report is ready
     resp = await client.get(f"/api/coaching/{session_id}/report")

@@ -105,7 +105,7 @@ class TestAutoCoachingOnUpload:
             session_id = resp.json()["session_ids"][0]
 
             # Let background task finish
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.01)
 
         # Report should now be available
         report_resp = await client.get(f"/api/coaching/{session_id}/report")

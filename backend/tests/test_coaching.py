@@ -100,8 +100,8 @@ async def test_generate_report(client: AsyncClient) -> None:
         assert response.status_code == 200
         assert response.json()["status"] == "generating"
 
-        # Let the background task complete
-        await asyncio.sleep(0.2)
+        # Yield to event loop so the mocked background task completes
+        await asyncio.sleep(0.01)
 
     # GET should now return the completed report
     response = await client.get(f"/api/coaching/{session_id}/report")
@@ -144,7 +144,7 @@ async def test_generate_report_default_skill_level(client: AsyncClient) -> None:
         )
         assert response.status_code == 200
         # Let the background task complete while mock is still active
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.01)
 
     # The mock was called — verify skill_level passed
     call_kwargs = mock_gen.call_args
@@ -166,7 +166,7 @@ async def test_get_report_after_generation(client: AsyncClient) -> None:
             json={"skill_level": "intermediate"},
         )
         # Let the background task complete
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.01)
 
     # Now GET should return the stored report
     response = await client.get(f"/api/coaching/{session_id}/report")
@@ -191,7 +191,7 @@ async def test_get_report_not_found(client: AsyncClient) -> None:
         response = await client.get(f"/api/coaching/{session_id}/report")
         assert response.status_code == 200
         assert response.json()["status"] == "generating"
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.01)
 
 
 @pytest.mark.asyncio
@@ -217,7 +217,7 @@ async def test_generate_report_with_advanced_skill(client: AsyncClient) -> None:
         )
         assert response.status_code == 200
         # Let the background task complete while mock is still active
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.01)
 
     call_kwargs = mock_gen.call_args
     assert call_kwargs.kwargs.get("skill_level") == "advanced"
@@ -239,7 +239,7 @@ async def test_force_regeneration_clears_and_regenerates(client: AsyncClient) ->
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "intermediate"},
         )
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.01)
 
     # Verify first report is stored
     resp = await client.get(f"/api/coaching/{session_id}/report")
@@ -258,7 +258,7 @@ async def test_force_regeneration_clears_and_regenerates(client: AsyncClient) ->
         )
         assert response.status_code == 200
         assert response.json()["status"] == "generating"
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.01)
 
     # GET with skill_level=advanced should return the new report
     resp = await client.get(f"/api/coaching/{session_id}/report?skill_level=advanced")
@@ -285,7 +285,7 @@ async def test_force_false_preserves_existing(client: AsyncClient) -> None:
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "intermediate"},
         )
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.01)
 
     # POST with same skill level without force should return existing report
     response = await client.post(
@@ -312,7 +312,7 @@ async def test_generate_report_returns_existing(client: AsyncClient) -> None:
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "intermediate"},
         )
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.01)
 
     # Second POST with same skill level should return existing report
     response = await client.post(
@@ -341,7 +341,7 @@ async def test_generate_report_retries_after_error(client: AsyncClient) -> None:
         )
         # Wait for background task to finish
         for _ in range(20):
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.01)
             if not is_generating(session_id, "intermediate"):
                 break
 
@@ -358,7 +358,7 @@ async def test_generate_report_retries_after_error(client: AsyncClient) -> None:
 
         # Wait for the auto-triggered background task to complete
         for _ in range(20):
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.01)
             if not is_generating(session_id, "intermediate"):
                 break
 
@@ -428,7 +428,7 @@ async def test_trigger_auto_coaching_fires_task_when_no_report(client: AsyncClie
     ):
         await trigger_auto_coaching(session_id, sd)
         mock_track.assert_called_once()
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.01)
 
 
 # ---------------------------------------------------------------------------
@@ -457,7 +457,7 @@ async def test_track_task_logs_exception_on_failure() -> None:
 
         t2 = asyncio.create_task(_fail())
         _track_task(t2)
-        await asyncio.sleep(0.05)
+        await asyncio.sleep(0.01)
 
         # The logger.error should have been called for one of the tasks
         # (the original task from the first _track_task call)
@@ -465,7 +465,7 @@ async def test_track_task_logs_exception_on_failure() -> None:
 
     # Allow background tasks to settle without asserting logger calls
     # (logger is module-level, patching after-the-fact doesn't intercept)
-    await asyncio.sleep(0.05)
+    await asyncio.sleep(0.01)
 
 
 @pytest.mark.asyncio
@@ -481,7 +481,7 @@ async def test_track_task_cancelled_task_does_not_log_error() -> None:
     task.cancel()
 
     with patch("backend.api.routers.coaching.logger") as mock_logger:
-        await asyncio.sleep(0.05)
+        await asyncio.sleep(0.01)
         mock_logger.error.assert_not_called()
 
 
@@ -1095,7 +1095,7 @@ async def test_download_pdf_success(client: AsyncClient) -> None:
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "intermediate"},
         )
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.01)
 
     # Mock PDF generation to return dummy bytes
     dummy_pdf = b"%PDF-1.4 dummy"
@@ -1124,7 +1124,7 @@ async def test_download_pdf_filename_uses_short_id(client: AsyncClient) -> None:
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "intermediate"},
         )
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.01)
 
     with patch(
         "backend.api.routers.coaching.generate_pdf",
@@ -1158,7 +1158,7 @@ async def test_run_generation_stores_error_on_exception(client: AsyncClient) -> 
             json={"skill_level": "intermediate"},
         )
         assert response.json()["status"] == "generating"
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.01)
 
     # GET clears error and auto-triggers fresh generation. Keep mock active so
     # the background task spawned by GET doesn't hang on the real coaching API.
@@ -1173,7 +1173,7 @@ async def test_run_generation_stores_error_on_exception(client: AsyncClient) -> 
 
         # Wait for auto-triggered background task to complete
         for _ in range(20):
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.01)
             if not is_generating(session_id, "intermediate"):
                 break
 
@@ -1193,7 +1193,7 @@ async def test_run_generation_unmarks_generating_on_error(client: AsyncClient) -
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "intermediate"},
         )
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.01)
 
     assert not is_generating(session_id, "intermediate")
 
@@ -1237,7 +1237,7 @@ async def test_run_generation_handles_non_numeric_priority_corner(
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "intermediate"},
         )
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.01)
 
     response = await client.get(f"/api/coaching/{session_id}/report")
     assert response.status_code == 200
