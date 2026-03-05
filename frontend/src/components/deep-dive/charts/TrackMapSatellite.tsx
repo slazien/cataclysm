@@ -6,7 +6,9 @@ import * as d3 from 'd3';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useMultiLapData, useCorners, useDelta } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
-import { useAnalysisStore } from '@/stores';
+import { useCornerKings } from '@/hooks/useLeaderboard';
+import { useSession } from '@/hooks/useSession';
+import { useAnalysisStore, useSessionStore } from '@/stores';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { colors } from '@/lib/design-tokens';
 import { worstGrade } from '@/lib/gradeUtils';
@@ -144,6 +146,20 @@ export function TrackMapSatellite({ sessionId }: TrackMapSatelliteProps) {
   const cursorDistance = useAnalysisStore((s) => s.cursorDistance);
   const selectedCorner = useAnalysisStore((s) => s.selectedCorner);
   const selectCorner = useAnalysisStore((s) => s.selectCorner);
+  const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const { data: sessionData } = useSession(activeSessionId);
+  const trackName = sessionData?.track_name ?? undefined;
+  const { data: kingsData } = useCornerKings(trackName);
+
+  const kingCorners = useMemo(() => {
+    const set = new Set<number>();
+    if (kingsData?.kings) {
+      for (const k of kingsData.kings) {
+        set.add(k.corner_number);
+      }
+    }
+    return set;
+  }, [kingsData]);
 
   const refLap = selectedLaps.length >= 2 ? selectedLaps[0] : null;
   const compLap = selectedLaps.length >= 2 ? selectedLaps[1] : null;
@@ -263,7 +279,7 @@ export function TrackMapSatellite({ sessionId }: TrackMapSatelliteProps) {
 
         {/* Track trace as colored line segments */}
         {geoJson && (
-          <Source id="track-trace" type="geojson" data={geoJson}>
+          <Source key={delta ? 'delta' : 'speed'} id="track-trace" type="geojson" data={geoJson}>
             <Layer
               id="track-line"
               type="line"
@@ -328,6 +344,9 @@ export function TrackMapSatellite({ sessionId }: TrackMapSatelliteProps) {
               }}
             >
               <div className="flex cursor-pointer items-center gap-0.5">
+                {kingCorners.has(label.number) && (
+                  <span style={{ fontSize: 8, marginRight: -2 }}>{'\u{1F451}'}</span>
+                )}
                 <div
                   style={{
                     width: 20,
@@ -367,10 +386,11 @@ export function TrackMapSatellite({ sessionId }: TrackMapSatelliteProps) {
           );
         })}
 
-        {/* Cursor dot */}
+        {/* Cursor dot with pulse animation */}
         {cursorPos && (
           <Marker longitude={cursorPos[0]} latitude={cursorPos[1]} anchor="center">
             <div
+              className="sat-cursor-pulse"
               style={{
                 width: 12,
                 height: 12,
@@ -380,6 +400,13 @@ export function TrackMapSatellite({ sessionId }: TrackMapSatelliteProps) {
                 boxShadow: `0 0 6px ${colors.motorsport.optimal}88`,
               }}
             />
+            <style>{`
+              @keyframes sat-pulse {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.4); }
+              }
+              .sat-cursor-pulse { animation: sat-pulse 1s ease-in-out infinite; }
+            `}</style>
           </Marker>
         )}
       </MapGL>
