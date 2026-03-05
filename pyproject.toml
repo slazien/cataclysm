@@ -17,6 +17,7 @@ dependencies = [
     "fpdf2>=2.7",
     "kaleido>=0.2",
     "joserfc>=1.0",
+    "pymap3d>=3.0",
 ]
 
 [project.optional-dependencies]
@@ -73,6 +74,8 @@ module = [
     "aiosqlite",
     "alembic",
     "alembic.*",
+    "pymap3d",
+    "pymap3d.*",
 ]
 ignore_missing_imports = true
 disable_error_code = ["import-untyped"]
