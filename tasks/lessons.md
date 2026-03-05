@@ -200,6 +200,22 @@ assert not is_generating(session_id, "intermediate")
 
 **Anti-pattern**: "User says 'no scroll needed' → remove overflow constraints." Instead, maximize available space (reduce max-h deduction, let card flex-grow) while keeping the scroll mechanism as a fallback.
 
+## Verify Subagent Commits After Each Task ([2026-03-05])
+
+**Pattern**: After a subagent completes a task, ALWAYS run `git log --oneline -3` and `git diff --stat` to verify the subagent actually committed its work. If uncommitted changes exist, stage and commit them manually before proceeding to the next task.
+
+**Why**: Task 5 subagent (LIDAR elevation service) completed implementation and tests but didn't finish committing. The changes were left unstaged. Had to manually verify ruff/tests passed and commit. In subagent-driven development, each task's commit is a prerequisite for the next task — an uncommitted task silently breaks the chain.
+
+**Error signature**: `git diff --stat` shows changes after a subagent reports "done". Or the next subagent can't find symbols/imports from the previous task.
+
+## Verify Plan Column Names Against Actual Code ([2026-03-05])
+
+**Pattern**: Before dispatching subagents from an implementation plan, spot-check that column names, variable names, and API field names in the plan match the actual codebase. Plans written from memory may use plausible-but-wrong names.
+
+**Why**: Plan referenced `latitude`/`longitude` columns but actual DataFrames use `lat`/`lon`. The Task 6 subagent caught and corrected this during implementation, but it would have been faster to catch it during plan review. Column name mismatches cause silent bugs or runtime KeyErrors.
+
+**Verification**: For each code snippet in the plan, grep the codebase for the column/field names used: `grep -rn "latitude\|lat" cataclysm/` to confirm which variant is actually used.
+
 ## Always Run Code Reviewer After Implementation
 - **When**: After finishing ANY implementation task — features, bug fixes, refactors
 - **Rule**: Dispatch the code reviewer agent (`superpowers:code-reviewer` or `code-review:code-review`) to review all changed files. This is in ADDITION to automated checks (ruff, mypy, tests), not a replacement.
