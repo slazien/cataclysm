@@ -676,14 +676,16 @@ def build_track_introduction(layout: TrackLayout | None) -> str:
 
     lines.append("</corner_guide>")
 
-    # Key corners: Type A corners where exit speed is critical (long straight after)
+    # Key corners: ranked by composite score (straight length × corner severity)
     key_corners = get_key_corners(layout)
     if key_corners:
         lines.append("<key_corners>")
-        for c, gap_m in key_corners:
+        for rank, (c, gap_m) in enumerate(key_corners, 1):
+            ctype = c.corner_type or "corner"
             lines.append(
                 f'  <corner number="{c.number}" name="{c.name}" '
-                f'straight_after="{gap_m:.0f}m">Type A — exit speed critical</corner>'
+                f'type="{ctype}" straight_after="{gap_m:.0f}m" '
+                f'priority="{rank}">Exit speed critical — {gap_m:.0f}m straight follows</corner>'
             )
         lines.append("</key_corners>")
 

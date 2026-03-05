@@ -780,30 +780,59 @@ def _normalize_name(name: str) -> str:
     return name.strip().lower()
 
 
-def get_key_corners(layout: TrackLayout) -> list[tuple[OfficialCorner, float]]:
-    """Identify Type A corners: exit speed critical because a long straight follows.
+# Weight multipliers by corner_type.  Slow corners (hairpins) have a larger
+# speed delta, so a 1 mph exit-speed error costs more time there than at a
+# fast kink.  Based on YourDataDriven analysis: dt/dv = -distance/v², so
+# slow corners are disproportionately time-sensitive.
+_CORNER_TYPE_SEVERITY: dict[str, float] = {
+    "hairpin": 3.0,
+    "sweeper": 1.5,
+    "chicane": 2.0,
+    "kink": 0.5,
+    "esses": 0.4,
+}
+_DEFAULT_SEVERITY = 1.0
 
-    A corner qualifies as Type A when the gap to the next corner exceeds 150 m.
-    Returns up to 3 results sorted by straight length descending.
+# Minimum gap (meters) to the next corner for a corner to qualify as "key."
+_KEY_CORNER_MIN_GAP_M = 100.0
+
+
+def get_key_corners(layout: TrackLayout) -> list[tuple[OfficialCorner, float]]:
+    """Identify the most important corners for lap time.
+
+    Uses a composite score that combines straight length after the corner
+    (Type A factor) with corner severity (speed-delta proxy from corner_type).
+    Flat-out corners are excluded since they have no braking/technique element.
+
+    Returns up to 5 results sorted by composite score descending.
+    The second element of each tuple is the straight length after the corner
+    in meters (preserving the existing API contract).
     """
     track_len = layout.length_m or 0.0
     if track_len <= 0 or len(layout.corners) < 2:
         return []
 
-    result: list[tuple[OfficialCorner, float]] = []
+    # (corner, gap_m, score)
+    candidates: list[tuple[OfficialCorner, float, float]] = []
     sorted_corners = sorted(layout.corners, key=lambda c: c.fraction)
     for i, c in enumerate(sorted_corners):
+        # Skip flat-out corners — no braking, no technique element
+        if c.character == "flat":
+            continue
+
         if i + 1 < len(sorted_corners):
             gap = sorted_corners[i + 1].fraction - c.fraction
         else:
             # Wrap-around: last corner to first corner (through S/F)
             gap = (1.0 - c.fraction) + sorted_corners[0].fraction
         gap_m = gap * track_len
-        if gap_m > 150:
-            result.append((c, gap_m))
+        if gap_m > _KEY_CORNER_MIN_GAP_M:
+            severity = _CORNER_TYPE_SEVERITY.get(c.corner_type or "", _DEFAULT_SEVERITY)
+            score = gap_m * severity
+            candidates.append((c, gap_m, score))
 
-    result.sort(key=lambda x: x[1], reverse=True)
-    return result[:3]
+    candidates.sort(key=lambda x: x[2], reverse=True)
+    return [(c, gap_m) for c, gap_m, _score in candidates[:5]]
 
 
 def get_peculiarities(layout: TrackLayout) -> list[tuple[OfficialCorner, str]]:

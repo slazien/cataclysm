@@ -613,23 +613,35 @@ class TestRoeblingRoadRaceway:
 class TestGetKeyCorners:
     """Tests for the get_key_corners utility function."""
 
-    def test_barber_key_corners(self) -> None:
-        """Barber should have key corners with >150m straights."""
+    def test_barber_key_corners_include_t5_t9_t16(self) -> None:
+        """Barber's T5 (hairpin), T9 (corkscrew exit), T16 (final) must be key."""
+        result = get_key_corners(BARBER_MOTORSPORTS_PARK)
+        numbers = {c.number for c, _ in result}
+        assert 5 in numbers, "T5 (Charlotte's Web hairpin) must be a key corner"
+        assert 9 in numbers, "T9 (Corkscrew Exit) must be a key corner"
+        assert 16 in numbers, "T16 (Final Left) must be a key corner"
+
+    def test_barber_key_corners_gap_minimum(self) -> None:
+        """All key corners should have at least 100m gap to the next corner."""
         result = get_key_corners(BARBER_MOTORSPORTS_PARK)
         assert len(result) > 0
-        assert len(result) <= 3
+        assert len(result) <= 5
         for _corner, gap_m in result:
-            assert gap_m > 150
+            assert gap_m > 100
 
-    def test_key_corners_sorted_by_gap_descending(self) -> None:
-        gaps = [gap_m for _, gap_m in get_key_corners(BARBER_MOTORSPORTS_PARK)]
-        assert gaps == sorted(gaps, reverse=True)
+    def test_barber_flat_out_corners_excluded(self) -> None:
+        """Flat-out corners (character='flat') should not appear as key corners."""
+        result = get_key_corners(BARBER_MOTORSPORTS_PARK)
+        for corner, _ in result:
+            assert corner.character != "flat", (
+                f"T{corner.number} is flat-out and should not be a key corner"
+            )
 
     def test_amp_key_corners(self) -> None:
         result = get_key_corners(ATLANTA_MOTORSPORTS_PARK)
         assert len(result) > 0
         for _corner, gap_m in result:
-            assert gap_m > 150
+            assert gap_m > 100
 
     def test_roebling_key_corners(self) -> None:
         result = get_key_corners(ROEBLING_ROAD_RACEWAY)
@@ -654,12 +666,12 @@ class TestGetKeyCorners:
         )
         assert get_key_corners(layout) == []
 
-    def test_max_three_returned(self) -> None:
-        """Even if more than 3 qualify, only top 3 are returned."""
+    def test_max_five_returned(self) -> None:
+        """Even if more than 5 qualify, only top 5 are returned."""
         corners = [OfficialCorner(i, f"T{i}", i * 0.1) for i in range(1, 10)]
         layout = TrackLayout(name="Wide", corners=corners, length_m=10000.0)
         result = get_key_corners(layout)
-        assert len(result) <= 3
+        assert len(result) <= 5
 
     def test_wrap_around_gap(self) -> None:
         """Last corner to first corner through S/F should be detected."""
@@ -676,6 +688,23 @@ class TestGetKeyCorners:
         # T2→T3 is only 50m, but T3→T1 wrap-around is 500m
         gaps = {c.number: gap for c, gap in result}
         assert 3 in gaps  # T3 should be a key corner (500m wrap)
+
+    def test_hairpin_ranks_above_kink_with_longer_straight(self) -> None:
+        """A hairpin onto a moderate straight should outrank a kink onto a long straight."""
+        layout = TrackLayout(
+            name="Score",
+            corners=[
+                OfficialCorner(1, "Hairpin", 0.10, corner_type="hairpin"),
+                OfficialCorner(2, "Kink", 0.30, corner_type="kink"),
+                OfficialCorner(3, "Sweeper", 0.80, corner_type="sweeper"),
+            ],
+            length_m=2000.0,
+        )
+        result = get_key_corners(layout)
+        numbers = [c.number for c, _ in result]
+        # Hairpin (gap=400m, severity=3.0, score=1200) should rank above
+        # Kink (gap=1000m, severity=0.5, score=500)
+        assert numbers.index(1) < numbers.index(2)
 
 
 class TestGetPeculiarities:
