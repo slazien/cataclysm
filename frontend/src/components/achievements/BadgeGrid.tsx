@@ -93,7 +93,7 @@ function AchievementBadge({ achievement }: { achievement: Achievement }) {
       <span className="text-center text-xs font-medium text-[var(--text-primary)]">
         {achievement.name}
       </span>
-      <span className="text-center text-[10px] text-[var(--text-muted)]">
+      <span className="text-center text-[10px] text-[var(--text-secondary)]">
         {achievement.description}
       </span>
       {achievement.unlocked && achievement.unlocked_at && (
@@ -121,7 +121,7 @@ function CategorySection({
         <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
           {label}
         </h3>
-        <span className="text-xs tabular-nums text-[var(--text-muted)]">
+        <span className="text-xs tabular-nums text-[var(--text-secondary)]">
           {unlocked}/{achievements.length}
         </span>
       </div>
@@ -145,7 +145,7 @@ interface BadgeGridProps {
 }
 
 export function BadgeGrid({ open, onClose }: BadgeGridProps) {
-  const { data, isLoading } = useAchievements(open);
+  const { data, isLoading, isError, refetch } = useAchievements(open);
 
   const grouped = useMemo(() => {
     if (!data?.achievements) return [];
@@ -172,37 +172,59 @@ export function BadgeGrid({ open, onClose }: BadgeGridProps) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative w-[min(90vw,520px)] max-h-[85vh] overflow-y-auto rounded-2xl bg-[var(--bg-surface)] p-6 shadow-2xl">
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-3 top-3 rounded-full bg-black/40 p-1.5 text-white/70 hover:bg-black/60"
-        >
-          <X className="h-4 w-4" />
-        </button>
-
-        <h2 className="mb-1 text-xl font-semibold text-[var(--text-primary)]">Achievements</h2>
-        <div className="mb-4 flex items-center gap-3">
-          <p className="text-sm text-[var(--text-muted)]">
-            {unlocked} / {total} unlocked
-          </p>
-          <div className="h-1.5 flex-1 rounded-full bg-[var(--bg-elevated)]">
-            <div
-              className="h-full rounded-full bg-[var(--cata-accent)] transition-all duration-500"
-              style={{ width: total > 0 ? `${(unlocked / total) * 100}%` : '0%' }}
-            />
+      <div className="flex w-[min(90vw,520px)] max-h-[85vh] flex-col rounded-2xl bg-[var(--bg-surface)] shadow-2xl">
+        {/* Sticky header — stays visible when scrolling */}
+        <div className="flex items-start justify-between px-6 pt-6 pb-2">
+          <div className="flex-1">
+            <h2 className="mb-1 text-xl font-semibold text-[var(--text-primary)]">Achievements</h2>
+            <div className="flex items-center gap-3">
+              <p className="text-sm text-[var(--text-secondary)]">
+                {unlocked} / {total} unlocked
+              </p>
+              <div className="h-1.5 flex-1 rounded-full bg-[var(--bg-elevated)]">
+                <div
+                  className="h-full rounded-full bg-[var(--cata-accent)] transition-all duration-500"
+                  style={{ width: total > 0 ? `${(unlocked / total) * 100}%` : '0%' }}
+                />
+              </div>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="ml-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-black/40 text-white/70 hover:bg-black/60"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
-        {isLoading && (
-          <div className="flex justify-center py-8">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--cata-accent)] border-t-transparent" />
-          </div>
-        )}
+        {/* Scrollable body */}
+        <div className="overflow-y-auto px-6 pb-6">
+          {isLoading && (
+            <div className="flex justify-center py-8">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--cata-accent)] border-t-transparent" />
+            </div>
+          )}
 
-        {data && grouped.map(({ category, achievements }) => (
-          <CategorySection key={category} category={category} achievements={achievements} />
-        ))}
+          {isError && (
+            <div className="flex flex-col items-center gap-3 py-8 text-center">
+              <p className="text-sm text-[var(--text-secondary)]">
+                Couldn&apos;t load achievements
+              </p>
+              <button
+                type="button"
+                onClick={() => refetch()}
+                className="rounded-lg bg-[var(--bg-elevated)] px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--cata-border)]"
+              >
+                Tap to retry
+              </button>
+            </div>
+          )}
+
+          {data && grouped.map(({ category, achievements }) => (
+            <CategorySection key={category} category={category} achievements={achievements} />
+          ))}
+        </div>
       </div>
     </div>
   );
