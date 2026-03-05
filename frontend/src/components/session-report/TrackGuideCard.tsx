@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useTrackGuide } from '@/hooks/useTrackGuide';
 import { InfoTooltip } from '@/components/shared/InfoTooltip';
-import type { KeyCorner, TrackGuideCorner, TrackGuideLandmark, TrackPeculiarity } from '@/lib/types';
+import type { KeyCorner, TrackGuideCorner, TrackGuideLandmark } from '@/lib/types';
 
 interface TrackGuideCardProps {
   sessionId: string;
@@ -27,24 +27,29 @@ interface TrackGuideCardProps {
 
 const STORAGE_KEY_PREFIX = 'track-briefing-seen:';
 
-function useHasSeen(sessionId: string) {
+function useHasSeen(sessionId: string, dataLoaded: boolean) {
   const key = `${STORAGE_KEY_PREFIX}${sessionId}`;
   const [seen, setSeen] = useState(true); // Default collapsed until check
 
+  // Read localStorage on mount to determine initial state
   useEffect(() => {
     const stored = localStorage.getItem(key);
     setSeen(stored === 'true');
-    if (!stored) {
+  }, [key]);
+
+  // Only mark as "seen" after data has loaded and the card can render
+  useEffect(() => {
+    if (dataLoaded) {
       localStorage.setItem(key, 'true');
     }
-  }, [key]);
+  }, [key, dataLoaded]);
 
   return seen;
 }
 
 function DirectionArrow({ direction }: { direction: string | null }) {
-  if (direction === 'left') return <ArrowLeft className="h-3.5 w-3.5 text-[var(--text-muted)]" />;
-  if (direction === 'right') return <ArrowRight className="h-3.5 w-3.5 text-[var(--text-muted)]" />;
+  if (direction === 'left') return <ArrowLeft className="h-3.5 w-3.5 text-[var(--text-secondary)]" />;
+  if (direction === 'right') return <ArrowRight className="h-3.5 w-3.5 text-[var(--text-secondary)]" />;
   return null;
 }
 
@@ -66,18 +71,19 @@ function CollapsibleSection({
       <button
         type="button"
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
         className="flex w-full items-center justify-between py-2 text-left"
       >
         <span className="font-[family-name:var(--font-display)] text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
           {title}
           {count !== undefined && (
-            <span className="ml-1.5 text-[var(--text-muted)]">({count})</span>
+            <span className="ml-1.5 text-[var(--text-secondary)]">({count})</span>
           )}
         </span>
         {open ? (
-          <ChevronUp className="h-4 w-4 text-[var(--text-muted)]" />
+          <ChevronUp className="h-4 w-4 text-[var(--text-secondary)]" />
         ) : (
-          <ChevronDown className="h-4 w-4 text-[var(--text-muted)]" />
+          <ChevronDown className="h-4 w-4 text-[var(--text-secondary)]" />
         )}
       </button>
       {open && <div className="pb-2">{children}</div>}
@@ -90,7 +96,7 @@ function StatCard({ icon: Icon, label, value }: { icon: React.ComponentType<{ cl
     <div className="flex items-center gap-2">
       <Icon className="h-4 w-4 shrink-0 text-[var(--cata-accent)]" />
       <div className="min-w-0">
-        <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">{label}</p>
+        <p className="text-[10px] uppercase tracking-wider text-[var(--text-secondary)]">{label}</p>
         <p className="truncate text-sm font-medium text-[var(--text-primary)]">{value}</p>
       </div>
     </div>
@@ -112,7 +118,7 @@ function KeyCornerCard({ corner }: { corner: KeyCorner }) {
         <span className="inline-flex items-center gap-1 rounded-full bg-[var(--cata-accent)]/10 px-2 py-0.5 text-[10px] font-semibold text-[var(--cata-accent)]">
           Exit speed critical
         </span>
-        <span className="text-[10px] text-[var(--text-muted)]">
+        <span className="text-[10px] text-[var(--text-secondary)]">
           {Math.round(corner.straight_after_m)}m straight after
         </span>
       </div>
@@ -193,15 +199,15 @@ function LandmarkIcon({ type }: { type: string }) {
     case 'brake_board':
       return <Square className="h-3.5 w-3.5 text-red-400" />;
     case 'structure':
-      return <Building2 className="h-3.5 w-3.5 text-[var(--text-muted)]" />;
+      return <Building2 className="h-3.5 w-3.5 text-[var(--text-secondary)]" />;
     case 'barrier':
       return <Shield className="h-3.5 w-3.5 text-amber-400" />;
     case 'curbing':
-      return <Flag className="h-3.5 w-3.5 text-[var(--text-muted)]" />;
+      return <Flag className="h-3.5 w-3.5 text-[var(--text-secondary)]" />;
     case 'sign':
-      return <Navigation className="h-3.5 w-3.5 text-[var(--text-muted)]" />;
+      return <Navigation className="h-3.5 w-3.5 text-[var(--text-secondary)]" />;
     default:
-      return <MapPin className="h-3.5 w-3.5 text-[var(--text-muted)]" />;
+      return <MapPin className="h-3.5 w-3.5 text-[var(--text-secondary)]" />;
   }
 }
 
@@ -217,7 +223,7 @@ function LandmarkList({ landmarks }: { landmarks: TrackGuideLandmark[] }) {
           <LandmarkIcon type={lm.landmark_type} />
           <div className="min-w-0">
             <span className="font-medium text-[var(--text-primary)]">{lm.name}</span>
-            <span className="ml-1.5 text-[var(--text-muted)]">{Math.round(lm.distance_m)}m</span>
+            <span className="ml-1.5 text-[var(--text-secondary)]">{Math.round(lm.distance_m)}m</span>
             {lm.description && (
               <span className="ml-1 text-[var(--text-secondary)]">— {lm.description}</span>
             )}
@@ -245,7 +251,7 @@ function formatLength(m: number | null): string {
 
 export function TrackGuideCard({ sessionId }: TrackGuideCardProps) {
   const { data: guide, isError } = useTrackGuide(sessionId);
-  const hasSeen = useHasSeen(sessionId);
+  const hasSeen = useHasSeen(sessionId, !!guide);
   const [collapsed, setCollapsed] = useState(true);
 
   // Once data loads, decide initial collapsed state
@@ -263,6 +269,7 @@ export function TrackGuideCard({ sessionId }: TrackGuideCardProps) {
       <button
         type="button"
         onClick={() => setCollapsed(!collapsed)}
+        aria-expanded={!collapsed}
         className="flex w-full items-center justify-between p-4"
       >
         <div className="flex items-center gap-2">
@@ -274,14 +281,14 @@ export function TrackGuideCard({ sessionId }: TrackGuideCardProps) {
         </div>
         <div className="flex items-center gap-2">
           {collapsed && (
-            <span className="text-xs text-[var(--text-muted)]">
+            <span className="text-xs text-[var(--text-secondary)]">
               {guide.track_name} · {guide.n_corners} turns
             </span>
           )}
           {collapsed ? (
-            <ChevronDown className="h-4 w-4 text-[var(--text-muted)]" />
+            <ChevronDown className="h-4 w-4 text-[var(--text-secondary)]" />
           ) : (
-            <ChevronUp className="h-4 w-4 text-[var(--text-muted)]" />
+            <ChevronUp className="h-4 w-4 text-[var(--text-secondary)]" />
           )}
         </div>
       </button>
@@ -329,11 +336,11 @@ export function TrackGuideCard({ sessionId }: TrackGuideCardProps) {
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-[var(--cata-border)]">
-                    <th className="pb-1.5 pl-2 pr-3 text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">Corner</th>
-                    <th className="pb-1.5 pr-3 text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">Dir</th>
-                    <th className="pb-1.5 pr-3 text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">Type</th>
-                    <th className="pb-1.5 pr-3 text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">Elevation</th>
-                    <th className="pb-1.5 pr-2 text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">Special</th>
+                    <th className="pb-1.5 pl-2 pr-3 text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">Corner</th>
+                    <th className="pb-1.5 pr-3 text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">Dir</th>
+                    <th className="pb-1.5 pr-3 text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">Type</th>
+                    <th className="pb-1.5 pr-3 text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">Elevation</th>
+                    <th className="pb-1.5 pr-2 text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">Special</th>
                   </tr>
                 </thead>
                 <tbody>
