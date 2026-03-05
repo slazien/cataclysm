@@ -329,6 +329,31 @@ def resolve_vehicle_params(session_id: str) -> VehicleParams | None:
     return equipment_to_vehicle_params(profile)
 
 
+async def _try_lidar_elevation(session_data: SessionData) -> np.ndarray | None:
+    """Attempt LIDAR elevation fetch for the best lap (async, pre-thread).
+
+    Returns a numpy array of LIDAR altitudes aligned to the best lap, or
+    None if the fetch fails or coverage is insufficient.
+    """
+    processed = session_data.processed
+    best_lap_df = processed.resampled_laps[processed.best_lap]
+    if "lat" not in best_lap_df.columns or "lon" not in best_lap_df.columns:
+        return None
+    try:
+        from cataclysm.elevation_service import fetch_lidar_elevations
+
+        result = await fetch_lidar_elevations(
+            best_lap_df["lat"].to_numpy(),
+            best_lap_df["lon"].to_numpy(),
+        )
+        if result.source == "usgs_3dep" and len(result.altitude_m) > 0:
+            logger.info("Using USGS 3DEP LIDAR elevation (%d points)", len(result.altitude_m))
+            return result.altitude_m
+    except Exception:
+        logger.debug("LIDAR elevation fetch failed, using GPS altitude", exc_info=True)
+    return None
+
+
 async def get_optimal_profile_data(session_data: SessionData) -> dict[str, object]:
     """Compute the physics-optimal velocity profile for a session.
 
@@ -340,6 +365,9 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
     Returns columnar data suitable for JSON serialisation.
     """
     session_id = session_data.session_id
+
+    # Try LIDAR elevation (async, before entering sync thread)
+    lidar_alt = await _try_lidar_elevation(session_data)
 
     def _compute() -> dict[str, object]:
         processed = session_data.processed
@@ -361,14 +389,16 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
                 vehicle_params = apply_calibration_to_params(base, grip)
 
         # Compute elevation gradient and vertical curvature for the solver
+        # Prefer LIDAR altitude, fall back to GPS
         gradient_sin = None
         vert_curvature = None
-        if "altitude_m" in best_lap_df.columns:
+        alt = lidar_alt  # from async fetch above
+        if alt is None and "altitude_m" in best_lap_df.columns:
             alt = best_lap_df["altitude_m"].to_numpy()
+        if alt is not None and not np.all(np.isnan(alt)):
             dist = best_lap_df["lap_distance_m"].to_numpy()
-            if not np.all(np.isnan(alt)):
-                gradient_sin = compute_gradient_array(alt, dist)
-                vert_curvature = compute_vertical_curvature(alt, dist)
+            gradient_sin = compute_gradient_array(alt, dist)
+            vert_curvature = compute_vertical_curvature(alt, dist)
 
         # Solve optimal velocity profile
         optimal = compute_optimal_profile(
@@ -411,6 +441,9 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
     """
     session_id = session_data.session_id
 
+    # Try LIDAR elevation (async, before entering sync thread)
+    lidar_alt = await _try_lidar_elevation(session_data)
+
     def _compute() -> dict[str, object]:
         processed = session_data.processed
         best_lap_df = processed.resampled_laps[processed.best_lap]
@@ -430,14 +463,16 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
                 vehicle_params = apply_calibration_to_params(base, grip)
 
         # Compute elevation gradient and vertical curvature for the solver
+        # Prefer LIDAR altitude, fall back to GPS
         gradient_sin = None
         vert_curvature = None
-        if "altitude_m" in best_lap_df.columns:
+        alt = lidar_alt  # from async fetch above
+        if alt is None and "altitude_m" in best_lap_df.columns:
             alt = best_lap_df["altitude_m"].to_numpy()
+        if alt is not None and not np.all(np.isnan(alt)):
             dist = best_lap_df["lap_distance_m"].to_numpy()
-            if not np.all(np.isnan(alt)):
-                gradient_sin = compute_gradient_array(alt, dist)
-                vert_curvature = compute_vertical_curvature(alt, dist)
+            gradient_sin = compute_gradient_array(alt, dist)
+            vert_curvature = compute_vertical_curvature(alt, dist)
 
         optimal = compute_optimal_profile(
             curvature_result,
