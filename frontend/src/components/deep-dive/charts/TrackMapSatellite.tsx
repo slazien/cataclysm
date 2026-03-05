@@ -20,6 +20,8 @@ const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? '';
 
 interface TrackMapSatelliteProps {
   sessionId: string;
+  terrain?: boolean;
+  exaggeration?: number;
 }
 
 /** Build ~100 GeoJSON LineString segments with per-segment color */
@@ -138,7 +140,20 @@ function buildCornerLabels(
   });
 }
 
-export function TrackMapSatellite({ sessionId }: TrackMapSatelliteProps) {
+/** Compute initial bearing from S/F straight direction */
+function computeAutoBearing(lapData: LapData): number {
+  const n = Math.min(20, lapData.lat.length - 1);
+  if (n < 1) return 0;
+  const dx = lapData.lon[n] - lapData.lon[0];
+  const dy = lapData.lat[n] - lapData.lat[0];
+  return (Math.atan2(dx, dy) * 180) / Math.PI;
+}
+
+export function TrackMapSatellite({
+  sessionId,
+  terrain = false,
+  exaggeration = 2.0,
+}: TrackMapSatelliteProps) {
   const mapRef = useRef<MapRef>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
 
@@ -218,6 +233,34 @@ export function TrackMapSatellite({ sessionId }: TrackMapSatelliteProps) {
     if (mapLoaded) fitBounds();
   }, [mapLoaded, fitBounds]);
 
+  // Auto-bearing for 3D terrain view
+  const autoBearing = useMemo(() => {
+    if (!terrain || !lapData) return 0;
+    return computeAutoBearing(lapData);
+  }, [terrain, lapData]);
+
+  // Enable/disable Mapbox 3D terrain
+  useEffect(() => {
+    const map = mapRef.current?.getMap();
+    if (!map || !mapLoaded) return;
+
+    if (terrain) {
+      if (!map.getSource('mapbox-dem')) {
+        map.addSource('mapbox-dem', {
+          type: 'raster-dem',
+          url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+          tileSize: 512,
+          maxzoom: 14,
+        });
+      }
+      map.setTerrain({ source: 'mapbox-dem', exaggeration });
+    } else {
+      if (map.getTerrain()) {
+        map.setTerrain(null);
+      }
+    }
+  }, [terrain, exaggeration, mapLoaded]);
+
   const handleCornerClick = useCallback(
     (cornerNumber: number) => {
       const cornerId = `T${cornerNumber}`;
@@ -267,8 +310,8 @@ export function TrackMapSatellite({ sessionId }: TrackMapSatelliteProps) {
           longitude: centerLon,
           latitude: centerLat,
           zoom: 15,
-          pitch: 45,
-          bearing: 0,
+          pitch: terrain ? 45 : 0,
+          bearing: terrain ? autoBearing : 0,
         }}
         style={{ width: '100%', height: '100%' }}
         mapStyle="mapbox://styles/mapbox/satellite-v9"
