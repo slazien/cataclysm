@@ -65,6 +65,7 @@ function KpiRow({ label, value, delta, unit = '' }: KpiRowProps) {
 
 export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
   const selectedCorner = useAnalysisStore((s) => s.selectedCorner);
+  const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
   const setMode = useAnalysisStore((s) => s.setMode);
 
   const { data: corners } = useCorners(sessionId);
@@ -86,7 +87,20 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
   const cornerNumber = parseCornerNumber(selectedCorner);
   if (cornerNumber === null) return null;
 
-  const corner = corners?.find((c) => c.number === cornerNumber);
+  // Use the selected lap's corner data when exactly one lap is selected,
+  // otherwise fall back to best-lap corners from useCorners.
+  const bestLapCorner = corners?.find((c) => c.number === cornerNumber) ?? null;
+  let corner: Corner | null = bestLapCorner;
+  let displayLap: number | null = null;
+  if (selectedLaps.length === 1 && allLapCorners) {
+    const lapKey = String(selectedLaps[0]);
+    const lapCorners = allLapCorners[lapKey];
+    const lapCorner = lapCorners?.find((c) => c.number === cornerNumber);
+    if (lapCorner) {
+      corner = lapCorner;
+      displayLap = selectedLaps[0];
+    }
+  }
   if (!corner) return null;
 
   // Get grade info
@@ -131,7 +145,9 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
           </h3>
           {overallGrade && <GradeChip grade={overallGrade} />}
         </div>
-        <span className="text-xs text-[var(--text-muted)]">{corner.apex_type} apex</span>
+        <span className="text-xs text-[var(--text-muted)]">
+          {displayLap ? `L${displayLap}` : 'Best lap'} · {corner.apex_type} apex
+        </span>
       </div>
 
       {/* KPIs */}
