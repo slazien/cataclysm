@@ -90,7 +90,7 @@ export function TrackMapContainer({ sessionId }: TrackMapContainerProps) {
         className={cn(
           'flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors',
           satEnabled
-            ? 'border-[var(--motorsport-optimal)] bg-[var(--bg-overlay)] text-[var(--text-primary)]'
+            ? 'border-[var(--color-optimal)] bg-[var(--bg-overlay)] text-[var(--text-primary)]'
             : 'border-[var(--cata-border)] bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
         )}
         title="Toggle satellite overlay"
@@ -109,7 +109,7 @@ export function TrackMapContainer({ sessionId }: TrackMapContainerProps) {
             step={EXAGGERATION_STEP}
             value={exaggeration}
             onChange={(e) => setExaggeration(Number(e.target.value))}
-            className="h-1 w-16 cursor-pointer accent-[var(--motorsport-optimal)]"
+            className="h-1 w-16 cursor-pointer accent-[var(--color-optimal)]"
             title={`Terrain exaggeration: ${exaggeration.toFixed(1)}×`}
           />
         </div>

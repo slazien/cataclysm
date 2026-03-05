@@ -144,7 +144,8 @@ function buildCornerLabels(
 function computeAutoBearing(lapData: LapData): number {
   const n = Math.min(20, lapData.lat.length - 1);
   if (n < 1) return 0;
-  const dx = lapData.lon[n] - lapData.lon[0];
+  const cosLat = Math.cos((lapData.lat[0] * Math.PI) / 180);
+  const dx = (lapData.lon[n] - lapData.lon[0]) * cosLat;
   const dy = lapData.lat[n] - lapData.lat[0];
   return (Math.atan2(dx, dy) * 180) / Math.PI;
 }
@@ -258,8 +259,29 @@ export function TrackMapSatellite({
       if (map.getTerrain()) {
         map.setTerrain(null);
       }
+      if (map.getSource('mapbox-dem')) {
+        map.removeSource('mapbox-dem');
+      }
     }
+
+    return () => {
+      const m = mapRef.current?.getMap();
+      if (m?.getTerrain()) m.setTerrain(null);
+      if (m?.getSource('mapbox-dem')) m.removeSource('mapbox-dem');
+    };
   }, [terrain, exaggeration, mapLoaded]);
+
+  // Animate pitch/bearing when terrain prop changes (initialViewState is not reactive)
+  useEffect(() => {
+    const map = mapRef.current?.getMap();
+    if (!map || !mapLoaded) return;
+
+    map.flyTo({
+      pitch: terrain ? 45 : 0,
+      bearing: terrain ? autoBearing : 0,
+      duration: 800,
+    });
+  }, [terrain, autoBearing, mapLoaded]);
 
   const handleCornerClick = useCallback(
     (cornerNumber: number) => {
