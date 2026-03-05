@@ -9,6 +9,7 @@ On cache miss, a lazy DB fallback populates the in-memory cache.
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 
 from cataclysm.coaching import CoachingContext
 from sqlalchemy.exc import SQLAlchemyError
@@ -34,6 +35,10 @@ MAX_COACHING_CACHE: int = 300
 _reports: dict[str, dict[str, CoachingReportResponse]] = {}  # session_id -> {skill_level: report}
 _contexts: dict[str, CoachingContext] = {}
 _generating: set[tuple[str, str]] = set()  # (session_id, skill_level) pairs currently generating
+
+# Daily regeneration rate limiting (per-user)
+MAX_DAILY_REGENS: int = 2
+_regen_counts: dict[str, dict[str, int]] = {}  # user_id -> {date_str: count}
 
 
 def _evict_oldest_reports() -> None:
@@ -197,3 +202,33 @@ def clear_all_coaching() -> None:
     _reports.clear()
     _contexts.clear()
     _generating.clear()
+    _regen_counts.clear()
+
+
+def _today_str() -> str:
+    """Return today's date as YYYY-MM-DD in UTC."""
+    return datetime.now(UTC).strftime("%Y-%m-%d")
+
+
+def get_regen_remaining(user_id: str) -> int:
+    """Return how many regenerations the user has left today."""
+    today = _today_str()
+    used = _regen_counts.get(user_id, {}).get(today, 0)
+    return max(0, MAX_DAILY_REGENS - used)
+
+
+def record_regeneration(user_id: str) -> int:
+    """Record a regeneration use and return remaining count after this use.
+
+    Returns -1 if the limit has already been reached (caller should reject).
+    """
+    today = _today_str()
+    user_counts = _regen_counts.setdefault(user_id, {})
+    # Purge stale day entries
+    for d in [k for k in user_counts if k != today]:
+        del user_counts[d]
+    used = user_counts.get(today, 0)
+    if used >= MAX_DAILY_REGENS:
+        return -1
+    user_counts[today] = used + 1
+    return MAX_DAILY_REGENS - used - 1

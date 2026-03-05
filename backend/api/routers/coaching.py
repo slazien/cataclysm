@@ -37,12 +37,15 @@ from backend.api.schemas.coaching import (
 )
 from backend.api.services import equipment_store, session_store
 from backend.api.services.coaching_store import (
+    MAX_DAILY_REGENS,
     clear_coaching_report,
     get_any_coaching_report,
     get_coaching_context,
     get_coaching_report,
+    get_regen_remaining,
     is_generating,
     mark_generating,
+    record_regeneration,
     store_coaching_context,
     store_coaching_report,
     unmark_generating,
@@ -110,12 +113,26 @@ async def generate_report(
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
+    remaining = get_regen_remaining(current_user.user_id)
+
     # If already generating, return current status
     if is_generating(session_id, body.skill_level):
-        return CoachingReportResponse(session_id=session_id, status="generating")
+        return CoachingReportResponse(
+            session_id=session_id,
+            status="generating",
+            regen_remaining=remaining,
+            regen_max=MAX_DAILY_REGENS,
+        )
 
-    # Force regeneration: clear existing report for this skill level
+    # Force regeneration: check daily limit, then clear existing report
     if body.force:
+        if remaining <= 0:
+            raise HTTPException(
+                status_code=429,
+                detail="Daily regeneration limit reached. Try again tomorrow.",
+            )
+        after = record_regeneration(current_user.user_id)
+        remaining = after if after >= 0 else 0
         await clear_coaching_report(session_id, body.skill_level)
     else:
         # If report already exists and succeeded, return it.
@@ -123,6 +140,8 @@ async def generate_report(
         existing = await get_coaching_report(session_id, body.skill_level)
         if existing is not None:
             if existing.status != "error":
+                existing.regen_remaining = remaining
+                existing.regen_max = MAX_DAILY_REGENS
                 return existing
             await clear_coaching_report(session_id, body.skill_level)
 
@@ -131,7 +150,12 @@ async def generate_report(
     # Background task with tracking to prevent GC collection
     _track_task(asyncio.create_task(_run_generation(session_id, sd, body.skill_level)))
 
-    return CoachingReportResponse(session_id=session_id, status="generating")
+    return CoachingReportResponse(
+        session_id=session_id,
+        status="generating",
+        regen_remaining=remaining,
+        regen_max=MAX_DAILY_REGENS,
+    )
 
 
 # Limit concurrent coaching API calls to avoid rate-limit storms.
@@ -373,6 +397,8 @@ async def get_report(
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
+    remaining = get_regen_remaining(current_user.user_id)
+
     report = await get_coaching_report(session_id, skill_level)
     if report is not None:
         # Error/unparseable reports should not be served — clear them so the
@@ -391,17 +417,29 @@ async def get_report(
                     report.priority_corners = [
                         pc for pc in report.priority_corners if pc.corner in valid
                     ]
+            report.regen_remaining = remaining
+            report.regen_max = MAX_DAILY_REGENS
             return report
 
     if is_generating(session_id, skill_level):
-        return CoachingReportResponse(session_id=session_id, status="generating")
+        return CoachingReportResponse(
+            session_id=session_id,
+            status="generating",
+            regen_remaining=remaining,
+            regen_max=MAX_DAILY_REGENS,
+        )
 
     # Auto-trigger generation instead of returning 404 — the frontend's
     # auto-trigger POST doesn't always fire reliably after error clearing.
     mark_generating(session_id, skill_level)
     task = asyncio.create_task(_run_generation(session_id, sd, skill_level))
     _track_task(task)
-    return CoachingReportResponse(session_id=session_id, status="generating")
+    return CoachingReportResponse(
+        session_id=session_id,
+        status="generating",
+        regen_remaining=remaining,
+        regen_max=MAX_DAILY_REGENS,
+    )
 
 
 def _build_report_content(

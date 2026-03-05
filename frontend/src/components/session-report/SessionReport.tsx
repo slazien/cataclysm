@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { useSessionStore, useUiStore } from '@/stores';
 import { useSession, useSessionLaps } from '@/hooks/useSession';
 import { useAutoReport } from '@/hooks/useAutoReport';
@@ -30,7 +31,7 @@ export function SessionReport() {
   const { data: session } = useSession(activeSessionId);
   const { data: laps } = useSessionLaps(activeSessionId);
   const { data: _corners } = useCorners(activeSessionId);
-  const { report, isSkillMismatch, regenerate } = useAutoReport(activeSessionId);
+  const { report, isSkillMismatch, isGenerating, regenRemaining, regenMax, regenerate } = useAutoReport(activeSessionId);
   const { data: consistency } = useConsistency(activeSessionId);
   const { data: gpsQuality } = useGPSQuality(activeSessionId);
   const { data: recentAchievementsData } = useRecentAchievements(!!activeSessionId);
@@ -83,9 +84,22 @@ export function SessionReport() {
         <CoachingSummaryHero report={report ?? null} />
 
         {report?.skill_level && (
-          <p className="text-[10px] text-[var(--text-tertiary)] -mt-4">
-            Generated for {report.skill_level.charAt(0).toUpperCase() + report.skill_level.slice(1)}
-          </p>
+          <div className="flex items-center justify-between -mt-4">
+            <p className="text-[10px] text-[var(--text-tertiary)]">
+              Generated for {report.skill_level.charAt(0).toUpperCase() + report.skill_level.slice(1)}
+            </p>
+            <button
+              onClick={regenerate}
+              disabled={isGenerating || regenRemaining === 0}
+              className="flex items-center gap-1.5 rounded-md border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+              title={regenRemaining === 0 ? 'Daily regeneration limit reached' : 'Regenerate all coaching for this session'}
+            >
+              <RefreshCw className={`h-3 w-3 ${isGenerating ? 'animate-spin' : ''}`} />
+              {isGenerating
+                ? 'Regenerating\u2026'
+                : `Regenerate${regenRemaining != null && regenMax != null ? ` (${regenRemaining}/${regenMax})` : ''}`}
+            </button>
+          </div>
         )}
 
         {report?.priority_corners && report.priority_corners.length > 0 && (

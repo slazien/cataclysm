@@ -43,6 +43,8 @@ class CoachingReportResponse(BaseModel):
     drills: list[str] = []
     validation_failed: bool = False
     validation_violations: list[str] = []
+    regen_remaining: int | None = None
+    regen_max: int | None = None
 
 
 class ReportRequest(BaseModel):

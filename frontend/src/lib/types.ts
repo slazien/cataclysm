@@ -157,6 +157,8 @@ export interface CoachingReport {
   drills: string[];
   validation_failed?: boolean;
   validation_violations?: string[];
+  regen_remaining?: number | null;
+  regen_max?: number | null;
 }
 
 export interface ChatMessage {

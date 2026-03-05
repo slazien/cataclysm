@@ -26,6 +26,7 @@ import backend.api.services.coaching_store as coaching_store_mod
 from backend.api.schemas.coaching import CoachingReportResponse, CornerGradeSchema
 from backend.api.services.coaching_store import (
     MAX_COACHING_CACHE,
+    MAX_DAILY_REGENS,
     _evict_oldest_reports,
     clear_all_coaching,
     clear_coaching_data,
@@ -33,8 +34,10 @@ from backend.api.services.coaching_store import (
     get_any_coaching_report,
     get_coaching_context,
     get_coaching_report,
+    get_regen_remaining,
     is_generating,
     mark_generating,
+    record_regeneration,
     store_coaching_context,
     store_coaching_report,
     unmark_generating,
@@ -833,3 +836,53 @@ async def test_context_evicted_with_report() -> None:
     assert "s0" not in coaching_store_mod._reports
     assert "s0" not in coaching_store_mod._contexts
     assert "overflow-session" in coaching_store_mod._reports
+
+
+# ---------------------------------------------------------------------------
+# get_regen_remaining / record_regeneration
+# ---------------------------------------------------------------------------
+
+
+def test_get_regen_remaining_fresh_user() -> None:
+    """A user with no history has full daily allowance."""
+    assert get_regen_remaining("user-new") == MAX_DAILY_REGENS
+
+
+def test_record_regeneration_decrements_remaining() -> None:
+    """Each regeneration decrements the remaining count."""
+    remaining = record_regeneration("user-a")
+    assert remaining == MAX_DAILY_REGENS - 1
+    assert get_regen_remaining("user-a") == MAX_DAILY_REGENS - 1
+
+
+def test_record_regeneration_returns_negative_when_exhausted() -> None:
+    """record_regeneration returns -1 when daily limit is already reached."""
+    for _ in range(MAX_DAILY_REGENS):
+        record_regeneration("user-b")
+    assert record_regeneration("user-b") == -1
+    assert get_regen_remaining("user-b") == 0
+
+
+def test_regen_counts_per_user_independent() -> None:
+    """Each user's regen counter is tracked independently."""
+    record_regeneration("user-x")
+    assert get_regen_remaining("user-x") == MAX_DAILY_REGENS - 1
+    assert get_regen_remaining("user-y") == MAX_DAILY_REGENS
+
+
+def test_regen_counts_reset_on_new_day() -> None:
+    """Stale day entries are purged when a new day starts."""
+    # Manually inject a stale count for a past date
+    coaching_store_mod._regen_counts["user-stale"] = {"2020-01-01": MAX_DAILY_REGENS}
+    # Recording for today should succeed and purge the old entry
+    remaining = record_regeneration("user-stale")
+    assert remaining == MAX_DAILY_REGENS - 1
+    assert "2020-01-01" not in coaching_store_mod._regen_counts["user-stale"]
+
+
+def test_clear_all_coaching_resets_regen_counts() -> None:
+    """clear_all_coaching also clears the regen rate-limit counters."""
+    record_regeneration("user-reset")
+    assert get_regen_remaining("user-reset") < MAX_DAILY_REGENS
+    clear_all_coaching()
+    assert get_regen_remaining("user-reset") == MAX_DAILY_REGENS

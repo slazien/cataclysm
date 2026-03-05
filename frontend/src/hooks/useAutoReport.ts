@@ -13,6 +13,8 @@ interface UseAutoReportResult {
   isGenerating: boolean;
   isError: boolean;
   isSkillMismatch: boolean;
+  regenRemaining: number | null;
+  regenMax: number | null;
   retry: () => void;
   regenerate: () => void;
 }
@@ -81,6 +83,10 @@ export function useAutoReport(sessionId: string | null): UseAutoReportResult {
   const isSkillMismatch =
     isReady && !!report?.skill_level && report.skill_level !== skillLevel;
 
+  // Regen info is returned from both ready and generating responses
+  const regenRemaining = report?.regen_remaining ?? null;
+  const regenMax = report?.regen_max ?? null;
+
   return {
     report: isReady ? report : undefined,
     // Show loading state during: initial fetch, mutation pending, refetching, or generating
@@ -88,6 +94,8 @@ export function useAutoReport(sessionId: string | null): UseAutoReportResult {
     isGenerating,
     isError: hasError && !isGenerating,
     isSkillMismatch,
+    regenRemaining,
+    regenMax,
     retry,
     regenerate,
   };
