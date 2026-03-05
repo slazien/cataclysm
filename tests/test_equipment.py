@@ -8,6 +8,7 @@ from cataclysm.equipment import (
     _BRAKE_EFFICIENCY,
     _CATEGORY_ACCEL_G,
     CATEGORY_FRICTION_CIRCLE_EXPONENT,
+    CATEGORY_LOAD_SENSITIVITY_EXPONENT,
     CATEGORY_MU_DEFAULTS,
     BrakeSpec,
     EquipmentProfile,
@@ -596,3 +597,66 @@ class TestEquipmentToVehicleParams:
         profile = EquipmentProfile(id="p6", name="Test", tires=tire)
         params = equipment_to_vehicle_params(profile)
         assert isinstance(params, VehicleParams)
+
+    def test_load_sensitivity_with_vehicle(self) -> None:
+        """Load sensitivity fields should be populated from equipment + vehicle."""
+        from cataclysm.vehicle_db import VEHICLE_DATABASE
+
+        tire = TireSpec(
+            model="Test",
+            compound_category=TireCompoundCategory.R_COMPOUND,
+            size="255/40R17",
+            treadwear_rating=None,
+            estimated_mu=1.35,
+            mu_source=MuSource.CURATED_TABLE,
+            mu_confidence="high",
+        )
+        vehicle = VEHICLE_DATABASE["mazda_miata_nd"]
+        profile = EquipmentProfile(id="test", name="test", tires=tire, vehicle=vehicle)
+        params = equipment_to_vehicle_params(profile)
+        assert (
+            params.load_sensitivity_exponent
+            == CATEGORY_LOAD_SENSITIVITY_EXPONENT[TireCompoundCategory.R_COMPOUND]
+        )
+        assert params.cg_height_m > 0
+        assert params.track_width_m > 0
+
+    def test_load_sensitivity_without_vehicle(self) -> None:
+        """Without a vehicle, cg_height_m and track_width_m should be 0."""
+        tire = TireSpec(
+            model="Test",
+            compound_category=TireCompoundCategory.STREET,
+            size="225/45R17",
+            treadwear_rating=400,
+            estimated_mu=0.85,
+            mu_source=MuSource.FORMULA_ESTIMATE,
+            mu_confidence="medium",
+        )
+        profile = EquipmentProfile(id="test", name="test", tires=tire)
+        params = equipment_to_vehicle_params(profile)
+        assert (
+            params.load_sensitivity_exponent
+            == CATEGORY_LOAD_SENSITIVITY_EXPONENT[TireCompoundCategory.STREET]
+        )
+        assert params.cg_height_m == 0.0
+        assert params.track_width_m == 0.0
+
+    def test_load_sensitivity_all_categories(self) -> None:
+        """Every category should wire the correct load sensitivity exponent."""
+        for cat in TireCompoundCategory:
+            mu = CATEGORY_MU_DEFAULTS[cat]
+            tire = TireSpec(
+                model="Test",
+                compound_category=cat,
+                size="255/40R17",
+                treadwear_rating=200,
+                estimated_mu=mu,
+                mu_source=MuSource.CURATED_TABLE,
+                mu_confidence="test",
+            )
+            profile = EquipmentProfile(id=f"ls-{cat}", name=f"LS {cat}", tires=tire)
+            params = equipment_to_vehicle_params(profile)
+            assert params.load_sensitivity_exponent == CATEGORY_LOAD_SENSITIVITY_EXPONENT[cat], (
+                f"{cat.value}: expected {CATEGORY_LOAD_SENSITIVITY_EXPONENT[cat]}, "
+                f"got {params.load_sensitivity_exponent}"
+            )

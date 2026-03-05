@@ -1401,3 +1401,161 @@ class TestVerticalCurvature:
             profile_none_kv.optimal_speed_mps,
         )
         assert profile_default.lap_time_s == profile_none_kv.lap_time_s
+
+
+# ---------------------------------------------------------------------------
+# TestLoadSensitivity
+# ---------------------------------------------------------------------------
+
+
+class TestLoadSensitivity:
+    """Tests for tire load sensitivity correction in cornering speed."""
+
+    def test_load_sensitivity_reduces_cornering_speed(self) -> None:
+        """Load sensitivity should reduce max cornering speed vs constant-mu model."""
+        n = 200
+        curvature = np.full(n, 1.0 / 50.0)  # constant 50m radius
+        cr = _make_curvature_result(curvature, step_m=1.0)
+
+        # No load sensitivity (n=1.0)
+        params_no_ls = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+            load_sensitivity_exponent=1.0,
+        )
+        profile_no_ls = compute_optimal_profile(cr, params_no_ls, closed_circuit=False)
+
+        # With load sensitivity (n=0.82, Miata-like dimensions)
+        params_ls = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+            load_sensitivity_exponent=0.82,
+            cg_height_m=0.46,
+            track_width_m=1.41,
+        )
+        profile_ls = compute_optimal_profile(cr, params_ls, closed_circuit=False)
+
+        # Load sensitivity should produce lower cornering speeds
+        mid = n // 2
+        assert profile_ls.optimal_speed_mps[mid] < profile_no_ls.optimal_speed_mps[mid]
+        # Effect is modest (~0.2-2%) for typical road car dimensions
+        reduction_pct = (
+            1.0 - profile_ls.optimal_speed_mps[mid] / profile_no_ls.optimal_speed_mps[mid]
+        ) * 100
+        assert 0.1 < reduction_pct < 10.0, f"Got {reduction_pct:.1f}%"
+
+    def test_load_sensitivity_exponent_1_is_noop(self) -> None:
+        """When n=1.0, load sensitivity correction should have no effect."""
+        n = 200
+        curvature = np.full(n, 1.0 / 50.0)
+        cr = _make_curvature_result(curvature, step_m=1.0)
+
+        params_base = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+        )
+        params_n1 = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+            load_sensitivity_exponent=1.0,
+            cg_height_m=0.46,
+            track_width_m=1.41,
+        )
+        profile_base = compute_optimal_profile(cr, params_base, closed_circuit=False)
+        profile_n1 = compute_optimal_profile(cr, params_n1, closed_circuit=False)
+
+        np.testing.assert_array_almost_equal(
+            profile_base.optimal_speed_mps,
+            profile_n1.optimal_speed_mps,
+        )
+
+    def test_load_sensitivity_zero_dimensions_is_noop(self) -> None:
+        """When CG height or track width is 0, correction is skipped."""
+        n = 200
+        curvature = np.full(n, 1.0 / 50.0)
+        cr = _make_curvature_result(curvature, step_m=1.0)
+
+        params_base = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+        )
+        params_no_dims = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+            load_sensitivity_exponent=0.82,
+            cg_height_m=0.0,
+            track_width_m=0.0,
+        )
+        profile_base = compute_optimal_profile(cr, params_base, closed_circuit=False)
+        profile_no_dims = compute_optimal_profile(cr, params_no_dims, closed_circuit=False)
+
+        np.testing.assert_array_almost_equal(
+            profile_base.optimal_speed_mps,
+            profile_no_dims.optimal_speed_mps,
+        )
+
+    def test_lower_exponent_means_more_reduction(self) -> None:
+        """Slick tires (n=0.75) should lose more to load sensitivity than street (n=0.85)."""
+        n = 200
+        curvature = np.full(n, 1.0 / 50.0)
+        cr = _make_curvature_result(curvature, step_m=1.0)
+
+        common = dict(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+            cg_height_m=0.46,
+            track_width_m=1.41,
+        )
+        params_street = VehicleParams(**common, load_sensitivity_exponent=0.85)
+        params_slick = VehicleParams(**common, load_sensitivity_exponent=0.75)
+
+        profile_street = compute_optimal_profile(cr, params_street, closed_circuit=False)
+        profile_slick = compute_optimal_profile(cr, params_slick, closed_circuit=False)
+
+        mid = n // 2
+        # Slick (lower n) should have lower cornering speed due to more load sensitivity
+        assert profile_slick.optimal_speed_mps[mid] < profile_street.optimal_speed_mps[mid]
+
+    def test_load_sensitivity_on_straight_is_noop(self) -> None:
+        """Straight sections (zero curvature) should be unaffected by load sensitivity."""
+        n = 200
+        curvature = np.zeros(n)
+        cr = _make_curvature_result(curvature, step_m=1.0)
+
+        params_base = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+        )
+        params_ls = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+            load_sensitivity_exponent=0.75,
+            cg_height_m=0.50,
+            track_width_m=1.50,
+        )
+        profile_base = compute_optimal_profile(cr, params_base, closed_circuit=False)
+        profile_ls = compute_optimal_profile(cr, params_ls, closed_circuit=False)
+
+        # On a straight, top speed is the limit — load sensitivity only affects cornering
+        np.testing.assert_array_almost_equal(
+            profile_base.optimal_speed_mps,
+            profile_ls.optimal_speed_mps,
+        )

@@ -277,4 +277,11 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
         top_speed_mps=80.0,
         friction_circle_exponent=CATEGORY_FRICTION_CIRCLE_EXPONENT[category],
         drag_coefficient=drag_coeff,
+        load_sensitivity_exponent=CATEGORY_LOAD_SENSITIVITY_EXPONENT[category],
+        cg_height_m=profile.vehicle.cg_height_m if profile.vehicle is not None else 0.0,
+        track_width_m=(
+            0.5 * (profile.vehicle.track_width_front_m + profile.vehicle.track_width_rear_m)
+            if profile.vehicle is not None
+            else 0.0
+        ),
     )

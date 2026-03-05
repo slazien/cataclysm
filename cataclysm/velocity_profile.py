@@ -35,12 +35,17 @@ class VehicleParams:
     """Vehicle grip and performance parameters for the velocity solver.
 
     Known simplifications (potential future improvements):
-    - NOTE: No tire load sensitivity — mu is constant.  Real tires lose grip
-      per unit load as vertical load increases (aero downforce, weight transfer).
     - NOTE: max_accel_g / max_decel_g are speed-independent.  Real cars have
       gear-limited acceleration curves (torque x gear ratio / (tire radius x mass)).
     - NOTE: No tire thermal model — grip doesn't degrade with sustained use or
       change with tire temperature.
+
+    Tire load sensitivity is modelled via a power-law correction:
+        mu_eff = mu_ref * (Fz / Fz_ref)^(n-1)
+    where *n* = ``load_sensitivity_exponent``.  n < 1.0 means mu drops as
+    vertical load increases (always true for real tires).  The correction is
+    applied in :func:`_compute_max_cornering_speed` using an inner/outer tire
+    average under lateral weight transfer.
     """
 
     mu: float  # overall friction coefficient (G)
@@ -52,6 +57,9 @@ class VehicleParams:
     drag_coefficient: float = 0.0  # k in drag_g = k * v^2 / G (absorbs Cd*A*rho/2m)
     top_speed_mps: float = 80.0  # absolute speed cap
     calibrated: bool = False  # True when params came from observed G-G data
+    load_sensitivity_exponent: float = 1.0  # tire load sensitivity (n<1 = mu drops with load)
+    cg_height_m: float = 0.0  # CG height for weight transfer estimation
+    track_width_m: float = 0.0  # average track width for weight transfer estimation
 
 
 @dataclass
@@ -121,6 +129,23 @@ def _compute_max_cornering_speed(
         effective_mu = mu_array.astype(np.float64)
     else:
         effective_mu = np.full(n, effective_mu_scalar, dtype=np.float64)
+
+    # Load sensitivity: total lateral force drops under lateral weight transfer.
+    # Tire force model: F_y = mu_ref * Fz_ref * (Fz / Fz_ref)^n, where n < 1.
+    # At cornering limit, lateral G ~ mu*g, so lateral load transfer ratio:
+    #   dLT = mu * cg_height / track_width
+    # Total force from inner + outer tire pair, normalised by static force:
+    #   correction = 0.5 * ((1+dLT)^n + (1-dLT)^n)
+    # For n < 1, x^n is concave → correction < 1.0 (Jensen's inequality).
+    n_exp = params.load_sensitivity_exponent
+    if n_exp < 1.0 and params.track_width_m > 0 and params.cg_height_m > 0:
+        dlt = effective_mu * params.cg_height_m / params.track_width_m
+        dlt_clamp = np.clip(dlt, 0.0, 0.95)
+        correction = 0.5 * (
+            np.power(1.0 + dlt_clamp, n_exp)
+            + np.power(np.maximum(1.0 - dlt_clamp, 0.05), n_exp)
+        )
+        effective_mu = effective_mu * correction
 
     if gradient_sin is not None:
         cos_theta = np.sqrt(np.maximum(1.0 - gradient_sin**2, 0.0))
