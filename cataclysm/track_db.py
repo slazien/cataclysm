@@ -124,7 +124,7 @@ BARBER_MOTORSPORTS_PARK = TrackLayout(
     center_lon=-86.6215,
     country="US",
     length_m=3662.4,
-    elevation_range_m=60.0,
+    elevation_range_m=24.0,
     corners=[
         OfficialCorner(
             1,

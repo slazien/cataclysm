@@ -533,7 +533,9 @@ class TestBarberEnrichedData:
             assert len(c.coaching_notes) > 10, f"T{c.number} coaching_notes too short"
 
     def test_elevation_range(self) -> None:
-        assert BARBER_MOTORSPORTS_PARK.elevation_range_m == pytest.approx(60.0)
+        """Barber min-to-max altitude range is ~24m (80 feet), not cumulative gain."""
+        assert BARBER_MOTORSPORTS_PARK.elevation_range_m == pytest.approx(24.0)
+        assert BARBER_MOTORSPORTS_PARK.elevation_range_m < 30.0
 
 
 class TestRoeblingRoadRaceway:
