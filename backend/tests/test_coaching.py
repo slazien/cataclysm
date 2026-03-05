@@ -1193,7 +1193,11 @@ async def test_run_generation_unmarks_generating_on_error(client: AsyncClient) -
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "intermediate"},
         )
-        await asyncio.sleep(0.01)
+        # Background task needs time to execute; poll instead of fixed sleep
+        for _ in range(50):
+            await asyncio.sleep(0.05)
+            if not is_generating(session_id, "intermediate"):
+                break
 
     assert not is_generating(session_id, "intermediate")
 
