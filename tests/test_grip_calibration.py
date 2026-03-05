@@ -8,9 +8,12 @@ import pytest
 from cataclysm.corners import Corner
 from cataclysm.grip_calibration import (
     CalibratedGrip,
+    GGVSurface,
     apply_calibration_to_params,
+    build_ggv_surface,
     calibrate_grip_from_telemetry,
     calibrate_per_corner_grip,
+    query_ggv_max_g,
 )
 from cataclysm.velocity_profile import VehicleParams, default_vehicle_params
 
@@ -478,3 +481,285 @@ class TestCalibratePerCornerGrip:
         assert 1 in result_50
         # 99th percentile should be higher than 50th
         assert result_99[1] > result_50[1]
+
+
+# ---------------------------------------------------------------------------
+# GGV Surface Tests
+# ---------------------------------------------------------------------------
+
+
+class TestBuildGGVSurface:
+    """Tests for build_ggv_surface()."""
+
+    def test_ggv_surface_from_synthetic_data(self) -> None:
+        """Constant capability across all speeds produces a uniform surface.
+
+        Generates G-G data at uniform random speeds with constant combined-G
+        magnitude ~1.0G in all directions.  The surface should show roughly
+        equal envelope values across all speed bins.
+        """
+        rng = np.random.default_rng(42)
+        n = 20_000
+
+        # Uniform speed spread from 5 to 60 m/s
+        speed_mps = rng.uniform(5.0, 60.0, size=n)
+
+        # Random angles, constant combined-G magnitude ~1.0
+        angles = rng.uniform(-np.pi, np.pi, size=n)
+        combined_g = rng.uniform(0.8, 1.0, size=n)
+        lateral_g = combined_g * np.cos(angles)
+        longitudinal_g = combined_g * np.sin(angles)
+
+        surface = build_ggv_surface(speed_mps, lateral_g, longitudinal_g)
+
+        assert surface is not None
+        assert isinstance(surface, GGVSurface)
+        assert len(surface.speed_bins) > 0
+        assert len(surface.envelopes) == len(surface.speed_bins)
+        assert surface.n_sectors == 36
+
+        # All speed bins should have envelope values near 1.0G
+        for envelope in surface.envelopes:
+            mean_g = float(np.mean(envelope))
+            assert mean_g > 0.7, f"Mean envelope G too low: {mean_g}"
+            assert mean_g < 1.1, f"Mean envelope G too high: {mean_g}"
+
+    def test_ggv_query_interpolates_between_bins(self) -> None:
+        """Speed between two bin centers produces interpolated value.
+
+        Creates data at two distinct speed ranges with different G limits.
+        Querying at the midpoint should give an interpolated value.
+        """
+        rng = np.random.default_rng(42)
+        n_per_bin = 5000
+
+        # Low-speed bin (~7.5 m/s center with 5.0 width): combined-G ~0.6
+        speed_low = rng.uniform(5.0, 10.0, size=n_per_bin)
+        angles_low = rng.uniform(-np.pi, np.pi, size=n_per_bin)
+        g_low = rng.uniform(0.5, 0.6, size=n_per_bin)
+
+        # High-speed bin (~12.5 m/s center): combined-G ~1.0
+        speed_high = rng.uniform(10.0, 15.0, size=n_per_bin)
+        angles_high = rng.uniform(-np.pi, np.pi, size=n_per_bin)
+        g_high = rng.uniform(0.9, 1.0, size=n_per_bin)
+
+        speed = np.concatenate([speed_low, speed_high])
+        lat_g = np.concatenate(
+            [
+                g_low * np.cos(angles_low),
+                g_high * np.cos(angles_high),
+            ]
+        )
+        lon_g = np.concatenate(
+            [
+                g_low * np.sin(angles_low),
+                g_high * np.sin(angles_high),
+            ]
+        )
+
+        surface = build_ggv_surface(speed, lat_g, lon_g, speed_bin_width=5.0)
+        assert surface is not None
+
+        # Query at pure lateral direction (angle=0)
+        g_at_7_5 = query_ggv_max_g(surface, 7.5, 0.0)
+        g_at_12_5 = query_ggv_max_g(surface, 12.5, 0.0)
+        g_at_10 = query_ggv_max_g(surface, 10.0, 0.0)
+
+        # Low speed should have lower G than high speed
+        assert g_at_7_5 < g_at_12_5
+
+        # Midpoint should be between the two bin values
+        assert g_at_10 > g_at_7_5 - 0.05
+        assert g_at_10 < g_at_12_5 + 0.05
+
+    def test_ggv_power_limited_at_low_speed(self) -> None:
+        """Synthetic data where low speed has lower acceleration G.
+
+        Simulates power limitation: at low speed, traction-limited acceleration
+        is lower because the engine has less torque multiplication through gears.
+        """
+        rng = np.random.default_rng(42)
+        n_per_bin = 3000
+
+        # Low speed (5-15 m/s): limited acceleration (max ~0.3G forward)
+        speed_low = rng.uniform(5.0, 15.0, size=n_per_bin)
+        lat_low = rng.uniform(-0.8, 0.8, size=n_per_bin)
+        # Acceleration direction is positive longitudinal G
+        lon_low = rng.uniform(-0.8, 0.3, size=n_per_bin)
+
+        # High speed (25-35 m/s): stronger acceleration available (~0.6G)
+        speed_high = rng.uniform(25.0, 35.0, size=n_per_bin)
+        lat_high = rng.uniform(-0.8, 0.8, size=n_per_bin)
+        lon_high = rng.uniform(-0.8, 0.6, size=n_per_bin)
+
+        speed = np.concatenate([speed_low, speed_high])
+        lat_g = np.concatenate([lat_low, lat_high])
+        lon_g = np.concatenate([lon_low, lon_high])
+
+        surface = build_ggv_surface(speed, lat_g, lon_g, speed_bin_width=10.0)
+        assert surface is not None
+
+        # Query pure acceleration direction: angle = pi/2
+        # (atan2(lon_g, lat_g) = pi/2 for pure positive longitudinal)
+        accel_angle = np.pi / 2
+
+        # Find bins near low-speed and high-speed centers
+        g_low_val = query_ggv_max_g(surface, 10.0, accel_angle)
+        g_high_val = query_ggv_max_g(surface, 30.0, accel_angle)
+
+        # High speed should have more available accel G
+        assert g_high_val > g_low_val, (
+            f"Expected more accel G at high speed ({g_high_val}) than low speed ({g_low_val})"
+        )
+
+    def test_ggv_aero_boost_at_high_speed(self) -> None:
+        """Synthetic data where high speed has higher lateral G (downforce).
+
+        At high speed, aerodynamic downforce increases tire normal force,
+        enabling higher cornering G.  This should show up as larger lateral
+        envelope at high speed bins.
+        """
+        rng = np.random.default_rng(42)
+        n_per_bin = 3000
+
+        # Low speed (5-15 m/s): baseline lateral G ~0.8
+        speed_low = rng.uniform(5.0, 15.0, size=n_per_bin)
+        lat_low = rng.choice([-1, 1], size=n_per_bin) * rng.uniform(0.6, 0.8, size=n_per_bin)
+        lon_low = rng.uniform(-0.3, 0.3, size=n_per_bin)
+
+        # High speed (35-50 m/s): boosted lateral G ~1.3 (aero downforce)
+        speed_high = rng.uniform(35.0, 50.0, size=n_per_bin)
+        lat_high = rng.choice([-1, 1], size=n_per_bin) * rng.uniform(1.0, 1.3, size=n_per_bin)
+        lon_high = rng.uniform(-0.3, 0.3, size=n_per_bin)
+
+        speed = np.concatenate([speed_low, speed_high])
+        lat_g = np.concatenate([lat_low, lat_high])
+        lon_g = np.concatenate([lon_low, lon_high])
+
+        surface = build_ggv_surface(speed, lat_g, lon_g, speed_bin_width=10.0)
+        assert surface is not None
+
+        # Query pure lateral direction: angle = 0
+        g_low_speed = query_ggv_max_g(surface, 10.0, 0.0)
+        g_high_speed = query_ggv_max_g(surface, 42.5, 0.0)
+
+        # High speed should have more lateral G from aero
+        assert g_high_speed > g_low_speed, (
+            f"Expected more lateral G at high speed ({g_high_speed}) than low speed ({g_low_speed})"
+        )
+        # The difference should be meaningful (at least 0.1G)
+        assert g_high_speed - g_low_speed > 0.1
+
+    def test_ggv_returns_none_insufficient_data(self) -> None:
+        """Too few data points returns None."""
+        speed = np.array([10.0, 20.0, 30.0])
+        lat_g = np.array([0.5, 0.3, 0.8])
+        lon_g = np.array([-0.2, 0.1, -0.5])
+
+        result = build_ggv_surface(speed, lat_g, lon_g)
+        assert result is None
+
+    def test_ggv_surface_sectors_count(self) -> None:
+        """Custom n_sectors parameter is respected."""
+        rng = np.random.default_rng(42)
+        n = 10_000
+
+        speed = rng.uniform(5.0, 50.0, size=n)
+        angles = rng.uniform(-np.pi, np.pi, size=n)
+        combined_g = rng.uniform(0.5, 1.0, size=n)
+        lat_g = combined_g * np.cos(angles)
+        lon_g = combined_g * np.sin(angles)
+
+        surface = build_ggv_surface(speed, lat_g, lon_g, n_sectors=18)
+        assert surface is not None
+        assert surface.n_sectors == 18
+        for envelope in surface.envelopes:
+            assert len(envelope) == 18
+
+    def test_ggv_empty_speed_bins_handled(self) -> None:
+        """Speed bins with no data are handled gracefully.
+
+        When data only covers a narrow speed range, the surface should only
+        contain bins that have data, not crash on empty bins.
+        """
+        rng = np.random.default_rng(42)
+        n = 5000
+
+        # All data concentrated in 20-30 m/s range
+        speed = rng.uniform(20.0, 30.0, size=n)
+        angles = rng.uniform(-np.pi, np.pi, size=n)
+        combined_g = rng.uniform(0.5, 1.0, size=n)
+        lat_g = combined_g * np.cos(angles)
+        lon_g = combined_g * np.sin(angles)
+
+        surface = build_ggv_surface(speed, lat_g, lon_g, speed_bin_width=5.0)
+        assert surface is not None
+
+        # Should have bins covering the 20-30 m/s range (2 bins)
+        assert len(surface.speed_bins) >= 2
+        # All bin centers should be in or near the 20-30 m/s range
+        for center in surface.speed_bins:
+            assert 17.5 <= center <= 32.5
+
+
+class TestQueryGGVMaxG:
+    """Tests for query_ggv_max_g()."""
+
+    def test_query_clamps_below_min_speed(self) -> None:
+        """Querying below the minimum speed bin returns the lowest bin value."""
+        rng = np.random.default_rng(42)
+        n = 10_000
+
+        speed = rng.uniform(10.0, 50.0, size=n)
+        angles = rng.uniform(-np.pi, np.pi, size=n)
+        combined_g = rng.uniform(0.5, 1.0, size=n)
+        lat_g = combined_g * np.cos(angles)
+        lon_g = combined_g * np.sin(angles)
+
+        surface = build_ggv_surface(speed, lat_g, lon_g, speed_bin_width=5.0)
+        assert surface is not None
+
+        # Query well below data range
+        g_low = query_ggv_max_g(surface, 1.0, 0.0)
+        # Should return the first bin's value (clamped, not crash)
+        g_first_bin = query_ggv_max_g(surface, float(surface.speed_bins[0]), 0.0)
+        assert g_low == pytest.approx(g_first_bin, abs=0.01)
+
+    def test_query_clamps_above_max_speed(self) -> None:
+        """Querying above the maximum speed bin returns the highest bin value."""
+        rng = np.random.default_rng(42)
+        n = 10_000
+
+        speed = rng.uniform(10.0, 50.0, size=n)
+        angles = rng.uniform(-np.pi, np.pi, size=n)
+        combined_g = rng.uniform(0.5, 1.0, size=n)
+        lat_g = combined_g * np.cos(angles)
+        lon_g = combined_g * np.sin(angles)
+
+        surface = build_ggv_surface(speed, lat_g, lon_g, speed_bin_width=5.0)
+        assert surface is not None
+
+        # Query well above data range
+        g_high = query_ggv_max_g(surface, 100.0, 0.0)
+        # Should return the last bin's value
+        g_last_bin = query_ggv_max_g(surface, float(surface.speed_bins[-1]), 0.0)
+        assert g_high == pytest.approx(g_last_bin, abs=0.01)
+
+    def test_query_angle_wrapping(self) -> None:
+        """Angles outside [-pi, pi] wrap correctly."""
+        rng = np.random.default_rng(42)
+        n = 10_000
+
+        speed = rng.uniform(10.0, 50.0, size=n)
+        angles = rng.uniform(-np.pi, np.pi, size=n)
+        combined_g = rng.uniform(0.5, 1.0, size=n)
+        lat_g = combined_g * np.cos(angles)
+        lon_g = combined_g * np.sin(angles)
+
+        surface = build_ggv_surface(speed, lat_g, lon_g)
+        assert surface is not None
+
+        # Query at equivalent angles: 0 and 2*pi should give same result
+        g_at_0 = query_ggv_max_g(surface, 30.0, 0.0)
+        g_at_2pi = query_ggv_max_g(surface, 30.0, 2.0 * np.pi)
+        assert g_at_0 == pytest.approx(g_at_2pi, abs=0.01)

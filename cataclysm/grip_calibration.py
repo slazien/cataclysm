@@ -9,6 +9,10 @@ The approach:
 1. Filter G-G data by cross-axis threshold to isolate pure-axis events.
 2. Take the 99th percentile (not max) to reject sensor spikes.
 3. Classify confidence based on available data point count.
+
+Also provides a speed-bucketed GGV (G-G-Velocity) surface that captures how
+the car's capability envelope changes with speed — power limitation at low
+speed, aerodynamic grip boost at high speed.
 """
 
 from __future__ import annotations
@@ -31,6 +35,12 @@ if TYPE_CHECKING:
 _HIGH_CONFIDENCE_THRESHOLD = 500
 _MEDIUM_CONFIDENCE_THRESHOLD = 100
 
+# GGV surface: minimum total data points to produce a meaningful surface
+_MIN_GGV_TOTAL_POINTS = 50
+
+# Full circle in radians
+_TWO_PI = 2.0 * np.pi
+
 
 # ---------------------------------------------------------------------------
 # Dataclasses
@@ -46,6 +56,31 @@ class CalibratedGrip:
     max_accel_g: float  # 99th percentile |ax| when ax > 0.2g, |ay| < 0.2g
     point_count: int  # number of data points used (minimum across axes)
     confidence: str  # "high" (>500 pts per axis), "medium" (100-500), "low" (<100)
+
+
+@dataclass
+class GGVSurface:
+    """Speed-bucketed G-G envelope surface.
+
+    Captures how the vehicle's capability envelope changes with speed.
+    At low speeds, power limits acceleration; at high speeds, aerodynamic
+    downforce boosts cornering grip.
+
+    Attributes
+    ----------
+    speed_bins
+        Array of speed bin centers (m/s), shape ``(n_speed_bins,)``.
+    envelopes
+        For each speed bin, array of max combined-G per angular sector,
+        each of shape ``(n_sectors,)``.
+    n_sectors
+        Number of angular sectors dividing the G-G plane (default 36,
+        i.e. 10-degree resolution).
+    """
+
+    speed_bins: np.ndarray  # shape (n_speed_bins,)
+    envelopes: list[np.ndarray]  # each shape (n_sectors,), one per speed bin
+    n_sectors: int = 36
 
 
 # ---------------------------------------------------------------------------
@@ -226,3 +261,196 @@ def calibrate_per_corner_grip(
         result[corner.number] = mu_eff
 
     return result
+
+
+# ---------------------------------------------------------------------------
+# GGV Surface
+# ---------------------------------------------------------------------------
+
+
+def build_ggv_surface(
+    speed_mps: np.ndarray,
+    lateral_g: np.ndarray,
+    longitudinal_g: np.ndarray,
+    *,
+    speed_bin_width: float = 5.0,
+    n_sectors: int = 36,
+    percentile: float = 99.0,
+    min_points_per_sector: int = 3,
+) -> GGVSurface | None:
+    """Build a GGV surface from telemetry data.
+
+    At each speed bucket, build a G-G envelope using angular sectors.
+    Uses percentile (not max) for robustness against sensor spikes.
+
+    Algorithm
+    ---------
+    1. Bin data by speed (e.g., 0-5, 5-10, 10-15, ... m/s).
+    2. Within each speed bin, compute ``angle = atan2(lon_g, lat_g)``
+       for each point.
+    3. Bin by angle into *n_sectors* sectors (each ``360/n_sectors`` degrees).
+    4. For each sector, take percentile of
+       ``combined_g = sqrt(lat_g^2 + lon_g^2)``.
+    5. Sectors with fewer than *min_points_per_sector* use the overall bin
+       percentile as a fallback.
+
+    Parameters
+    ----------
+    speed_mps
+        Array of speed values (m/s).
+    lateral_g
+        Array of lateral acceleration values (G).
+    longitudinal_g
+        Array of longitudinal acceleration values (G).
+    speed_bin_width
+        Width of each speed bin in m/s (default 5.0, ~11 mph).
+    n_sectors
+        Number of angular sectors in the G-G plane (default 36).
+    percentile
+        Percentile to use for envelope extraction (default 99.0).
+    min_points_per_sector
+        Minimum data points in an angular sector to use its own percentile.
+        Sectors below this threshold fall back to the bin-wide percentile.
+
+    Returns
+    -------
+    GGVSurface or None
+        The constructed surface, or None if insufficient data (fewer than
+        ``_MIN_GGV_TOTAL_POINTS`` total points).
+    """
+    n = len(speed_mps)
+    if n < _MIN_GGV_TOTAL_POINTS:
+        return None
+
+    # Pre-compute combined G and angle for all points
+    combined_g = np.sqrt(lateral_g**2 + longitudinal_g**2)
+    angles = np.arctan2(longitudinal_g, lateral_g)  # range [-pi, pi]
+
+    # Determine speed bin edges
+    speed_min = float(np.min(speed_mps))
+    speed_max = float(np.max(speed_mps))
+
+    # Align bin edges to multiples of speed_bin_width
+    bin_start = (speed_min // speed_bin_width) * speed_bin_width
+    bin_end = ((speed_max // speed_bin_width) + 1) * speed_bin_width
+    bin_edges = np.arange(bin_start, bin_end + speed_bin_width * 0.5, speed_bin_width)
+
+    # Angular sector edges: [-pi, -pi + 2*pi/n_sectors, ..., pi]
+    sector_edges = np.linspace(-np.pi, np.pi, n_sectors + 1)
+
+    # Digitize speeds into bins (1-indexed; 0 = below first edge, len = above last)
+    speed_bin_idx = np.digitize(speed_mps, bin_edges)
+
+    # Build envelopes for bins that have data
+    valid_speed_bins: list[float] = []
+    valid_envelopes: list[np.ndarray] = []
+
+    for b in range(1, len(bin_edges)):
+        bin_mask = speed_bin_idx == b
+        n_in_bin = int(bin_mask.sum())
+        if n_in_bin < min_points_per_sector:
+            continue
+
+        bin_combined = combined_g[bin_mask]
+        bin_angles = angles[bin_mask]
+
+        # Overall bin percentile as fallback for sparse sectors
+        bin_overall_g = float(np.percentile(bin_combined, percentile))
+
+        # Build per-sector envelope
+        envelope = np.empty(n_sectors, dtype=np.float64)
+        sector_idx = np.digitize(bin_angles, sector_edges) - 1
+        # Clamp sector index: points exactly at pi map to n_sectors, wrap to 0
+        sector_idx = np.clip(sector_idx, 0, n_sectors - 1)
+
+        for s in range(n_sectors):
+            s_mask = sector_idx == s
+            n_in_sector = int(s_mask.sum())
+            if n_in_sector >= min_points_per_sector:
+                envelope[s] = float(np.percentile(bin_combined[s_mask], percentile))
+            else:
+                envelope[s] = bin_overall_g
+
+        bin_center = float(bin_edges[b - 1]) + speed_bin_width / 2.0
+        valid_speed_bins.append(bin_center)
+        valid_envelopes.append(envelope)
+
+    if len(valid_speed_bins) == 0:
+        return None
+
+    return GGVSurface(
+        speed_bins=np.array(valid_speed_bins, dtype=np.float64),
+        envelopes=valid_envelopes,
+        n_sectors=n_sectors,
+    )
+
+
+def query_ggv_max_g(
+    surface: GGVSurface,
+    speed: float,
+    angle_rad: float,
+) -> float:
+    """Query the GGV surface for max available G at a given speed and direction.
+
+    Interpolates between speed bins.  Returns max combined G in the given
+    direction.
+
+    Parameters
+    ----------
+    surface
+        A pre-built GGV surface from :func:`build_ggv_surface`.
+    speed
+        Vehicle speed in m/s.
+    angle_rad
+        Direction angle in radians where ``0 = pure lateral``,
+        ``pi/2 = pure positive longitudinal`` (acceleration),
+        ``-pi/2 = pure braking``.  Wraps to ``[-pi, pi]``.
+
+    Returns
+    -------
+    float
+        Maximum combined G available at the given speed and direction.
+    """
+    n_bins = len(surface.speed_bins)
+    n_sectors = surface.n_sectors
+
+    # Wrap angle to [-pi, pi]
+    angle = float(np.arctan2(np.sin(angle_rad), np.cos(angle_rad)))
+
+    # Map angle to sector index (fractional for interpolation)
+    sector_width = _TWO_PI / n_sectors
+    # Shift angle from [-pi, pi] to [0, 2*pi] for indexing
+    shifted_angle = angle + np.pi
+    sector_frac = shifted_angle / sector_width
+    sector_lo = int(sector_frac) % n_sectors
+    sector_hi = (sector_lo + 1) % n_sectors
+    sector_t = sector_frac - int(sector_frac)
+
+    # Clamp speed to the range of available bins
+    if speed <= surface.speed_bins[0]:
+        # Below min: use first bin
+        env = surface.envelopes[0]
+        return float(env[sector_lo] * (1.0 - sector_t) + env[sector_hi] * sector_t)
+
+    if speed >= surface.speed_bins[-1]:
+        # Above max: use last bin
+        env = surface.envelopes[-1]
+        return float(env[sector_lo] * (1.0 - sector_t) + env[sector_hi] * sector_t)
+
+    # Find the two bracketing speed bins for interpolation
+    bin_idx = int(np.searchsorted(surface.speed_bins, speed)) - 1
+    bin_idx = max(0, min(bin_idx, n_bins - 2))
+
+    speed_lo = float(surface.speed_bins[bin_idx])
+    speed_hi = float(surface.speed_bins[bin_idx + 1])
+    speed_t = (speed - speed_lo) / (speed_hi - speed_lo) if speed_hi > speed_lo else 0.0
+
+    # Interpolate envelope values at both speed bins
+    env_lo = surface.envelopes[bin_idx]
+    env_hi = surface.envelopes[bin_idx + 1]
+
+    g_lo = float(env_lo[sector_lo] * (1.0 - sector_t) + env_lo[sector_hi] * sector_t)
+    g_hi = float(env_hi[sector_lo] * (1.0 - sector_t) + env_hi[sector_hi] * sector_t)
+
+    # Linear interpolation between speed bins
+    return g_lo + speed_t * (g_hi - g_lo)
