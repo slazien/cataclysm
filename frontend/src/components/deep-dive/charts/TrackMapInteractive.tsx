@@ -21,27 +21,41 @@ const SVG_WIDTH = 400;
 const SVG_HEIGHT = 400;
 const PADDING = 12;
 
-function projectCoords(
-  lat: number[],
-  lon: number[],
+interface ProjectionParams {
+  minLat: number;
+  maxLat: number;
+  minLon: number;
+  maxLon: number;
+  lonScale: number;
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+  scaledH: number;
+}
+
+function computeProjection(
+  allLats: number[][],
+  allLons: number[][],
   width: number,
   height: number,
   padding: number,
-): { x: number[]; y: number[] } {
-  if (lat.length === 0) return { x: [], y: [] };
+): ProjectionParams | null {
+  const flatLat = allLats.flat();
+  const flatLon = allLons.flat();
+  if (flatLat.length === 0) return null;
 
-  const minLat = d3.min(lat) ?? 0;
-  const maxLat = d3.max(lat) ?? 0;
-  const minLon = d3.min(lon) ?? 0;
-  const maxLon = d3.max(lon) ?? 0;
+  const minLat = d3.min(flatLat) ?? 0;
+  const maxLat = d3.max(flatLat) ?? 0;
+  const minLon = d3.min(flatLon) ?? 0;
+  const maxLon = d3.max(flatLon) ?? 0;
 
   const latRange = maxLat - minLat || 1e-6;
   const lonRange = maxLon - minLon || 1e-6;
 
   const midLat = (minLat + maxLat) / 2;
-  const lonScale = Math.cos((midLat * Math.PI) / 180);
+  const lonScaleF = Math.cos((midLat * Math.PI) / 180);
 
-  const dataWidth = lonRange * lonScale;
+  const dataWidth = lonRange * lonScaleF;
   const dataHeight = latRange;
 
   const availW = width - 2 * padding;
@@ -53,9 +67,16 @@ function projectCoords(
   const offsetX = padding + (availW - scaledW) / 2;
   const offsetY = padding + (availH - scaledH) / 2;
 
-  const x = lon.map((lo) => offsetX + (lo - minLon) * lonScale * scale);
-  const y = lat.map((la) => offsetY + scaledH - (la - minLat) * scale);
+  return { minLat, maxLat, minLon, maxLon, lonScale: lonScaleF, scale, offsetX, offsetY, scaledH };
+}
 
+function applyProjection(
+  lat: number[],
+  lon: number[],
+  p: ProjectionParams,
+): { x: number[]; y: number[] } {
+  const x = lon.map((lo) => p.offsetX + (lo - p.minLon) * p.lonScale * p.scale);
+  const y = lat.map((la) => p.offsetY + p.scaledH - (la - p.minLat) * p.scale);
   return { x, y };
 }
 
@@ -227,20 +248,37 @@ export function TrackMapInteractive({ sessionId }: TrackMapInteractiveProps) {
 
   const { data: lapDataArr, isLoading: lapsLoading } = useMultiLapData(
     sessionId,
-    selectedLaps.length > 0 ? [selectedLaps[0]] : [],
+    selectedLaps,
   );
   const { data: corners } = useCorners(sessionId);
   const { data: delta } = useDelta(sessionId, refLap, compLap);
   const { data: report } = useCoachingReport(sessionId);
 
   const lapData = lapDataArr[0] ?? null;
+  const compLapData = lapDataArr.length >= 2 ? lapDataArr[1] : null;
 
-  const { projected, segments, cornerLabels, sfLine } = useMemo(() => {
+  const { projected, segments, cornerLabels, sfLine, compPolyline } = useMemo(() => {
     if (!lapData || !corners) {
-      return { projected: null, segments: [], cornerLabels: [], sfLine: null };
+      return {
+        projected: null, segments: [], cornerLabels: [],
+        sfLine: null, compPolyline: null,
+      };
     }
 
-    const proj = projectCoords(lapData.lat, lapData.lon, SVG_WIDTH, SVG_HEIGHT, PADDING);
+    // Compute shared projection bounds when comparing 2 laps
+    const allLats = compLapData ? [lapData.lat, compLapData.lat] : [lapData.lat];
+    const allLons = compLapData ? [lapData.lon, compLapData.lon] : [lapData.lon];
+    const projParams = computeProjection(
+      allLats, allLons, SVG_WIDTH, SVG_HEIGHT, PADDING,
+    );
+    if (!projParams) {
+      return {
+        projected: null, segments: [], cornerLabels: [],
+        sfLine: null, compPolyline: null,
+      };
+    }
+
+    const proj = applyProjection(lapData.lat, lapData.lon, projParams);
     const segs = buildSegments(lapData, proj, delta, corners);
     const labels = buildCornerLabels(
       corners,
@@ -262,8 +300,23 @@ export function TrackMapInteractive({ sessionId }: TrackMapInteractiveProps) {
       };
     })();
 
-    return { projected: proj, segments: segs, cornerLabels: labels, sfLine };
-  }, [lapData, corners, delta, report]);
+    // Project comparison lap using same coordinate frame
+    let compPolyline: string | null = null;
+    if (compLapData) {
+      const compProj = applyProjection(
+        compLapData.lat, compLapData.lon, projParams,
+      );
+      if (compProj.x.length >= 2) {
+        const pts = compProj.x.map((x, i) => `${x},${compProj.y[i]}`);
+        compPolyline = 'M' + pts.join('L');
+      }
+    }
+
+    return {
+      projected: proj, segments: segs, cornerLabels: labels,
+      sfLine, compPolyline,
+    };
+  }, [lapData, compLapData, corners, delta, report]);
 
   const cursorPos = useMemo(() => {
     if (cursorDistance === null || !lapData || !projected) return null;
@@ -300,6 +353,19 @@ export function TrackMapInteractive({ sessionId }: TrackMapInteractiveProps) {
         className="h-full max-h-full w-full"
         preserveAspectRatio="xMidYMid meet"
       >
+        {/* Comparison lap trace (underneath, thinner) */}
+        {compPolyline && (
+          <path
+            d={compPolyline}
+            fill="none"
+            stroke={colors.comparison.compare}
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.7}
+          />
+        )}
+
         {/* Track path segments */}
         {segments.map((seg, i) => (
           <path
