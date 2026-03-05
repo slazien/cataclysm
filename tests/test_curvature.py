@@ -7,8 +7,11 @@ import pandas as pd
 import pytest
 
 from cataclysm.curvature import (
+    MAX_CURVATURE_RATE,
+    MAX_PHYSICAL_CURVATURE,
     CurvatureResult,
     _latlon_to_local_xy,
+    _limit_curvature_rate,
     compute_curvature,
     compute_curvature_from_heading,
 )
@@ -232,6 +235,159 @@ class TestComputeCurvature:
         df = _circle_lap_df(radius_m=100.0, n=500, fraction=0.8)
         result = compute_curvature(df, step_m=0.7)
         np.testing.assert_array_equal(result.abs_curvature, np.abs(result.curvature))
+
+
+# ---------------------------------------------------------------------------
+# TestComputeCurvatureFromHeading
+# ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# TestPhysicsConstraints — clamp + rate limiter
+# ---------------------------------------------------------------------------
+
+
+class TestCurvatureClamped:
+    """Verify that curvature is clamped to the physical maximum."""
+
+    def test_curvature_clamped_to_physical_max(self) -> None:
+        """Inject GPS data producing extreme curvature; verify it is clamped."""
+        # Build a trace with an artificially tight kink: straight → 1 m
+        # radius hairpin → straight.  Curvature of a 1 m radius circle
+        # is 1.0 1/m, far above MAX_PHYSICAL_CURVATURE (0.33).
+        radius = 1.0  # extremely tight — impossible for a car
+        n = 400
+        step_m = 0.3  # finer spacing to capture the kink
+
+        # Build: straight 20 m → 180° arc of radius 1 m → straight 20 m
+        n_straight = 60
+        n_arc = n - 2 * n_straight
+
+        # Straight segment 1 (heading east)
+        d1 = np.arange(n_straight) * step_m
+        x1 = d1
+        y1 = np.zeros(n_straight)
+
+        # Arc segment (semicircle, center at (d1[-1], radius))
+        arc_length = np.pi * radius
+        theta = np.linspace(0, np.pi, n_arc)
+        cx = x1[-1]
+        cy = radius
+        x_arc = cx + radius * np.sin(theta)
+        y_arc = cy - radius * np.cos(theta)
+        d_arc = d1[-1] + np.linspace(0, arc_length, n_arc)
+
+        # Straight segment 2 (heading west)
+        d2_start = d_arc[-1]
+        d2 = d2_start + np.arange(1, n_straight + 1) * step_m
+        x2 = x_arc[-1] - np.arange(1, n_straight + 1) * step_m
+        y2 = np.full(n_straight, y_arc[-1])
+
+        x = np.concatenate([x1, x_arc, x2])
+        y = np.concatenate([y1, y_arc, y2])
+        distance = np.concatenate([d1, d_arc, d2])
+
+        center_lat = 33.53
+        lat = center_lat + y / 111320.0
+        lon = -86.62 + x / (111320.0 * np.cos(np.radians(center_lat)))
+
+        df = pd.DataFrame({"lat": lat, "lon": lon, "lap_distance_m": distance})
+
+        result = compute_curvature(df, step_m=step_m, smoothing=0.01)
+
+        # Every curvature value must be within the physical clamp
+        assert np.all(np.abs(result.curvature) <= MAX_PHYSICAL_CURVATURE + 1e-9), (
+            f"Curvature exceeded physical max: "
+            f"max |k| = {np.max(np.abs(result.curvature)):.4f}, "
+            f"limit = {MAX_PHYSICAL_CURVATURE}"
+        )
+
+    def test_clamp_does_not_affect_normal_curvature(self) -> None:
+        """Normal 100 m radius curvature (0.01) should pass through untouched."""
+        df = _circle_lap_df(radius_m=100.0, n=500, fraction=0.8)
+        result = compute_curvature(df, step_m=0.7, smoothing=0.1)
+
+        interior = result.curvature[50:-50]
+        expected = 1.0 / 100.0
+        # Should still be close to the true value — clamp is far above 0.01
+        np.testing.assert_allclose(np.abs(interior), expected, atol=0.005)
+
+
+class TestCurvatureRateLimited:
+    """Verify the curvature rate limiter constrains transitions."""
+
+    def test_rate_limiter_unit(self) -> None:
+        """Direct test of _limit_curvature_rate on a synthetic spike."""
+        n = 100
+        step_m = 0.7
+        kappa = np.zeros(n, dtype=np.float64)
+        # Inject a single massive spike at the midpoint
+        kappa[50] = 1.0  # physically impossible jump
+
+        limited = _limit_curvature_rate(kappa, step_m=step_m)
+
+        # No adjacent pair should differ by more than max_rate * step_m
+        max_delta = MAX_CURVATURE_RATE * step_m
+        diffs = np.abs(np.diff(limited))
+        assert np.all(diffs <= max_delta + 1e-12), (
+            f"Rate limit violated: max diff = {np.max(diffs):.6f}, allowed = {max_delta:.6f}"
+        )
+
+    def test_rate_limited_in_compute_curvature(self) -> None:
+        """Full pipeline: verify no adjacent curvature pair exceeds rate limit."""
+        df = _circle_lap_df(radius_m=50.0, n=500, fraction=0.8)
+        step_m = 0.7
+        result = compute_curvature(df, step_m=step_m, smoothing=0.1)
+
+        max_delta = MAX_CURVATURE_RATE * step_m
+        diffs = np.abs(np.diff(result.curvature))
+        assert np.all(diffs <= max_delta + 1e-12), (
+            f"Rate limit violated in full pipeline: "
+            f"max diff = {np.max(diffs):.6f}, allowed = {max_delta:.6f}"
+        )
+
+    def test_rate_limiter_preserves_sign(self) -> None:
+        """Rate limiter should preserve the sign of curvature transitions."""
+        n = 100
+        step_m = 0.7
+        # Smooth positive-then-negative curvature
+        kappa = np.concatenate(
+            [
+                np.linspace(0, 0.05, n // 2),
+                np.linspace(0.05, -0.05, n // 2),
+            ]
+        )
+
+        limited = _limit_curvature_rate(kappa, step_m=step_m)
+
+        # The transition from positive to negative should still happen
+        assert np.any(limited > 0) and np.any(limited < 0), (
+            "Rate limiter eliminated the sign change entirely"
+        )
+
+
+class TestKnownRadiusAccuracy:
+    """Ensure post-processing does not degrade accuracy on clean data."""
+
+    def test_known_radius_accuracy(self) -> None:
+        """Circular arc of known radius: curvature should still be close to 1/R."""
+        for radius in [30.0, 50.0, 100.0, 200.0]:
+            df = _circle_lap_df(radius_m=radius, n=500, fraction=0.8)
+            result = compute_curvature(df, step_m=0.7, smoothing=0.1)
+
+            expected = 1.0 / radius
+            # Trim edges
+            interior = result.curvature[50:-50]
+            np.testing.assert_allclose(
+                np.abs(interior),
+                expected,
+                atol=0.005,
+                err_msg=(
+                    f"Accuracy degraded for R={radius}m: "
+                    f"mean |k|={np.mean(np.abs(interior)):.5f}, "
+                    f"expected={expected:.5f}"
+                ),
+            )
 
 
 # ---------------------------------------------------------------------------

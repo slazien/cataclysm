@@ -9,6 +9,19 @@ import pandas as pd
 from scipy.interpolate import UnivariateSpline
 from scipy.signal import savgol_filter
 
+# Physical curvature ceiling — corresponds to a 3 m radius hairpin, the
+# tightest turn any road car can negotiate.  GPS glitches occasionally
+# produce curvatures well above 1.0 1/m; clamping keeps downstream
+# corner-detection grounded in reality.
+MAX_PHYSICAL_CURVATURE: float = 0.33  # 1/m  (radius ≈ 3 m)
+
+# Maximum rate of curvature change per metre of distance.  Limits
+# |d(kappa)/ds| so that curvature cannot jump instantaneously from GPS
+# noise.  0.02 1/m^2 allows a full transition from straight to a 50 m
+# radius corner in ~1 m of travel — aggressive enough to preserve real
+# transitions, conservative enough to squash single-sample spikes.
+MAX_CURVATURE_RATE: float = 0.02  # 1/m per metre
+
 # When smoothing=None, use s = n_points * step_m * this factor.
 # A value of 1.0 gives a regression spline (not interpolating) that follows
 # the overall track shape without chasing GPS noise.
@@ -49,6 +62,57 @@ def _latlon_to_local_xy(
     x: np.ndarray = (lon - lon[0]) * np.cos(mean_lat_rad) * 111320.0
     y: np.ndarray = (lat - lat[0]) * 111320.0
     return x, y
+
+
+def _limit_curvature_rate(
+    curvature: np.ndarray,
+    step_m: float,
+    max_rate: float = MAX_CURVATURE_RATE,
+) -> np.ndarray:
+    """Forward-backward rate limiter on curvature.
+
+    Constrains the curvature profile so that |kappa[i] - kappa[i-1]| does
+    not exceed *max_rate* * *step_m* for any pair of adjacent samples.
+
+    The algorithm makes two passes:
+
+    1. **Forward**: walk left-to-right, clamping each sample so it lies
+       within ``prev ± max_rate * step_m``.
+    2. **Backward**: walk right-to-left with the same rule.
+
+    The final result is the element-wise value that is closest to zero
+    (minimum absolute value) from the two passes, preserving sign.  This
+    avoids the directional bias inherent in a single-pass approach.
+
+    Parameters
+    ----------
+    curvature:
+        Signed curvature array (1/m).
+    step_m:
+        Distance-domain sample spacing (metres).
+    max_rate:
+        Maximum |d(kappa)/ds| in 1/m per metre.
+
+    Returns
+    -------
+    np.ndarray
+        Rate-limited curvature array of the same length.
+    """
+    max_delta = max_rate * step_m
+
+    # Forward pass
+    fwd = curvature.copy()
+    for i in range(1, len(fwd)):
+        fwd[i] = np.clip(fwd[i], fwd[i - 1] - max_delta, fwd[i - 1] + max_delta)
+
+    # Backward pass
+    bwd = curvature.copy()
+    for i in range(len(bwd) - 2, -1, -1):
+        bwd[i] = np.clip(bwd[i], bwd[i + 1] - max_delta, bwd[i + 1] + max_delta)
+
+    # Take the value closest to zero from each pass (preserves sign)
+    result: np.ndarray = np.where(np.abs(fwd) <= np.abs(bwd), fwd, bwd)
+    return result
 
 
 def compute_curvature(
@@ -128,6 +192,12 @@ def compute_curvature(
             win = len(curvature) if len(curvature) % 2 == 1 else len(curvature) - 1
         if win >= 5:  # need at least polyorder+2 points
             curvature = savgol_filter(curvature, window_length=win, polyorder=3)
+
+    # --- Physics-constrained post-processing ---
+    # 1. Curvature rate limiter: suppress physically impossible transitions
+    curvature = _limit_curvature_rate(curvature, step_m)
+    # 2. Physical curvature clamp: cap at tightest-possible hairpin
+    curvature = np.clip(curvature, -MAX_PHYSICAL_CURVATURE, MAX_PHYSICAL_CURVATURE)
 
     heading_rad: np.ndarray = np.arctan2(dy, dx)
 
