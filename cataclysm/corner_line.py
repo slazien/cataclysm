@@ -44,6 +44,8 @@ class CornerLineProfile:
     severity: str  # "minor" <0.5m, "moderate" 0.5-1.5m, "major" >1.5m
     consistency_tier: str  # "expert" <0.3m, "consistent" <0.7m, "developing" <1.5m, "novice" >=1.5m
     allen_berg_type: str  # "A" (before straight), "B" (after straight), "C" (linking)
+    straight_after_m: float = 0.0  # Distance from exit to next corner entry
+    priority_rank: int = 0  # 1 = most important corner on track
 
 
 def detect_apex_fraction(
@@ -115,30 +117,54 @@ def _consistency_tier(sd: float) -> str:
     return "novice"
 
 
-def _infer_allen_berg_type(corner: Corner, corners: list[Corner]) -> str:
-    """Infer Allen Berg corner type from context.
+def _infer_berg_type_and_gap(corner: Corner, corners: list[Corner]) -> tuple[str, float]:
+    """Infer Allen Berg corner type and gap to next corner.
 
     A = corner before a significant straight (exit speed paramount)
     B = corner at end of a straight (entry speed matters)
     C = corner linking other corners (compromise)
+
+    Returns (berg_type, gap_to_next_m) where gap_to_next_m is the distance
+    from this corner's exit to the next corner's entry (0.0 for the last corner).
     """
     idx = corner.number - 1
     if idx < 0 or idx >= len(corners):
-        return "C"
+        return "C", 0.0
 
-    # Check gap to next corner
+    # Compute gap to next corner
+    gap_to_next = 0.0
     if idx + 1 < len(corners):
         gap_to_next = corners[idx + 1].entry_distance_m - corner.exit_distance_m
-        if gap_to_next > 150:  # Long straight follows
-            return "A"
+
+    # Check gap to next corner
+    if gap_to_next > 150:  # Long straight follows
+        return "A", gap_to_next
 
     # Check gap from previous corner
     if idx > 0:
         gap_from_prev = corner.entry_distance_m - corners[idx - 1].exit_distance_m
         if gap_from_prev > 150:  # Long straight precedes
-            return "B"
+            return "B", gap_to_next
 
-    return "C"
+    return "C", gap_to_next
+
+
+def _assign_priority_ranks(profiles: list[CornerLineProfile]) -> None:
+    """Assign priority_rank 1..N in-place.
+
+    Sort order: Type A first (longest straight_after_m first), then B, then C.
+    Within the same type, longer straight = lower rank number.
+    """
+    type_order = {"A": 0, "B": 1, "C": 2}
+    ranked = sorted(
+        range(len(profiles)),
+        key=lambda i: (
+            type_order.get(profiles[i].allen_berg_type, 2),
+            -profiles[i].straight_after_m,
+        ),
+    )
+    for rank, idx in enumerate(ranked, start=1):
+        profiles[idx].priority_rank = rank
 
 
 def analyze_corner_lines(
@@ -203,7 +229,7 @@ def analyze_corner_lines(
 
         error_type, severity = classify_line_error(apex_frac_med, d_entry_med, d_exit_med)
         tier = _consistency_tier(d_apex_sd)
-        berg_type = _infer_allen_berg_type(corner, corners)
+        berg_type, gap_to_next = _infer_berg_type_and_gap(corner, corners)
 
         profiles.append(
             CornerLineProfile(
@@ -218,9 +244,11 @@ def analyze_corner_lines(
                 severity=severity,
                 consistency_tier=tier,
                 allen_berg_type=berg_type,
+                straight_after_m=gap_to_next,
             )
         )
 
+    _assign_priority_ranks(profiles)
     return profiles
 
 
