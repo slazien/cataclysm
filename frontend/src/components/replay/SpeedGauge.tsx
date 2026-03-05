@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useUnits } from '@/hooks/useUnits';
 
 interface SpeedGaugeProps {
   speed: number; // current speed in mph
@@ -39,6 +40,8 @@ function describeArc(cx: number, cy: number, r: number, startDeg: number, endDeg
  * - "mph" label below
  */
 export function SpeedGauge({ speed, maxSpeed }: SpeedGaugeProps) {
+  const { convertSpeed, speedUnit } = useUnits();
+  const displaySpeed = convertSpeed(speed);
   const clampedMax = Math.max(maxSpeed, 1);
   const fraction = Math.min(speed / clampedMax, 1);
   const currentAngle = START_ANGLE + fraction * SWEEP;
@@ -99,7 +102,7 @@ export function SpeedGauge({ speed, maxSpeed }: SpeedGaugeProps) {
           fontWeight="bold"
           fontFamily="'JetBrains Mono', 'SF Mono', monospace"
         >
-          {Math.round(speed)}
+          {Math.round(displaySpeed)}
         </text>
 
         {/* Unit label */}
@@ -112,7 +115,7 @@ export function SpeedGauge({ speed, maxSpeed }: SpeedGaugeProps) {
           fontSize={14}
           fontFamily="'Inter', system-ui, sans-serif"
         >
-          mph
+          {speedUnit}
         </text>
       </svg>
     </div>

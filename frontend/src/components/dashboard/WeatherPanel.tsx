@@ -16,7 +16,7 @@ function MetricItem({ label, value }: { label: string; value: string }) {
 
 export function WeatherPanel({ weather }: { weather: SessionWeather }) {
   const [expanded, setExpanded] = useState(false);
-  const { formatTemp } = useUnits();
+  const { formatTemp, isMetric } = useUnits();
 
   const summaryParts: string[] = [];
   if (weather.track_condition) summaryParts.push(weather.track_condition);
@@ -55,11 +55,11 @@ export function WeatherPanel({ weather }: { weather: SessionWeather }) {
           />
           <MetricItem
             label="Wind Speed"
-            value={weather.wind_speed_kmh != null ? `${weather.wind_speed_kmh} km/h` : '--'}
+            value={weather.wind_speed_kmh != null ? (isMetric ? `${weather.wind_speed_kmh} km/h` : `${(weather.wind_speed_kmh / 1.60934).toFixed(0)} mph`) : '--'}
           />
           <MetricItem
             label="Precipitation"
-            value={weather.precipitation_mm != null ? `${weather.precipitation_mm} mm` : '--'}
+            value={weather.precipitation_mm != null ? (isMetric ? `${weather.precipitation_mm} mm` : `${(weather.precipitation_mm / 25.4).toFixed(2)} in`) : '--'}
           />
           <MetricItem label="Source" value={weather.weather_source || '--'} />
         </div>
