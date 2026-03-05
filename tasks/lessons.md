@@ -128,6 +128,16 @@
 
 **Anti-pattern**: "iPhone 17 Pro Max is probably around 440×956" or "I'll estimate OnePlus 11 Pro as 412×915". NEVER estimate device specs — always look them up.
 
+## Verify Components Are Actually Imported Before Wiring Into Them ([2026-03-05])
+
+**Pattern**: Before adding features to a component, `grep -rn "import.*ComponentName"` to confirm it's actually used in the app. Exported-but-never-imported components are dead code — your feature will be invisible.
+
+**Why**: Wired the `SkillLevelMismatchBanner` into `ReportSummary` (inside `CoachPanel`), which is exported from its file but never imported anywhere in the app. The actual active component is `SessionReport`. Only caught this via Playwright QA when the banner didn't appear. Wasted a full implementation cycle on dead code.
+
+**Verification command**: `grep -rn "import.*ComponentName\|from.*ComponentName" frontend/src/` — if zero results outside the component's own file, it's dead code.
+
+**Anti-pattern**: Seeing a component that looks like the right place (e.g. `ReportSummary` for coaching reports) and wiring into it without checking if it's actually rendered. Always trace the import chain back to a page or layout.
+
 ## Always Run Code Reviewer After Implementation
 - **When**: After finishing ANY implementation task — features, bug fixes, refactors
 - **Rule**: Dispatch the code reviewer agent (`superpowers:code-reviewer` or `code-review:code-review`) to review all changed files. This is in ADDITION to automated checks (ruff, mypy, tests), not a replacement.
