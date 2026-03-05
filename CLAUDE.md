@@ -113,7 +113,13 @@ All must pass before committing:
 - Check actual data values render (not just "doesn't crash") — numbers not "--", charts not empty
 - Common failure: API envelope double-unwrapping (see `tasks/lessons.md`)
 - **Use `accessibility-compliance:ui-visual-validator` agent** after layout changes
-- **Mobile testing**: Use real device emulation (Playwright `Pixel 7`, `iPhone 14`) — not just viewport resize. Test Android + iOS. Check: text clipping, horizontal overflow, touch targets (44x44px min), chart scaling.
+- **Mobile testing**: Test with real CSS viewport sizes (not physical resolutions). Use this research-verified device matrix covering 360px–440px width range (85%+ of mobile traffic):
+  - **Samsung Galaxy S24** (360×780, DPR 3) — smallest common flagship, budget Android width
+  - **iPhone 14** (390×844, DPR 3) — most popular iPhone form factor
+  - **Pixel 9** (412×915, DPR 2.625) — standard Android reference
+  - **iPhone 16 Pro Max** (440×956, DPR 3) — largest common viewport
+  - Sources: blisk.io, yesviz.com, webmobilefirst.com, viewport-tester.com
+  - Check: text clipping, horizontal overflow, touch targets (44x44px min), chart scaling, control bar fitting.
 
 ## Deployment
 
