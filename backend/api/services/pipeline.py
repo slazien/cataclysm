@@ -22,7 +22,7 @@ from cataclysm.corner_line import analyze_corner_lines
 from cataclysm.corners import Corner, detect_corners, extract_corner_kpis_for_lap
 from cataclysm.curvature import compute_curvature
 from cataclysm.elevation import compute_corner_elevation, enrich_corners_with_elevation
-from cataclysm.elevation_profile import compute_gradient_array
+from cataclysm.elevation_profile import compute_gradient_array, compute_vertical_curvature
 from cataclysm.engine import LapSummary, ProcessedSession, find_anomalous_laps, process_session
 from cataclysm.equipment import equipment_to_vehicle_params
 from cataclysm.gains import (
@@ -360,16 +360,22 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
                 base = vehicle_params or default_vehicle_params()
                 vehicle_params = apply_calibration_to_params(base, grip)
 
-        # Compute elevation gradient for the solver
+        # Compute elevation gradient and vertical curvature for the solver
         gradient_sin = None
+        vert_curvature = None
         if "altitude_m" in best_lap_df.columns:
             alt = best_lap_df["altitude_m"].to_numpy()
+            dist = best_lap_df["lap_distance_m"].to_numpy()
             if not np.all(np.isnan(alt)):
-                gradient_sin = compute_gradient_array(alt, best_lap_df["lap_distance_m"].to_numpy())
+                gradient_sin = compute_gradient_array(alt, dist)
+                vert_curvature = compute_vertical_curvature(alt, dist)
 
         # Solve optimal velocity profile
         optimal = compute_optimal_profile(
-            curvature_result, params=vehicle_params, gradient_sin=gradient_sin
+            curvature_result,
+            params=vehicle_params,
+            gradient_sin=gradient_sin,
+            vertical_curvature=vert_curvature,
         )
 
         # Look up equipment profile ID for the response metadata
@@ -423,15 +429,21 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
                 base = vehicle_params or default_vehicle_params()
                 vehicle_params = apply_calibration_to_params(base, grip)
 
-        # Compute elevation gradient for the solver
+        # Compute elevation gradient and vertical curvature for the solver
         gradient_sin = None
+        vert_curvature = None
         if "altitude_m" in best_lap_df.columns:
             alt = best_lap_df["altitude_m"].to_numpy()
+            dist = best_lap_df["lap_distance_m"].to_numpy()
             if not np.all(np.isnan(alt)):
-                gradient_sin = compute_gradient_array(alt, best_lap_df["lap_distance_m"].to_numpy())
+                gradient_sin = compute_gradient_array(alt, dist)
+                vert_curvature = compute_vertical_curvature(alt, dist)
 
         optimal = compute_optimal_profile(
-            curvature_result, params=vehicle_params, gradient_sin=gradient_sin
+            curvature_result,
+            params=vehicle_params,
+            gradient_sin=gradient_sin,
+            vertical_curvature=vert_curvature,
         )
 
         # Run the full comparison

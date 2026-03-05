@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import numpy as np
 
-from cataclysm.elevation_profile import compute_gradient_array
+from cataclysm.elevation_profile import (
+    _VERTICAL_CURVATURE_CLAMP,
+    compute_gradient_array,
+    compute_vertical_curvature,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -199,3 +203,171 @@ class TestComputeGradientArray:
 
         assert np.all(gradient_sin >= -1.0)
         assert np.all(gradient_sin <= 1.0)
+
+
+# ---------------------------------------------------------------------------
+# TestComputeVerticalCurvature
+# ---------------------------------------------------------------------------
+
+
+class TestComputeVerticalCurvature:
+    """Tests for compute_vertical_curvature — d²z/ds²."""
+
+    def test_flat_track_zero_curvature(self) -> None:
+        """Constant altitude should produce zero vertical curvature."""
+        n = 500
+        distance = _make_distance(n)
+        altitude = np.full(n, 100.0)
+
+        kv = compute_vertical_curvature(altitude, distance)
+
+        assert kv.shape == (n,)
+        np.testing.assert_allclose(kv, 0.0, atol=1e-10)
+
+    def test_linear_grade_zero_curvature(self) -> None:
+        """Constant slope (linear altitude) should produce ~zero vertical curvature."""
+        n = 2000
+        step_m = 0.7
+        distance = _make_distance(n, step_m)
+        altitude = 100.0 + 0.05 * distance
+
+        kv = compute_vertical_curvature(altitude, distance)
+
+        # Interior: second derivative of a line is zero
+        interior = kv[300:-300]
+        np.testing.assert_allclose(interior, 0.0, atol=1e-6)
+
+    def test_compression_positive_curvature(self) -> None:
+        """A valley (concave up) should produce positive vertical curvature.
+
+        Profile: altitude dips down then comes back up (like corkscrew bottom).
+        """
+        n = 3000
+        step_m = 0.7
+        distance = _make_distance(n, step_m)
+        total_dist = distance[-1]
+        # Cosine valley: starts high, dips in the middle, comes back
+        # z = A * cos(2pi * s / L)  →  d²z/ds² = -A*(2pi/L)^2 * cos(...)
+        # At the center (s=L/2), cos=-1, so d²z/ds² = A*(2pi/L)^2 > 0 (compression)
+        amplitude = 10.0
+        altitude = amplitude * np.cos(2 * np.pi * distance / total_dist)
+
+        kv = compute_vertical_curvature(altitude, distance)
+
+        # At the center of the valley, vertical curvature should be positive
+        center = n // 2
+        window = n // 10
+        center_kv = np.mean(kv[center - window : center + window])
+        assert center_kv > 0.0, f"Expected positive kv at compression, got {center_kv}"
+
+    def test_crest_negative_curvature(self) -> None:
+        """A hilltop (convex up) should produce negative vertical curvature.
+
+        Profile: altitude rises then comes back down.
+        """
+        n = 3000
+        step_m = 0.7
+        distance = _make_distance(n, step_m)
+        total_dist = distance[-1]
+        # Inverted: z = -A * cos(2pi * s / L)  →  hilltop at center
+        amplitude = 10.0
+        altitude = -amplitude * np.cos(2 * np.pi * distance / total_dist)
+
+        kv = compute_vertical_curvature(altitude, distance)
+
+        center = n // 2
+        window = n // 10
+        center_kv = np.mean(kv[center - window : center + window])
+        assert center_kv < 0.0, f"Expected negative kv at crest, got {center_kv}"
+
+    def test_quadratic_profile_constant_curvature(self) -> None:
+        """Parabolic altitude z = a*s² should have constant κ_v = 2a.
+
+        Uses a very gentle parabola to stay within smoothing fidelity.
+        """
+        n = 3000
+        step_m = 0.7
+        distance = _make_distance(n, step_m)
+        # Center the parabola at the track midpoint to avoid boundary effects
+        mid = distance[-1] / 2.0
+        a = 0.001  # κ_v = 2a = 0.002
+        altitude = a * (distance - mid) ** 2
+
+        kv = compute_vertical_curvature(altitude, distance)
+
+        # Interior should be approximately 2a
+        interior = kv[500:-500]
+        expected = 2 * a
+        np.testing.assert_allclose(
+            np.mean(interior),
+            expected,
+            rtol=0.3,
+            err_msg=f"Expected κ_v ≈ {expected}, got mean {np.mean(interior):.6f}",
+        )
+
+    def test_output_clamped(self) -> None:
+        """Vertical curvature should be clamped to ±_VERTICAL_CURVATURE_CLAMP."""
+        n = 500
+        step_m = 0.7
+        distance = _make_distance(n, step_m)
+        # Extreme altitude oscillation to produce huge second derivative
+        altitude = 50.0 * np.sin(2 * np.pi * distance / 5.0)
+
+        kv = compute_vertical_curvature(altitude, distance)
+
+        assert np.all(kv >= -_VERTICAL_CURVATURE_CLAMP)
+        assert np.all(kv <= _VERTICAL_CURVATURE_CLAMP)
+
+    def test_empty_returns_empty(self) -> None:
+        """Empty input should return empty array."""
+        kv = compute_vertical_curvature(np.array([]), np.array([]))
+        assert len(kv) == 0
+
+    def test_short_input_returns_zeros(self) -> None:
+        """Two points or fewer should return zeros (need 3 for second derivative)."""
+        for n in [1, 2]:
+            alt = np.ones(n) * 100.0
+            dist = np.arange(n, dtype=np.float64) * 0.7
+            kv = compute_vertical_curvature(alt, dist)
+            assert len(kv) == n
+            np.testing.assert_array_equal(kv, 0.0)
+
+    def test_all_nan_returns_zeros(self) -> None:
+        """All-NaN altitude should return zeros."""
+        n = 100
+        distance = _make_distance(n)
+        altitude = np.full(n, np.nan)
+
+        kv = compute_vertical_curvature(altitude, distance)
+
+        np.testing.assert_array_equal(kv, 0.0)
+
+    def test_barber_like_compression(self) -> None:
+        """Simulate a Barber T9-like compression: 20m drop over 200m, then flat.
+
+        The transition from downhill to flat should show positive κ_v.
+        """
+        n = 3000
+        step_m = 0.7
+        distance = _make_distance(n, step_m)
+        total = distance[-1]
+
+        altitude = np.zeros(n)
+        # Downhill section from 0 to total/3 (drops 20m)
+        downhill_end = total / 3
+        for i in range(n):
+            if distance[i] < downhill_end:
+                # Smooth transition using cos: goes from 20 to 0
+                altitude[i] = 20.0 * (1.0 + np.cos(np.pi * distance[i] / downhill_end)) / 2.0
+            # else: flat at 0
+
+        kv = compute_vertical_curvature(altitude, distance)
+
+        # At the transition from downhill to flat (~downhill_end),
+        # there should be positive κ_v (compression)
+        trans_idx = int(downhill_end / step_m)
+        window = int(50 / step_m)  # 50m window
+        transition_kv = np.mean(kv[max(0, trans_idx - window) : trans_idx + window])
+        assert transition_kv > 0.0, (
+            f"Expected positive κ_v at compression transition, got {transition_kv}"
+        )

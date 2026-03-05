@@ -94,65 +94,73 @@ def _compute_max_cornering_speed(
     params: VehicleParams,
     gradient_sin: np.ndarray | None = None,
     mu_array: np.ndarray | None = None,
+    vertical_curvature: np.ndarray | None = None,
 ) -> np.ndarray:
     """Compute the maximum speed at each point from curvature and grip.
 
-    For aero_coefficient == 0:
-        v = sqrt(mu * G / |kappa|)
+    Base formula (flat, no aero):
+        v = sqrt(mu * g / |kappa_lat|)
 
-    For aero_coefficient > 0:
-        v^2 * (|kappa| - aero_coefficient * G) = mu * G
-        v = sqrt(mu * G / (|kappa| - aero_coefficient * G))
-        only valid when |kappa| > aero_coefficient * G.
+    With vertical curvature (compression/crest correction):
+        N_eff = m·(g·cos(θ) + v²·κ_v)
+        v²·|κ_lat| = mu · (g·cos(θ) + v²·κ_v)
+        v² = mu·g·cos(θ) / (|κ_lat| - mu·κ_v)
 
-    If *gradient_sin* is provided, the normal force is reduced by cos(theta),
-    which slightly reduces available lateral grip on steep grades.
+    Compressions (κ_v > 0) shrink the denominator → higher max speed.
+    Crests (κ_v < 0) grow the denominator → lower max speed.
 
-    If *mu_array* is provided, it overrides the scalar effective mu at each
-    point.  Points where mu_array is used get ``mu_array[i]`` instead of the
-    global ``min(params.mu, params.max_lateral_g)``.
+    With aero downforce:
+        v² = mu·g·cos(θ) / (|κ_lat| - mu·κ_v - aero_coeff·G)
     """
     n = len(abs_curvature)
     max_speed = np.full(n, params.top_speed_mps, dtype=np.float64)
 
-    # Use the tighter of overall mu and max_lateral_g as the effective lateral grip.
-    # mu is the overall friction budget; max_lateral_g caps lateral independently.
     effective_mu_scalar = min(params.mu, params.max_lateral_g)
 
-    # Build per-point effective mu: mu_array overrides scalar where provided.
     if mu_array is not None:
         effective_mu = mu_array.astype(np.float64)
     else:
         effective_mu = np.full(n, effective_mu_scalar, dtype=np.float64)
 
-    # On a slope, the normal force is reduced by cos(theta), reducing grip.
     if gradient_sin is not None:
         cos_theta = np.sqrt(np.maximum(1.0 - gradient_sin**2, 0.0))
     else:
         cos_theta = np.ones(n, dtype=np.float64)
 
-    # Only compute for points with meaningful curvature
+    kappa_v = (
+        vertical_curvature if vertical_curvature is not None else np.zeros(n, dtype=np.float64)
+    )
+
     curved_mask = abs_curvature > 1e-6
 
     if params.aero_coefficient > 0:
-        effective_curvature = abs_curvature[curved_mask] - params.aero_coefficient * G
-        # Where effective curvature is positive, speed is bounded
-        bounded_mask = effective_curvature > 1e-9
-        # Build indices: curved points that are also bounded
         curved_indices = np.where(curved_mask)[0]
+        # effective denominator = |kappa_lat| - mu*kappa_v - aero*G
+        denom = (
+            abs_curvature[curved_indices]
+            - effective_mu[curved_indices] * kappa_v[curved_indices]
+            - params.aero_coefficient * G
+        )
+        bounded_mask = denom > 1e-9
         bounded_indices = curved_indices[bounded_mask]
-        effective_k = effective_curvature[bounded_mask]
+        effective_denom = denom[bounded_mask]
         mu_at_pts = effective_mu[bounded_indices] * cos_theta[bounded_indices]
-        max_speed[bounded_indices] = np.sqrt(mu_at_pts * G / effective_k)
+        max_speed[bounded_indices] = np.sqrt(mu_at_pts * G / effective_denom)
     else:
-        mu_at_pts = effective_mu[curved_mask] * cos_theta[curved_mask]
-        max_speed[curved_mask] = np.sqrt(mu_at_pts * G / abs_curvature[curved_mask])
+        curved_indices = np.where(curved_mask)[0]
+        # effective denominator = |kappa_lat| - mu*kappa_v
+        denom = (
+            abs_curvature[curved_indices] - effective_mu[curved_indices] * kappa_v[curved_indices]
+        )
+        bounded_mask = denom > 1e-9
+        bounded_indices = curved_indices[bounded_mask]
+        effective_denom = denom[bounded_mask]
+        mu_at_pts = effective_mu[bounded_indices] * cos_theta[bounded_indices]
+        max_speed[bounded_indices] = np.sqrt(mu_at_pts * G / effective_denom)
 
-    # Replace any NaN or inf with top_speed
     bad_mask = ~np.isfinite(max_speed)
     max_speed[bad_mask] = params.top_speed_mps
 
-    # Clamp to [MIN_SPEED_MPS, top_speed_mps]
     np.clip(max_speed, MIN_SPEED_MPS, params.top_speed_mps, out=max_speed)
 
     return max_speed
@@ -191,11 +199,15 @@ def _forward_pass(
     params: VehicleParams,
     abs_curvature: np.ndarray,
     gradient_sin: np.ndarray | None = None,
+    vertical_curvature: np.ndarray | None = None,
 ) -> np.ndarray:
     """Forward integration: accelerate from each point respecting traction limits.
 
     If *gradient_sin* is provided, uphill grades (positive) reduce net
     acceleration and downhill grades (negative) assist it.
+
+    If *vertical_curvature* is provided, compressions (positive) increase the
+    normal force → more traction budget, crests (negative) decrease it.
     """
     n = len(max_speed)
     v = np.empty(n, dtype=np.float64)
@@ -203,13 +215,16 @@ def _forward_pass(
 
     for i in range(1, n):
         v_prev = v[i - 1]
-        # Average curvature across the interval for smoother transitions
         avg_k = 0.5 * (abs_curvature[i - 1] + abs_curvature[i])
         lateral_g = v_prev**2 * avg_k / G
         accel_g = _available_accel(v_prev, lateral_g, params, "accel")
-        # Aero drag opposes forward motion, reducing net acceleration
+        # Vertical curvature scales available traction via normal force:
+        # N_eff/N_static = 1 + v²·κ_v/g.  Scale accel budget accordingly.
+        if vertical_curvature is not None:
+            kv = float(vertical_curvature[i])
+            normal_scale = max(1.0 + v_prev**2 * kv / G, 0.1)
+            accel_g *= normal_scale
         drag_g = params.drag_coefficient * v_prev**2 / G
-        # Gravity component: uphill (positive sin) opposes acceleration
         gradient_g = float(gradient_sin[i]) if gradient_sin is not None else 0.0
         net_accel_g = max(accel_g - drag_g - gradient_g, 0.0)
         v_next_sq = v_prev**2 + 2.0 * net_accel_g * G * step_m
@@ -225,12 +240,16 @@ def _backward_pass(
     params: VehicleParams,
     abs_curvature: np.ndarray,
     gradient_sin: np.ndarray | None = None,
+    vertical_curvature: np.ndarray | None = None,
 ) -> np.ndarray:
     """Backward integration: decelerate from each point respecting traction limits.
 
     If *gradient_sin* is provided, uphill grades (positive) assist braking
     (going backwards in distance, an uphill is a downhill) and downhill grades
     reduce the effective deceleration budget.
+
+    If *vertical_curvature* is provided, compressions (positive) increase
+    the normal force → more braking budget, crests (negative) decrease it.
     """
     n = len(max_speed)
     v = np.empty(n, dtype=np.float64)
@@ -238,13 +257,15 @@ def _backward_pass(
 
     for i in range(n - 2, -1, -1):
         v_next = v[i + 1]
-        # Average curvature across the interval for smoother transitions
         avg_k = 0.5 * (abs_curvature[i + 1] + abs_curvature[i])
         lateral_g = v_next**2 * avg_k / G
         decel_g = _available_accel(v_next, lateral_g, params, "decel")
-        # Aero drag assists braking (decelerates the car in forward time)
+        # Vertical curvature scales traction via normal force
+        if vertical_curvature is not None:
+            kv = float(vertical_curvature[i])
+            normal_scale = max(1.0 + v_next**2 * kv / G, 0.1)
+            decel_g *= normal_scale
         drag_g = params.drag_coefficient * v_next**2 / G
-        # Gravity component: uphill (positive sin) assists braking in backward pass
         gradient_g = float(gradient_sin[i]) if gradient_sin is not None else 0.0
         effective_decel_g = decel_g + drag_g + gradient_g
         v_prev_sq = v_next**2 + 2.0 * effective_decel_g * G * step_m
@@ -325,6 +346,7 @@ def compute_optimal_profile(
     closed_circuit: bool = True,
     gradient_sin: np.ndarray | None = None,
     mu_array: np.ndarray | None = None,
+    vertical_curvature: np.ndarray | None = None,
 ) -> OptimalProfile:
     """Compute the physics-optimal velocity profile for a track.
 
@@ -350,6 +372,12 @@ def compute_optimal_profile(
         scalar ``min(params.mu, params.max_lateral_g)`` at each point.
         Points outside corner zones typically keep the global mu.
         If *None* (default), the global scalar mu is used (backward compatible).
+    vertical_curvature
+        Array of d²z/ds² values from
+        :func:`cataclysm.elevation_profile.compute_vertical_curvature`.
+        Positive = compression (more grip), negative = crest (less grip).
+        If *None* (default), vertical curvature effects are ignored
+        (backward compatible).
 
     Returns
     -------
@@ -368,7 +396,9 @@ def compute_optimal_profile(
     abs_k = curvature_result.abs_curvature
 
     # Step 1: cornering speed limit at every point
-    max_corner_speed = _compute_max_cornering_speed(abs_k, params, gradient_sin, mu_array)
+    max_corner_speed = _compute_max_cornering_speed(
+        abs_k, params, gradient_sin, mu_array, vertical_curvature
+    )
 
     if closed_circuit and n >= 4:
         # Track tripling: tile curvature and max_speed 3x, solve on the
@@ -379,17 +409,22 @@ def compute_optimal_profile(
         abs_k_3x = np.tile(abs_k, 3)
         max_speed_3x = np.tile(max_corner_speed, 3)
         gradient_3x = np.tile(gradient_sin, 3) if gradient_sin is not None else None
+        kv_3x = np.tile(vertical_curvature, 3) if vertical_curvature is not None else None
 
-        forward_3x = _forward_pass(max_speed_3x, step_m, params, abs_k_3x, gradient_3x)
-        backward_3x = _backward_pass(max_speed_3x, step_m, params, abs_k_3x, gradient_3x)
+        forward_3x = _forward_pass(max_speed_3x, step_m, params, abs_k_3x, gradient_3x, kv_3x)
+        backward_3x = _backward_pass(max_speed_3x, step_m, params, abs_k_3x, gradient_3x, kv_3x)
 
         optimal_3x = np.minimum(np.minimum(forward_3x, backward_3x), max_speed_3x)
         # Extract the middle copy (fully warmed-up from both directions)
         optimal = optimal_3x[n : 2 * n]
     else:
         # Open circuit or too short — no doubling
-        forward = _forward_pass(max_corner_speed, step_m, params, abs_k, gradient_sin)
-        backward = _backward_pass(max_corner_speed, step_m, params, abs_k, gradient_sin)
+        forward = _forward_pass(
+            max_corner_speed, step_m, params, abs_k, gradient_sin, vertical_curvature
+        )
+        backward = _backward_pass(
+            max_corner_speed, step_m, params, abs_k, gradient_sin, vertical_curvature
+        )
         optimal = np.minimum(np.minimum(forward, backward), max_corner_speed)
 
     # Clamp final result

@@ -1196,3 +1196,208 @@ class TestPerPointMu:
 
         # Higher mu everywhere should yield a faster (or equal) lap time
         assert profile_high_mu.lap_time_s <= profile_default.lap_time_s
+
+
+# ---------------------------------------------------------------------------
+# TestVerticalCurvature — compression/crest effects in solver
+# ---------------------------------------------------------------------------
+
+
+class TestVerticalCurvature:
+    """Tests for vertical curvature (compression/crest) integration in the solver."""
+
+    def test_compression_increases_cornering_speed(self) -> None:
+        """Positive vertical curvature (compression) should allow higher cornering speed."""
+        n = 500
+        kappa = 0.01  # lateral curvature
+        curvature = np.full(n, kappa)
+        abs_curvature = np.abs(curvature)
+        params = default_vehicle_params()
+
+        # Compression: κ_v = +0.005 (like bottom of corkscrew)
+        kv_compression = np.full(n, 0.005)
+
+        speed_flat = _compute_max_cornering_speed(abs_curvature, params)
+        speed_compression = _compute_max_cornering_speed(
+            abs_curvature, params, vertical_curvature=kv_compression
+        )
+
+        # Compression should increase cornering speed
+        assert np.all(speed_compression > speed_flat)
+
+    def test_crest_decreases_cornering_speed(self) -> None:
+        """Negative vertical curvature (crest) should reduce cornering speed."""
+        n = 500
+        kappa = 0.01
+        curvature = np.full(n, kappa)
+        abs_curvature = np.abs(curvature)
+        params = default_vehicle_params()
+
+        # Crest: κ_v = -0.005 (like top of hill)
+        kv_crest = np.full(n, -0.005)
+
+        speed_flat = _compute_max_cornering_speed(abs_curvature, params)
+        speed_crest = _compute_max_cornering_speed(
+            abs_curvature, params, vertical_curvature=kv_crest
+        )
+
+        # Crest should decrease cornering speed
+        assert np.all(speed_crest < speed_flat)
+
+    def test_zero_vertical_curvature_identical_to_none(self) -> None:
+        """All-zero vertical curvature should match None (backward compatible)."""
+        curvature = np.concatenate([np.zeros(300), np.full(200, 0.01), np.zeros(300)])
+        cr = _make_curvature_result(curvature, step_m=0.7)
+        params = default_vehicle_params()
+        n = len(curvature)
+
+        profile_none = compute_optimal_profile(cr, params, closed_circuit=False)
+        profile_zero = compute_optimal_profile(
+            cr,
+            params,
+            closed_circuit=False,
+            vertical_curvature=np.zeros(n),
+        )
+
+        np.testing.assert_allclose(
+            profile_zero.optimal_speed_mps,
+            profile_none.optimal_speed_mps,
+            atol=1e-10,
+        )
+
+    def test_compression_reduces_lap_time(self) -> None:
+        """A track with compression at corners should have faster lap time."""
+        corner = np.full(200, 0.015)
+        straight = np.zeros(800)
+        curvature = np.concatenate([straight, corner, straight])
+        cr = _make_curvature_result(curvature, step_m=0.7)
+        params = default_vehicle_params()
+        n = len(curvature)
+
+        # Compression only in the corner zone
+        kv = np.zeros(n)
+        kv[800:1000] = 0.005  # compression in corner
+
+        profile_flat = compute_optimal_profile(cr, params, closed_circuit=False)
+        profile_comp = compute_optimal_profile(
+            cr, params, closed_circuit=False, vertical_curvature=kv
+        )
+
+        assert profile_comp.lap_time_s < profile_flat.lap_time_s
+
+    def test_crest_increases_lap_time(self) -> None:
+        """A track with a crest at corners should have slower lap time."""
+        corner = np.full(200, 0.015)
+        straight = np.zeros(800)
+        curvature = np.concatenate([straight, corner, straight])
+        cr = _make_curvature_result(curvature, step_m=0.7)
+        params = default_vehicle_params()
+        n = len(curvature)
+
+        # Crest only in the corner zone
+        kv = np.zeros(n)
+        kv[800:1000] = -0.005
+
+        profile_flat = compute_optimal_profile(cr, params, closed_circuit=False)
+        profile_crest = compute_optimal_profile(
+            cr, params, closed_circuit=False, vertical_curvature=kv
+        )
+
+        assert profile_crest.lap_time_s > profile_flat.lap_time_s
+
+    def test_vertical_curvature_with_closed_circuit(self) -> None:
+        """Vertical curvature should work correctly with closed-circuit tripling."""
+        corner = np.full(100, 0.02)
+        straight = np.zeros(900)
+        curvature = np.concatenate([corner, straight])
+        cr = _make_curvature_result(curvature, step_m=0.7)
+        params = default_vehicle_params()
+        n = len(curvature)
+
+        kv = np.zeros(n)
+        kv[0:100] = 0.003  # compression in corner
+
+        profile = compute_optimal_profile(cr, params, closed_circuit=True, vertical_curvature=kv)
+
+        assert profile.lap_time_s > 0.0
+        assert np.all(profile.optimal_speed_mps >= MIN_SPEED_MPS)
+        assert np.all(profile.optimal_speed_mps <= params.top_speed_mps)
+        assert len(profile.optimal_speed_mps) == n
+
+    def test_compression_formula_correctness(self) -> None:
+        """Verify the formula: v² = mu·g / (|κ_lat| - mu·κ_v).
+
+        For mu=1.0, κ_lat=0.01, κ_v=0.002:
+        v² = 1.0 * 9.81 / (0.01 - 1.0 * 0.002) = 9.81 / 0.008 = 1226.25
+        v = 35.018 m/s (vs 31.32 m/s flat)
+        """
+        n = 100
+        kappa_lat = 0.01
+        kappa_v = 0.002
+        abs_curvature = np.full(n, kappa_lat)
+        params = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+            top_speed_mps=80.0,
+        )
+
+        kv = np.full(n, kappa_v)
+        speed = _compute_max_cornering_speed(abs_curvature, params, vertical_curvature=kv)
+
+        expected = np.sqrt(params.mu * G / (kappa_lat - params.mu * kappa_v))
+        np.testing.assert_allclose(speed, expected, rtol=1e-10)
+
+    def test_forward_pass_compression_increases_accel(self) -> None:
+        """Compression should increase available traction in forward pass."""
+        n = 500
+        curvature = np.zeros(n)  # straight
+        abs_k = np.abs(curvature)
+        max_speed = np.full(n, 80.0)
+        max_speed[0] = 20.0  # start slow
+        params = default_vehicle_params()
+        step_m = 0.7
+
+        kv_compression = np.full(n, 0.01)
+
+        v_flat = _forward_pass(max_speed, step_m, params, abs_k)
+        v_comp = _forward_pass(max_speed, step_m, params, abs_k, vertical_curvature=kv_compression)
+
+        # With compression, should accelerate faster
+        mid = n // 2
+        assert v_comp[mid] > v_flat[mid]
+
+    def test_backward_pass_compression_increases_braking(self) -> None:
+        """Compression should increase available braking in backward pass."""
+        n = 500
+        curvature = np.zeros(n)
+        abs_k = np.abs(curvature)
+        max_speed = np.full(n, 80.0)
+        max_speed[-1] = 20.0  # end slow (backward pass starts here)
+        params = default_vehicle_params()
+        step_m = 0.7
+
+        kv_compression = np.full(n, 0.01)
+
+        v_flat = _backward_pass(max_speed, step_m, params, abs_k)
+        v_comp = _backward_pass(max_speed, step_m, params, abs_k, vertical_curvature=kv_compression)
+
+        # With compression, backward pass should allow faster approach
+        mid = n // 2
+        assert v_comp[mid] > v_flat[mid]
+
+    def test_none_vertical_curvature_backward_compatible(self) -> None:
+        """vertical_curvature=None produces identical results to before."""
+        curvature = np.concatenate([np.zeros(300), np.full(200, 0.01), np.zeros(300)])
+        cr = _make_curvature_result(curvature, step_m=0.7)
+        params = default_vehicle_params()
+
+        profile_default = compute_optimal_profile(cr, params)
+        profile_none_kv = compute_optimal_profile(cr, params, vertical_curvature=None)
+
+        np.testing.assert_array_equal(
+            profile_default.optimal_speed_mps,
+            profile_none_kv.optimal_speed_mps,
+        )
+        assert profile_default.lap_time_s == profile_none_kv.lap_time_s
