@@ -1,14 +1,21 @@
-"""G-G diagram computation with traction circle utilization scoring.
+"""G-G diagram computation with observed-envelope utilization scoring.
 
 Computes the lateral-G vs longitudinal-G scatter (the "G-G diagram") from
-resampled telemetry data.  Utilization is measured as the ratio of the convex
-hull area of observed (lat_g, lon_g) points to the area of the observed
-traction circle (π × max_combined_g²).
+resampled telemetry data.  Utilization is measured using angular-sector
+envelope comparison: the G-G plane is divided into angular sectors, the
+maximum observed combined-G in each sector defines the car's actual
+performance envelope, and each data point's utilization is measured as
+distance-from-origin / envelope-max-in-that-direction.
+
+This naturally handles asymmetric performance envelopes (e.g. cars with
+1.0G braking but only 0.3G acceleration) — each direction is normalized
+against the car's actual capability in that direction, not against a
+symmetric circle.
 
 GPS-derived G at 25 Hz is noisy.  The approach normalises against *observed*
-max combined G rather than a theoretical traction-circle limit, so utilisation
-answers "how much of YOUR envelope are you using?" without requiring tyre-mu
-or vehicle-mass data.
+max combined G per sector rather than a theoretical traction-circle limit, so
+utilisation answers "how much of YOUR envelope are you using?" without
+requiring tyre-mu or vehicle-mass data.
 """
 
 from __future__ import annotations
@@ -29,6 +36,12 @@ MIN_POINTS_FOR_HULL = 3
 
 # Floor for max combined G to avoid division-by-zero with near-stationary data
 MIN_MAX_G = 0.05
+
+# Number of angular sectors for envelope-based utilization.
+# 36 sectors = 10° each — fine enough to capture the envelope shape while
+# being robust to noise.  Each sector's max observed combined-G defines
+# the car's performance limit in that direction.
+N_SECTORS = 36
 
 
 @dataclass
@@ -85,10 +98,93 @@ def _convex_hull_area(lat_g: np.ndarray, lon_g: np.ndarray) -> float:
         return 0.0
 
 
-def _utilization_pct(hull_area: float, max_g: float) -> float:
-    """Compute utilization as hull_area / (π × max_g²) × 100.
+def _build_sector_envelope(
+    lat_g: np.ndarray,
+    lon_g: np.ndarray,
+    n_sectors: int = N_SECTORS,
+) -> np.ndarray:
+    """Build a per-sector max combined-G envelope from observed data.
 
-    Returns 0.0 if max_g is below the safety floor.
+    Divides the G-G plane into *n_sectors* angular slices (each 360/n°)
+    and records the maximum observed combined-G in each sector.  Sectors
+    with no data inherit the global average to avoid zero-division.
+
+    Returns an array of shape (n_sectors,) with the envelope radius for
+    each sector.
+    """
+    combined_g = np.sqrt(lat_g**2 + lon_g**2)
+    angles = np.arctan2(lon_g, lat_g)  # radians in [-π, π]
+
+    # Map angles to sector indices [0, n_sectors)
+    sector_width = 2 * math.pi / n_sectors
+    sector_idx = ((angles + math.pi) / sector_width).astype(np.int32)
+    sector_idx = np.clip(sector_idx, 0, n_sectors - 1)
+
+    envelope = np.zeros(n_sectors, dtype=np.float64)
+    for s in range(n_sectors):
+        mask = sector_idx == s
+        if np.any(mask):
+            envelope[s] = float(np.max(combined_g[mask]))
+
+    # Fill empty sectors with the global average so they don't create
+    # zero-division artifacts.  Empty sectors mean the driver never
+    # operated in that direction, so they shouldn't inflate or deflate
+    # the score — using the average is a neutral fallback.
+    global_avg = float(np.mean(combined_g)) if len(combined_g) > 0 else MIN_MAX_G
+    envelope[envelope < MIN_MAX_G] = max(global_avg, MIN_MAX_G)
+
+    return envelope
+
+
+def _envelope_utilization_pct(
+    lat_g: np.ndarray,
+    lon_g: np.ndarray,
+    envelope: np.ndarray | None = None,
+    n_sectors: int = N_SECTORS,
+) -> float:
+    """Compute utilization as mean(point_g / envelope_g_in_that_direction) × 100.
+
+    Each data point's combined-G is divided by the envelope max in that
+    point's angular sector, giving a per-point utilization in [0, 1].
+    The overall utilization is the mean across all points, × 100.
+
+    This naturally handles asymmetric envelopes: a car with 0.3G
+    acceleration and 1.0G braking will score acceleration and braking
+    points against their respective limits.
+
+    Returns 0.0 if there are too few points or max G is below the floor.
+    """
+    n = len(lat_g)
+    if n < MIN_POINTS_FOR_HULL:
+        return 0.0
+
+    combined_g = np.sqrt(lat_g**2 + lon_g**2)
+    if float(np.max(combined_g)) < MIN_MAX_G:
+        return 0.0
+
+    if envelope is None:
+        envelope = _build_sector_envelope(lat_g, lon_g, n_sectors)
+
+    angles = np.arctan2(lon_g, lat_g)
+    sector_width = 2 * math.pi / n_sectors
+    sector_idx = ((angles + math.pi) / sector_width).astype(np.int32)
+    sector_idx = np.clip(sector_idx, 0, n_sectors - 1)
+
+    # Per-point utilization: how close to the envelope in that direction
+    envelope_at_point = envelope[sector_idx]
+    point_util = combined_g / envelope_at_point
+    # Clamp to [0, 1] — points at the envelope edge = 1.0
+    point_util = np.clip(point_util, 0.0, 1.0)
+
+    return min(float(np.mean(point_util)) * 100.0, 100.0)
+
+
+def _utilization_pct(hull_area: float, max_g: float) -> float:
+    """Legacy: compute utilization as hull_area / (pi * max_g^2) * 100.
+
+    Kept for backward compatibility with tests that exercise this
+    helper directly.  The main compute path now uses
+    ``_envelope_utilization_pct``.
     """
     if max_g < MIN_MAX_G:
         return 0.0
@@ -163,6 +259,10 @@ def compute_gg_diagram(
     combined_g_all = np.sqrt(lat_g**2 + lon_g**2)
     observed_max_g = float(np.max(combined_g_all)) if n > 0 else 0.0
 
+    # Build the full-lap envelope BEFORE any corner filtering, so per-corner
+    # utilization is measured against the car's overall capability.
+    full_lap_envelope = _build_sector_envelope(lat_g, lon_g)
+
     # Assign corner labels
     corner_labels = np.full(n, -1, dtype=np.int32)
     if corners:
@@ -182,9 +282,10 @@ def compute_gg_diagram(
                 points=[], overall_utilization_pct=0.0, observed_max_g=observed_max_g
             )
 
-    # Overall utilization (uses pre-filter observed_max_g for consistent reference)
-    hull_area = _convex_hull_area(lat_g, lon_g)
-    overall_util = _utilization_pct(hull_area, observed_max_g)
+    # Overall utilization using envelope-based scoring.
+    # Uses the full-lap envelope so per-corner views are measured
+    # against the car's overall capability, not just that corner's data.
+    overall_util = _envelope_utilization_pct(lat_g, lon_g, envelope=full_lap_envelope)
 
     # Build GGPoint list
     points: list[GGPoint] = []
@@ -220,8 +321,7 @@ def compute_gg_diagram(
                 )
                 continue
 
-            c_hull_area = _convex_hull_area(c_lat, c_lon)
-            c_util = _utilization_pct(c_hull_area, observed_max_g)
+            c_util = _envelope_utilization_pct(c_lat, c_lon, envelope=full_lap_envelope)
 
             per_corner.append(
                 CornerGGSummary(

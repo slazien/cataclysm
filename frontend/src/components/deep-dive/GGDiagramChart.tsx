@@ -120,13 +120,46 @@ export function GGDiagramChart({ sessionId }: GGDiagramChartProps) {
     ctx.lineTo(x0, yMax);
     ctx.stroke();
 
-    // Reference traction circle
-    const circleRadiusPx = Math.abs(xScale(ggData.observed_max_g) - xScale(0));
+    // Reference performance envelope — draw the actual observed boundary
+    // by finding the max combined-G in each angular sector, then connecting
+    // those points to show the car's real asymmetric capability.
+    const N_ENV_SECTORS = 36;
+    const sectorWidth = (2 * Math.PI) / N_ENV_SECTORS;
+    const sectorMax = new Float64Array(N_ENV_SECTORS);
+    for (const pt of ggData.points) {
+      const cg = Math.sqrt(pt.lat_g * pt.lat_g + pt.lon_g * pt.lon_g);
+      const angle = Math.atan2(pt.lon_g, pt.lat_g);
+      const idx = Math.min(
+        Math.floor((angle + Math.PI) / sectorWidth),
+        N_ENV_SECTORS - 1,
+      );
+      if (cg > sectorMax[idx]) sectorMax[idx] = cg;
+    }
+    // Fill empty sectors with the average to avoid gaps
+    let envSum = 0;
+    let envCount = 0;
+    for (let i = 0; i < N_ENV_SECTORS; i++) {
+      if (sectorMax[i] > 0) { envSum += sectorMax[i]; envCount++; }
+    }
+    const envAvg = envCount > 0 ? envSum / envCount : ggData.observed_max_g;
+    for (let i = 0; i < N_ENV_SECTORS; i++) {
+      if (sectorMax[i] <= 0) sectorMax[i] = envAvg;
+    }
+
     ctx.strokeStyle = colors.text.muted;
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
-    ctx.arc(x0, y0, circleRadiusPx, 0, Math.PI * 2);
+    for (let i = 0; i <= N_ENV_SECTORS; i++) {
+      const si = i % N_ENV_SECTORS;
+      const angle = -Math.PI + si * sectorWidth + sectorWidth / 2;
+      const r = sectorMax[si];
+      const px = xScale(r * Math.cos(angle));
+      const py = yScale(r * Math.sin(angle));
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
     ctx.stroke();
     ctx.setLineDash([]);
 
@@ -330,7 +363,7 @@ export function GGDiagramChart({ sessionId }: GGDiagramChartProps) {
             </span>
           </div>
           <p className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">
-            How much of the traction circle you use (max {ggData.observed_max_g.toFixed(2)}G)
+            How much of your performance envelope you use (max {ggData.observed_max_g.toFixed(2)}G)
           </p>
         </div>
 
