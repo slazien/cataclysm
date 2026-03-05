@@ -6,6 +6,7 @@ pinched exit), and rates consistency tier per corner.
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 
 import numpy as np
@@ -46,6 +47,20 @@ class CornerLineProfile:
     allen_berg_type: str  # "A" (before straight), "B" (after straight), "C" (linking)
     straight_after_m: float = 0.0  # Distance from exit to next corner entry
     priority_rank: int = 0  # 1 = most important corner on track
+
+
+@dataclass
+class SessionLineProfile:
+    """Session-wide summary of driving line patterns across all corners."""
+
+    n_corners: int
+    overall_consistency_tier: str  # median of per-corner tiers
+    dominant_error_pattern: str | None  # most common non-good_line error if >= 40%
+    dominant_error_count: int
+    worst_corners_by_line: list[int]  # corner numbers, most inconsistent first
+    best_corners_by_line: list[int]  # most consistent first
+    type_a_summary: str  # e.g. "Type A corners (T5, T9): 1 developing, 1 consistent"
+    mean_apex_sd_m: float
 
 
 def detect_apex_fraction(
@@ -272,4 +287,103 @@ def format_line_analysis_for_prompt(profiles: list[CornerLineProfile]) -> str:
         )
         lines.append("  </corner>")
     lines.append("</line_analysis>")
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Session-level line summary
+# ---------------------------------------------------------------------------
+
+_TIER_TO_INT: dict[str, int] = {"expert": 0, "consistent": 1, "developing": 2, "novice": 3}
+_INT_TO_TIER: dict[int, str] = {v: k for k, v in _TIER_TO_INT.items()}
+
+
+def summarize_session_lines(
+    profiles: list[CornerLineProfile],
+) -> SessionLineProfile | None:
+    """Summarize driving line patterns across all corners in a session.
+
+    Returns None for empty input.
+    """
+    if not profiles:
+        return None
+
+    # Overall consistency: median tier
+    tier_ints = [_TIER_TO_INT[p.consistency_tier] for p in profiles]
+    median_tier_int = int(np.median(tier_ints))
+    overall_tier = _INT_TO_TIER[median_tier_int]
+
+    # Dominant error pattern: most common non-"good_line" error >= 40%
+    error_counts: Counter[str] = Counter()
+    for p in profiles:
+        if p.line_error_type != "good_line":
+            error_counts[p.line_error_type] += 1
+
+    dominant_error: str | None = None
+    dominant_count = 0
+    if error_counts:
+        most_common_error, count = error_counts.most_common(1)[0]
+        if count / len(profiles) >= 0.40:
+            dominant_error = most_common_error
+            dominant_count = count
+
+    # Sort corners by d_apex_sd
+    sorted_by_sd = sorted(profiles, key=lambda p: p.d_apex_sd, reverse=True)
+    worst_corners = [p.corner_number for p in sorted_by_sd]
+    best_corners = list(reversed(worst_corners))
+
+    # Type A summary
+    type_a_profiles = [p for p in profiles if p.allen_berg_type == "A"]
+    if type_a_profiles:
+        corner_labels = ", ".join(f"T{p.corner_number}" for p in type_a_profiles)
+        tier_counts: Counter[str] = Counter(p.consistency_tier for p in type_a_profiles)
+        tier_parts = [f"{count} {tier}" for tier, count in tier_counts.most_common()]
+        type_a_summary = f"Type A corners ({corner_labels}): {', '.join(tier_parts)}"
+    else:
+        type_a_summary = "No Type A corners detected"
+
+    # Mean apex SD
+    mean_sd = float(np.mean([p.d_apex_sd for p in profiles]))
+
+    return SessionLineProfile(
+        n_corners=len(profiles),
+        overall_consistency_tier=overall_tier,
+        dominant_error_pattern=dominant_error,
+        dominant_error_count=dominant_count,
+        worst_corners_by_line=worst_corners,
+        best_corners_by_line=best_corners,
+        type_a_summary=type_a_summary,
+        mean_apex_sd_m=mean_sd,
+    )
+
+
+def format_session_line_summary_for_prompt(
+    summary: SessionLineProfile | None,
+) -> str:
+    """Format session line summary as XML for the coaching prompt.
+
+    Returns empty string for None.
+    """
+    if summary is None:
+        return ""
+
+    worst_str = ", ".join(f"T{n}" for n in summary.worst_corners_by_line[:3])
+    lines = [
+        "<session_line_summary>",
+        f"  <overall_consistency>{summary.overall_consistency_tier}</overall_consistency>",
+    ]
+    if summary.dominant_error_pattern:
+        lines.append(
+            f"  <dominant_error>{summary.dominant_error_pattern}"
+            f" ({summary.dominant_error_count}/{summary.n_corners}"
+            f" corners)</dominant_error>"
+        )
+    lines.extend(
+        [
+            f"  <worst_corners>{worst_str}</worst_corners>",
+            f"  <type_a_assessment>{summary.type_a_summary}</type_a_assessment>",
+            f"  <mean_apex_sd>{summary.mean_apex_sd_m:.2f}m</mean_apex_sd>",
+            "</session_line_summary>",
+        ]
+    )
     return "\n".join(lines)

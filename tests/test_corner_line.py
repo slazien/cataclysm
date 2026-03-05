@@ -6,12 +6,16 @@ import numpy as np
 
 from cataclysm.corner_line import (
     CornerLineProfile,
+    SessionLineProfile,
     _assign_priority_ranks,
+    _consistency_tier,
     _infer_berg_type_and_gap,
     analyze_corner_lines,
     classify_line_error,
     detect_apex_fraction,
     format_line_analysis_for_prompt,
+    format_session_line_summary_for_prompt,
+    summarize_session_lines,
 )
 from cataclysm.corners import Corner
 from cataclysm.gps_line import GPSTrace, ReferenceCenterline, compute_reference_centerline
@@ -293,3 +297,147 @@ class TestCornerPriority:
         # Type A corner should be rank 1
         assert profiles[1].priority_rank == 1
         assert profiles[0].priority_rank == 2
+
+
+# ---------------------------------------------------------------------------
+# Task 2 helpers and tests
+# ---------------------------------------------------------------------------
+
+
+def _make_profile(
+    corner_number: int = 1,
+    d_apex_sd: float = 0.3,
+    line_error_type: str = "good_line",
+    allen_berg_type: str = "C",
+    straight_after_m: float = 0.0,
+) -> CornerLineProfile:
+    """Create a CornerLineProfile with specified fields, defaults for the rest."""
+    return CornerLineProfile(
+        corner_number=corner_number,
+        n_laps=10,
+        d_entry_median=0.0,
+        d_apex_median=0.0,
+        d_exit_median=0.0,
+        apex_fraction_median=0.5,
+        d_apex_sd=d_apex_sd,
+        line_error_type=line_error_type,
+        severity="minor",
+        consistency_tier=_consistency_tier(d_apex_sd),
+        allen_berg_type=allen_berg_type,
+        straight_after_m=straight_after_m,
+    )
+
+
+class TestSessionLineSummary:
+    """Tests for summarize_session_lines (Task 2)."""
+
+    def test_empty_profiles(self) -> None:
+        result = summarize_session_lines([])
+        assert result is None
+
+    def test_overall_consistency_is_median(self) -> None:
+        """Median of 3 profiles: expert (0.2), consistent (0.5), developing (1.0)."""
+        profiles = [
+            _make_profile(corner_number=1, d_apex_sd=0.2),  # expert
+            _make_profile(corner_number=2, d_apex_sd=0.5),  # consistent
+            _make_profile(corner_number=3, d_apex_sd=1.0),  # developing
+        ]
+        result = summarize_session_lines(profiles)
+        assert result is not None
+        # Median of [expert=0, consistent=1, developing=2] = 1 = "consistent"
+        assert result.overall_consistency_tier == "consistent"
+
+    def test_dominant_error_detected(self) -> None:
+        """3 of 5 corners share same error => 60% >= 40% threshold."""
+        profiles = [
+            _make_profile(corner_number=1, line_error_type="early_apex"),
+            _make_profile(corner_number=2, line_error_type="early_apex"),
+            _make_profile(corner_number=3, line_error_type="early_apex"),
+            _make_profile(corner_number=4, line_error_type="late_apex"),
+            _make_profile(corner_number=5, line_error_type="wide_entry"),
+        ]
+        result = summarize_session_lines(profiles)
+        assert result is not None
+        assert result.dominant_error_pattern == "early_apex"
+        assert result.dominant_error_count == 3
+
+    def test_no_dominant_error_when_varied(self) -> None:
+        """All different errors => no single error >= 40%."""
+        profiles = [
+            _make_profile(corner_number=1, line_error_type="early_apex"),
+            _make_profile(corner_number=2, line_error_type="late_apex"),
+            _make_profile(corner_number=3, line_error_type="wide_entry"),
+            _make_profile(corner_number=4, line_error_type="pinched_exit"),
+            _make_profile(corner_number=5, line_error_type="good_line"),
+        ]
+        result = summarize_session_lines(profiles)
+        assert result is not None
+        assert result.dominant_error_pattern is None
+        assert result.dominant_error_count == 0
+
+    def test_worst_corners_sorted_by_sd(self) -> None:
+        """Worst corners should be sorted by d_apex_sd descending."""
+        profiles = [
+            _make_profile(corner_number=1, d_apex_sd=0.5),
+            _make_profile(corner_number=2, d_apex_sd=1.8),
+            _make_profile(corner_number=3, d_apex_sd=0.2),
+        ]
+        result = summarize_session_lines(profiles)
+        assert result is not None
+        # Worst first: corner 2 (sd=1.8), corner 1 (sd=0.5), corner 3 (sd=0.2)
+        assert result.worst_corners_by_line == [2, 1, 3]
+        # Best first: corner 3 (sd=0.2), corner 1 (sd=0.5), corner 2 (sd=1.8)
+        assert result.best_corners_by_line == [3, 1, 2]
+
+    def test_type_a_summary_generated(self) -> None:
+        """Type A summary should list Type A corners and their tier counts."""
+        profiles = [
+            _make_profile(
+                corner_number=5, d_apex_sd=0.5, allen_berg_type="A", straight_after_m=200.0
+            ),
+            _make_profile(
+                corner_number=9, d_apex_sd=1.0, allen_berg_type="A", straight_after_m=300.0
+            ),
+            _make_profile(corner_number=3, d_apex_sd=0.2, allen_berg_type="C"),
+        ]
+        result = summarize_session_lines(profiles)
+        assert result is not None
+        assert "Type A" in result.type_a_summary
+        assert "T5" in result.type_a_summary
+        assert "T9" in result.type_a_summary
+
+    def test_mean_apex_sd(self) -> None:
+        """Mean apex SD should be the average of all d_apex_sd values."""
+        profiles = [
+            _make_profile(corner_number=1, d_apex_sd=0.2),
+            _make_profile(corner_number=2, d_apex_sd=0.4),
+            _make_profile(corner_number=3, d_apex_sd=0.6),
+        ]
+        result = summarize_session_lines(profiles)
+        assert result is not None
+        assert abs(result.mean_apex_sd_m - 0.4) < 1e-6
+
+
+class TestFormatSessionLineSummary:
+    """Tests for format_session_line_summary_for_prompt (Task 2)."""
+
+    def test_none_returns_empty(self) -> None:
+        assert format_session_line_summary_for_prompt(None) == ""
+
+    def test_produces_xml(self) -> None:
+        summary = SessionLineProfile(
+            n_corners=5,
+            overall_consistency_tier="consistent",
+            dominant_error_pattern="early_apex",
+            dominant_error_count=3,
+            worst_corners_by_line=[5, 3, 1],
+            best_corners_by_line=[1, 3, 5],
+            type_a_summary="Type A corners (T5, T9): 1 consistent, 1 developing",
+            mean_apex_sd_m=0.45,
+        )
+        text = format_session_line_summary_for_prompt(summary)
+        assert "<session_line_summary>" in text
+        assert "</session_line_summary>" in text
+        assert "consistent" in text
+        assert "early_apex" in text
+        assert "T5" in text
