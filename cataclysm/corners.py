@@ -43,6 +43,8 @@ class Corner:
     # Computed elevation (from elevation.py)
     elevation_change_m: float | None = None
     gradient_pct: float | None = None
+    # Linked corner grouping (from linked_corners.py)
+    linked_group_id: int | None = None
 
 
 # Detection parameters
