@@ -163,7 +163,7 @@ Use specialized agents (via the `Agent` tool with `subagent_type`) instead of do
 | **Codebase exploration** | `Explore` | Finding files, tracing code paths, understanding architecture |
 | **Python backend work** | `python-development:python-pro` | Editing `cataclysm/` modules, data pipeline, dataclasses |
 | **FastAPI work** | `python-development:fastapi-pro` | Editing `backend/` routes, services, Pydantic models |
-| **Frontend work** | `frontend-mobile-development:frontend-developer` | React components, Next.js pages, Tailwind, D3 charts |
+| **Frontend work** | `frontend-mobile-development:frontend-developer` | React components, Next.js pages, Tailwind, D3 charts. **Contrast rule**: Never use `colors.text.muted` for lines, borders, or indicators the user needs to see — use `colors.text.secondary` minimum. Canvas lines ≥1.5px, dash segments ≥[6,3]. Always verify visual elements are clearly visible on dark backgrounds. |
 | **Writing tests** | `backend-development:test-automator` | Creating or expanding test suites, TDD workflows |
 
 ### Tier 2 — Use for Specific Scenarios
@@ -176,7 +176,7 @@ Use specialized agents (via the `Agent` tool with `subagent_type`) instead of do
 | **Coaching prompt tuning** | `llm-application-dev:prompt-engineer` | Changes to `coaching.py` prompts or Claude API integration |
 | **Error handling review** | `pr-review-toolkit:silent-failure-hunter` | After adding try/catch, fallback logic, or error handling code |
 | **Type design review** | `pr-review-toolkit:type-design-analyzer` | New dataclasses, Pydantic models, or TypeScript types |
-| **Visual UI validation** | `accessibility-compliance:ui-visual-validator` | After frontend layout changes, verify with screenshots |
+| **Visual UI validation** | `accessibility-compliance:ui-visual-validator` | After frontend layout changes, verify with screenshots. **Check contrast**: Flag any lines, borders, dashed indicators, or data visualization elements using `colors.text.muted` (#555b67) — these are nearly invisible on dark backgrounds. Minimum contrast for functional UI elements is `colors.text.secondary` (#8b919e). |
 
 ### Tier 3 — Occasional Use
 
