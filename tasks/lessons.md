@@ -224,6 +224,18 @@ assert not is_generating(session_id, "intermediate")
 
 **Error signature**: A corner's "straight_after" gap is suspiciously large (>500m on a 3.7km track), or a low-speed corner ranks below a fast sweeper despite having a longer actual straight.
 
+## Cross-Cutting Concern Fixes Require Multi-Pass Sweeps ([2026-03-05])
+
+**Pattern**: When fixing a cross-cutting concern (e.g., unit conversion, theming, accessibility), a single grep pass will miss instances. Use at least 3 search patterns and expect multiple rounds:
+1. **Direct string match**: `grep "mph" *.tsx` — catches literal hardcoded values
+2. **Pattern match**: `grep "Distance (m)" *.tsx` — catches axis labels, headers
+3. **Negative match**: `grep -L "useUnits" *.tsx | xargs grep "speed\|distance"` — find files that reference units WITHOUT importing the hook
+4. **Code review**: Dispatch the code reviewer agent to catch anything the greps missed
+
+**Why**: Imperial/metric unit conversion fix required 4 rounds of fixes across 20+ components. Initial fix caught 11, code reviewer found 3 more, manual sweep found 2 more (SpeedGauge, WeatherPanel), then axis label sweep found 9 more. Each round exposed a new category of missed instances. A single grep for "mph" would have missed "Distance (m)" axis labels, canvas drawing functions, and weather wind speed (stored as km/h, not mph).
+
+**Anti-pattern**: "I grepped for mph and fixed everything" — this catches <50% of unit issues. You also need to search for hardcoded unit LABELS ("(m)", "(km/h)"), hardcoded CONVERSIONS (inline `* 3.28084`), and files that display numeric values WITHOUT the useUnits hook.
+
 ## Always Run Code Reviewer After Implementation
 - **When**: After finishing ANY implementation task — features, bug fixes, refactors
 - **Rule**: Dispatch the code reviewer agent (`superpowers:code-reviewer` or `code-review:code-review`) to review all changed files. This is in ADDITION to automated checks (ruff, mypy, tests), not a replacement.
