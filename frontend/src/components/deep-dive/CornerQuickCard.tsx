@@ -1,6 +1,6 @@
 'use client';
 
-import { useCorners, useAllLapCorners } from '@/hooks/useAnalysis';
+import { useCorners, useAllLapCorners, useLineAnalysis } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useAnalysisStore } from '@/stores';
 import { GlossaryTerm } from '@/components/shared/GlossaryTerm';
@@ -10,7 +10,7 @@ import { colors } from '@/lib/design-tokens';
 import { worstGrade } from '@/lib/gradeUtils';
 import { parseCornerNumber } from '@/lib/cornerUtils';
 import { useUnits } from '@/hooks/useUnits';
-import type { Corner, CornerGrade, PriorityCorner } from '@/lib/types';
+import type { Corner, CornerGrade, CornerLineProfile, PriorityCorner } from '@/lib/types';
 
 interface CornerQuickCardProps {
   sessionId: string;
@@ -70,6 +70,7 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
   const { data: corners } = useCorners(sessionId);
   const { data: report } = useCoachingReport(sessionId);
   const { data: allLapCorners } = useAllLapCorners(sessionId);
+  const { data: lineData } = useLineAnalysis(sessionId);
   const { convertSpeed, speedUnit, resolveSpeed } = useUnits();
 
   if (!selectedCorner) {
@@ -197,6 +198,66 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
           )}
         </div>
       )}
+
+      {/* Line analysis (if available for this corner) */}
+      {lineData?.available && (() => {
+        const lp: CornerLineProfile | undefined = lineData.corner_profiles.find(
+          (p) => p.corner_number === cornerNumber,
+        );
+        if (!lp) return null;
+        const tierColor =
+          lp.consistency_tier === 'expert' ? colors.grade.a
+          : lp.consistency_tier === 'consistent' ? colors.grade.b
+          : lp.consistency_tier === 'developing' ? colors.grade.c
+          : colors.grade.f;
+        const errorLabel = lp.line_error_type.replace(/_/g, ' ');
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-[var(--text-muted)]">
+                Driving Line
+              </span>
+              <span
+                className="rounded-sm px-1.5 py-0.5 text-[10px] font-medium uppercase"
+                style={{ backgroundColor: `${tierColor}20`, color: tierColor }}
+              >
+                {lp.consistency_tier}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <div className="text-[10px] text-[var(--text-muted)]">Entry</div>
+                <div className="text-xs font-medium tabular-nums text-[var(--text-primary)]">
+                  {lp.d_entry_median > 0 ? '+' : ''}{lp.d_entry_median.toFixed(1)}m
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] text-[var(--text-muted)]">Apex</div>
+                <div className="text-xs font-medium tabular-nums text-[var(--text-primary)]">
+                  {lp.d_apex_median > 0 ? '+' : ''}{lp.d_apex_median.toFixed(1)}m
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] text-[var(--text-muted)]">Exit</div>
+                <div className="text-xs font-medium tabular-nums text-[var(--text-primary)]">
+                  {lp.d_exit_median > 0 ? '+' : ''}{lp.d_exit_median.toFixed(1)}m
+                </div>
+              </div>
+            </div>
+            {lp.line_error_type !== 'good_line' && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-[var(--text-muted)]">Issue:</span>
+                <span className="text-xs capitalize text-[var(--text-secondary)]">
+                  {errorLabel}
+                </span>
+                <span className="text-[10px] text-[var(--text-muted)]">
+                  ({lp.severity})
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* AI coaching tip */}
       {(priorityCorner || cornerGrade?.notes) && (
