@@ -24,6 +24,13 @@ from backend.api.schemas.session import (
     SessionSummary,
     UploadResponse,
 )
+from backend.api.schemas.track_guide import (
+    KeyCorner,
+    TrackGuideCorner,
+    TrackGuideLandmark,
+    TrackGuideResponse,
+    TrackPeculiarity,
+)
 from backend.api.services import equipment_store, session_store
 from backend.api.services.coaching_store import clear_coaching_data, get_any_coaching_report
 from backend.api.services.comparison import compare_sessions as run_comparison
@@ -705,24 +712,16 @@ async def backfill_weather(
     }
 
 
-@router.get("/{session_id}/track-guide")
+@router.get("/{session_id}/track-guide", response_model=TrackGuideResponse)
 async def get_track_guide(
     session_id: str,
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
-) -> dict[str, object]:
+) -> TrackGuideResponse:
     """Get structured track guide data for the Track Briefing Card.
 
     Returns 404 if the session's track is not in the track database.
     """
     from cataclysm.track_db import get_key_corners, get_peculiarities, lookup_track
-
-    from backend.api.schemas.track_guide import (
-        KeyCorner,
-        TrackGuideCorner,
-        TrackGuideLandmark,
-        TrackGuideResponse,
-        TrackPeculiarity,
-    )
 
     sd = session_store.get_session_for_user(session_id, current_user.user_id)
     if sd is None:
@@ -792,7 +791,7 @@ async def get_track_guide(
         peculiarities=peculiarities,
         landmarks=landmarks,
     )
-    return response.model_dump()
+    return response
 
 
 @router.get("/{session_id}/laps", response_model=list[LapSummary])

@@ -954,3 +954,150 @@ class TestComputeSpeedSensitivity:
         assert s_low > 0.0
         assert s_high > 0.0
         assert s_low != pytest.approx(s_high, abs=1e-6)
+
+
+# ---------------------------------------------------------------------------
+# TestElevationIntegration — gradient_sin in solver
+# ---------------------------------------------------------------------------
+
+
+class TestElevationIntegration:
+    """Tests for elevation/gradient integration in the velocity solver."""
+
+    def test_uphill_reduces_speed(self) -> None:
+        """Same curvature with uphill gradient should produce lower optimal speed."""
+        # Corner then long straight (uphill should slow acceleration)
+        corner = np.full(100, 0.02)
+        straight = np.zeros(1500)
+        curvature = np.concatenate([corner, straight])
+        cr = _make_curvature_result(curvature, step_m=0.7)
+        params = default_vehicle_params()
+
+        # 5% uphill gradient: sin(theta) ~ 0.05
+        n = len(curvature)
+        gradient_uphill = np.full(n, 0.05)
+
+        profile_flat = compute_optimal_profile(cr, params, closed_circuit=False)
+        profile_uphill = compute_optimal_profile(
+            cr, params, closed_circuit=False, gradient_sin=gradient_uphill
+        )
+
+        # Check speed partway through the straight — uphill should be slower
+        check_idx = 400
+        assert (
+            profile_uphill.optimal_speed_mps[check_idx]
+            < (profile_flat.optimal_speed_mps[check_idx])
+        )
+
+        # Uphill lap time should be longer
+        assert profile_uphill.lap_time_s > profile_flat.lap_time_s
+
+    def test_downhill_increases_speed(self) -> None:
+        """Same curvature with downhill gradient should produce higher optimal speed."""
+        corner = np.full(100, 0.02)
+        straight = np.zeros(1500)
+        curvature = np.concatenate([corner, straight])
+        cr = _make_curvature_result(curvature, step_m=0.7)
+        params = default_vehicle_params()
+
+        n = len(curvature)
+        gradient_downhill = np.full(n, -0.05)
+
+        profile_flat = compute_optimal_profile(cr, params, closed_circuit=False)
+        profile_downhill = compute_optimal_profile(
+            cr, params, closed_circuit=False, gradient_sin=gradient_downhill
+        )
+
+        # Downhill should accelerate faster on the straight
+        check_idx = 400
+        assert (
+            profile_downhill.optimal_speed_mps[check_idx]
+            > (profile_flat.optimal_speed_mps[check_idx])
+        )
+
+        # Downhill lap time should be shorter
+        assert profile_downhill.lap_time_s < profile_flat.lap_time_s
+
+    def test_none_gradient_backward_compatible(self) -> None:
+        """gradient_sin=None should produce identical results to current behavior."""
+        curvature = np.concatenate(
+            [
+                np.zeros(300),
+                np.full(200, 0.01),
+                np.zeros(300),
+            ]
+        )
+        cr = _make_curvature_result(curvature, step_m=0.7)
+        params = default_vehicle_params()
+
+        profile_default = compute_optimal_profile(cr, params)
+        profile_none = compute_optimal_profile(cr, params, gradient_sin=None)
+
+        np.testing.assert_array_equal(
+            profile_default.optimal_speed_mps,
+            profile_none.optimal_speed_mps,
+        )
+        assert profile_default.lap_time_s == profile_none.lap_time_s
+
+    def test_zero_gradient_identical_to_flat(self) -> None:
+        """All-zero gradient_sin should produce identical results to None gradient."""
+        curvature = np.concatenate(
+            [
+                np.zeros(300),
+                np.full(200, 0.01),
+                np.zeros(300),
+            ]
+        )
+        cr = _make_curvature_result(curvature, step_m=0.7)
+        params = default_vehicle_params()
+
+        n = len(curvature)
+        zero_gradient = np.zeros(n)
+
+        profile_flat = compute_optimal_profile(cr, params, gradient_sin=None)
+        profile_zero = compute_optimal_profile(cr, params, gradient_sin=zero_gradient)
+
+        np.testing.assert_allclose(
+            profile_zero.optimal_speed_mps,
+            profile_flat.optimal_speed_mps,
+            atol=1e-10,
+        )
+
+    def test_closed_circuit_with_gradient(self) -> None:
+        """Gradient should work correctly with closed-circuit tripling."""
+        corner = np.full(100, 0.02)
+        straight = np.zeros(900)
+        curvature = np.concatenate([corner, straight])
+        cr = _make_curvature_result(curvature, step_m=0.7)
+        params = default_vehicle_params()
+
+        n = len(curvature)
+        gradient = np.full(n, 0.03)  # mild uphill
+
+        profile = compute_optimal_profile(cr, params, closed_circuit=True, gradient_sin=gradient)
+
+        # Should still produce valid output
+        assert profile.lap_time_s > 0.0
+        assert np.all(profile.optimal_speed_mps >= MIN_SPEED_MPS)
+        assert np.all(profile.optimal_speed_mps <= params.top_speed_mps)
+        assert len(profile.optimal_speed_mps) == n
+
+    def test_gradient_affects_cornering_speed(self) -> None:
+        """On steep grade, cornering speed should be slightly reduced (cos correction)."""
+        kappa = 0.01
+        n = 1000
+        curvature = np.full(n, kappa)
+        cr = _make_curvature_result(curvature, step_m=0.7)
+        params = default_vehicle_params()
+
+        # 10% grade — cos(theta) = sqrt(1 - sin^2) ~ 0.995, small effect
+        gradient_steep = np.full(n, 0.10)
+
+        profile_flat = compute_optimal_profile(cr, params, gradient_sin=None)
+        profile_steep = compute_optimal_profile(cr, params, gradient_sin=gradient_steep)
+
+        # Cornering speed should be slightly lower with steep gradient
+        # (reduced normal force means reduced grip)
+        interior_flat = profile_flat.max_cornering_speed_mps[100:-100]
+        interior_steep = profile_steep.max_cornering_speed_mps[100:-100]
+        assert np.all(interior_steep <= interior_flat + 1e-10)
