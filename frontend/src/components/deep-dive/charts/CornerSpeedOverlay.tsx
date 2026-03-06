@@ -508,24 +508,36 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
     ctx.globalAlpha = 1;
 
     // Draw vertical marker at brake point distance
-    const bpX = xScale(hoveredBrakeLap.brakePointM);
-    if (bpX >= MARGINS.left && bpX <= MARGINS.left + dimensions.innerWidth) {
-      ctx.strokeStyle = colors.motorsport.brake;
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([6, 3]);
-      ctx.beginPath();
-      ctx.moveTo(bpX, MARGINS.top);
-      ctx.lineTo(bpX, MARGINS.top + dimensions.innerHeight);
-      ctx.stroke();
-      ctx.setLineDash([]);
+    // Brake points are often before the corner entry zone, so clamp to the
+    // visible chart area but still draw the line at the edge with an arrow.
+    const bpXRaw = xScale(hoveredBrakeLap.brakePointM);
+    const chartLeft = MARGINS.left;
+    const chartRight = MARGINS.left + dimensions.innerWidth;
+    const bpX = Math.max(chartLeft, Math.min(chartRight, bpXRaw));
+    const isOffChart = bpXRaw < chartLeft;
 
-      // Label
-      ctx.fillStyle = colors.motorsport.brake;
-      ctx.font = `10px ${fonts.mono}`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
-      ctx.fillText(`BP L${hoveredBrakeLap.lapNumber}`, bpX, MARGINS.top - 2);
-    }
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(chartLeft, MARGINS.top, dimensions.innerWidth, dimensions.innerHeight);
+    ctx.clip();
+
+    ctx.strokeStyle = colors.motorsport.brake;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 3]);
+    ctx.beginPath();
+    ctx.moveTo(bpX, MARGINS.top);
+    ctx.lineTo(bpX, MARGINS.top + dimensions.innerHeight);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // Label (above chart)
+    ctx.fillStyle = colors.motorsport.brake;
+    ctx.font = `10px ${fonts.mono}`;
+    ctx.textAlign = isOffChart ? 'left' : 'center';
+    ctx.textBaseline = 'bottom';
+    const bpLabel = `${isOffChart ? '\u25C0 ' : ''}BP L${hoveredBrakeLap.lapNumber}`;
+    ctx.fillText(bpLabel, bpX + (isOffChart ? 2 : 0), MARGINS.top - 2);
   }, [hoveredBrakeLap, lapDataArr, corner, xScale, yScale, dimensions, getOverlayCtx, convertSpeed]);
 
   if (!selectedCorner || cornerNumber === null) {
