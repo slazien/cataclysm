@@ -35,19 +35,28 @@ export function LapTimesBar({ sessionId }: LapTimesBarProps) {
   const { resolveSpeed } = useUnits();
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
-  // Compute consistency insight text and potential time saving
+  // Compute consistency insight text — clean laps only, median-based
   const consistencyInsight = useMemo(() => {
     if (!laps || laps.length < 3 || !consistency?.lap_consistency) return null;
 
     const score = consistency.lap_consistency.consistency_score;
-    const lapTimes = [...laps].sort((a, b) => a.lap_time_s - b.lap_time_s);
-    const top3Avg =
-      lapTimes.slice(0, 3).reduce((sum, l) => sum + l.lap_time_s, 0) / 3;
-    const sessionAvg =
-      laps.reduce((sum, l) => sum + l.lap_time_s, 0) / laps.length;
-    const savingS = sessionAvg - top3Avg;
+    const cleanTimes = laps
+      .filter((l) => l.is_clean)
+      .map((l) => l.lap_time_s)
+      .sort((a, b) => a - b);
 
-    if (savingS < 0.1) return null;
+    if (cleanTimes.length < 3) return null;
+
+    const top3Avg =
+      (cleanTimes[0] + cleanTimes[1] + cleanTimes[2]) / 3;
+    const mid = Math.floor(cleanTimes.length / 2);
+    const median =
+      cleanTimes.length % 2 === 0
+        ? (cleanTimes[mid - 1] + cleanTimes[mid]) / 2
+        : cleanTimes[mid];
+    const gapS = median - top3Avg;
+
+    if (gapS < 0.1) return null;
 
     const scoreText =
       score >= 90
@@ -59,8 +68,8 @@ export function LapTimesBar({ sessionId }: LapTimesBarProps) {
             : 'Inconsistent';
 
     return {
-      text: `${scoreText} (${score.toFixed(0)}%). Matching your best 3 laps consistently would save ~${savingS.toFixed(1)}s per lap.`,
-      badge: `-${savingS.toFixed(1)}s`,
+      text: `${scoreText} (${score.toFixed(0)}%). Your typical clean lap is ~${gapS.toFixed(1)}s slower than your best 3.`,
+      badge: `~${gapS.toFixed(1)}s gap`,
     };
   }, [laps, consistency]);
 

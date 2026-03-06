@@ -306,15 +306,17 @@ export function SessionReport() {
           />
         )}
 
-        <CollapsibleSection
-          id="raw_data"
-          title="Raw Data"
-          subtitle="Detailed lap-by-lap telemetry table"
-          sectionStates={sectionStates}
-          onToggle={handleToggle}
-        >
-          <RawDataTable />
-        </CollapsibleSection>
+        {showFeature('raw_data_table') && (
+          <CollapsibleSection
+            id="raw_data"
+            title="Raw Data"
+            subtitle="Detailed lap-by-lap telemetry table"
+            sectionStates={sectionStates}
+            onToggle={handleToggle}
+          >
+            <RawDataTable />
+          </CollapsibleSection>
+        )}
       </div>
     </ScrollArea>
     <BadgeGrid open={badgesOpen} onClose={() => setBadgesOpen(false)} />

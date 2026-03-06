@@ -137,7 +137,11 @@ export function OptimalGapChart({ sessionId }: OptimalGapChartProps) {
   }
 
   if (opportunities.length === 0) {
-    return null;
+    return (
+      <p className="py-2 text-center text-xs text-[var(--text-secondary)]">
+        No significant speed gaps found — you&apos;re close to the physics-optimal profile.
+      </p>
+    );
   }
 
   const chartHeight = Math.max(120, opportunities.length * 28 + 16);
