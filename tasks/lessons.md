@@ -327,6 +327,32 @@ record_upload(ip)  # Too late — slots already bypassed
 
 **Anti-pattern**: `if value == DEFAULT:` when the default can also be a legitimate value. Instead, check `if source == UNCALIBRATED and value == DEFAULT:` using metadata that tracks HOW the value was obtained.
 
+## TanStack Query Keys Must Mirror queryFn Inputs — Not External Dependencies ([2026-03-06])
+
+**Pattern**: A query key should contain ONLY the values that the `queryFn` actually uses to fetch data. Never add a dependent variable (whose value comes from another async query) to the key just to "trigger refetches" — use `invalidateQueries` for that.
+
+**Why**: Adding `equipmentProfileId` (from `useSessionEquipment`) to the `useOptimalComparison` query key created a race condition that took 4+ commits to diagnose:
+1. User switches equipment → `invalidatePhysicsQueries()` fires targeting `["optimal-comparison", sessionId, OLD_PROFILE_ID]`
+2. Equipment query resolves → component re-renders with NEW profile ID → query key becomes `["optimal-comparison", sessionId, NEW_PROFILE_ID]`
+3. The invalidation from step 1 doesn't match the new key → no refetch fires
+4. The new key is seen for the first time with `staleTime: Infinity` → TanStack treats it as a fresh query that needs fetching, but the timing gap means it may or may not fire depending on render order
+
+**Fix**: Remove `equipmentProfileId` from the key. The `queryFn` calls `getOptimalComparison(sessionId)` — the backend uses the session's assigned equipment, not a frontend-supplied profile ID. Invalidation with prefix `["optimal-comparison", sessionId]` now directly hits the active query.
+
+```typescript
+// GOOD — key mirrors queryFn inputs
+queryKey: ["optimal-comparison", sessionId],
+queryFn: () => getOptimalComparison(sessionId!),
+
+// BAD — key includes external dependency not used by queryFn
+queryKey: ["optimal-comparison", sessionId, equipmentProfileId ?? "default"],
+queryFn: () => getOptimalComparison(sessionId!),  // doesn't use equipmentProfileId!
+```
+
+**Error signature**: Cache invalidation appears to work (you can see the invalidation call in React Query devtools) but no network request fires. The query shows as "stale" under the old key while a new, unfetched key exists.
+
+**General rule**: If a value affects the backend response but isn't passed BY the frontend in the request, it's a backend-side dependency. Handle it via invalidation, not query key inclusion.
+
 ## Verify User State Before Making Assumptions ([2026-03-06])
 
 **Pattern**: Before assuming a user lacks something (equipment profile, vehicle setup, etc.), check the data directory or API. Don't assume absence without evidence.
