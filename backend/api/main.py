@@ -238,7 +238,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     all_sessions = list_sessions()
     for sd in all_sessions:
-        await trigger_auto_coaching(sd.session_id, sd)
+        if not sd.is_anonymous:
+            await trigger_auto_coaching(sd.session_id, sd)
     if all_sessions:
         logger.info("Checked %d session(s) for missing coaching reports", len(all_sessions))
 

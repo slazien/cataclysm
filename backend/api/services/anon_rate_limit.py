@@ -27,10 +27,11 @@ def _cleanup_old(timestamps: list[float], now: float) -> list[float]:
     return [t for t in timestamps if t > cutoff]
 
 
-def check_anon_rate_limit(ip: str) -> tuple[bool, str]:
-    """Check if an anonymous upload from this IP is allowed.
+def check_and_record_anon_upload(ip: str) -> tuple[bool, str]:
+    """Atomically check rate limits and record the upload if allowed.
 
-    Returns (allowed, reason). If not allowed, reason explains why.
+    Returns (allowed, reason). If allowed, the upload is recorded immediately
+    to prevent TOCTOU races from concurrent requests.
     """
     now = time.time()
 
@@ -39,16 +40,17 @@ def check_anon_rate_limit(ip: str) -> tuple[bool, str]:
     if len(_global_timestamps) >= MAX_ANON_GLOBAL_DAILY:
         return False, "We're at capacity for anonymous sessions. Sign in for guaranteed access."
 
-    # Check per-IP limit
-    _ip_timestamps[ip] = _cleanup_old(_ip_timestamps[ip], now)
-    if len(_ip_timestamps[ip]) >= MAX_ANON_PER_IP:
+    # Check per-IP limit (prune empty keys to prevent memory leak)
+    recent = _cleanup_old(_ip_timestamps[ip], now)
+    if not recent:
+        del _ip_timestamps[ip]
+    else:
+        _ip_timestamps[ip] = recent
+    if len(_ip_timestamps.get(ip, [])) >= MAX_ANON_PER_IP:
         return False, "Anonymous session limit reached (3 per day). Sign in to analyze more."
 
-    return True, ""
-
-
-def record_anon_upload(ip: str) -> None:
-    """Record a successful anonymous upload for rate limiting."""
-    now = time.time()
+    # Record immediately (atomic with check) to prevent concurrent bypass
     _ip_timestamps[ip].append(now)
     _global_timestamps.append(now)
+
+    return True, ""

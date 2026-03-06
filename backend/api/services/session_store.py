@@ -57,6 +57,8 @@ class SessionData:
     gps_traces: list[GPSTrace] = field(default_factory=list)
     reference_centerline: ReferenceCenterline | None = None
     corner_line_profiles: list[CornerLineProfile] = field(default_factory=list)
+    # Raw CSV bytes retained for anonymous sessions so they can be persisted on claim
+    csv_bytes: bytes | None = field(default=None, repr=False)
 
 
 # Maximum sessions to keep in memory before evicting oldest.

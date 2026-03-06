@@ -62,6 +62,8 @@ export function WelcomeScreen() {
       uploadMutation.mutate(files, {
         onSuccess: (data) => {
           if (data.session_ids.length > 0) {
+            // Store anonymous session ID so it can be claimed after sign-in
+            localStorage.setItem('cataclysm_anon_session_id', data.session_ids[0]);
             setShowSuccess(true);
             setTimeout(() => {
               setActiveSession(data.session_ids[0]);
@@ -224,7 +226,7 @@ export function WelcomeScreen() {
       {/* Error display */}
       {(error || uploadMutation.isError) && (
         <p className="mt-4 px-6 text-xs text-red-400">
-          {error ?? 'Upload failed. Please check your CSV format.'}
+          {error ?? uploadMutation.error?.message ?? 'Upload failed. Please check your CSV format.'}
         </p>
       )}
 

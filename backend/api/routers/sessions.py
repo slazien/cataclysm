@@ -38,7 +38,7 @@ from backend.api.schemas.track_guide import (
     TrackPeculiarity,
 )
 from backend.api.services import equipment_store, session_store
-from backend.api.services.anon_rate_limit import check_anon_rate_limit, record_anon_upload
+from backend.api.services.anon_rate_limit import check_and_record_anon_upload
 from backend.api.services.coaching_store import clear_coaching_data, get_any_coaching_report
 from backend.api.services.comparison import compare_sessions as run_comparison
 from backend.api.services.db_session_store import (
@@ -242,7 +242,7 @@ async def upload_sessions(
     # Anonymous rate limiting by IP
     if is_anonymous:
         client_ip = request.client.host if request.client else "unknown"
-        allowed, reason = check_anon_rate_limit(client_ip)
+        allowed, reason = check_and_record_anon_upload(client_ip)
         if not allowed:
             raise HTTPException(status_code=429, detail=reason)
     else:
@@ -308,6 +308,7 @@ async def upload_sessions(
                     # Tag as anonymous with client IP for rate limiting lookups
                     sd.is_anonymous = True
                     sd.client_ip = client_ip
+                    sd.csv_bytes = file_bytes  # retain for persistence on claim
                 elif current_user is not None:
                     # Tag session with user for ownership enforcement
                     sd.user_id = current_user.user_id
@@ -345,10 +346,6 @@ async def upload_sessions(
                     await trigger_auto_coaching(sid, sd, skill_level=user_skill_level)
                 except (ValueError, TypeError, KeyError):
                     logger.warning("Auto-coaching failed for %s", sid, exc_info=True)
-
-            # Record anonymous upload for rate limiting after successful processing
-            if is_anonymous and client_ip:
-                record_anon_upload(client_ip)
 
         except (ValueError, KeyError, IndexError, OSError) as exc:
             logger.warning("Failed to process %s: %s", f.filename, exc, exc_info=True)
@@ -402,6 +399,22 @@ async def claim_anonymous_session(
     # Persist session metadata to PostgreSQL
     await store_session_db(db, current_user.user_id, sd)
     await db.commit()
+
+    # Persist raw CSV bytes so the session survives redeployments
+    if sd.csv_bytes is not None:
+        try:
+            await db.merge(
+                SessionFileModel(
+                    session_id=body.session_id,
+                    filename="",
+                    csv_bytes=sd.csv_bytes,
+                )
+            )
+            await db.commit()
+            sd.csv_bytes = None  # free memory after persistence
+        except SQLAlchemyError:
+            logger.warning("Failed to persist CSV bytes on claim for %s", body.session_id)
+            await db.rollback()
 
     # Check achievements for the newly claimed session
     try:

@@ -497,6 +497,7 @@ class TestLifespan:
         """trigger_auto_coaching is called once per session returned by list_sessions."""
         fake_session = MagicMock()
         fake_session.session_id = "sess-abc"
+        fake_session.is_anonymous = False
         patches = _base_lifespan_patches(sessions=[fake_session])
         with (
             patches[0],

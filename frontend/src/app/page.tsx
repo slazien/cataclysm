@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { useSession as useAuthSession } from 'next-auth/react';
 import { useSessionStore, useUiStore } from '@/stores';
 import { useSessions } from '@/hooks/useSession';
+import { claimSession } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { TopBar } from '@/components/navigation/TopBar';
 import { SessionDrawer } from '@/components/navigation/SessionDrawer';
@@ -23,7 +25,26 @@ export default function Home() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const { data: sessionsData } = useSessions();
+  const { status: authStatus } = useAuthSession();
+  const claimAttempted = useRef(false);
   useKeyboardShortcuts();
+
+  // Claim anonymous session after OAuth sign-in
+  useEffect(() => {
+    if (authStatus !== 'authenticated' || claimAttempted.current) return;
+    const anonSessionId = localStorage.getItem('cataclysm_anon_session_id');
+    if (!anonSessionId) return;
+    claimAttempted.current = true;
+    claimSession(anonSessionId)
+      .then(() => {
+        localStorage.removeItem('cataclysm_anon_session_id');
+        setActiveSession(anonSessionId);
+      })
+      .catch(() => {
+        // Session expired or already claimed — clear stale key
+        localStorage.removeItem('cataclysm_anon_session_id');
+      });
+  }, [authStatus, setActiveSession]);
 
   // Auto-select the most recent session when sessions load and none is active.
   // This ensures sessions restored from DB after a redeploy appear immediately.
