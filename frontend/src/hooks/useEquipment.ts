@@ -29,10 +29,10 @@ function invalidatePhysicsQueries(
 ) {
   for (const key of PHYSICS_DEPENDENT_KEYS) {
     const queryKey = sessionId ? [key, sessionId] : [key];
-    // optimal-comparison queries include equipmentProfileId in their key,
-    // so they automatically refetch when equipment changes. This invalidation
-    // clears stale entries for the old equipment key.
-    queryClient.removeQueries({ queryKey });
+    // Force refetch even for staleTime: Infinity queries.
+    // invalidateQueries with refetchType:'all' marks the query stale
+    // and triggers a background refetch for active observers.
+    queryClient.invalidateQueries({ queryKey, refetchType: "all" });
   }
 }
 
