@@ -164,6 +164,8 @@ React hooks wrapping TanStack Query:
 | `useLeaderboard(track, corner)` | `GET /api/leaderboards/...` | Corner rankings |
 | `useAchievements()` | `GET /api/achievements` | Achievement list |
 | `useEquipment(id)` | `GET /api/equipment/{id}/equipment` | Equipment profile |
+| `useVehicleSearch(query)` | `GET /api/equipment/vehicles/search` | Vehicle autocomplete (2+ chars) |
+| `useVehicleSpec(make, model, gen)` | `GET /api/equipment/vehicles/{make}/{model}` | Full vehicle physics spec |
 
 ## Chart Architecture
 

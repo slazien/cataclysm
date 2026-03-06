@@ -169,7 +169,11 @@ Forward-backward velocity solver (Kapania et al. 2016):
 5. Take minimum of forward, backward, and cornering limits
 6. Result: physically optimal speed at every point on track
 
-**Vehicle parameters** derived from equipment profile (tire compound, tread wear → friction coefficient).
+**Vehicle parameters** derived from equipment profile via `equipment_to_vehicle_params()`:
+- **Tire**: compound category → friction coefficient (mu), load sensitivity exponent
+- **Vehicle**: HP → wheel power (with drivetrain efficiency), weight → mass, CG height → load transfer, CdA → aero drag
+- **Grip calibration**: `apply_calibration_to_params()` uses `max(base, observed)` per axis — calibration can only raise limits, never lower below equipment defaults
+- Without a vehicle attached, solver uses generic defaults (no power model, no drag).
 
 ## Stage 6: AI Coaching (`coaching.py`)
 

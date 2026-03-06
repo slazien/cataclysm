@@ -281,6 +281,31 @@ class SessionCornerAnalysis:
     n_laps_analyzed: int
 ```
 
+### Vehicle Database (`vehicle_db.py`)
+
+```python
+@dataclass(frozen=True)
+class VehicleSpec:
+    make: str
+    model: str
+    generation: str                         # e.g. "ND", "E46", "ZN8"
+    year_range: tuple[int, int]
+    weight_kg: float
+    wheelbase_m: float
+    track_width_front_m: float
+    track_width_rear_m: float
+    cg_height_m: float                      # ~0.45-0.55m sports cars
+    weight_dist_front_pct: float            # 0-100
+    drivetrain: str                         # "RWD" | "FWD" | "AWD"
+    hp: int
+    torque_nm: int
+    has_aero: bool
+    cd_a: float = 0.0                       # Cd * frontal_area (m²)
+    notes: str | None = None
+```
+
+~49 curated vehicles. Data sources: manufacturer specs (weight, HP, torque, wheelbase), NHTSA LVIPD regression for CG height estimation, published press kits for track width.
+
 ### Physics & Velocity Profile
 
 ```python
@@ -290,9 +315,13 @@ class VehicleParams:
     max_accel_g: float
     max_decel_g: float
     max_lateral_g: float
-    friction_circle_exponent: float = 2.0   # 2.0=circle, >2=diamond
-    aero_coefficient: float = 0.0
-    drag_coefficient: float = 0.0
+    friction_circle_exponent: float = 2.0   # 1.8-2.3 depending on tire
+    drag_coefficient: float = 0.0           # k = CdA*rho/(2m)
+    load_sensitivity_exponent: float = 1.0  # power-law load transfer
+    cg_height_m: float = 0.0               # for load transfer calc
+    track_width_m: float = 0.0             # average front/rear
+    wheel_power_w: float = 0.0             # engine power at wheels
+    mass_kg: float = 0.0                   # for power-limited accel
     top_speed_mps: float = 80.0
 
 @dataclass

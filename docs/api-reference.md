@@ -527,21 +527,61 @@ Real-time chat with the AI coach. Requires session cookies for auth.
 
 ## Equipment (`/api/equipment`)
 
-### `GET /api/equipment/tires/search?q={query}`
+### Vehicle Database
+
+#### `GET /api/equipment/vehicles/search?q={query}`
+
+Search the curated vehicle database by make, model, or generation. Returns all vehicles when `q` is empty.
+
+**Auth**: Required
+
+**Response** (`200`):
+```json
+[
+  {
+    "slug": "toyota_gr86_zn8",
+    "make": "Toyota",
+    "model": "GR86",
+    "generation": "ZN8",
+    "year_range": [2022, 2025],
+    "hp": 228,
+    "weight_kg": 1270,
+    "drivetrain": "RWD"
+  }
+]
+```
+
+#### `GET /api/equipment/vehicles/makes`
+
+List all available vehicle makes (e.g. `["BMW", "Chevrolet", "Honda", ...]`).
+
+#### `GET /api/equipment/vehicles/{make}/models`
+
+List all models for a given make.
+
+#### `GET /api/equipment/vehicles/{make}/{model}?generation={gen}`
+
+Get full vehicle spec by make/model, optionally filtered by generation.
+
+**Response** (`200`): `VehicleSpecSchema` — includes physics fields: weight, wheelbase, track width, CG height, weight distribution, HP, torque, aero.
+
+### Tire & Brake Search
+
+#### `GET /api/equipment/tires/search?q={query}`
 
 Search the tire database by model name.
 
 **Response** (`200`): Array of `TireSpec` objects.
 
-### `GET /api/equipment/brakes/search?q={query}`
+#### `GET /api/equipment/brakes/search?q={query}`
 
 Search brake pad database.
 
-### `GET /api/equipment/reference/tire-sizes`
+#### `GET /api/equipment/reference/tire-sizes`
 
 Get list of standard tire sizes.
 
-### `GET /api/equipment/reference/brake-fluids`
+#### `GET /api/equipment/reference/brake-fluids`
 
 Get list of common brake fluids.
 
@@ -549,9 +589,11 @@ Get list of common brake fluids.
 
 Lookup weather conditions for a session.
 
-### `POST /api/equipment/profiles`
+### Equipment Profiles
 
-Create an equipment profile (tires, brakes, suspension).
+#### `POST /api/equipment/profiles`
+
+Create an equipment profile (vehicle, tires, brakes, suspension).
 
 **Auth**: Required
 
@@ -559,6 +601,25 @@ Create an equipment profile (tires, brakes, suspension).
 ```json
 {
   "name": "Track Setup",
+  "vehicle": {
+    "make": "Toyota",
+    "model": "GR86",
+    "generation": "ZN8",
+    "year_range": [2022, 2025],
+    "weight_kg": 1270,
+    "wheelbase_m": 2.575,
+    "track_width_front_m": 1.52,
+    "track_width_rear_m": 1.55,
+    "cg_height_m": 0.46,
+    "weight_dist_front_pct": 53.0,
+    "drivetrain": "RWD",
+    "hp": 228,
+    "torque_nm": 249,
+    "has_aero": false
+  },
+  "vehicle_overrides": {
+    "hp": 250
+  },
   "tires": {
     "model": "RE-71RS",
     "compound_category": "super_200tw",
@@ -578,29 +639,33 @@ Create an equipment profile (tires, brakes, suspension).
 }
 ```
 
-**Response** (`201`): Created profile.
+**Vehicle overrides**: Allowed keys: `weight_kg`, `cg_height_m`, `weight_dist_front_pct`, `hp`, `torque_nm`. Values override the stock vehicle spec for physics calculations.
 
-### `GET /api/equipment/profiles`
+**Response** (`201`): Created profile with `id`.
+
+#### `GET /api/equipment/profiles`
 
 List all equipment profiles.
 
-### `GET /api/equipment/profiles/{profile_id}`
+#### `GET /api/equipment/profiles/{profile_id}`
 
 Get a specific profile.
 
-### `PATCH /api/equipment/profiles/{profile_id}`
+#### `PATCH /api/equipment/profiles/{profile_id}`
 
-Update a profile.
+Update a profile (same body as create).
 
-### `DELETE /api/equipment/profiles/{profile_id}`
+#### `DELETE /api/equipment/profiles/{profile_id}`
 
 Delete a profile.
 
-### `PUT /api/equipment/{session_id}/equipment`
+### Session Equipment Assignment
 
-Assign an equipment profile to a session.
+#### `PUT /api/equipment/{session_id}/equipment`
 
-### `GET /api/equipment/{session_id}/equipment`
+Assign an equipment profile to a session. Triggers recalculation of optimal lap time with vehicle physics.
+
+#### `GET /api/equipment/{session_id}/equipment`
 
 Get equipment assigned to a session.
 

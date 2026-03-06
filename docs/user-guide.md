@@ -124,11 +124,16 @@ Track your improvement over multiple sessions at the same track:
 
 ## Equipment Profiles
 
-Track your car setup:
+Track your car and setup for accurate physics-optimal predictions:
 
 1. Go to Settings → Equipment
-2. Create a profile with your tire, brake, and suspension specs
-3. Assign it to sessions
+2. Create a profile:
+   - **Vehicle**: Search for your car (e.g. "GR86", "M3", "Miata"). Selecting a car auto-fills weight, HP, drivetrain, and all physics parameters from the curated database (~49 popular track cars). You can override HP and weight if your car is modified.
+   - **Tires**: Search the tire database or enter manually. Compound category affects grip estimation.
+   - **Brakes**: Search brake pads, select fluid.
+3. Assign the profile to sessions
+
+**Why vehicle matters**: Without a vehicle, the optimal lap time model uses generic assumptions (no power model, no aero drag). With your car selected, the solver uses real HP, weight, CG height, and drag to produce realistic targets.
 
 **Tire compound categories** affect the physics-optimal speed profile:
 | Category | Example | Estimated Grip |
