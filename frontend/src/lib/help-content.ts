@@ -21,7 +21,7 @@ export const helpContent: Record<string, string> = {
   'metric.top-speed':
     'Highest speed recorded at any point during the session.',
   'metric.optimal-lap':
-    'This card uses the app\'s ideal-lap reference: a composite lap reconstructed from the best speed seen at each sampled point around the lap. It is a driver-derived benchmark, not a physics-limit prediction.',
+    'Physics-based optimal lap time for your car. Computed from a velocity profile solver using your actual grip, braking, and acceleration limits calibrated from this session. The delta shows how much time you can realistically gain.',
   'metric.session-score':
     'Overall session rating (0-100) combining available components: Consistency (40%), Pace vs. the ideal-lap pace reference (30%), and Corner grades (30%). If one component is missing or invalid, the remaining weights are renormalized.',
   'metric.sessions':

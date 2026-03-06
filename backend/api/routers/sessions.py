@@ -196,6 +196,7 @@ class ScoreResult:
     consistency: float | None = None
     pace: float | None = None
     technique: float | None = None
+    optimal_lap_time_s: float | None = None
 
 
 async def _compute_session_score(sd: session_store.SessionData) -> ScoreResult:
@@ -219,7 +220,8 @@ async def _compute_session_score(sd: session_store.SessionData) -> ScoreResult:
         if optimal_time is None:
             optimal_time = snap.optimal_lap_time_s
         if _is_valid_pace_reference(snap.best_lap_time_s, optimal_time):
-            gap_pct = 1 - (cast(float, optimal_time) / snap.best_lap_time_s)
+            result.optimal_lap_time_s = cast(float, optimal_time)
+            gap_pct = 1 - (result.optimal_lap_time_s / snap.best_lap_time_s)
             result.pace = min(100.0, max(0.0, 100 - gap_pct * 500))
             components.append((result.pace, 0.3))
 
@@ -511,6 +513,7 @@ async def list_sessions(
                     score_consistency=score.consistency,
                     score_pace=score.pace,
                     score_technique=score.technique,
+                    optimal_lap_time_s=score.optimal_lap_time_s,
                     gps_quality_score=sd.gps_quality.overall_score if sd.gps_quality else None,
                     gps_quality_grade=sd.gps_quality.grade if sd.gps_quality else None,
                     tire_model=tire_model,
@@ -579,6 +582,7 @@ async def get_session(
         score_consistency=score.consistency,
         score_pace=score.pace,
         score_technique=score.technique,
+        optimal_lap_time_s=score.optimal_lap_time_s,
         gps_quality_score=sd.gps_quality.overall_score if sd.gps_quality else None,
         gps_quality_grade=sd.gps_quality.grade if sd.gps_quality else None,
         tire_model=tire_model,

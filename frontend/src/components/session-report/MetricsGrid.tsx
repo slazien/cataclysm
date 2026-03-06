@@ -22,8 +22,11 @@ function formatTime(seconds: number): string {
 export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced }: MetricsGridProps) {
   const bestLap = session?.best_lap_time_s;
   const top3Avg = session?.top3_avg_time_s;
+  const optimalLap = session?.optimal_lap_time_s;
   const nLaps = session?.n_laps ?? laps?.length;
   const consistencyScore = consistency?.lap_consistency?.consistency_score;
+
+  const optimalDelta = bestLap != null && optimalLap != null ? bestLap - optimalLap : null;
 
   return (
     <div>
@@ -40,6 +43,14 @@ export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced }
           highlight="pb"
           helpKey="metric.best-lap"
         />
+        {optimalLap != null && (
+          <MetricCard
+            label="Optimal Target"
+            value={formatTime(optimalLap)}
+            subtitle={optimalDelta != null ? `${optimalDelta.toFixed(3)}s potential` : undefined}
+            helpKey="metric.optimal-lap"
+          />
+        )}
         {!isNovice && (
           <MetricCard
             label="Top 3 Average"

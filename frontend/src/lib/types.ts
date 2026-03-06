@@ -12,6 +12,7 @@ export interface SessionSummary {
   score_consistency?: number | null;
   score_pace?: number | null;
   score_technique?: number | null;
+  optimal_lap_time_s?: number | null;
   tire_model?: string | null;
   compound_category?: string | null;
   equipment_profile_name?: string | null;
