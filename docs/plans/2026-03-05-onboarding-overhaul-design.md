@@ -34,6 +34,7 @@ The current onboarding flow has three friction points:
 
 **Rate limiting:**
 - 3 anonymous sessions per IP per 24 hours. Matches the free trial limit and prevents abuse of Claude API budget.
+- Global daily budget cap: 50 anonymous reports/day ($2/day max). Hard stop — returns a friendly "we're at capacity, sign in for guaranteed access" message. Prevents runaway costs from VPN/proxy abuse regardless of IP limits.
 
 ### 2. WelcomeScreen Redesign
 
@@ -72,16 +73,19 @@ The current onboarding flow has three friction points:
 
 **Goal:** First-time user sees score + top priority immediately. Everything else available but not overwhelming.
 
-**Always visible (the "answer"):**
+**Always visible (the "answer" + trust evidence):**
 1. **Session score** — big circle, color-coded, impossible to miss.
-2. **#1 Focus area** — the single most important thing to work on, with data reference ("Brake 15m later at Turn 5 — you're leaving 0.4s on the table").
+2. **#1 Focus area** — the single most important thing to work on, with data reference ("Brake 15m later at Turn 5 — you're leaving 0.4s on the table"). Includes a one-line methodology citation: "Based on Allen Berg corner prioritization."
 3. **Track map** — best lap visualized, with the priority corner highlighted.
+4. **Corner grades (compact)** — single horizontal row of letter grades (T1: B, T2: A, T3: C...). ~50px height. Serves as trust evidence — user sees the data backing the #1 Focus recommendation without needing to click.
+5. **Lap times (compact)** — thin sparkline or mini bar chart showing lap time progression. ~40px height. Every driver's first instinct is "what were my lap times?" — meet that expectation.
 
 **Collapsed sections (expand on click):**
-4. All corner grades — header shows summary like "3 A's, 4 B's, 2 C's"
-5. Patterns & drills — header shows count: "2 patterns identified"
-6. Lap times chart — header shows "22 laps — best 1:42.3"
-7. Coaching summary (full text) — header shows lead sentence only
+6. Coaching summary (full text) — header shows lead sentence only. Requires reading time, better for later review.
+7. Patterns & drills — header shows count: "2 patterns identified". Requires reflection, not paddock reading.
+8. Raw data table — power user feature, always collapsed.
+
+**Design principle:** Keep visible what's glanceable (grades, sparklines) or trust-building (evidence for the AI recommendation). Collapse what requires reading time or reflection (full coaching text, drills).
 
 **First-time highlights:**
 - Subtle pulsing glow on the session score circle (one-time, fades after 3 seconds).
@@ -126,7 +130,7 @@ Land on WelcomeScreen
   -> "wow, I want that" (screenshot + social proof)
   -> Upload CSV (no sign-up required)
   -> ProcessingOverlay (progress bar + steps)
-  -> Score + #1 Focus + Track Map (instant value, collapsed detail)
+  -> Score + #1 Focus + Track Map + Corner Grades + Lap Times (instant value + trust evidence)
   -> "Sign in to save this" (soft banner)
   -> Google OAuth -> session claimed -> full experience unlocked
 ```
