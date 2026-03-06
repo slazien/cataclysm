@@ -103,6 +103,13 @@ export async function uploadSessions(
         resolve(JSON.parse(xhr.responseText));
       } else if (xhr.status === 401) {
         reject(new Error("Please sign in to upload sessions."));
+      } else if (xhr.status === 429) {
+        try {
+          const resp = JSON.parse(xhr.responseText);
+          reject(new Error(resp.detail || "Rate limit exceeded. Sign in for unlimited access."));
+        } catch {
+          reject(new Error("Rate limit exceeded. Sign in for unlimited access."));
+        }
       } else {
         reject(new Error(`Upload failed: ${xhr.status}`));
       }
@@ -552,4 +559,13 @@ export async function getProgressLeaderboard(trackName: string, days = 90) {
   return fetchApi<ProgressLeaderboardResponse>(
     `/api/progress/${encodeURIComponent(trackName)}/improvement?days=${days}`,
   );
+}
+
+// --- Session Claiming API (anonymous -> authenticated migration) ---
+
+export async function claimSession(sessionId: string) {
+  return fetchApi<{ message: string }>("/api/sessions/claim", {
+    method: "POST",
+    body: JSON.stringify({ session_id: sessionId }),
+  });
 }

@@ -2,29 +2,38 @@
 
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Upload, FileSpreadsheet, ChevronDown, Clock, Sparkles, Target, TrendingUp, Check } from 'lucide-react';
+import { Upload, ChevronDown, Sparkles, Target, ClipboardCheck, Check } from 'lucide-react';
 import { useSessionStore } from '@/stores';
-import { useUploadSessions, useSessions } from '@/hooks/useSession';
-import { useTracks, useLoadTrackFolder } from '@/hooks/useTracks';
+import { useUploadSessions } from '@/hooks/useSession';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-const VALUE_CARDS = [
+const STEPS = [
   {
+    num: 1,
+    icon: Upload,
+    title: 'Upload your RaceChrono CSV',
+  },
+  {
+    num: 2,
     icon: Sparkles,
-    title: 'AI Coaching Report',
-    description: 'Personalized insights after every session',
+    title: 'AI analyzes every corner',
   },
   {
+    num: 3,
     icon: Target,
-    title: 'Corner-by-Corner Grades',
-    description: 'Know exactly where you\'re losing time',
+    title: 'Get a personalized coaching report',
   },
-  {
-    icon: TrendingUp,
-    title: 'Progress Tracking',
-    description: 'Track improvement session over session',
-  },
+] as const;
+
+const SAMPLE_GRADES = [
+  { turn: 'T1', grade: 'A', color: 'text-[var(--grade-a)]' },
+  { turn: 'T2', grade: 'B', color: 'text-[var(--grade-b)]' },
+  { turn: 'T3', grade: 'C', color: 'text-[var(--grade-c)]' },
+  { turn: 'T4', grade: 'B', color: 'text-[var(--grade-b)]' },
+  { turn: 'T5', grade: 'D', color: 'text-[var(--grade-d)]' },
+  { turn: 'T6', grade: 'A', color: 'text-[var(--grade-a)]' },
+  { turn: 'T7', grade: 'B', color: 'text-[var(--grade-b)]' },
 ] as const;
 
 export function WelcomeScreen() {
@@ -33,7 +42,6 @@ export function WelcomeScreen() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
-  const [loadingSample, setLoadingSample] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -105,151 +113,68 @@ export function WelcomeScreen() {
     [handleFiles],
   );
 
-  const { data: sessionsData } = useSessions();
-  const { data: tracks } = useTracks();
-  const loadTrackMutation = useLoadTrackFolder();
-
-  const hasSampleData = (tracks?.length ?? 0) > 0;
-
-  const handleSampleData = useCallback(() => {
-    if (!tracks || tracks.length === 0) {
-      setError('No local track data found. Upload a CSV to get started.');
-      return;
-    }
-    setLoadingSample(true);
-    setError(null);
-    loadTrackMutation.mutate({ folder: tracks[0].folder, limit: 3 }, {
-      onSuccess: (data) => {
-        if (data.session_ids.length > 0) {
-          setActiveSession(data.session_ids[0]);
-        }
-      },
-      onError: () => {
-        setError('Failed to load sample data');
-      },
-      onSettled: () => {
-        setLoadingSample(false);
-      },
-    });
-  }, [tracks, loadTrackMutation, setActiveSession]);
-
   return (
-    <div className="relative flex min-h-0 w-full flex-1 flex-col items-center gap-8 overflow-y-auto p-6 lg:p-10">
+    <div className="relative flex min-h-0 w-full flex-1 flex-col items-center overflow-y-auto">
       {/* Gradient mesh background */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(245,158,11,0.05)_0%,transparent_70%)]" />
 
       {/* Hero */}
-      <div className="relative mt-8 text-center lg:mt-16">
+      <div className="relative mt-12 px-6 text-center lg:mt-20">
         <h1 className="font-[family-name:var(--font-display)] text-4xl font-bold tracking-tight text-[var(--text-primary)] lg:text-5xl">
-          Your AI racing coach
+          Your fastest lap is next.
         </h1>
-        <p className="mt-3 font-[family-name:var(--font-display)] text-lg text-[var(--text-secondary)] lg:text-xl">
-          Upload a session. Get faster.
+        <p className="mx-auto mt-3 max-w-md font-[family-name:var(--font-display)] text-lg text-[var(--text-secondary)] lg:text-xl">
+          Upload your telemetry. Get AI coaching in seconds.
         </p>
       </div>
 
-      {/* Action buttons */}
-      <div className="flex flex-col items-center gap-3 sm:flex-row">
+      {/* Upload zone — giant button + drop area */}
+      <div className="mt-8 w-full max-w-lg px-6">
         <Button
           size="lg"
           onClick={() => fileInputRef.current?.click()}
-          className="gap-2 bg-[var(--cata-accent)] text-white hover:bg-[var(--cata-accent)]/90"
+          disabled={uploadMutation.isPending}
+          className="w-full gap-2 bg-[var(--cata-accent)] text-base text-white hover:bg-[var(--cata-accent)]/90"
         >
-          <Upload className="h-4 w-4" />
+          <Upload className="h-5 w-5" />
           Upload CSV
         </Button>
-        {hasSampleData && (
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={handleSampleData}
-            disabled={loadingSample}
-            className="gap-2"
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-            {loadingSample ? 'Loading...' : 'Try Sample Data'}
-          </Button>
-        )}
-      </div>
-
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept=".csv"
-        className="hidden"
-        onChange={handleFileInput}
-      />
-
-      {/* Error display */}
-      {(error || uploadMutation.isError) && (
-        <p className="text-xs text-red-400">
-          {error ?? 'Upload failed. Please check your CSV format.'}
+        <p className="mt-2 text-center text-xs text-[var(--text-secondary)]">
+          No sign-up required. See your coaching report instantly.
         </p>
-      )}
 
-      {/* Value cards */}
-      <motion.div
-        className="grid w-full max-w-2xl grid-cols-1 gap-4 sm:grid-cols-3"
-        initial="initial"
-        animate="animate"
-        variants={{ animate: { transition: { staggerChildren: 0.1 } } }}
-      >
-        {VALUE_CARDS.map((card) => (
-          <motion.div
-            key={card.title}
-            className="flex flex-col items-center gap-3 rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-5 text-center"
-            variants={{
-              initial: { opacity: 0, y: 20 },
-              animate: { opacity: 1, y: 0 },
-            }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-          >
-            <div className="rounded-full bg-[var(--bg-elevated)] p-3">
-              <card.icon className="h-5 w-5 text-[var(--cata-accent)]" />
-            </div>
-            <h3 className="font-[family-name:var(--font-display)] text-sm font-semibold text-[var(--text-primary)]">
-              {card.title}
-            </h3>
-            <p className="text-xs leading-relaxed text-[var(--text-muted)]">
-              {card.description}
-            </p>
-          </motion.div>
-        ))}
-      </motion.div>
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept=".csv"
+          className="hidden"
+          onChange={handleFileInput}
+        />
 
-      {/* Upload drop zone */}
-      <div
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            fileInputRef.current?.click();
-          }
-        }}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onClick={() => fileInputRef.current?.click()}
-        className={cn(
-          'flex w-full max-w-2xl cursor-pointer flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed p-6 lg:p-10 min-h-[6rem] lg:min-h-[10rem] transition-colors',
-          isDragging
-            ? 'border-[var(--cata-accent)] bg-[var(--cata-accent)]/5'
-            : 'border-[var(--cata-border)] bg-[var(--bg-surface)] hover:border-[var(--text-muted)]',
-        )}
-      >
-        <div className="rounded-full bg-[var(--bg-elevated)] p-4">
-          <Upload
-            className={cn(
-              'h-8 w-8',
-              isDragging ? 'text-[var(--cata-accent)]' : 'text-[var(--text-muted)]',
-            )}
-          />
-        </div>
-        <div className="text-center">
+        {/* Drop zone */}
+        <div
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onClick={() => fileInputRef.current?.click()}
+          className={cn(
+            'mt-3 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-5 transition-colors',
+            isDragging
+              ? 'border-[var(--cata-accent)] bg-[var(--cata-accent)]/5'
+              : 'border-[var(--cata-border)] bg-[var(--bg-surface)] hover:border-[var(--text-secondary)]',
+          )}
+        >
           <AnimatePresence mode="wait">
             {showSuccess ? (
               <motion.div
@@ -280,9 +205,15 @@ export function WelcomeScreen() {
               </motion.div>
             ) : (
               <motion.div key="idle" className="flex flex-col items-center gap-1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <Upload
+                  className={cn(
+                    'h-6 w-6',
+                    isDragging ? 'text-[var(--cata-accent)]' : 'text-[var(--text-secondary)]',
+                  )}
+                />
                 <p className="text-sm font-medium text-[var(--text-primary)]">Drop CSV files here</p>
-                <p className="text-xs text-[var(--text-muted)]">
-                  or click to browse — RaceChrono v3 CSV format
+                <p className="text-xs text-[var(--text-secondary)]">
+                  or click to browse
                 </p>
               </motion.div>
             )}
@@ -290,84 +221,145 @@ export function WelcomeScreen() {
         </div>
       </div>
 
-      {/* Recent Sessions */}
-      {(sessionsData?.items?.length ?? 0) > 0 && (
-        <div className="w-full max-w-2xl rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-            Recent Sessions
-          </h3>
-          <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
-            {sessionsData!.items.slice(0, 8).map((s) => (
-              <button
-                key={s.session_id}
-                type="button"
-                onClick={() => setActiveSession(s.session_id)}
-                className="flex items-center gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-[var(--bg-elevated)]"
-              >
-                <Clock className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-primary)]">
-                    {s.track_name}
-                  </p>
-                  <p className="text-xs text-[var(--text-muted)]">
-                    {s.session_date} &middot; {s.n_laps} laps &middot; Best {s.best_lap_time_s ? `${Math.floor(s.best_lap_time_s / 60)}:${(s.best_lap_time_s % 60).toFixed(1).padStart(4, '0')}` : 'N/A'}
-                  </p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
+      {/* Error display */}
+      {(error || uploadMutation.isError) && (
+        <p className="mt-4 px-6 text-xs text-red-400">
+          {error ?? 'Upload failed. Please check your CSV format.'}
+        </p>
       )}
 
-      {/* How to export from RaceChrono (collapsible) */}
-      <div className="w-full max-w-2xl rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-        <button
-          type="button"
-          onClick={() => setInstructionsOpen((o) => !o)}
-          className="flex w-full items-center justify-between"
+      {/* Sample Report Preview */}
+      <div className="mt-12 w-full max-w-2xl px-6">
+        <p className="mb-4 text-center text-sm text-[var(--text-secondary)]">
+          Here&apos;s what Cataclysm does with your data
+        </p>
+        <motion.div
+          className="overflow-hidden rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-5 lg:p-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
         >
-          <h3 className="font-[family-name:var(--font-display)] text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-            How to export from RaceChrono
-          </h3>
-          <ChevronDown
-            className={cn(
-              'h-4 w-4 text-[var(--text-muted)] transition-transform',
-              (instructionsOpen || !isMobile) ? 'rotate-180' : '',
-            )}
-          />
-        </button>
-        {(instructionsOpen || !isMobile) && (
-          <ol className="mt-3 space-y-2 text-sm text-[var(--text-secondary)]">
-            <li className="flex items-start gap-2">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-xs font-bold text-[var(--text-muted)]">
-                1
-              </span>
-              Open session in RaceChrono Pro
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-xs font-bold text-[var(--text-muted)]">
-                2
-              </span>
-              Tap Export → CSV v3 format
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-xs font-bold text-[var(--text-muted)]">
-                3
-              </span>
-              Include GPS, speed, and lap data channels
-            </li>
-          </ol>
-        )}
+          {/* Mockup header row */}
+          <div className="flex items-start gap-4 lg:gap-6">
+            {/* Score circle */}
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 lg:h-16 lg:w-16">
+              <span className="text-xl font-bold text-emerald-400 lg:text-2xl">78</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--cata-accent)]">
+                #1 Focus
+              </p>
+              <p className="mt-1 text-sm font-medium leading-relaxed text-[var(--text-primary)]">
+                Brake 15m later at Turn 5 &mdash; you&apos;re leaving 0.4s on the table
+              </p>
+            </div>
+          </div>
+
+          {/* Corner grades strip */}
+          <div className="mt-4 flex items-center gap-3 border-t border-[var(--cata-border)] pt-3">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+              Corner Grades
+            </span>
+            <div className="flex gap-2">
+              {SAMPLE_GRADES.map((g) => (
+                <div key={g.turn} className="flex flex-col items-center">
+                  <span className="text-[10px] text-[var(--text-secondary)]">{g.turn}</span>
+                  <span className={cn('text-xs font-bold', g.color)}>{g.grade}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* How It Works — 3 steps */}
+      <motion.div
+        className="mt-12 w-full max-w-2xl px-6"
+        initial="initial"
+        animate="animate"
+        variants={{ animate: { transition: { staggerChildren: 0.1 } } }}
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {STEPS.map((step) => (
+            <motion.div
+              key={step.num}
+              className="flex flex-col items-center gap-3 rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-5 text-center"
+              variants={{
+                initial: { opacity: 0, y: 20 },
+                animate: { opacity: 1, y: 0 },
+              }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+            >
+              <div className="rounded-full bg-[var(--bg-elevated)] p-3">
+                <step.icon className="h-5 w-5 text-[var(--cata-accent)]" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--cata-accent)]">
+                  Step {step.num}
+                </span>
+                <p className="mt-1 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-primary)]">
+                  {step.title}
+                </p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Supported formats + collapsible instructions */}
+      <div className="mt-8 w-full max-w-2xl px-6">
+        <p className="mb-3 text-center text-xs text-[var(--text-secondary)]">
+          Works with RaceChrono Pro
+        </p>
+        <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
+          <button
+            type="button"
+            onClick={() => setInstructionsOpen((o) => !o)}
+            className="flex w-full items-center justify-between"
+          >
+            <h3 className="font-[family-name:var(--font-display)] text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+              How to export from RaceChrono
+            </h3>
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 text-[var(--text-secondary)] transition-transform',
+                (instructionsOpen || !isMobile) ? 'rotate-180' : '',
+              )}
+            />
+          </button>
+          {(instructionsOpen || !isMobile) && (
+            <ol className="mt-3 space-y-2 text-sm text-[var(--text-secondary)]">
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-xs font-bold text-[var(--text-secondary)]">
+                  1
+                </span>
+                Open session in RaceChrono Pro
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-xs font-bold text-[var(--text-secondary)]">
+                  2
+                </span>
+                Tap Export &rarr; CSV v3 format
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-xs font-bold text-[var(--text-secondary)]">
+                  3
+                </span>
+                Include GPS, speed, and lap data channels
+              </li>
+            </ol>
+          )}
+        </div>
       </div>
 
       {/* Disclaimer footer */}
-      <p className="max-w-2xl text-center text-[10px] leading-relaxed text-[var(--text-muted)]/60">
+      <p className="mt-8 max-w-2xl px-6 text-center text-[10px] leading-relaxed text-[var(--text-muted)]/60">
         AI coaching is for educational purposes only and is not a substitute for professional instruction.
         Track driving carries inherent risks. GPS/telemetry data and AI analysis may contain inaccuracies.
       </p>
 
       {/* Bottom spacer */}
-      <div className="h-4 shrink-0" />
+      <div className="h-8 shrink-0" />
     </div>
   );
 }

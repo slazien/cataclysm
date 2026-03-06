@@ -202,3 +202,18 @@ body {
   border-radius: 3px;
   height: 6px;
 }
+
+/* --- First-report pulsing glow on session score --- */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+  }
+  50% {
+    box-shadow: 0 0 20px 4px rgba(245, 158, 11, 0.25);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 1.5s ease-in-out 2;
+  border-radius: var(--radius);
+}

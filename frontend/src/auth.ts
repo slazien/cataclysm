@@ -17,12 +17,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   providers,
   session: { strategy: "jwt" },
   callbacks: {
-    authorized({ auth: session }) {
-      // QA bypass: skip auth when DEV_AUTH_BYPASS=true
-      if (devAuthBypass) return true;
-      // In dev mode (no OAuth), allow all requests through
-      if (!hasOAuth) return true;
-      return !!session?.user;
+    authorized() {
+      // Allow all requests through — auth requirements are handled at the
+      // component level. The middleware still runs and attaches session info
+      // for authenticated users. Anonymous users can reach the WelcomeScreen
+      // and upload flow; auth-gated features (Progress, Share, Chat) check
+      // for a session in their own components.
+      return true;
     },
     jwt({ token, user, profile }) {
       if (user) {

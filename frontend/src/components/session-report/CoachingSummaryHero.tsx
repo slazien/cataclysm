@@ -53,6 +53,9 @@ export function CoachingSummaryHero({ report }: CoachingSummaryHeroProps) {
               <p className="mt-1 text-sm font-medium leading-relaxed text-[var(--text-primary)]">
                 <MarkdownText>{primaryFocus}</MarkdownText>
               </p>
+              <p className="mt-2 text-[10px] text-[var(--text-muted)]">
+                Based on Allen Berg corner prioritization methodology
+              </p>
             </div>
           )}
           <div className="border-l-[3px] border-[var(--cata-accent)] pl-4">

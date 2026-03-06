@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { useSession as useAuthSession, signOut } from 'next-auth/react';
+import { useSession as useAuthSession, signIn, signOut } from 'next-auth/react';
 import { FileText, Upload, Settings, ChevronRight, LogOut, Sparkles, Award } from 'lucide-react';
 import { useUiStore, useSessionStore } from '@/stores';
 import { useSession, useUploadSessions } from '@/hooks/useSession';
@@ -31,7 +31,8 @@ export function TopBar() {
   const [wrappedOpen, setWrappedOpen] = useState(false);
   const [badgesOpen, setBadgesOpen] = useState(false);
 
-  const { data: authSession } = useAuthSession();
+  const { data: authSession, status: authStatus } = useAuthSession();
+  const isAnonymous = authStatus === 'unauthenticated';
   const { data: session } = useSession(activeSessionId);
   const uploadMutation = useUploadSessions();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -56,6 +57,19 @@ export function TopBar() {
 
   return (
     <div className="shrink-0">
+      {/* Auth banner for anonymous users with an active session */}
+      {isAnonymous && activeSessionId && (
+        <div className="flex h-8 items-center justify-center gap-2 bg-[var(--cata-accent)]/10 px-4 text-xs">
+          <span className="text-[var(--text-secondary)]">Sign in to save this session</span>
+          <button
+            type="button"
+            onClick={() => signIn('google')}
+            className="font-medium text-[var(--cata-accent)] underline-offset-2 hover:underline"
+          >
+            Sign in
+          </button>
+        </div>
+      )}
       {/* Row 1: Main navigation */}
       <div className="flex h-12 items-center bg-[var(--bg-surface)] px-4">
         {/* Left: Logo */}

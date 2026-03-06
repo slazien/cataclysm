@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, RefreshCw } from 'lucide-react';
 import { useSessionStore, useUiStore } from '@/stores';
 import { useSession, useSessionLaps } from '@/hooks/useSession';
 import { useAutoReport } from '@/hooks/useAutoReport';
@@ -25,6 +25,86 @@ import { BadgeGrid } from '@/components/achievements/BadgeGrid';
 import { TrackLeaderboardSummary } from '@/components/leaderboard/TrackLeaderboardSummary';
 import { SkillLevelMismatchBanner } from '@/components/coach/SkillLevelMismatchBanner';
 import { TrackGuideCard } from './TrackGuideCard';
+import { cn } from '@/lib/utils';
+
+// ---------------------------------------------------------------------------
+// localStorage helpers for section collapse state & first-report detection
+// ---------------------------------------------------------------------------
+
+const STORAGE_KEY_SECTIONS = 'cataclysm_report_sections';
+const STORAGE_KEY_FIRST_SEEN = 'cataclysm_first_report_seen';
+
+function loadSectionState(): Record<string, boolean> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_SECTIONS);
+    return raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveSectionState(state: Record<string, boolean>) {
+  try {
+    localStorage.setItem(STORAGE_KEY_SECTIONS, JSON.stringify(state));
+  } catch {
+    /* quota exceeded — ignore */
+  }
+}
+
+// ---------------------------------------------------------------------------
+// CollapsibleSection
+// ---------------------------------------------------------------------------
+
+function CollapsibleSection({
+  id,
+  title,
+  subtitle,
+  defaultOpen = false,
+  sectionStates,
+  onToggle,
+  children,
+}: {
+  id: string;
+  title: string;
+  subtitle?: string;
+  defaultOpen?: boolean;
+  sectionStates: Record<string, boolean>;
+  onToggle: (id: string, open: boolean) => void;
+  children: React.ReactNode;
+}) {
+  const isOpen = sectionStates[id] ?? defaultOpen;
+
+  return (
+    <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)]">
+      <button
+        type="button"
+        onClick={() => onToggle(id, !isOpen)}
+        className="flex w-full items-center justify-between px-4 py-3"
+      >
+        <div className="text-left">
+          <h3 className="font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-primary)]">
+            {title}
+          </h3>
+          {subtitle && (
+            <p className="text-xs text-[var(--text-secondary)]">{subtitle}</p>
+          )}
+        </div>
+        <ChevronDown
+          className={cn(
+            'h-4 w-4 shrink-0 text-[var(--text-secondary)] transition-transform',
+            isOpen && 'rotate-180',
+          )}
+        />
+      </button>
+      {isOpen && <div className="px-4 pb-4">{children}</div>}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// SessionReport
+// ---------------------------------------------------------------------------
 
 export function SessionReport() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
@@ -39,6 +119,34 @@ export function SessionReport() {
   const skillLevel = useUiStore((s) => s.skillLevel);
   const [badgesOpen, setBadgesOpen] = useState(false);
 
+  // ---------------------------------------------------------------------------
+  // Progressive disclosure — section expand/collapse state
+  // ---------------------------------------------------------------------------
+  const [sectionStates, setSectionStates] = useState<Record<string, boolean>>(loadSectionState);
+
+  const handleToggle = (id: string, open: boolean) => {
+    setSectionStates((prev) => {
+      const next = { ...prev, [id]: open };
+      saveSectionState(next);
+      return next;
+    });
+  };
+
+  // ---------------------------------------------------------------------------
+  // First-report highlight — pulsing glow on score circle
+  // ---------------------------------------------------------------------------
+  const [isFirstReport, setIsFirstReport] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!localStorage.getItem(STORAGE_KEY_FIRST_SEEN)) {
+      setIsFirstReport(true);
+      localStorage.setItem(STORAGE_KEY_FIRST_SEEN, '1');
+      const timer = setTimeout(() => setIsFirstReport(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   const recentAchievements = recentAchievementsData?.newly_unlocked ?? [];
 
   const bestLapNumber = useMemo(() => {
@@ -50,28 +158,33 @@ export function SessionReport() {
     return best.lap_number;
   }, [laps]);
 
+  const patternCount = report ? report.patterns.length + report.drills.length : 0;
+
   return (
     <>
     <ScrollArea className="h-full">
       <div className="relative mx-auto flex max-w-5xl flex-col gap-6 p-4 lg:p-6">
         <TrackWatermark />
+
+        {/* ----------------------------------------------------------------- */}
+        {/* ALWAYS VISIBLE — the "answer" + trust evidence                     */}
+        {/* ----------------------------------------------------------------- */}
+
         <SessionReportHeader
           session={session ?? null}
           gpsQuality={gpsQuality ?? null}
           sessionId={activeSessionId ?? undefined}
         />
 
-        <MetricsGrid
-          session={session ?? null}
-          laps={laps ?? null}
-          consistency={consistency ?? null}
-          isNovice={isNovice}
-          isAdvanced={isAdvanced}
-        />
-
-        {showFeature('track_guide') && activeSessionId && (
-          <TrackGuideCard sessionId={activeSessionId} />
-        )}
+        <div className={cn(isFirstReport && 'animate-pulse-glow')}>
+          <MetricsGrid
+            session={session ?? null}
+            laps={laps ?? null}
+            consistency={consistency ?? null}
+            isNovice={isNovice}
+            isAdvanced={isAdvanced}
+          />
+        </div>
 
         {isSkillMismatch && report?.skill_level && (
           <SkillLevelMismatchBanner
@@ -117,32 +230,9 @@ export function SessionReport() {
           />
         )}
 
-        {activeSessionId && showFeature('optimal_comparison') && (
-          <OptimalGapChart sessionId={activeSessionId} />
-        )}
-
-        {session?.track_name && (
-          <TrackLeaderboardSummary trackName={session.track_name} />
-        )}
-
         {report?.corner_grades && report.corner_grades.length > 0 && (
           <CornerGradesSection
             grades={report.corner_grades}
-          />
-        )}
-
-        {report && (report.patterns.length > 0 || report.drills.length > 0) && (
-          <PatternsAndDrillsSection
-            patterns={report.patterns}
-            drills={report.drills}
-          />
-        )}
-
-        {/* New achievements */}
-        {recentAchievements.length > 0 && (
-          <NewAchievementCard
-            achievements={recentAchievements}
-            onViewAll={() => setBadgesOpen(true)}
           />
         )}
 
@@ -153,7 +243,78 @@ export function SessionReport() {
           </div>
         )}
 
-        <RawDataTable />
+        {/* ----------------------------------------------------------------- */}
+        {/* COLLAPSED SECTIONS — expand on click                               */}
+        {/* ----------------------------------------------------------------- */}
+
+        {showFeature('track_guide') && activeSessionId && (
+          <CollapsibleSection
+            id="track_guide"
+            title="Track Briefing"
+            subtitle="Corner-by-corner guide with landmarks"
+            sectionStates={sectionStates}
+            onToggle={handleToggle}
+          >
+            <TrackGuideCard sessionId={activeSessionId} />
+          </CollapsibleSection>
+        )}
+
+        {activeSessionId && showFeature('optimal_comparison') && (
+          <CollapsibleSection
+            id="optimal_comparison"
+            title="Optimal Comparison"
+            subtitle="Gap to your fastest possible lap"
+            sectionStates={sectionStates}
+            onToggle={handleToggle}
+          >
+            <OptimalGapChart sessionId={activeSessionId} />
+          </CollapsibleSection>
+        )}
+
+        {session?.track_name && (
+          <CollapsibleSection
+            id="leaderboard"
+            title="Leaderboard"
+            subtitle="See how you rank at this track"
+            sectionStates={sectionStates}
+            onToggle={handleToggle}
+          >
+            <TrackLeaderboardSummary trackName={session.track_name} />
+          </CollapsibleSection>
+        )}
+
+        {report && patternCount > 0 && (
+          <CollapsibleSection
+            id="patterns_drills"
+            title="Patterns & Drills"
+            subtitle={`${patternCount} item${patternCount === 1 ? '' : 's'} identified`}
+            sectionStates={sectionStates}
+            onToggle={handleToggle}
+          >
+            <PatternsAndDrillsSection
+              patterns={report.patterns}
+              drills={report.drills}
+            />
+          </CollapsibleSection>
+        )}
+
+        {/* New achievements */}
+        {recentAchievements.length > 0 && (
+          <NewAchievementCard
+            achievements={recentAchievements}
+            onViewAll={() => setBadgesOpen(true)}
+          />
+        )}
+
+        <CollapsibleSection
+          id="raw_data"
+          title="Raw Data"
+          subtitle="Detailed lap-by-lap telemetry table"
+          sectionStates={sectionStates}
+          onToggle={handleToggle}
+        >
+          <RawDataTable />
+        </CollapsibleSection>
       </div>
     </ScrollArea>
     <BadgeGrid open={badgesOpen} onClose={() => setBadgesOpen(false)} />
