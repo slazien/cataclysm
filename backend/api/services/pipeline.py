@@ -584,6 +584,21 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
         vehicle_params = resolve_vehicle_params(session_id)
         has_equipment = vehicle_params is not None
 
+        se = equipment_store.get_session_equipment(session_id)
+        logger.info(
+            "Optimal comparison [params] sid=%s has_equipment=%s profile_id=%s "
+            "mu=%.3f lat_g=%.3f decel_g=%.3f accel_g=%.3f mass=%.0f power=%.0f",
+            session_id,
+            has_equipment,
+            se.profile_id if se else None,
+            vehicle_params.mu if vehicle_params else 0,
+            vehicle_params.max_lateral_g if vehicle_params else 0,
+            vehicle_params.max_decel_g if vehicle_params else 0,
+            vehicle_params.max_accel_g if vehicle_params else 0,
+            vehicle_params.mass_kg if vehicle_params else 0,
+            vehicle_params.wheel_power_w if vehicle_params else 0,
+        )
+
         # Auto-calibrate from independent session telemetry, excluding the lap
         # currently being evaluated so the benchmark stays externally anchored.
         # Skip grip calibration when equipment is explicitly assigned — trust
