@@ -18,6 +18,7 @@ import { ToastContainer } from '@/components/shared/ToastContainer';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { KeyboardShortcutOverlay } from '@/components/shared/KeyboardShortcutOverlay';
 import { DisclaimerModal } from '@/components/shared/DisclaimerModal';
+import { AppFooter } from '@/components/shared/AppFooter';
 
 export default function Home() {
   const settingsPanelOpen = useUiStore((s) => s.settingsPanelOpen);
@@ -70,6 +71,7 @@ export default function Home() {
           <ViewRouter />
         </main>
       </div>
+      <AppFooter />
       <MobileBottomTabs />
       <FloatingChatButton />
       <ChatDrawer />
