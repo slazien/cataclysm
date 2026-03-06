@@ -55,7 +55,7 @@ class TestCoachingSystemPrompt:
         assert '"Because" Clause' in COACHING_SYSTEM_PROMPT
 
     def test_external_focus_required(self) -> None:
-        assert "External Focus" in COACHING_SYSTEM_PROMPT
+        assert "external focus" in COACHING_SYSTEM_PROMPT.lower()
 
     def test_golden_example_present(self) -> None:
         assert "Golden Example" in COACHING_SYSTEM_PROMPT

@@ -114,6 +114,7 @@ class EquipmentProfileCreate(BaseModel):
     suspension: SuspensionSpecSchema | None = None
     vehicle_overrides: dict[str, float] = Field(default_factory=dict)
     notes: str | None = None
+    is_default: bool = False
 
     @field_validator("vehicle_overrides")
     @classmethod
@@ -138,6 +139,7 @@ class EquipmentProfileResponse(BaseModel):
     suspension: SuspensionSpecSchema | None = None
     vehicle_overrides: dict[str, float] = Field(default_factory=dict)
     notes: str | None = None
+    is_default: bool = False
 
 
 class EquipmentProfileList(BaseModel):

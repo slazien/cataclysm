@@ -398,6 +398,7 @@ def _profile_to_response(p: EquipmentProfile) -> EquipmentProfileResponse:
         suspension=_suspension_to_schema(p.suspension) if p.suspension else None,
         vehicle_overrides=p.vehicle_overrides,
         notes=p.notes,
+        is_default=p.is_default,
     )
 
 
@@ -436,8 +437,19 @@ async def create_profile(
         suspension=_schema_to_suspension(body.suspension) if body.suspension else None,
         vehicle_overrides=dict(body.vehicle_overrides),
         notes=body.notes,
+        is_default=body.is_default,
     )
     equipment_store.store_profile(profile)
+    equipment_store.set_profile_owner(profile_id, current_user.user_id)
+
+    # Enforce single-default: unset others if this is marked default
+    if profile.is_default:
+        changed = equipment_store.ensure_single_default(current_user.user_id, profile_id)
+        for cid in changed:
+            cp = equipment_store.get_profile(cid)
+            if cp is not None:
+                await equipment_store.db_persist_profile(cp, user_id=current_user.user_id)
+
     await equipment_store.db_persist_profile(profile, user_id=current_user.user_id)
     return _profile_to_response(profile)
 
@@ -484,8 +496,18 @@ async def update_profile(
         suspension=_schema_to_suspension(body.suspension) if body.suspension else None,
         vehicle_overrides=dict(body.vehicle_overrides),
         notes=body.notes,
+        is_default=body.is_default,
     )
     equipment_store.store_profile(updated)
+
+    # Enforce single-default: unset others if this is marked default
+    if updated.is_default:
+        changed = equipment_store.ensure_single_default(current_user.user_id, profile_id)
+        for cid in changed:
+            cp = equipment_store.get_profile(cid)
+            if cp is not None:
+                await equipment_store.db_persist_profile(cp, user_id=current_user.user_id)
+
     await equipment_store.db_persist_profile(updated, user_id=current_user.user_id)
     return _profile_to_response(updated)
 

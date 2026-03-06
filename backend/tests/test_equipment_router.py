@@ -1273,3 +1273,126 @@ def test_conditions_to_schema_minimal() -> None:
     assert schema.humidity_pct is None
     assert schema.precipitation_mm is None
     assert schema.weather_source is None
+
+
+# ---------------------------------------------------------------------------
+# Default profile tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_create_profile_with_is_default(client: AsyncClient) -> None:
+    """Creating a profile with is_default=True stores the flag."""
+    payload = {**SAMPLE_PROFILE_MINIMAL, "is_default": True}
+    resp = await client.post("/api/equipment/profiles", json=payload)
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["is_default"] is True
+
+
+@pytest.mark.asyncio
+async def test_create_profile_default_false_by_default(client: AsyncClient) -> None:
+    """Profiles default to is_default=False when not specified."""
+    resp = await client.post("/api/equipment/profiles", json=SAMPLE_PROFILE_MINIMAL)
+    assert resp.status_code == 201
+    assert resp.json()["is_default"] is False
+
+
+@pytest.mark.asyncio
+async def test_single_default_enforcement(client: AsyncClient) -> None:
+    """Setting a second profile as default unsets the first."""
+    payload_a = {**SAMPLE_PROFILE_MINIMAL, "name": "Profile A", "is_default": True}
+    resp_a = await client.post("/api/equipment/profiles", json=payload_a)
+    assert resp_a.status_code == 201
+    id_a = resp_a.json()["id"]
+
+    payload_b = {**SAMPLE_PROFILE_MINIMAL, "name": "Profile B", "is_default": True}
+    resp_b = await client.post("/api/equipment/profiles", json=payload_b)
+    assert resp_b.status_code == 201
+
+    # Profile A should no longer be default
+    resp_check = await client.get(f"/api/equipment/profiles/{id_a}")
+    assert resp_check.status_code == 200
+    assert resp_check.json()["is_default"] is False
+
+
+@pytest.mark.asyncio
+async def test_update_profile_toggle_default(client: AsyncClient) -> None:
+    """PATCH can toggle is_default on an existing profile."""
+    resp = await client.post("/api/equipment/profiles", json=SAMPLE_PROFILE_MINIMAL)
+    pid = resp.json()["id"]
+
+    # Toggle on
+    update_payload = {**SAMPLE_PROFILE_MINIMAL, "is_default": True}
+    resp2 = await client.patch(f"/api/equipment/profiles/{pid}", json=update_payload)
+    assert resp2.status_code == 200
+    assert resp2.json()["is_default"] is True
+
+    # Toggle off
+    update_payload2 = {**SAMPLE_PROFILE_MINIMAL, "is_default": False}
+    resp3 = await client.patch(f"/api/equipment/profiles/{pid}", json=update_payload2)
+    assert resp3.status_code == 200
+    assert resp3.json()["is_default"] is False
+
+
+def test_get_default_profile_returns_none_when_empty() -> None:
+    """get_default_profile returns None when no profiles exist."""
+    assert equipment_store.get_default_profile("user123") is None
+
+
+def test_get_default_profile_returns_default() -> None:
+    """get_default_profile returns the profile marked as default for the user."""
+    from cataclysm.equipment import EquipmentProfile, MuSource, TireCompoundCategory, TireSpec
+
+    profile = EquipmentProfile(
+        id="eq_test_default",
+        name="Default",
+        tires=TireSpec(
+            model="Test",
+            compound_category=TireCompoundCategory.STREET,
+            size="255/40R17",
+            treadwear_rating=200,
+            estimated_mu=1.0,
+            mu_source=MuSource.MANUFACTURER_SPEC,
+            mu_confidence="low",
+        ),
+        is_default=True,
+    )
+    equipment_store.store_profile(profile)
+    equipment_store.set_profile_owner("eq_test_default", "user_abc")
+
+    result = equipment_store.get_default_profile("user_abc")
+    assert result is not None
+    assert result.id == "eq_test_default"
+
+    # Different user gets None
+    assert equipment_store.get_default_profile("user_other") is None
+
+
+def test_ensure_single_default_clears_others() -> None:
+    """ensure_single_default unsets is_default on other profiles for the same user."""
+    from cataclysm.equipment import EquipmentProfile, MuSource, TireCompoundCategory, TireSpec
+
+    tire = TireSpec(
+        model="Test",
+        compound_category=TireCompoundCategory.STREET,
+        size="255/40R17",
+        treadwear_rating=200,
+        estimated_mu=1.0,
+        mu_source=MuSource.MANUFACTURER_SPEC,
+        mu_confidence="low",
+    )
+    p1 = EquipmentProfile(id="eq_1", name="P1", tires=tire, is_default=True)
+    p2 = EquipmentProfile(id="eq_2", name="P2", tires=tire, is_default=False)
+
+    equipment_store.store_profile(p1)
+    equipment_store.store_profile(p2)
+    equipment_store.set_profile_owner("eq_1", "user_x")
+    equipment_store.set_profile_owner("eq_2", "user_x")
+
+    changed = equipment_store.ensure_single_default("user_x", "eq_2")
+    assert "eq_1" in changed
+
+    # p1 should now be False
+    assert equipment_store.get_profile("eq_1") is not None
+    assert not equipment_store.get_profile("eq_1").is_default  # type: ignore[union-attr]

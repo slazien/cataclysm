@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 
 _profiles: dict[str, EquipmentProfile] = {}
 _session_equipment: dict[str, SessionEquipment] = {}
+_profile_owners: dict[str, str] = {}  # profile_id -> user_id
 
 # Disk persistence directory (set via init_equipment_dir on startup)
 _equipment_dir: Path | None = None
@@ -227,6 +228,7 @@ def _profile_from_dict(d: dict[str, object]) -> EquipmentProfile:
         suspension=suspension,
         vehicle_overrides=vehicle_overrides,
         notes=_opt_str(d, "notes"),
+        is_default=bool(d.get("is_default", False)),
     )
 
 
@@ -292,8 +294,40 @@ def delete_profile(profile_id: str) -> bool:
     if profile_id not in _profiles:
         return False
     del _profiles[profile_id]
+    _profile_owners.pop(profile_id, None)
     _delete_persisted_profile(profile_id)
     return True
+
+
+def set_profile_owner(profile_id: str, user_id: str) -> None:
+    """Track which user owns a profile (for default-profile lookups)."""
+    _profile_owners[profile_id] = user_id
+
+
+def get_default_profile(user_id: str) -> EquipmentProfile | None:
+    """Return the default equipment profile for a user, or None."""
+    for pid, owner in _profile_owners.items():
+        if owner == user_id:
+            profile = _profiles.get(pid)
+            if profile is not None and profile.is_default:
+                return profile
+    return None
+
+
+def ensure_single_default(user_id: str, new_default_id: str) -> list[str]:
+    """Unset is_default on all other profiles owned by *user_id*.
+
+    Returns list of profile IDs that were changed.
+    """
+    changed: list[str] = []
+    for pid, owner in _profile_owners.items():
+        if owner == user_id and pid != new_default_id:
+            profile = _profiles.get(pid)
+            if profile is not None and profile.is_default:
+                profile.is_default = False
+                _persist_profile(profile)
+                changed.append(pid)
+    return changed
 
 
 # ---------------------------------------------------------------------------
@@ -378,6 +412,7 @@ def clear_all_equipment() -> None:
     """Remove all equipment data from memory (does not delete disk files)."""
     _profiles.clear()
     _session_equipment.clear()
+    _profile_owners.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -393,6 +428,9 @@ async def db_persist_profile(profile: EquipmentProfile, user_id: str | None = No
     from backend.api.db.database import async_session_factory
     from backend.api.db.models import EquipmentProfileDB
 
+    if user_id:
+        _profile_owners[profile.id] = user_id
+
     try:
         async with async_session_factory() as db:
             await db.merge(
@@ -401,6 +439,7 @@ async def db_persist_profile(profile: EquipmentProfile, user_id: str | None = No
                     user_id=user_id,
                     name=profile.name,
                     profile_json=asdict(profile),
+                    is_default=profile.is_default,
                 )
             )
             await db.commit()
@@ -489,7 +528,11 @@ async def load_equipment_from_db() -> tuple[int, int]:
                 try:
                     if p_row.profile_json:
                         profile = _profile_from_dict(p_row.profile_json)
+                        # DB column is source of truth for is_default
+                        profile.is_default = p_row.is_default
                         _profiles[profile.id] = profile
+                        if p_row.user_id:
+                            _profile_owners[profile.id] = p_row.user_id
                         n_profiles += 1
                 except (KeyError, TypeError, ValueError):
                     logger.warning(

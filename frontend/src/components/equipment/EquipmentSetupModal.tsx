@@ -16,6 +16,7 @@ import {
   useCommonBrakeFluids,
   useCommonTireSizes,
   useCreateProfile,
+  useEquipmentProfiles,
   useTireSearch,
   useUpdateProfile,
   useVehicleSearch,
@@ -69,8 +70,10 @@ export function EquipmentSetupModal({
   const [selectedPad, setSelectedPad] = useState<BrakePadSearchResult | null>(null);
   const [brakeFluid, setBrakeFluid] = useState('');
   const [notes, setNotes] = useState('');
+  const [isDefault, setIsDefault] = useState(false);
 
   // --- Queries ---
+  const { data: profilesData } = useEquipmentProfiles();
   const { data: vehicleResults, isLoading: searchingVehicles } = useVehicleSearch(vehicleQuery);
   const { data: tireResults, isLoading: searchingTires } = useTireSearch(tireQuery);
   const { data: padResults, isLoading: searchingPads } = useBrakePadSearch(padQuery);
@@ -115,6 +118,7 @@ export function EquipmentSetupModal({
       }
       setBrakeFluid(editProfile.brakes?.fluid_type ?? '');
       setNotes(editProfile.notes ?? '');
+      setIsDefault(editProfile.is_default ?? false);
     } else {
       // Reset for create mode
       setProfileName('');
@@ -131,8 +135,10 @@ export function EquipmentSetupModal({
       setSelectedPad(null);
       setBrakeFluid('');
       setNotes('');
+      // Auto-check default when creating the first profile
+      setIsDefault(!profilesData?.items?.length);
     }
-  }, [open, editProfile]);
+  }, [open, editProfile, profilesData]);
 
   // Close tire size dropdown on outside click
   useEffect(() => {
@@ -214,6 +220,7 @@ export function EquipmentSetupModal({
           ? { compound: null, rotor_type: null, pad_temp_range: null, fluid_type: brakeFluid }
           : null,
       notes: notes || null,
+      is_default: isDefault,
     };
 
     if (isEdit && editProfile) {
@@ -237,7 +244,7 @@ export function EquipmentSetupModal({
   }, [
     selectedTire, tireQuery, profileName, compoundCategory, tireSize,
     tirePressure, selectedVehicle, vehicleOverrides, selectedPad, brakeFluid,
-    notes, isEdit, editProfile, createMutation, updateMutation, onSaved, onOpenChange,
+    notes, isDefault, isEdit, editProfile, createMutation, updateMutation, onSaved, onOpenChange,
   ]);
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
@@ -634,6 +641,19 @@ export function EquipmentSetupModal({
               </div>
             </div>
           </fieldset>
+
+          {/* Default profile toggle */}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isDefault}
+              onChange={(e) => setIsDefault(e.target.checked)}
+              className="h-4 w-4 rounded border-[var(--cata-border)] accent-[var(--cata-accent)]"
+            />
+            <span className="text-sm text-[var(--text-secondary)]">
+              Set as default (auto-assign to new uploads)
+            </span>
+          </label>
 
           {/* Notes */}
           <div>

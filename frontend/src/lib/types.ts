@@ -318,6 +318,7 @@ export interface EquipmentProfile {
   suspension?: Record<string, unknown> | null;
   vehicle_overrides?: Record<string, number>;
   notes: string | null;
+  is_default?: boolean;
 }
 
 export interface EquipmentProfileCreate {
@@ -333,6 +334,7 @@ export interface EquipmentProfileCreate {
   suspension?: Record<string, unknown> | null;
   vehicle_overrides?: Record<string, number>;
   notes?: string | null;
+  is_default?: boolean;
 }
 
 export interface SessionEquipmentSet {

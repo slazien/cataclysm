@@ -367,6 +367,37 @@ async def upload_sessions(
                     logger.warning("Failed to persist CSV bytes for %s", sid, exc_info=True)
                     await db.rollback()
 
+            # Auto-assign default equipment profile (authenticated users only)
+            if sd is not None and current_user is not None:
+                try:
+                    from backend.api.services import equipment_store
+
+                    existing_eq = equipment_store.get_session_equipment(sid)
+                    if existing_eq is None:
+                        default_profile = equipment_store.get_default_profile(
+                            current_user.user_id,
+                        )
+                        if default_profile is not None:
+                            from cataclysm.equipment import SessionEquipment
+
+                            se = SessionEquipment(
+                                session_id=sid,
+                                profile_id=default_profile.id,
+                            )
+                            equipment_store.store_session_equipment(se)
+                            await equipment_store.db_persist_session_equipment(se)
+                            logger.info(
+                                "Auto-assigned default equipment %s to session %s",
+                                default_profile.id,
+                                sid,
+                            )
+                except Exception:
+                    logger.warning(
+                        "Auto-assign equipment failed for %s",
+                        sid,
+                        exc_info=True,
+                    )
+
             # Auto-generate coaching report (both anonymous and authenticated)
             if sd is not None:
                 try:

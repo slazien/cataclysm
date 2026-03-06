@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Pencil, Trash2, Plus } from 'lucide-react';
-import { useEquipmentProfiles, useDeleteProfile } from '@/hooks/useEquipment';
+import { Pencil, Trash2, Plus, Star } from 'lucide-react';
+import { useEquipmentProfiles, useDeleteProfile, useUpdateProfile } from '@/hooks/useEquipment';
 import { EquipmentSetupModal } from './EquipmentSetupModal';
 import type { EquipmentProfile } from '@/lib/types';
 
@@ -16,6 +16,7 @@ const COMPOUND_LABELS: Record<string, string> = {
 export function EquipmentProfileList() {
   const { data: profilesData } = useEquipmentProfiles();
   const deleteMutation = useDeleteProfile();
+  const updateMutation = useUpdateProfile();
   const [modalOpen, setModalOpen] = useState(false);
   const [editProfile, setEditProfile] = useState<EquipmentProfile | null>(null);
 
@@ -35,6 +36,21 @@ export function EquipmentProfileList() {
   function handleCreateNew() {
     setEditProfile(null);
     setModalOpen(true);
+  }
+
+  function handleToggleDefault(profile: EquipmentProfile) {
+    updateMutation.mutate({
+      profileId: profile.id,
+      body: {
+        name: profile.name,
+        tires: profile.tires,
+        vehicle: profile.vehicle ?? null,
+        brakes: profile.brakes ?? null,
+        vehicle_overrides: profile.vehicle_overrides ?? {},
+        notes: profile.notes,
+        is_default: !profile.is_default,
+      },
+    });
   }
 
   function formatSummary(profile: EquipmentProfile): string {
@@ -72,7 +88,10 @@ export function EquipmentProfileList() {
               className="flex items-center justify-between rounded-lg border border-[var(--cata-border)] px-3 py-2 transition-colors hover:border-[var(--text-muted)]/40"
             >
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-[var(--text-primary)]">
+                <p className="flex items-center gap-1 truncate text-sm font-medium text-[var(--text-primary)]">
+                  {profile.is_default && (
+                    <Star className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400" />
+                  )}
                   {profile.name}
                 </p>
                 <p className="truncate text-xs text-[var(--text-muted)]">
@@ -80,6 +99,18 @@ export function EquipmentProfileList() {
                 </p>
               </div>
               <div className="ml-2 flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => handleToggleDefault(profile)}
+                  className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
+                    profile.is_default
+                      ? 'text-amber-400 hover:bg-[var(--bg-elevated)] hover:text-amber-300'
+                      : 'text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-amber-400'
+                  }`}
+                  title={profile.is_default ? 'Remove default' : 'Set as default'}
+                >
+                  <Star className={`h-3.5 w-3.5 ${profile.is_default ? 'fill-current' : ''}`} />
+                </button>
                 <button
                   type="button"
                   onClick={() => handleEdit(profile)}

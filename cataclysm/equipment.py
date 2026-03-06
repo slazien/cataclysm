@@ -194,6 +194,7 @@ class EquipmentProfile:
     suspension: SuspensionSpec | None = None
     vehicle_overrides: dict[str, float] = field(default_factory=dict)
     notes: str | None = None
+    is_default: bool = False
 
 
 @dataclass

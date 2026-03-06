@@ -236,7 +236,8 @@ async def get_public_view(
         if report:
             coaching_summary = report.summary
 
-        session_score = await _compute_session_score(sd)
+        score_result = await _compute_session_score(sd)
+        session_score = score_result.total
 
         # Downsample GPS coords from best lap to ~300 points
         best_lap_summary = min(sd.processed.lap_summaries, key=lambda ls: ls.lap_time_s)

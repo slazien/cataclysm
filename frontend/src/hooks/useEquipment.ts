@@ -36,6 +36,9 @@ export function useCreateProfile() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipment-profiles"] });
+      // Default profile changes may affect session equipment auto-assignment
+      queryClient.invalidateQueries({ queryKey: ["session"] });
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
     },
   });
 }

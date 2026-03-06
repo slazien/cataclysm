@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Settings2, ChevronDown, Check, Pencil } from 'lucide-react';
+import { Settings2, ChevronDown, Check, Pencil, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUiStore } from '@/stores';
 import {
@@ -159,7 +159,12 @@ function EquipmentDropdown({
               className="flex flex-1 items-center justify-between text-left"
             >
               <div>
-                <p className="text-sm text-[var(--text-primary)]">{profile.name}</p>
+                <p className="flex items-center gap-1 text-sm text-[var(--text-primary)]">
+                  {profile.name}
+                  {profile.is_default && (
+                    <Star className="h-2.5 w-2.5 shrink-0 fill-amber-400 text-amber-400" />
+                  )}
+                </p>
                 <p className="text-xs text-[var(--text-muted)]">
                   {profile.tires.model}
                 </p>
