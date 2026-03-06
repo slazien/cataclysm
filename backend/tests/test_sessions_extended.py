@@ -14,6 +14,7 @@ import pytest
 from httpx import AsyncClient
 
 from backend.api.routers.sessions import (
+    ScoreResult,
     _auto_fetch_weather,
     _compute_ideal_lap_time,
     _compute_session_score,
@@ -422,7 +423,7 @@ async def test_compute_session_score_no_components_returns_none() -> None:
     ):
         result = await _compute_session_score(sd)
 
-    assert result is None
+    assert result.total is None
 
 
 @pytest.mark.asyncio
@@ -453,8 +454,10 @@ async def test_compute_session_score_with_corner_grades(client: AsyncClient) -> 
     ):
         result = await _compute_session_score(sd)
 
-    assert result is not None
-    assert 0.0 <= result <= 100.0
+    assert result.total is not None
+    assert 0.0 <= result.total <= 100.0
+    assert result.technique is not None
+    assert result.pace is not None
 
 
 @pytest.mark.asyncio
@@ -473,8 +476,11 @@ async def test_compute_session_score_consistency_only() -> None:
     ):
         result = await _compute_session_score(sd)
 
-    assert result is not None
-    assert result == pytest.approx(80.0)
+    assert result.total is not None
+    assert result.total == pytest.approx(80.0)
+    assert result.consistency == pytest.approx(80.0)
+    assert result.pace is None
+    assert result.technique is None
 
 
 @pytest.mark.asyncio
@@ -500,7 +506,8 @@ async def test_compute_session_score_corner_grades_with_empty_grade() -> None:
         result = await _compute_session_score(sd)
 
     # Only one valid grade "B"=80, so result should be 80
-    assert result == pytest.approx(80.0)
+    assert result.total == pytest.approx(80.0)
+    assert result.technique == pytest.approx(80.0)
 
 
 @pytest.mark.asyncio
@@ -519,7 +526,8 @@ async def test_compute_session_score_skips_invalid_pace_reference() -> None:
     ):
         result = await _compute_session_score(sd)
 
-    assert result == pytest.approx(82.0)
+    assert result.total == pytest.approx(82.0)
+    assert result.pace is None  # invalid reference skipped
 
 
 # ===========================================================================
@@ -2110,7 +2118,7 @@ async def test_list_sessions_direct_in_memory_path() -> None:
             patch(
                 "backend.api.routers.sessions._compute_session_score",
                 new_callable=AsyncMock,
-                return_value=85.0,
+                return_value=ScoreResult(total=85.0),
             ),
         ):
             result = await list_sessions(current_user=mock_user, db=mock_db)
@@ -2362,7 +2370,7 @@ async def test_list_sessions_restores_weather_from_snapshot() -> None:
             patch(
                 "backend.api.routers.sessions._compute_session_score",
                 new_callable=AsyncMock,
-                return_value=None,
+                return_value=ScoreResult(),
             ),
         ):
             result = await list_sessions(current_user=mock_user, db=mock_db)

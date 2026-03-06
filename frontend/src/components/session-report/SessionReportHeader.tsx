@@ -1,11 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
 import type { SessionSummary, GPSQualityReport } from '@/lib/types';
 import { ShareButton } from '@/components/dashboard/ShareButton';
 import { ShareSessionDialog } from '@/components/comparison/ShareSessionDialog';
-import { useCoachingReport } from '@/hooks/useCoaching';
-import { useSessionStore } from '@/stores';
 import { useUnits } from '@/hooks/useUnits';
 import {
   Tooltip,
@@ -20,67 +17,29 @@ interface SessionReportHeaderProps {
   sessionId?: string;
 }
 
-/** Map score 0-100 to a CSS color string. */
-function scoreColor(score: number): string {
+/** Map score 0-100 to a hex color. */
+function scoreHex(score: number): string {
   if (score >= 80) return '#22c55e'; // green-500
   if (score >= 60) return '#f59e0b'; // amber-500
   return '#ef4444'; // red-500
 }
 
-function scoreTailwind(score: number): string {
+function scoreTw(score: number): string {
   if (score >= 80) return 'text-green-400';
   if (score >= 60) return 'text-yellow-400';
   return 'text-red-400';
-}
-
-const GRADE_MAP: Record<string, number> = { A: 100, B: 80, C: 60, D: 40, F: 20 };
-
-interface ScoreBreakdown {
-  consistency: number | null;
-  pace: number | null;
-  technique: number | null;
-}
-
-function useScoreBreakdown(session: SessionSummary | null): ScoreBreakdown {
-  const activeSessionId = useSessionStore((s) => s.activeSessionId);
-  const { data: report } = useCoachingReport(activeSessionId);
-
-  return useMemo(() => {
-    const consistency = session?.consistency_score != null
-      ? Math.min(100, Math.max(0, session.consistency_score))
-      : null;
-
-    // Corner grades → technique score (average of all grade letters)
-    let technique: number | null = null;
-    if (report?.corner_grades && report.corner_grades.length > 0) {
-      let total = 0;
-      let count = 0;
-      for (const cg of report.corner_grades) {
-        for (const field of ['braking', 'trail_braking', 'min_speed', 'throttle'] as const) {
-          const letter = (cg[field] ?? '').toString().charAt(0).toUpperCase();
-          if (letter in GRADE_MAP) {
-            total += GRADE_MAP[letter];
-            count += 1;
-          }
-        }
-      }
-      if (count > 0) technique = total / count;
-    }
-
-    return { consistency, pace: null, technique };
-  }, [session?.consistency_score, report]);
 }
 
 /** SVG circular progress ring — fills clockwise from 12 o'clock. */
 function ScoreRing({ score }: { score: number | null }) {
   const SIZE = 80;
   const STROKE = 4;
-  const RADIUS = (SIZE - STROKE) / 2;
-  const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+  const R = (SIZE - STROKE) / 2;
+  const C = 2 * Math.PI * R;
 
   const pct = score != null ? Math.min(100, Math.max(0, score)) / 100 : 0;
-  const offset = CIRCUMFERENCE * (1 - pct);
-  const color = score != null ? scoreColor(score) : 'var(--cata-border)';
+  const offset = C * (1 - pct);
+  const color = score != null ? scoreHex(score) : 'var(--cata-border)';
 
   return (
     <svg
@@ -93,23 +52,23 @@ function ScoreRing({ score }: { score: number | null }) {
       <circle
         cx={SIZE / 2}
         cy={SIZE / 2}
-        r={RADIUS}
+        r={R}
         fill="none"
         stroke="var(--cata-border)"
         strokeWidth={STROKE}
         opacity={0.3}
       />
-      {/* Progress arc */}
+      {/* Clockwise progress arc starting at 12 o'clock */}
       {score != null && (
         <circle
           cx={SIZE / 2}
           cy={SIZE / 2}
-          r={RADIUS}
+          r={R}
           fill="none"
           stroke={color}
           strokeWidth={STROKE}
           strokeLinecap="round"
-          strokeDasharray={CIRCUMFERENCE}
+          strokeDasharray={C}
           strokeDashoffset={offset}
           transform={`rotate(-90 ${SIZE / 2} ${SIZE / 2})`}
           className="transition-all duration-700 ease-out"
@@ -119,13 +78,13 @@ function ScoreRing({ score }: { score: number | null }) {
   );
 }
 
-function BreakdownRow({ label, value }: { label: string; value: number | null }) {
+function BreakdownRow({ label, value }: { label: string; value: number | null | undefined }) {
   if (value == null) return null;
   const rounded = Math.round(value);
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="text-xs text-[var(--text-muted)]">{label}</span>
-      <span className={`text-xs font-semibold tabular-nums ${scoreTailwind(rounded)}`}>
+      <span className={`text-xs font-semibold tabular-nums ${scoreTw(rounded)}`}>
         {rounded}
       </span>
     </div>
@@ -135,13 +94,15 @@ function BreakdownRow({ label, value }: { label: string; value: number | null })
 export function SessionReportHeader({ session, gpsQuality, sessionId }: SessionReportHeaderProps) {
   const { formatTemp } = useUnits();
   const score = session?.session_score;
-  const breakdown = useScoreBreakdown(session);
-  const hasBreakdown = breakdown.consistency != null || breakdown.pace != null || breakdown.technique != null;
+  const hasBreakdown =
+    session?.score_consistency != null ||
+    session?.score_pace != null ||
+    session?.score_technique != null;
 
   const scoreCircle = (
     <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-[var(--bg-elevated)]">
       <ScoreRing score={score ?? null} />
-      <span className={`relative font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight ${score != null ? scoreTailwind(score) : 'text-[var(--text-muted)]'}`}>
+      <span className={`relative font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight ${score != null ? scoreTw(score) : 'text-[var(--text-muted)]'}`}>
         {score != null ? Math.round(score) : '\u2014'}
       </span>
       <span className="absolute -bottom-1 rounded-full bg-[var(--bg-surface)] px-1.5 text-[10px] font-medium text-[var(--text-muted)]">
@@ -152,7 +113,7 @@ export function SessionReportHeader({ session, gpsQuality, sessionId }: SessionR
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
-      {/* Score circle with optional breakdown tooltip */}
+      {/* Score circle with breakdown tooltip */}
       {hasBreakdown ? (
         <TooltipProvider delayDuration={0}>
           <Tooltip>
@@ -167,9 +128,9 @@ export function SessionReportHeader({ session, gpsQuality, sessionId }: SessionR
               className="w-44 space-y-1.5 p-3"
             >
               <p className="mb-1 text-xs font-medium text-[var(--text-primary)]">Score Breakdown</p>
-              <BreakdownRow label="Consistency" value={breakdown.consistency} />
-              <BreakdownRow label="Pace" value={breakdown.pace} />
-              <BreakdownRow label="Technique" value={breakdown.technique} />
+              <BreakdownRow label="Consistency" value={session?.score_consistency} />
+              <BreakdownRow label="Pace" value={session?.score_pace} />
+              <BreakdownRow label="Technique" value={session?.score_technique} />
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

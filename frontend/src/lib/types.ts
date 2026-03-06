@@ -9,6 +9,9 @@ export interface SessionSummary {
   avg_lap_time_s: number | null;
   consistency_score: number | null;
   session_score: number | null;
+  score_consistency?: number | null;
+  score_pace?: number | null;
+  score_technique?: number | null;
   tire_model?: string | null;
   compound_category?: string | null;
   equipment_profile_name?: string | null;

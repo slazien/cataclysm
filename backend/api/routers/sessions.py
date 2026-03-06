@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import math
+from dataclasses import dataclass
 from typing import Annotated, cast
 
 import numpy as np
@@ -187,21 +188,31 @@ async def _compute_ideal_lap_time(sd: session_store.SessionData) -> float | None
         return None
 
 
-async def _compute_session_score(sd: session_store.SessionData) -> float | None:
+@dataclass
+class ScoreResult:
+    """Session score with per-component breakdown."""
+
+    total: float | None = None
+    consistency: float | None = None
+    pace: float | None = None
+    technique: float | None = None
+
+
+async def _compute_session_score(sd: session_store.SessionData) -> ScoreResult:
     """Compute composite session score matching the dashboard formula.
 
     Weighted composite: consistency 40% + pace 30% + corner grades 30%.
     Falls back gracefully when some components are unavailable.
     """
     components: list[tuple[float, float]] = []  # (value, weight)
+    result = ScoreResult()
 
     # Consistency (40%)
     if sd.consistency and sd.consistency.lap_consistency:
-        components.append((_normalize_score(sd.consistency.lap_consistency.consistency_score), 0.4))
+        result.consistency = _normalize_score(sd.consistency.lap_consistency.consistency_score)
+        components.append((result.consistency, 0.4))
 
     # Pace: best lap vs ideal lap (30%)
-    # Use ideal-lap integration (best speed at every 0.7m point) for the
-    # most realistic optimal target. Falls back to snapshot composite best.
     snap = sd.snapshot
     if snap.best_lap_time_s > 0:
         optimal_time = await _compute_ideal_lap_time(sd)
@@ -209,8 +220,8 @@ async def _compute_session_score(sd: session_store.SessionData) -> float | None:
             optimal_time = snap.optimal_lap_time_s
         if _is_valid_pace_reference(snap.best_lap_time_s, optimal_time):
             gap_pct = 1 - (cast(float, optimal_time) / snap.best_lap_time_s)
-            pace_value = min(100.0, max(0.0, 100 - gap_pct * 500))
-            components.append((pace_value, 0.3))
+            result.pace = min(100.0, max(0.0, 100 - gap_pct * 500))
+            components.append((result.pace, 0.3))
 
     # Corner grades (30%)
     report = await get_any_coaching_report(sd.session_id)
@@ -225,13 +236,15 @@ async def _compute_session_score(sd: session_store.SessionData) -> float | None:
                     total += grade_map[letter]
                     count += 1
         if count > 0:
-            components.append((total / count, 0.3))
+            result.technique = total / count
+            components.append((result.technique, 0.3))
 
     if not components:
-        return None
+        return result
 
     total_weight = sum(w for _, w in components)
-    return sum(v * (w / total_weight) for v, w in components)
+    result.total = sum(v * (w / total_weight) for v, w in components)
+    return result
 
 
 @router.post("/upload", response_model=UploadResponse)
@@ -494,7 +507,10 @@ async def list_sessions(
                     top3_avg_time_s=sd.snapshot.top3_avg_time_s,
                     avg_lap_time_s=sd.snapshot.avg_lap_time_s,
                     consistency_score=sd.snapshot.consistency_score,
-                    session_score=score,
+                    session_score=score.total,
+                    score_consistency=score.consistency,
+                    score_pace=score.pace,
+                    score_technique=score.technique,
                     gps_quality_score=sd.gps_quality.overall_score if sd.gps_quality else None,
                     gps_quality_grade=sd.gps_quality.grade if sd.gps_quality else None,
                     tire_model=tire_model,
@@ -559,7 +575,10 @@ async def get_session(
         top3_avg_time_s=sd.snapshot.top3_avg_time_s,
         avg_lap_time_s=sd.snapshot.avg_lap_time_s,
         consistency_score=sd.snapshot.consistency_score,
-        session_score=score,
+        session_score=score.total,
+        score_consistency=score.consistency,
+        score_pace=score.pace,
+        score_technique=score.technique,
         gps_quality_score=sd.gps_quality.overall_score if sd.gps_quality else None,
         gps_quality_grade=sd.gps_quality.grade if sd.gps_quality else None,
         tire_model=tire_model,

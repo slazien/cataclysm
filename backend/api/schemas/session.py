@@ -20,6 +20,9 @@ class SessionSummary(BaseModel):
     avg_lap_time_s: float | None = None
     consistency_score: float | None = None
     session_score: float | None = None
+    score_consistency: float | None = None
+    score_pace: float | None = None
+    score_technique: float | None = None
     tire_model: str | None = None
     compound_category: str | None = None
     equipment_profile_name: str | None = None
