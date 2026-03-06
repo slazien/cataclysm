@@ -4,11 +4,15 @@ import { useQuery, useQueries, keepPreviousData } from "@tanstack/react-query";
 import { getCorners, getAllLapCorners, getConsistency, getGains, getGrip, getDelta, getLapData, getGPSQuality, getMiniSectors, getDegradation, getOptimalComparison, getGGDiagram, getLineAnalysis } from "@/lib/api";
 import type { Corner, SessionConsistency, DeltaData, LapData, GPSQualityReport, MiniSectorData, DegradationData, OptimalComparisonData, GGDiagramData, LineAnalysisData } from "@/lib/types";
 
+// Telemetry data is immutable per session — never refetch once cached.
+const IMMUTABLE = { staleTime: Infinity } as const;
+
 export function useCorners(sessionId: string | null) {
   return useQuery<Corner[]>({
     queryKey: ["corners", sessionId],
     queryFn: () => getCorners(sessionId!),
     enabled: !!sessionId,
+    ...IMMUTABLE,
   });
 }
 
@@ -17,6 +21,7 @@ export function useAllLapCorners(sessionId: string | null) {
     queryKey: ["all-lap-corners", sessionId],
     queryFn: () => getAllLapCorners(sessionId!),
     enabled: !!sessionId,
+    ...IMMUTABLE,
   });
 }
 
@@ -25,6 +30,7 @@ export function useConsistency(sessionId: string | null) {
     queryKey: ["consistency", sessionId],
     queryFn: () => getConsistency(sessionId!),
     enabled: !!sessionId,
+    ...IMMUTABLE,
   });
 }
 
@@ -33,6 +39,7 @@ export function useGains(sessionId: string | null) {
     queryKey: ["gains", sessionId],
     queryFn: () => getGains(sessionId!),
     enabled: !!sessionId,
+    ...IMMUTABLE,
   });
 }
 
@@ -41,6 +48,7 @@ export function useGrip(sessionId: string | null) {
     queryKey: ["grip", sessionId],
     queryFn: () => getGrip(sessionId!),
     enabled: !!sessionId,
+    ...IMMUTABLE,
   });
 }
 
@@ -53,6 +61,7 @@ export function useDelta(
     queryKey: ["delta", sessionId, ref, comp],
     queryFn: () => getDelta(sessionId!, ref!, comp!),
     enabled: !!sessionId && ref !== null && comp !== null,
+    ...IMMUTABLE,
   });
 }
 
@@ -61,6 +70,7 @@ export function useGPSQuality(sessionId: string | null) {
     queryKey: ["gps-quality", sessionId],
     queryFn: () => getGPSQuality(sessionId!),
     enabled: !!sessionId,
+    ...IMMUTABLE,
   });
 }
 
@@ -73,6 +83,7 @@ export function useMultiLapData(
       queryKey: ["lap-data", sessionId, lap],
       queryFn: () => getLapData(sessionId!, lap),
       enabled: !!sessionId,
+      staleTime: Infinity,
     })),
   });
 
@@ -93,6 +104,7 @@ export function useMiniSectors(
     queryKey: ["mini-sectors", sessionId, nSectors, lap],
     queryFn: () => getMiniSectors(sessionId!, nSectors, lap),
     enabled: !!sessionId,
+    ...IMMUTABLE,
   });
 }
 
@@ -101,6 +113,7 @@ export function useDegradation(sessionId: string | null) {
     queryKey: ["degradation", sessionId],
     queryFn: () => getDegradation(sessionId!),
     enabled: !!sessionId,
+    ...IMMUTABLE,
   });
 }
 
@@ -109,6 +122,7 @@ export function useOptimalComparison(sessionId: string | null) {
     queryKey: ["optimal-comparison", sessionId],
     queryFn: () => getOptimalComparison(sessionId!),
     enabled: !!sessionId,
+    ...IMMUTABLE,
   });
 }
 
@@ -118,6 +132,7 @@ export function useGGDiagram(sessionId: string | null, corner?: number) {
     queryFn: () => getGGDiagram(sessionId!, corner),
     enabled: !!sessionId,
     placeholderData: keepPreviousData,
+    ...IMMUTABLE,
   });
 }
 
@@ -129,5 +144,6 @@ export function useLineAnalysis(
     queryKey: ["line-analysis", sessionId, laps],
     queryFn: () => getLineAnalysis(sessionId!, laps),
     enabled: !!sessionId,
+    ...IMMUTABLE,
   });
 }

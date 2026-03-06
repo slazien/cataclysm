@@ -17,6 +17,9 @@ import { useUiStore } from "@/stores/uiStore";
 import { fetchApi } from "@/lib/api";
 import type { SessionSummary } from "@/lib/types";
 
+// Telemetry & session data is immutable once uploaded — never refetch.
+const IMMUTABLE = { staleTime: Infinity } as const;
+
 export function useSessions() {
   const { status } = useAuthSession();
   return useQuery({
@@ -32,6 +35,7 @@ export function useSession(sessionId: string | null) {
     queryKey: ["session", sessionId],
     queryFn: () => getSession(sessionId!),
     enabled: !!sessionId,
+    ...IMMUTABLE,
   });
 }
 
@@ -40,6 +44,7 @@ export function useSessionLaps(sessionId: string | null) {
     queryKey: ["session-laps", sessionId],
     queryFn: () => getSessionLaps(sessionId!),
     enabled: !!sessionId,
+    ...IMMUTABLE,
   });
 }
 
@@ -48,6 +53,7 @@ export function useLapData(sessionId: string | null, lapNumber: number | null) {
     queryKey: ["lap-data", sessionId, lapNumber],
     queryFn: () => getLapData(sessionId!, lapNumber!),
     enabled: !!sessionId && lapNumber !== null,
+    ...IMMUTABLE,
   });
 }
 
