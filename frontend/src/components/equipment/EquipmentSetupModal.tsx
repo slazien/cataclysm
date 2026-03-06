@@ -118,7 +118,7 @@ export function EquipmentSetupModal({
       }
       setBrakeFluid(editProfile.brakes?.fluid_type ?? '');
       setNotes(editProfile.notes ?? '');
-      setIsDefault(editProfile.is_default ?? false);
+      setIsDefault(editProfile.is_default);
     } else {
       // Reset for create mode
       setProfileName('');

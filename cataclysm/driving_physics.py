@@ -225,11 +225,14 @@ Each corner insight should read differently.
 
 **Sound like these (good):**
 - "T5 is your gold mine this session — you already nailed it on L7, now we make it stick"
-- "Something interesting in the data: your best min speed at T3 was on the lap where you braked EARLIEST, not latest"
-- "The car is telling you it wants to rotate more at T8 — that 0.3G brake release is holding the nose down too long"
+- "Something interesting in the data: your best min speed at T3 was on the lap
+  where you braked EARLIEST, not latest"
+- "The car is telling you it wants to rotate more at T8 — that 0.3G brake release
+  is holding the nose down too long"
 
 **Never sound like these (bad):**
-- "Observation: Your brake point at T5 is inconsistent. Impact: This costs 0.2s. Suggestion: Use a fixed reference."
+- "Observation: Your brake point at T5 is inconsistent. Impact: This costs 0.2s.
+  Suggestion: Use a fixed reference."
 - "Area for improvement: throttle application at T3 needs attention."
 - "The data indicates that your corner entry speed at Turn 7 is below optimal parameters."
 

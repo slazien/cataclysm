@@ -62,12 +62,18 @@ def init_equipment_dir(path: str) -> None:
 
 
 def _persist_profile(profile: EquipmentProfile) -> None:
-    """Write an equipment profile to disk as JSON."""
+    """Write an equipment profile to disk as JSON.
+
+    Wraps the profile data in an envelope that includes user_id so that
+    ``load_persisted_profiles`` can reconstruct ``_profile_owners``.
+    """
     if _equipment_dir is None:
         return
     try:
+        user_id = _profile_owners.get(profile.id)
+        envelope = {"user_id": user_id, "profile": asdict(profile)}
         out = _equipment_dir / "profiles" / f"{profile.id}.json"
-        out.write_text(json.dumps(asdict(profile), indent=2), encoding="utf-8")
+        out.write_text(json.dumps(envelope, indent=2), encoding="utf-8")
     except OSError:
         logger.warning("Failed to persist equipment profile %s", profile.id, exc_info=True)
 
@@ -366,6 +372,9 @@ def delete_session_equipment(session_id: str) -> bool:
 def load_persisted_profiles() -> int:
     """Load all persisted equipment profiles from disk into memory.
 
+    Supports both the envelope format ``{"user_id": ..., "profile": {...}}``
+    and the legacy flat format (bare profile dict).
+
     Returns the number of profiles loaded.
     """
     if _equipment_dir is None or not (_equipment_dir / "profiles").exists():
@@ -375,7 +384,15 @@ def load_persisted_profiles() -> int:
     for path in (_equipment_dir / "profiles").glob("*.json"):
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
-            profile = _profile_from_dict(data)
+            # Envelope format: {"user_id": ..., "profile": {...}}
+            if "profile" in data and isinstance(data["profile"], dict):
+                profile = _profile_from_dict(data["profile"])
+                user_id = data.get("user_id")
+                if user_id:
+                    _profile_owners[profile.id] = str(user_id)
+            else:
+                # Legacy flat format (bare profile dict)
+                profile = _profile_from_dict(data)
             _profiles[profile.id] = profile
             count += 1
         except (json.JSONDecodeError, KeyError, TypeError, ValueError, OSError):

@@ -46,6 +46,7 @@ export function EquipmentProfileList() {
         tires: profile.tires,
         vehicle: profile.vehicle ?? null,
         brakes: profile.brakes ?? null,
+        suspension: profile.suspension ?? null,
         vehicle_overrides: profile.vehicle_overrides ?? {},
         notes: profile.notes,
         is_default: !profile.is_default,

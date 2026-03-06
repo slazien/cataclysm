@@ -370,8 +370,6 @@ async def upload_sessions(
             # Auto-assign default equipment profile (authenticated users only)
             if sd is not None and current_user is not None:
                 try:
-                    from backend.api.services import equipment_store
-
                     existing_eq = equipment_store.get_session_equipment(sid)
                     if existing_eq is None:
                         default_profile = equipment_store.get_default_profile(
