@@ -9,7 +9,8 @@ import pandas as pd
 from scipy.interpolate import interp1d
 
 RESAMPLE_STEP_M = 0.7
-MIN_LAP_FRACTION = 0.80  # discard laps shorter than 80% of median
+MIN_LAP_FRACTION = 0.80  # discard laps shorter than 80% of reference distance
+MAX_LAP_DISTANCE_RATIO = 1.3  # laps > 1.3× median distance are cooldown/in-laps
 MAX_LAP_TIME_RATIO = 1.5  # laps > 1.5× median time are anomalous (pit stops, red flags)
 
 
@@ -139,20 +140,30 @@ def _resample_lap(lap_df: pd.DataFrame, step_m: float = RESAMPLE_STEP_M) -> pd.D
 def _filter_short_laps(
     laps: dict[int, pd.DataFrame],
 ) -> dict[int, pd.DataFrame]:
-    """Remove laps shorter than MIN_LAP_FRACTION of the longest lap.
+    """Remove laps whose distance deviates too far from the norm.
 
-    Using the longest observed lap protects against sessions where aborted or
-    partial laps are the majority. Median-based filtering can otherwise
-    normalize around the partial-lap cluster and let them through.
+    First removes outlier-long laps (cooldown / in-laps that exceed
+    MAX_LAP_DISTANCE_RATIO × median distance), then uses the longest
+    remaining lap as reference for short-lap filtering.
     """
     if len(laps) < 2:
         return laps
 
-    distances = [lap_df["lap_distance_m"].iloc[-1] for lap_df in laps.values()]
-    reference_dist = float(np.max(distances))
-    threshold = reference_dist * MIN_LAP_FRACTION
+    distances = {num: lap_df["lap_distance_m"].iloc[-1] for num, lap_df in laps.items()}
+    median_dist = float(np.median(list(distances.values())))
 
-    return {num: df for num, df in laps.items() if df["lap_distance_m"].iloc[-1] >= threshold}
+    # Step 1: remove outlier-long laps (cooldown / in-laps)
+    max_threshold = median_dist * MAX_LAP_DISTANCE_RATIO
+    normal_laps = {num: df for num, df in laps.items() if distances[num] <= max_threshold}
+    if len(normal_laps) == 0:
+        return laps  # fallback: keep all if every lap is "outlier"
+
+    # Step 2: filter short laps against the longest normal lap
+    normal_distances = [distances[num] for num in normal_laps]
+    reference_dist = float(np.max(normal_distances))
+    min_threshold = reference_dist * MIN_LAP_FRACTION
+
+    return {num: df for num, df in normal_laps.items() if distances[num] >= min_threshold}
 
 
 def find_anomalous_laps(

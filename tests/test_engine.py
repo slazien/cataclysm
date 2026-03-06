@@ -156,14 +156,16 @@ class TestFilterShortLaps:
         filtered = _filter_short_laps(laps)
         assert 1 in filtered
 
-    def test_majority_partial_laps_removed_against_longest_reference(self) -> None:
+    def test_outlier_long_lap_does_not_eliminate_normal_laps(self) -> None:
+        """A cooldown/in-lap with 1.5× normal distance must not poison the filter."""
         lap1 = pd.DataFrame({"lap_distance_m": [0.0, 250.0, 500.0]})
-        lap2 = pd.DataFrame({"lap_distance_m": [0.0, 60.0, 120.0]})
-        lap3 = pd.DataFrame({"lap_distance_m": [0.0, 55.0, 110.0]})
+        lap2 = pd.DataFrame({"lap_distance_m": [0.0, 250.0, 490.0]})
+        lap3 = pd.DataFrame({"lap_distance_m": [0.0, 250.0, 480.0]})
+        lap4 = pd.DataFrame({"lap_distance_m": [0.0, 375.0, 750.0]})  # 1.5× normal = cooldown
 
-        filtered = _filter_short_laps({1: lap1, 2: lap2, 3: lap3})
+        filtered = _filter_short_laps({1: lap1, 2: lap2, 3: lap3, 4: lap4})
 
-        assert set(filtered) == {1}
+        assert set(filtered) == {1, 2, 3}  # cooldown lap removed, normal laps kept
 
 
 class TestProcessSession:
@@ -206,7 +208,8 @@ class TestProcessSession:
         with pytest.raises(ValueError, match="No laps found"):
             process_session(df)
 
-    def test_best_lap_ignores_majority_partial_laps(self) -> None:
+    def test_best_lap_ignores_cooldown_lap(self) -> None:
+        """A cooldown lap (1.5× normal distance) should be filtered out."""
         rows: list[dict[str, float]] = []
 
         def _append_lap(lap_num: int, total_dist: float, step_dist: float, dt: float) -> None:
@@ -224,13 +227,13 @@ class TestProcessSession:
                 )
 
         _append_lap(1, total_dist=500.0, step_dist=12.8, dt=1.0)
-        _append_lap(2, total_dist=120.0, step_dist=3.1, dt=0.3)
-        _append_lap(3, total_dist=110.0, step_dist=2.8, dt=0.28)
+        _append_lap(2, total_dist=490.0, step_dist=12.6, dt=0.95)
+        _append_lap(3, total_dist=750.0, step_dist=19.2, dt=1.5)  # cooldown lap
 
         result = process_session(pd.DataFrame(rows))
 
-        assert result.best_lap == 1
-        assert {s.lap_number for s in result.lap_summaries} == {1}
+        assert result.best_lap == 2
+        assert {s.lap_number for s in result.lap_summaries} == {1, 2}
 
 
 def _make_summary(lap: int, time: float) -> LapSummary:
