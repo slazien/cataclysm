@@ -3,6 +3,7 @@
 import type { SessionSummary, GPSQualityReport } from '@/lib/types';
 import { ShareButton } from '@/components/dashboard/ShareButton';
 import { ShareSessionDialog } from '@/components/comparison/ShareSessionDialog';
+import { AssignEquipmentButton } from '@/components/equipment/AssignEquipmentButton';
 import { useUnits } from '@/hooks/useUnits';
 import {
   Tooltip,
@@ -160,6 +161,7 @@ export function SessionReportHeader({ session, gpsQuality, sessionId }: SessionR
         )}
         {sessionId && (
           <>
+            <AssignEquipmentButton sessionId={sessionId} />
             <ShareButton sessionId={sessionId} />
             <ShareSessionDialog sessionId={sessionId} />
           </>

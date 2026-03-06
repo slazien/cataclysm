@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useSessionStore, useUiStore, useAnalysisStore } from '@/stores';
 import { ViewErrorBoundary } from '@/components/shared/ViewErrorBoundary';
 import { WelcomeScreen } from '@/components/shared/WelcomeScreen';
-import { SessionDashboard } from '@/components/dashboard/SessionDashboard';
 import { SessionReport } from '@/components/session-report';
 import { DeepDive } from '@/components/deep-dive/DeepDive';
 import { ProgressView } from '@/components/progress/ProgressView';
@@ -40,7 +39,7 @@ function ViewContent({ activeView, activeSessionId }: { activeView: string; acti
     default:
       return (
         <ViewErrorBoundary key={activeSessionId}>
-          <SessionDashboard />
+          <SessionReport />
         </ViewErrorBoundary>
       );
   }
