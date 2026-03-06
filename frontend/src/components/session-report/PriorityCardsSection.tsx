@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { useUiStore, useAnalysisStore } from '@/stores';
-import type { PriorityCorner, CornerGrade } from '@/lib/types';
+import type { PriorityCorner, CornerGrade, OptimalComparisonData } from '@/lib/types';
 import { useUnits } from '@/hooks/useUnits';
 import { worstGrade } from '@/lib/gradeUtils';
 import { extractActionTitle, formatCoachingText } from '@/lib/textUtils';
@@ -22,6 +22,7 @@ interface PriorityCardsSectionProps {
   priorities: PriorityCorner[];
   isNovice: boolean;
   cornerGrades?: CornerGrade[];
+  optimalComparison?: OptimalComparisonData | null;
 }
 
 function formatPriorityBadge(timeCostS: number): string {
@@ -32,11 +33,13 @@ function PriorityCard({
   p,
   isNovice,
   gradeForCorner,
+  liveTimeCost,
   onExplore,
 }: {
   p: PriorityCorner;
   isNovice: boolean;
   gradeForCorner: string | null;
+  liveTimeCost?: number;
   onExplore: (corner: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -65,7 +68,7 @@ function PriorityCard({
           </span>
         </div>
         <span className="shrink-0 rounded-full bg-[var(--color-brake)]/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--color-brake)]">
-          {formatPriorityBadge(p.time_cost_s)}
+          {formatPriorityBadge(liveTimeCost ?? p.time_cost_s)}
         </span>
       </div>
 
@@ -110,7 +113,7 @@ function PriorityCard({
   );
 }
 
-export function PriorityCardsSection({ priorities, isNovice, cornerGrades }: PriorityCardsSectionProps) {
+export function PriorityCardsSection({ priorities, isNovice, cornerGrades, optimalComparison }: PriorityCardsSectionProps) {
   const setActiveView = useUiStore((s) => s.setActiveView);
   const setMode = useAnalysisStore((s) => s.setMode);
   const selectCorner = useAnalysisStore((s) => s.selectCorner);
@@ -134,15 +137,23 @@ export function PriorityCardsSection({ priorities, isNovice, cornerGrades }: Pri
     <div>
       <h3 className="mb-3 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Priority Improvements</h3>
       <div className="grid gap-3 lg:grid-cols-3">
-        {priorities.slice(0, 3).map((p) => (
-          <PriorityCard
-            key={p.corner}
-            p={p}
-            isNovice={isNovice}
-            gradeForCorner={getGradeForCorner(p.corner)}
-            onExplore={handleExploreCorner}
-          />
-        ))}
+        {priorities.slice(0, 3).map((p) => {
+          const liveTimeCost = optimalComparison?.is_valid
+            ? optimalComparison.corner_opportunities?.find(
+                (o) => o.corner_number === p.corner,
+              )?.time_cost_s
+            : undefined;
+          return (
+            <PriorityCard
+              key={p.corner}
+              p={p}
+              isNovice={isNovice}
+              gradeForCorner={getGradeForCorner(p.corner)}
+              liveTimeCost={liveTimeCost}
+              onExplore={handleExploreCorner}
+            />
+          );
+        })}
       </div>
     </div>
   );

@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
+import time
 from pathlib import Path
 from typing import Any
 
@@ -58,6 +59,60 @@ from backend.api.services import equipment_store
 from backend.api.services.session_store import SessionData, store_session
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Physics result cache: avoids recomputing velocity solver on repeated requests.
+# Key = (f"{session_id}:{endpoint}", profile_id_or_None)
+# Value = (result_dict, timestamp)
+# ---------------------------------------------------------------------------
+_physics_cache: dict[tuple[str, str | None], tuple[dict[str, object], float]] = {}
+PHYSICS_CACHE_TTL_S = 1800  # 30 minutes
+
+
+def _current_profile_id(session_id: str) -> str | None:
+    """Return the equipment profile ID assigned to a session, or None."""
+    se = equipment_store.get_session_equipment(session_id)
+    return se.profile_id if se is not None else None
+
+
+def _get_physics_cached(session_id: str, key_suffix: str) -> dict[str, object] | None:
+    cache_key = (f"{session_id}:{key_suffix}", _current_profile_id(session_id))
+    entry = _physics_cache.get(cache_key)
+    if entry and (time.time() - entry[1]) < PHYSICS_CACHE_TTL_S:
+        logger.debug("Physics cache HIT for %s", cache_key)
+        return entry[0]
+    return None
+
+
+def _set_physics_cached(session_id: str, key_suffix: str, result: dict[str, object]) -> None:
+    cache_key = (f"{session_id}:{key_suffix}", _current_profile_id(session_id))
+    _physics_cache[cache_key] = (result, time.time())
+
+
+def invalidate_physics_cache(session_id: str) -> None:
+    """Clear all physics cache entries for a session."""
+    keys_to_remove = [k for k in _physics_cache if k[0].startswith(f"{session_id}:")]
+    for k in keys_to_remove:
+        del _physics_cache[k]
+    if keys_to_remove:
+        logger.info(
+            "Invalidated %d physics cache entries for session %s",
+            len(keys_to_remove),
+            session_id,
+        )
+
+
+def invalidate_profile_cache(profile_id: str) -> None:
+    """Clear all physics cache entries using a specific profile."""
+    keys_to_remove = [k for k in _physics_cache if k[1] == profile_id]
+    for k in keys_to_remove:
+        del _physics_cache[k]
+    if keys_to_remove:
+        logger.info(
+            "Invalidated %d physics cache entries for profile %s",
+            len(keys_to_remove),
+            profile_id,
+        )
 
 
 def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
@@ -482,6 +537,10 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
     """
     session_id = session_data.session_id
 
+    cached = _get_physics_cached(session_id, "profile")
+    if cached is not None:
+        return cached
+
     # Try LIDAR elevation (async, before entering sync thread)
     lidar_alt = await _try_lidar_elevation(session_data)
 
@@ -578,7 +637,9 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
             "equipment_profile_id": profile_id,
         }
 
-    return await asyncio.to_thread(_compute)
+    result = await asyncio.to_thread(_compute)
+    _set_physics_cached(session_id, "profile", result)
+    return result
 
 
 async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, object]:
@@ -588,6 +649,10 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
     plus aggregate lap-time data.
     """
     session_id = session_data.session_id
+
+    cached = _get_physics_cached(session_id, "comparison")
+    if cached is not None:
+        return cached
 
     # Try LIDAR elevation (async, before entering sync thread)
     lidar_alt = await _try_lidar_elevation(session_data)
@@ -709,4 +774,6 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
             "invalid_reasons": result.invalid_reasons,
         }
 
-    return await asyncio.to_thread(_compute)
+    result = await asyncio.to_thread(_compute)
+    _set_physics_cached(session_id, "comparison", result)
+    return result

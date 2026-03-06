@@ -38,6 +38,7 @@ from backend.api.schemas.equipment import (
     VehicleSpecSchema,
 )
 from backend.api.services import equipment_store, session_store
+from backend.api.services.pipeline import invalidate_physics_cache, invalidate_profile_cache
 
 router = APIRouter()
 
@@ -515,6 +516,7 @@ async def update_profile(
         is_default=body.is_default,
     )
     equipment_store.store_profile(updated)
+    invalidate_profile_cache(profile_id)
 
     # Enforce single-default: unset others if this is marked default
     if updated.is_default:
@@ -587,6 +589,7 @@ async def set_session_equipment(
         conditions=conditions,
     )
     equipment_store.store_session_equipment(se)
+    invalidate_physics_cache(session_id)
     await equipment_store.db_persist_session_equipment(se)
 
     return SessionEquipmentResponse(

@@ -242,11 +242,11 @@ export function CornerSpeedGapPanel({ sessionId, selectedCorner }: CornerSpeedGa
 
   // Filter and sort opportunities by time cost (biggest first)
   const opportunities = useMemo(() => {
-    if (!comparison?.corner_opportunities || isInvalidComparison) return [];
+    if (!comparison?.corner_opportunities) return [];
     return comparison.corner_opportunities
       .filter((opp) => opp.speed_gap_mph > MIN_GAP_MPH && opp.time_cost_s > 0)
       .sort((a, b) => b.time_cost_s - a.time_cost_s);
-  }, [comparison, isInvalidComparison]);
+  }, [comparison]);
 
   const maxTimeCost = useMemo(
     () => Math.max(...opportunities.map((o) => o.time_cost_s), 0),
@@ -277,7 +277,7 @@ export function CornerSpeedGapPanel({ sessionId, selectedCorner }: CornerSpeedGa
     return <SkeletonCard height="h-40" />;
   }
 
-  if (isInvalidComparison) {
+  if (opportunities.length === 0 && !focusedOpp && isInvalidComparison) {
     return (
       <div className="rounded-xl border border-[var(--color-brake)]/30 bg-[var(--color-brake)]/5 p-4">
         <h3 className="mb-1 text-sm font-semibold text-[var(--text-primary)] font-[family-name:var(--font-display)]">
@@ -307,12 +307,20 @@ export function CornerSpeedGapPanel({ sessionId, selectedCorner }: CornerSpeedGa
             Per-corner time cost from speed deficit
           </p>
         </div>
-        {totalGapS > 0 && (
+        {!isInvalidComparison && totalGapS > 0 && (
           <span className="whitespace-nowrap rounded-full bg-[var(--color-brake)]/10 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-[var(--color-brake)]">
             {totalGapS.toFixed(1)}s total
           </span>
         )}
       </div>
+
+      {isInvalidComparison && opportunities.length > 0 && (
+        <div className="mb-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-1.5">
+          <p className="text-[11px] text-amber-400">
+            Estimates are approximate — overall gap is negative, individual corners may still be useful
+          </p>
+        </div>
+      )}
 
       {/* Content area */}
       <div className="min-h-0 flex-1 overflow-y-auto">

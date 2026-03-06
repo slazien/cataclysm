@@ -228,6 +228,7 @@ export function SessionReport() {
             priorities={report.priority_corners}
             isNovice={isNovice}
             cornerGrades={report.corner_grades}
+            optimalComparison={optimalComparison}
           />
         )}
 

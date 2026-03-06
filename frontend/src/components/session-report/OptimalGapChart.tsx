@@ -120,7 +120,7 @@ export function OptimalGapChart({ sessionId }: OptimalGapChartProps) {
     return <SkeletonCard height="h-40" />;
   }
 
-  if (isInvalidComparison) {
+  if (opportunities.length === 0 && isInvalidComparison) {
     return (
       <div className="rounded-xl border border-[var(--color-brake)]/30 bg-[var(--color-brake)]/5 p-4">
         <div className="mb-1 flex items-baseline justify-between gap-3">
@@ -157,12 +157,19 @@ export function OptimalGapChart({ sessionId }: OptimalGapChartProps) {
             Per-corner speed gap vs physics-optimal profile — biggest opportunities first
           </p>
         </div>
-        {totalGapS !== null && totalGapS > 0 && (
+        {!isInvalidComparison && totalGapS !== null && totalGapS > 0 && (
           <span className="whitespace-nowrap rounded-full bg-[var(--color-throttle)]/10 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-[var(--color-throttle)]">
             {totalGapS.toFixed(1)}s potential
           </span>
         )}
       </div>
+      {isInvalidComparison && opportunities.length > 0 && (
+        <div className="mb-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-1.5">
+          <p className="text-[11px] text-amber-400">
+            Physics model estimates are approximate — overall gap is negative, individual corners may still be directionally useful
+          </p>
+        </div>
+      )}
       <div ref={containerRef} style={{ height: chartHeight }} className="relative">
         <motion.div
           initial={{ clipPath: 'inset(0 100% 0 0)' }}
