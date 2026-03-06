@@ -1,6 +1,6 @@
 'use client';
 
-import { useCorners, useAllLapCorners } from '@/hooks/useAnalysis';
+import { useCorners, useAllLapCorners, useOptimalComparison } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useAnalysisStore, useSessionStore } from '@/stores';
 import { useSession } from '@/hooks/useSession';
@@ -109,6 +109,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
   const { data: corners } = useCorners(sessionId);
   const { data: allLapCorners } = useAllLapCorners(sessionId);
   const { data: report } = useCoachingReport(sessionId);
+  const { data: optimalComparison } = useOptimalComparison(sessionId);
   const { convertSpeed, convertDistance, speedUnit, distanceUnit, resolveSpeed } = useUnits();
   const { skillLevel, showFeature } = useSkillLevel();
   const showExplanations = showFeature('grade_explanations');
@@ -151,6 +152,11 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
   const priorityCorner: PriorityCorner | undefined = report?.priority_corners?.find(
     (pc) => pc.corner === cornerNumber,
   );
+
+  // Optimal comparison for this corner
+  const optimalOpp = optimalComparison?.is_valid
+    ? optimalComparison.corner_opportunities?.find((o) => o.corner_number === cornerNumber) ?? null
+    : null;
 
   // Compute vs-best deltas (use epsilon check instead of object identity)
   const bestCorner = findBestCorner(cornerNumber, allLapCorners);
@@ -255,6 +261,24 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
             delta={throttleDelta !== null ? convertDistance(throttleDelta) : null}
             deltaUnit={distanceUnit}
             invertDelta
+          />
+        )}
+        {optimalOpp && (
+          <KpiRow
+            label="Optimal Min Speed"
+            value={convertSpeed(optimalOpp.optimal_min_speed_mph).toFixed(1)}
+            unit={speedUnit}
+          />
+        )}
+        {optimalOpp && (
+          <KpiRow
+            label="vs Optimal"
+            value={optimalOpp.time_cost_s > 0
+              ? `−${optimalOpp.time_cost_s.toFixed(2)}`
+              : optimalOpp.time_cost_s === 0 ? '0.00' : `+${Math.abs(optimalOpp.time_cost_s).toFixed(2)}`}
+            unit="s"
+            delta={optimalOpp.speed_gap_mph !== 0 ? convertSpeed(-optimalOpp.speed_gap_mph) : null}
+            deltaUnit={speedUnit}
           />
         )}
       </div>

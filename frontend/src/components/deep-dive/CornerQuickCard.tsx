@@ -1,6 +1,6 @@
 'use client';
 
-import { useCorners, useAllLapCorners, useLineAnalysis } from '@/hooks/useAnalysis';
+import { useCorners, useAllLapCorners, useLineAnalysis, useOptimalComparison } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useAnalysisStore } from '@/stores';
 import { GlossaryTerm } from '@/components/shared/GlossaryTerm';
@@ -72,6 +72,7 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
   const { data: report } = useCoachingReport(sessionId);
   const { data: allLapCorners } = useAllLapCorners(sessionId);
   const { data: lineData } = useLineAnalysis(sessionId);
+  const { data: optimalComparison } = useOptimalComparison(sessionId);
   const { convertSpeed, convertDistance, speedUnit, distanceUnit, resolveSpeed } = useUnits();
 
   if (!selectedCorner) {
@@ -112,6 +113,11 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
   const priorityCorner: PriorityCorner | undefined = report?.priority_corners?.find(
     (pc) => pc.corner === cornerNumber,
   );
+
+  // Optimal comparison for this corner
+  const optimalOpp = optimalComparison?.is_valid
+    ? optimalComparison.corner_opportunities?.find((o) => o.corner_number === cornerNumber) ?? null
+    : null;
 
   // Compute "vs best" deltas (epsilon check instead of object identity)
   const bestCorner = findBestCorner(cornerNumber, allLapCorners);
@@ -183,6 +189,23 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
           value={convertDistance(corner.exit_distance_m).toFixed(0)}
           unit={distanceUnit}
         />
+        {optimalOpp && (
+          <KpiRow
+            label="Optimal Min Speed"
+            value={convertSpeed(optimalOpp.optimal_min_speed_mph).toFixed(1)}
+            unit={speedUnit}
+          />
+        )}
+        {optimalOpp && (
+          <KpiRow
+            label="vs Optimal"
+            value={optimalOpp.time_cost_s > 0
+              ? `−${optimalOpp.time_cost_s.toFixed(2)}`
+              : optimalOpp.time_cost_s === 0 ? '0.00' : `+${Math.abs(optimalOpp.time_cost_s).toFixed(2)}`}
+            unit="s"
+            delta={optimalOpp.speed_gap_mph !== 0 ? convertSpeed(-optimalOpp.speed_gap_mph) : null}
+          />
+        )}
       </div>
 
       {/* Grade breakdown */}

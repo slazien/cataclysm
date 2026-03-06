@@ -9,9 +9,7 @@ import { TrackMapContainer } from './charts/TrackMapContainer';
 import { CornerDetailPanel } from './CornerDetailPanel';
 import { CornerSpeedOverlay } from './charts/CornerSpeedOverlay';
 import { BrakeConsistency } from './charts/BrakeConsistency';
-import { CornerSpeedGapPanel } from './CornerSpeedGapPanel';
 import { CornerReportCardGrid } from './CornerReportCardGrid';
-import { parseCornerNumber } from '@/lib/cornerUtils';
 
 type ViewMode = 'grid' | 'detail';
 
@@ -137,8 +135,8 @@ export function CornerAnalysis() {
             </div>
           </div>
 
-          {/* Bottom row: Corner Speed Overlay + Brake Consistency + Speed Gap */}
-          <div className="grid min-h-0 grid-cols-1 gap-3 lg:flex-1 lg:grid-cols-3 lg:grid-rows-[1fr]">
+          {/* Bottom row: Corner Speed Overlay + Brake Consistency */}
+          <div className="grid min-h-0 grid-cols-1 gap-3 lg:flex-1 lg:grid-cols-2 lg:grid-rows-[1fr]">
             {/* Corner Speed Overlay */}
             <div className="h-[16rem] overflow-hidden lg:h-auto">
               <ChartErrorBoundary name="Corner Speed Overlay">
@@ -149,15 +147,6 @@ export function CornerAnalysis() {
             <div className="h-[16rem] overflow-hidden lg:h-auto">
               <ChartErrorBoundary name="Brake Consistency">
                 <BrakeConsistency sessionId={sessionId} />
-              </ChartErrorBoundary>
-            </div>
-            {/* Speed Gap vs Optimal */}
-            <div className="h-[16rem] overflow-hidden lg:h-auto">
-              <ChartErrorBoundary name="Speed Gap vs Optimal">
-                <CornerSpeedGapPanel
-                  sessionId={sessionId}
-                  selectedCorner={selectedCorner ? parseCornerNumber(selectedCorner) : null}
-                />
               </ChartErrorBoundary>
             </div>
           </div>

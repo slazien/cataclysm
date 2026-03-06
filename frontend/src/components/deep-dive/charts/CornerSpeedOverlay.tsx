@@ -130,6 +130,8 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
     return bestLap;
   }, [allLapCorners, cornerNumber]);
 
+  // Ref lap: the first selected lap (if any)
+  const refLap = selectedLaps.length >= 1 ? selectedLaps[0] : null;
   // Comparison lap: the second selected lap if any
   const compLap = selectedLaps.length >= 2 ? selectedLaps[1] : null;
 
@@ -245,9 +247,10 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
       const lap = lapDataArr[li];
       const isBest = lap.lap_number === bestLapNumber;
       const isComp = lap.lap_number === compLap;
+      const isRef = lap.lap_number === refLap;
 
-      // Skip best/comp — draw them separately on top
-      if (isBest || isComp) continue;
+      // Skip best/comp/ref — draw them separately on top
+      if (isBest || isComp || isRef) continue;
 
       ctx.strokeStyle = `${colors.lap[li % colors.lap.length]}40`; // ~25% opacity
       ctx.lineWidth = 1;
@@ -264,6 +267,28 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
         }
       }
       ctx.stroke();
+    }
+
+    // Ref lap — solid, highlighted (when not also the best lap)
+    if (refLap !== null && refLap !== bestLapNumber) {
+      const refData = lapDataArr.find((l) => l.lap_number === refLap);
+      if (refData) {
+        ctx.strokeStyle = colors.lap[0];
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        let started = false;
+        for (let i = 0; i < refData.distance_m.length; i++) {
+          const x = xScale(refData.distance_m[i]);
+          const y = yScale(convertSpeed(refData.speed_mph[i]));
+          if (!started) {
+            ctx.moveTo(x, y);
+            started = true;
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+        ctx.stroke();
+      }
     }
 
     // Comparison lap — dashed
@@ -390,36 +415,52 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
     // --- 5. Legend ---
     const legendY = MARGINS.top + 8;
     const legendX = MARGINS.left + 8;
+    let legendRow = 0;
     ctx.font = `10px ${fonts.sans}`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
 
     // Best lap label
     ctx.fillStyle = colors.motorsport.pb;
-    ctx.fillRect(legendX, legendY, 14, 2);
+    ctx.fillRect(legendX, legendY + legendRow * 16, 14, 2);
     ctx.fillText(
       bestLapNumber !== null ? `Best (L${bestLapNumber})` : 'Best',
       legendX + 18,
-      legendY - 4,
+      legendY + legendRow * 16 - 4,
     );
+    legendRow++;
+
+    // Ref lap label (when not the best lap)
+    if (refLap !== null && refLap !== bestLapNumber) {
+      ctx.strokeStyle = colors.lap[0];
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(legendX, legendY + legendRow * 16);
+      ctx.lineTo(legendX + 14, legendY + legendRow * 16);
+      ctx.stroke();
+      ctx.fillStyle = colors.text.secondary;
+      ctx.fillText(`Ref (L${refLap})`, legendX + 18, legendY + legendRow * 16 - 4);
+      legendRow++;
+    }
 
     // Comp lap label
     if (compLap !== null) {
-      ctx.fillStyle = colors.lap[1 % colors.lap.length];
-      ctx.setLineDash([4, 3]);
       ctx.strokeStyle = colors.lap[1 % colors.lap.length];
       ctx.lineWidth = 2;
+      ctx.setLineDash([4, 3]);
       ctx.beginPath();
-      ctx.moveTo(legendX, legendY + 16);
-      ctx.lineTo(legendX + 14, legendY + 16);
+      ctx.moveTo(legendX, legendY + legendRow * 16);
+      ctx.lineTo(legendX + 14, legendY + legendRow * 16);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillText(`Comp (L${compLap})`, legendX + 18, legendY + 12);
+      ctx.fillStyle = colors.text.secondary;
+      ctx.fillText(`Comp (L${compLap})`, legendX + 18, legendY + legendRow * 16 - 4);
     }
   }, [
     lapDataArr,
     corner,
     bestLapNumber,
+    refLap,
     compLap,
     xScale,
     yScale,
@@ -445,9 +486,9 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
 
   return (
     <div className="relative h-full w-full rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)]">
-      <div className="pointer-events-none absolute left-3 top-2 z-10 flex items-center gap-1.5">
-        <h3 className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
-          Corner Speed Overlay — Turn {cornerNumber}
+      <div className="pointer-events-none absolute left-3 top-1 z-10 flex items-center gap-1.5">
+        <h3 className="rounded bg-[var(--bg-surface)]/80 px-1 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+          Turn {cornerNumber} Speed
         </h3>
         <InfoTooltip helpKey="chart.corner-speed-overlay" className="pointer-events-auto" />
       </div>
