@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, _patch, patch
 
 import pytest
@@ -742,7 +743,7 @@ def test_clear_all_coaching_empties_all_caches() -> None:
     """clear_all_coaching wipes reports, contexts, and generating flags."""
     coaching_store_mod._reports["s1"] = {"intermediate": _make_report("s1")}
     coaching_store_mod._contexts["s1"] = _make_context()
-    coaching_store_mod._generating.add(("s1", "intermediate"))
+    coaching_store_mod._generating[("s1", "intermediate")] = datetime.now(UTC)
 
     clear_all_coaching()
 

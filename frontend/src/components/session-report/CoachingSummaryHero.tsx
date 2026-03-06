@@ -1,23 +1,71 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { MarkdownText } from '@/components/shared/MarkdownText';
 import { useUnits } from '@/hooks/useUnits';
 import { formatCoachingText } from '@/lib/textUtils';
+import type { CoachingReport } from '@/lib/types';
 
 interface CoachingSummaryHeroProps {
-  report: { status: string; summary?: string | null; primary_focus?: string } | null;
+  report: Pick<CoachingReport, 'status' | 'summary' | 'primary_focus' | 'generation_started_at' | 'generation_estimated_s'> | null;
 }
 
 /** Split summary into a prominent first sentence and the rest. */
 function splitSummary(text: string): { lead: string; rest: string } {
-  // Match first sentence ending with . ! or ? followed by a space or end-of-string
-  // Use [\s\S] instead of /s dotAll flag for broader TS target compat
   const match = text.match(/^([\s\S]+?[.!?])(\s+([\s\S]*))?$/);
   if (match) {
     return { lead: match[1].trim(), rest: (match[3] ?? '').trim() };
   }
   return { lead: text, rest: '' };
+}
+
+function GeneratingProgress({ startedAt, estimatedS }: { startedAt?: string | null; estimatedS?: number | null }) {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    if (!startedAt || !estimatedS || estimatedS <= 0) return;
+
+    const startMs = new Date(startedAt).getTime();
+    if (Number.isNaN(startMs)) return;
+
+    const tick = () => {
+      const elapsedS = (Date.now() - startMs) / 1000;
+      // Asymptotic: approaches 95% but never reaches 100%
+      const pct = Math.min(95, (elapsedS / estimatedS) * 90);
+      setProgress(Math.max(0, pct));
+    };
+
+    tick();
+    const id = setInterval(tick, 500);
+    return () => clearInterval(id);
+  }, [startedAt, estimatedS]);
+
+  const hasEta = startedAt && estimatedS && estimatedS > 0;
+
+  return (
+    <div className="space-y-2">
+      {hasEta ? (
+        <>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--bg-elevated)]">
+            <div
+              className="h-full rounded-full bg-[var(--cata-accent)] transition-[width] duration-500 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <p className="text-xs text-[var(--text-muted)]">
+            Generating coaching insights... ~{Math.ceil(estimatedS)}s
+          </p>
+        </>
+      ) : (
+        <>
+          <div className="h-4 w-3/4 animate-pulse rounded bg-[var(--bg-elevated)]" />
+          <div className="h-4 w-1/2 animate-pulse rounded bg-[var(--bg-elevated)]" />
+          <p className="mt-2 text-xs text-[var(--text-muted)]">Generating coaching insights...</p>
+        </>
+      )}
+    </div>
+  );
 }
 
 export function CoachingSummaryHero({ report }: CoachingSummaryHeroProps) {
@@ -36,11 +84,10 @@ export function CoachingSummaryHero({ report }: CoachingSummaryHeroProps) {
       </div>
 
       {isLoading ? (
-        <div className="space-y-2">
-          <div className="h-4 w-3/4 animate-pulse rounded bg-[var(--bg-elevated)]" />
-          <div className="h-4 w-1/2 animate-pulse rounded bg-[var(--bg-elevated)]" />
-          <p className="mt-2 text-xs text-[var(--text-muted)]">Generating coaching insights...</p>
-        </div>
+        <GeneratingProgress
+          startedAt={report?.generation_started_at}
+          estimatedS={report?.generation_estimated_s}
+        />
       ) : report?.status === 'error' ? (
         <p className="text-sm text-[var(--text-muted)]">{summary ?? 'Coaching report unavailable.'}</p>
       ) : summary ? (

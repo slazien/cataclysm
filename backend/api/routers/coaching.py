@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import logging
 import math
+from datetime import UTC, datetime
 from typing import Annotated
 
 from cataclysm.causal_chains import compute_causal_analysis
@@ -43,9 +44,12 @@ from backend.api.services.coaching_store import (
     get_any_coaching_report,
     get_coaching_context,
     get_coaching_report,
+    get_estimated_duration_s,
+    get_generation_started_at,
     get_regen_remaining,
     is_generating,
     mark_generating,
+    record_generation_duration,
     record_regeneration,
     store_coaching_context,
     store_coaching_report,
@@ -56,6 +60,24 @@ from backend.api.services.session_store import SessionData
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _generating_response(
+    session_id: str,
+    skill_level: str,
+    remaining: int,
+) -> CoachingReportResponse:
+    """Build a standard 'generating' response with timing info."""
+    started = get_generation_started_at(session_id, skill_level)
+    return CoachingReportResponse(
+        session_id=session_id,
+        status="generating",
+        regen_remaining=remaining,
+        regen_max=MAX_DAILY_REGENS,
+        generation_started_at=started.isoformat() if started else None,
+        generation_estimated_s=get_estimated_duration_s(),
+    )
+
 
 _ABSOLUTE_PRIORITY_TIME_CAP_S = 5.0
 
@@ -152,12 +174,7 @@ async def generate_report(
 
     # If already generating, return current status
     if is_generating(session_id, body.skill_level):
-        return CoachingReportResponse(
-            session_id=session_id,
-            status="generating",
-            regen_remaining=remaining,
-            regen_max=MAX_DAILY_REGENS,
-        )
+        return _generating_response(session_id, body.skill_level, remaining)
 
     # Force regeneration: check daily limit, then clear existing report
     if body.force:
@@ -185,12 +202,7 @@ async def generate_report(
     # Background task with tracking to prevent GC collection
     _track_task(asyncio.create_task(_run_generation(session_id, sd, body.skill_level)))
 
-    return CoachingReportResponse(
-        session_id=session_id,
-        status="generating",
-        regen_remaining=remaining,
-        regen_max=MAX_DAILY_REGENS,
-    )
+    return _generating_response(session_id, body.skill_level, remaining)
 
 
 # Limit concurrent coaching API calls to avoid rate-limit storms.
@@ -431,6 +443,10 @@ async def _run_generation(
             ),
         )
     finally:
+        started = get_generation_started_at(session_id, skill_level)
+        if started is not None:
+            duration_s = (datetime.now(UTC) - started).total_seconds()
+            record_generation_duration(duration_s)
         unmark_generating(session_id, skill_level)
 
 
@@ -475,24 +491,14 @@ async def get_report(
             return report
 
     if is_generating(session_id, skill_level):
-        return CoachingReportResponse(
-            session_id=session_id,
-            status="generating",
-            regen_remaining=remaining,
-            regen_max=MAX_DAILY_REGENS,
-        )
+        return _generating_response(session_id, skill_level, remaining)
 
     # Auto-trigger generation instead of returning 404 — the frontend's
     # auto-trigger POST doesn't always fire reliably after error clearing.
     mark_generating(session_id, skill_level)
     task = asyncio.create_task(_run_generation(session_id, sd, skill_level))
     _track_task(task)
-    return CoachingReportResponse(
-        session_id=session_id,
-        status="generating",
-        regen_remaining=remaining,
-        regen_max=MAX_DAILY_REGENS,
-    )
+    return _generating_response(session_id, skill_level, remaining)
 
 
 def _build_report_content(

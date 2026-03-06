@@ -58,6 +58,8 @@ class CoachingReportResponse(BaseModel):
     validation_violations: list[str] = Field(default_factory=list)
     regen_remaining: int | None = None
     regen_max: int | None = None
+    generation_started_at: str | None = None  # ISO timestamp when generation started
+    generation_estimated_s: float | None = None  # estimated total duration in seconds
 
 
 class ReportRequest(BaseModel):

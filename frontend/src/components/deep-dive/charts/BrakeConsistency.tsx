@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import * as d3 from 'd3';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
 import { useAllLapCorners } from '@/hooks/useAnalysis';
@@ -86,10 +86,11 @@ function drawLabels(
 
 export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
   const selectedCorner = useAnalysisStore((s) => s.selectedCorner);
+  const setHoveredBrakeLap = useAnalysisStore((s) => s.setHoveredBrakeLap);
   const { data: allLapCorners } = useAllLapCorners(sessionId);
   const { convertDistance, distanceUnit } = useUnits();
 
-  const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx } =
+  const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx } =
     useCanvasChart(MARGINS);
 
   const cornerNumber = selectedCorner ? parseCornerNumber(selectedCorner) : null;
@@ -234,6 +235,69 @@ export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
     }
   }, [brakePoints, mean, stdDev, xScale, yScale, dimensions, getDataCtx, convertDistance, distanceUnit]);
 
+  // --- Hover handler: find nearest dot, highlight, set cross-chart state ---
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const canvas = overlayCanvasRef.current;
+      if (!canvas || brakePoints.length === 0) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      // Find nearest brake point within 15px threshold
+      let nearest: BrakePoint | null = null;
+      let nearestDist = Infinity;
+      for (const bp of brakePoints) {
+        const px = xScale(bp.lapNumber);
+        const py = yScale(bp.brakePointM);
+        const d = Math.hypot(mx - px, my - py);
+        if (d < nearestDist) {
+          nearestDist = d;
+          nearest = bp;
+        }
+      }
+
+      const ctx = getOverlayCtx();
+      if (!ctx) return;
+      ctx.clearRect(0, 0, dimensions.width, dimensions.height);
+
+      if (nearest && nearestDist < 15) {
+        // Draw highlight ring
+        const hx = xScale(nearest.lapNumber);
+        const hy = yScale(nearest.brakePointM);
+        ctx.strokeStyle = colors.text.primary;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(hx, hy, 8, 0, 2 * Math.PI);
+        ctx.stroke();
+
+        // Tooltip
+        ctx.fillStyle = 'rgba(0,0,0,0.85)';
+        const label = `L${nearest.lapNumber}: ${convertDistance(nearest.brakePointM).toFixed(0)}${distanceUnit}`;
+        ctx.font = `11px ${fonts.mono}`;
+        const tw = ctx.measureText(label).width;
+        const tx = Math.min(hx + 12, dimensions.width - tw - 8);
+        const ty = Math.max(hy - 24, MARGINS.top);
+        ctx.fillRect(tx - 4, ty - 2, tw + 8, 18);
+        ctx.fillStyle = colors.text.primary;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(label, tx, ty);
+
+        setHoveredBrakeLap({ lapNumber: nearest.lapNumber, brakePointM: nearest.brakePointM });
+      } else {
+        setHoveredBrakeLap(null);
+      }
+    },
+    [brakePoints, xScale, yScale, dimensions, getOverlayCtx, setHoveredBrakeLap, convertDistance, distanceUnit, overlayCanvasRef],
+  );
+
+  const handleMouseLeave = useCallback(() => {
+    const ctx = getOverlayCtx();
+    if (ctx) ctx.clearRect(0, 0, dimensions.width, dimensions.height);
+    setHoveredBrakeLap(null);
+  }, [getOverlayCtx, dimensions, setHoveredBrakeLap]);
+
   if (!selectedCorner || cornerNumber === null) {
     return (
       <div className="flex h-full items-center justify-center rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)]">
@@ -272,6 +336,8 @@ export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
           ref={overlayCanvasRef}
           className="absolute inset-0"
           style={{ width: '100%', height: '100%', cursor: 'crosshair', zIndex: 2, pointerEvents: 'auto' }}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
         />
       </div>
     </div>

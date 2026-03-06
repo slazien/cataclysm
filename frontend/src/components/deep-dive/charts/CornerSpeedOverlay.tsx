@@ -92,6 +92,7 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
   const { convertSpeed, convertDistance, speedUnit, distanceUnit } = useUnits();
   const selectedCorner = useAnalysisStore((s) => s.selectedCorner);
   const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
+  const hoveredBrakeLap = useAnalysisStore((s) => s.hoveredBrakeLap);
 
   const { data: corners } = useCorners(sessionId);
   const { data: laps } = useSessionLaps(sessionId);
@@ -105,7 +106,7 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
 
   const { data: lapDataArr, isLoading } = useMultiLapData(sessionId, cleanLapNumbers);
 
-  const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx } =
+  const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx } =
     useCanvasChart(MARGINS);
 
   // Resolve corner data
@@ -475,6 +476,57 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
     speedUnit,
     distanceUnit,
   ]);
+
+  // --- Cross-chart hover: highlight lap line + vertical brake marker ---
+  useEffect(() => {
+    const ctx = getOverlayCtx();
+    if (!ctx) return;
+    ctx.clearRect(0, 0, dimensions.width, dimensions.height);
+
+    if (!hoveredBrakeLap || !corner || lapDataArr.length === 0 || dimensions.innerWidth <= 0) return;
+
+    const lapData = lapDataArr.find((l) => l.lap_number === hoveredBrakeLap.lapNumber);
+    if (!lapData) return;
+
+    // Draw highlighted speed line for this lap
+    ctx.strokeStyle = colors.text.primary;
+    ctx.lineWidth = 2.5;
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    let started = false;
+    for (let i = 0; i < lapData.distance_m.length; i++) {
+      const x = xScale(lapData.distance_m[i]);
+      const y = yScale(convertSpeed(lapData.speed_mph[i]));
+      if (!started) {
+        ctx.moveTo(x, y);
+        started = true;
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Draw vertical marker at brake point distance
+    const bpX = xScale(hoveredBrakeLap.brakePointM);
+    if (bpX >= MARGINS.left && bpX <= MARGINS.left + dimensions.innerWidth) {
+      ctx.strokeStyle = colors.motorsport.brake;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 3]);
+      ctx.beginPath();
+      ctx.moveTo(bpX, MARGINS.top);
+      ctx.lineTo(bpX, MARGINS.top + dimensions.innerHeight);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Label
+      ctx.fillStyle = colors.motorsport.brake;
+      ctx.font = `10px ${fonts.mono}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(`BP L${hoveredBrakeLap.lapNumber}`, bpX, MARGINS.top - 2);
+    }
+  }, [hoveredBrakeLap, lapDataArr, corner, xScale, yScale, dimensions, getOverlayCtx, convertSpeed]);
 
   if (!selectedCorner || cornerNumber === null) {
     return (

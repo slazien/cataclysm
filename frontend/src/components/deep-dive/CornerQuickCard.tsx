@@ -150,6 +150,20 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
             Turn {cornerNumber}
           </h3>
           {overallGrade && <GradeChip grade={overallGrade} />}
+          {optimalOpp && optimalOpp.time_cost_s !== 0 && (
+            <span
+              className="text-xs font-medium tabular-nums"
+              style={{
+                color: optimalOpp.time_cost_s > 0
+                  ? colors.motorsport.brake
+                  : colors.motorsport.throttle,
+              }}
+            >
+              {optimalOpp.time_cost_s > 0
+                ? `−${optimalOpp.time_cost_s.toFixed(2)}s`
+                : `+${Math.abs(optimalOpp.time_cost_s).toFixed(2)}s`}
+            </span>
+          )}
         </div>
         <span className="text-xs text-[var(--text-muted)]">
           {displayLap ? `L${displayLap}` : 'Best lap'} · {corner.apex_type} apex
@@ -194,16 +208,6 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
             label="Optimal Min Speed"
             value={convertSpeed(optimalOpp.optimal_min_speed_mph).toFixed(1)}
             unit={speedUnit}
-          />
-        )}
-        {optimalOpp && (
-          <KpiRow
-            label="vs Optimal"
-            value={optimalOpp.time_cost_s > 0
-              ? `−${optimalOpp.time_cost_s.toFixed(2)}`
-              : optimalOpp.time_cost_s === 0 ? '0.00' : `+${Math.abs(optimalOpp.time_cost_s).toFixed(2)}`}
-            unit="s"
-            delta={optimalOpp.speed_gap_mph !== 0 ? convertSpeed(-optimalOpp.speed_gap_mph) : null}
           />
         )}
       </div>

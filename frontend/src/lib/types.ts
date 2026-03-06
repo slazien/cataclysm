@@ -163,6 +163,8 @@ export interface CoachingReport {
   validation_violations?: string[];
   regen_remaining?: number | null;
   regen_max?: number | null;
+  generation_started_at?: string | null;
+  generation_estimated_s?: number | null;
 }
 
 export interface ChatMessage {

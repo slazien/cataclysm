@@ -34,7 +34,7 @@ MAX_COACHING_CACHE: int = 300
 # Module-level in-memory caches
 _reports: dict[str, dict[str, CoachingReportResponse]] = {}  # session_id -> {skill_level: report}
 _contexts: dict[str, CoachingContext] = {}
-_generating: set[tuple[str, str]] = set()  # (session_id, skill_level) pairs currently generating
+_generating: dict[tuple[str, str], datetime] = {}  # (session_id, skill_level) -> started_at
 
 # Daily regeneration rate limiting (per-user)
 MAX_DAILY_REGENS: int = 2
@@ -184,17 +184,24 @@ async def clear_coaching_report(session_id: str, skill_level: str) -> None:
 
 def mark_generating(session_id: str, skill_level: str = "intermediate") -> None:
     """Mark a session+skill_level as currently generating a coaching report."""
-    _generating.add((session_id, skill_level))
+    _generating[(session_id, skill_level)] = datetime.now(UTC)
 
 
 def unmark_generating(session_id: str, skill_level: str = "intermediate") -> None:
     """Remove the generating flag for a session+skill_level."""
-    _generating.discard((session_id, skill_level))
+    _generating.pop((session_id, skill_level), None)
 
 
 def is_generating(session_id: str, skill_level: str = "intermediate") -> bool:
     """Check if a session+skill_level is currently generating a coaching report."""
     return (session_id, skill_level) in _generating
+
+
+def get_generation_started_at(
+    session_id: str, skill_level: str = "intermediate"
+) -> datetime | None:
+    """Return the timestamp when generation started, or None if not generating."""
+    return _generating.get((session_id, skill_level))
 
 
 def clear_all_coaching() -> None:
@@ -203,6 +210,27 @@ def clear_all_coaching() -> None:
     _contexts.clear()
     _generating.clear()
     _regen_counts.clear()
+    _generation_durations.clear()
+
+
+# Historical generation durations for ETA estimation
+_generation_durations: list[float] = []
+_DEFAULT_ESTIMATE_S: float = 20.0
+
+
+def record_generation_duration(duration_s: float) -> None:
+    """Record how long a generation took, for ETA estimation."""
+    _generation_durations.append(duration_s)
+    # Keep last 20 measurements
+    if len(_generation_durations) > 20:
+        _generation_durations.pop(0)
+
+
+def get_estimated_duration_s() -> float:
+    """Return the estimated generation duration based on recent history."""
+    if not _generation_durations:
+        return _DEFAULT_ESTIMATE_S
+    return sum(_generation_durations) / len(_generation_durations)
 
 
 def _today_str() -> str:
