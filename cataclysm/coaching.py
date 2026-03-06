@@ -910,10 +910,11 @@ referencing specific telemetry patterns.",
       "trail_braking": "<A-F>",
       "min_speed": "<A-F>",
       "throttle": "<A-F>",
-      "notes": "<ONE sentence a trackside coach would say. Embed key data naturally — \
-e.g. 'Your best lap carried {{{{speed:3}}}} more and gained 0.3s on the straight' — \
-but NEVER dump raw stats (std=, r=, ±), restate grades, or echo thresholds. \
-Focus on what to DO or what's working, with one concrete data point as evidence.>"
+      "notes": "<ONE coaching insight about THIS corner — what a trackside coach would \
+actually say. MUST be about what to DO or what's WORKING, with one data point as evidence. \
+NEVER write 'Braking X because..., Trail braking Y because...' — the grades already say that. \
+GOOD: 'Entry inconsistency is costing you — L4 got on throttle 15m earlier from a later brake' \
+BAD: 'Braking B because peak G averages 0.25G. Min speed B because within 1.3 mph of target.'>"
     }}
   ],
   "patterns": [
@@ -958,17 +959,20 @@ All-A or all-B reports are almost certainly grade-inflated. \
 First cite the evidence (numbers), THEN assign the grade — not the reverse.
 
 CORNER NOTES RULES — write like a trackside coach, not a data analyst:
+- The notes field is ONE coaching insight per corner. NOT a grade-by-grade breakdown.
+- ABSOLUTELY FORBIDDEN pattern: "Braking X because..., Trail braking Y because..., \
+Min speed Z because..., Throttle W because..." — this restates the grades. The grade \
+fields already contain A-F letters; the notes must add coaching VALUE beyond them.
 - NEVER use raw statistics: "std=1.1 mph", "±6.8m", "r=-0.63", "commit std=0.3m"
-- NEVER restate what the grade fields already show (e.g. "Braking N/A because it's a kink")
-- NEVER echo grading thresholds (e.g. "A-grade, within 1 mph of target")
+- NEVER echo grading thresholds (e.g. "within 1 mph of target", "peak G averages 0.25G")
+- DO tell the driver what to DO differently or what's WORKING
 - DO embed one concrete data point naturally: lap numbers, speed values, distances
-- DO focus on the single most coaching-relevant insight for this corner
-- DO frame as what to DO or what's WORKING
+- DO connect cause to effect: "late brake → wider exit → earlier throttle → 0.3s gain"
 GOOD: "Your best lap carried {{{{speed:3}}}} more through the apex — trust the grip"
 GOOD: "Same throttle spot every lap (L7 nailed it) — this corner is dialed in"
-GOOD: "Getting on power early here costs you into T4 — hold an extra beat"
+GOOD: "Entry scatter is the root cause here — fix the brake point and exit speed follows"
+BAD: "Braking B because peak G averages 0.25G. Trail braking B because blending smoothly"
 BAD: "Min speed std=1.1 mph. Throttle scatter ±6.8m. Correlation r=-0.63"
-BAD: "Braking N/A (kink, no braking). Min speed B because std=1.9 mph"
 
 For each pattern, trace the root cause chain: don't just describe WHAT happened — \
 diagnose WHY by tracing entry cause -> mid-corner effect -> exit consequence. \

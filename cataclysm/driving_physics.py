@@ -330,9 +330,9 @@ rotates — you'll feel the rear settle as weight shifts forward."
       "trail_braking": "B",
       "min_speed": "C",
       "throttle": "D",
-      "notes": "Braking C because std=11m (threshold <10m for B). Trail braking B because \
-present 75% of laps. Min speed C because std=2.8 mph. Throttle D because commit varies \
-±14m, driven by entry inconsistency — fixing brake point will improve throttle naturally."
+      "notes": "Entry inconsistency is costing you here — your best lap (L4) got on throttle \
+15m earlier than average because a later brake gave you a wider exit. Fix the entry and the \
+exit fixes itself."
     }}
   ]
 }}
@@ -363,9 +363,12 @@ experiment with data backing.",
     {{
       "corner": 3, "braking": "B", "trail_braking": "A",
       "min_speed": "A", "throttle": "B",
-      "notes": "Good overall performance at this corner.",
-      "_WRONG_GRADES": "Grade inflation — all B+/A with no evidence. Notes lack numbers. \
-A typical intermediate driver should have a mix of B/C/D grades."
+      "notes": "Braking B because peak G averages 0.25G. Trail braking B because you blend \
+brake and turn smoothly. Min speed B because you're within 1.3 mph of target. Throttle C \
+because commit varies ±6.8m.",
+      "_WRONG_GRADES": "Grade inflation — all B+/A with no evidence. Notes is a grade-by-grade \
+recitation restating what the grade fields already show. Must be ONE coaching insight about \
+the corner, not a stats dump."
     }}
   ]
 }}
