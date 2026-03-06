@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, Search } from 'lucide-react';
+import { Car, ChevronDown, Search, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -18,8 +18,10 @@ import {
   useCreateProfile,
   useTireSearch,
   useUpdateProfile,
+  useVehicleSearch,
 } from '@/hooks/useEquipment';
-import type { BrakePadSearchResult, EquipmentProfile, TireSpec } from '@/lib/types';
+import { getVehicleSpec } from '@/lib/api';
+import type { BrakePadSearchResult, EquipmentProfile, TireSpec, VehicleSearchResult, VehicleSpec } from '@/lib/types';
 
 interface EquipmentSetupModalProps {
   open: boolean;
@@ -60,12 +62,16 @@ export function EquipmentSetupModal({
   const [tireSize, setTireSize] = useState('');
   const [tireSizeOpen, setTireSizeOpen] = useState(false);
   const [tirePressure, setTirePressure] = useState('');
+  const [vehicleQuery, setVehicleQuery] = useState('');
+  const [selectedVehicle, setSelectedVehicle] = useState<VehicleSpec | null>(null);
+  const [vehicleOverrides, setVehicleOverrides] = useState<Record<string, number>>({});
   const [padQuery, setPadQuery] = useState('');
   const [selectedPad, setSelectedPad] = useState<BrakePadSearchResult | null>(null);
   const [brakeFluid, setBrakeFluid] = useState('');
   const [notes, setNotes] = useState('');
 
   // --- Queries ---
+  const { data: vehicleResults, isLoading: searchingVehicles } = useVehicleSearch(vehicleQuery);
   const { data: tireResults, isLoading: searchingTires } = useTireSearch(tireQuery);
   const { data: padResults, isLoading: searchingPads } = useBrakePadSearch(padQuery);
   const { data: commonSizes } = useCommonTireSizes();
@@ -80,6 +86,14 @@ export function EquipmentSetupModal({
     if (!open) return;
     if (editProfile) {
       setProfileName(editProfile.name);
+      if (editProfile.vehicle) {
+        setSelectedVehicle(editProfile.vehicle);
+        setVehicleQuery(`${editProfile.vehicle.make} ${editProfile.vehicle.model}`);
+      } else {
+        setSelectedVehicle(null);
+        setVehicleQuery('');
+      }
+      setVehicleOverrides(editProfile.vehicle_overrides ?? {});
       setTireQuery(editProfile.tires.model);
       setSelectedTire(editProfile.tires);
       setCompoundCategory(editProfile.tires.compound_category);
@@ -104,6 +118,9 @@ export function EquipmentSetupModal({
     } else {
       // Reset for create mode
       setProfileName('');
+      setVehicleQuery('');
+      setSelectedVehicle(null);
+      setVehicleOverrides({});
       setTireQuery('');
       setSelectedTire(null);
       setCompoundCategory('super_200tw');
@@ -128,6 +145,29 @@ export function EquipmentSetupModal({
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [tireSizeOpen]);
+
+  const handleSelectVehicle = useCallback(async (result: VehicleSearchResult) => {
+    setVehicleQuery(`${result.make} ${result.model}`);
+    setVehicleOverrides({});
+    try {
+      const full = await getVehicleSpec(result.make, result.model, result.generation);
+      setSelectedVehicle(full);
+    } catch {
+      // Fall back to lightweight data if full spec fetch fails
+      setSelectedVehicle({
+        ...result,
+        year_range: result.year_range,
+        wheelbase_m: 0,
+        track_width_front_m: 0,
+        track_width_rear_m: 0,
+        cg_height_m: 0,
+        weight_dist_front_pct: 0,
+        torque_nm: 0,
+        has_aero: false,
+        notes: null,
+      });
+    }
+  }, []);
 
   const handleSelectTire = useCallback((tire: TireSpec) => {
     setSelectedTire(tire);
@@ -161,6 +201,8 @@ export function EquipmentSetupModal({
         pressure_psi: tirePressure ? parseFloat(tirePressure) : null,
         age_sessions: null,
       },
+      vehicle: selectedVehicle ?? null,
+      vehicle_overrides: Object.keys(vehicleOverrides).length > 0 ? vehicleOverrides : {},
       brakes: selectedPad
         ? {
             compound: selectedPad.model,
@@ -194,8 +236,8 @@ export function EquipmentSetupModal({
     }
   }, [
     selectedTire, tireQuery, profileName, compoundCategory, tireSize,
-    tirePressure, selectedPad, brakeFluid, notes, isEdit, editProfile,
-    createMutation, updateMutation, onSaved, onOpenChange,
+    tirePressure, selectedVehicle, vehicleOverrides, selectedPad, brakeFluid,
+    notes, isEdit, editProfile, createMutation, updateMutation, onSaved, onOpenChange,
   ]);
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
@@ -228,6 +270,156 @@ export function EquipmentSetupModal({
               className={inputClass}
             />
           </div>
+
+          {/* --- VEHICLE --- */}
+          <fieldset>
+            <legend className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+              <span className="inline-flex items-center gap-1.5"><Car className="h-3.5 w-3.5" />Vehicle</span>
+            </legend>
+            <div className="flex flex-col gap-3">
+              {!selectedVehicle ? (
+                <>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+                    <input
+                      type="text"
+                      value={vehicleQuery}
+                      onChange={(e) => setVehicleQuery(e.target.value)}
+                      placeholder="Search cars (e.g. GR86, Miata, M3)"
+                      className={`${inputClass} pl-9`}
+                    />
+                  </div>
+                  {searchingVehicles && (
+                    <p className="text-xs text-[var(--text-muted)]">Searching...</p>
+                  )}
+                  {vehicleResults && vehicleResults.length > 0 && (
+                    <div className="max-h-48 overflow-y-auto rounded-md border border-[var(--cata-border)]">
+                      {vehicleResults.map((v) => (
+                        <button
+                          key={v.slug}
+                          type="button"
+                          onClick={() => handleSelectVehicle(v)}
+                          className="flex w-full items-center justify-between px-3 py-2 text-left transition-colors hover:bg-[var(--bg-elevated)]"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-[var(--text-primary)]">
+                              {v.make} {v.model}
+                            </p>
+                            <p className="text-xs text-[var(--text-muted)]">
+                              {v.generation} | {v.year_range[0]}-{v.year_range[1]}
+                            </p>
+                          </div>
+                          <span className="text-right text-xs text-[var(--text-secondary)]">
+                            {v.hp} HP / {Math.round(v.weight_kg * 2.205)} lb
+                            <br />
+                            {v.drivetrain}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {vehicleQuery.length >= 2 && !searchingVehicles && vehicleResults?.length === 0 && (
+                    <p className="text-xs text-[var(--text-muted)]">No vehicles found</p>
+                  )}
+                </>
+              ) : (
+                <div className="rounded-md border border-[var(--cata-accent)]/30 bg-[var(--cata-accent)]/5 p-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-[var(--text-primary)]">
+                        {selectedVehicle.make} {selectedVehicle.model}
+                      </p>
+                      <p className="text-xs text-[var(--text-secondary)]">
+                        {selectedVehicle.generation} | {selectedVehicle.year_range[0]}-{selectedVehicle.year_range[1]} | {selectedVehicle.drivetrain}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedVehicle(null);
+                        setVehicleQuery('');
+                        setVehicleOverrides({});
+                      }}
+                      className="rounded p-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <span className="text-[var(--text-muted)]">Power</span>
+                      <p className="font-medium text-[var(--text-primary)]">
+                        {vehicleOverrides.hp ?? selectedVehicle.hp} HP
+                        {vehicleOverrides.hp != null && (
+                          <span className="ml-1 text-[var(--text-muted)]">(stock: {selectedVehicle.hp})</span>
+                        )}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[var(--text-muted)]">Weight</span>
+                      <p className="font-medium text-[var(--text-primary)]">
+                        {Math.round((vehicleOverrides.weight_kg ?? selectedVehicle.weight_kg) * 2.205)} lb
+                        {vehicleOverrides.weight_kg != null && (
+                          <span className="ml-1 text-[var(--text-muted)]">(stock: {Math.round(selectedVehicle.weight_kg * 2.205)})</span>
+                        )}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[var(--text-muted)]">Torque</span>
+                      <p className="font-medium text-[var(--text-primary)]">
+                        {Math.round((vehicleOverrides.torque_nm ?? selectedVehicle.torque_nm) * 0.7376)} ft-lb
+                      </p>
+                    </div>
+                  </div>
+                  {/* Quick override for HP and weight */}
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="mb-0.5 block text-[10px] font-medium text-[var(--text-muted)]">
+                        Override HP
+                      </label>
+                      <input
+                        type="number"
+                        value={vehicleOverrides.hp ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setVehicleOverrides((prev) => {
+                            if (!val) {
+                              const { hp: _, ...rest } = prev;
+                              return rest;
+                            }
+                            return { ...prev, hp: parseFloat(val) };
+                          });
+                        }}
+                        placeholder={`Stock: ${selectedVehicle.hp}`}
+                        className={`${inputClass} text-xs`}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-0.5 block text-[10px] font-medium text-[var(--text-muted)]">
+                        Override Weight (kg)
+                      </label>
+                      <input
+                        type="number"
+                        value={vehicleOverrides.weight_kg ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setVehicleOverrides((prev) => {
+                            if (!val) {
+                              const { weight_kg: _, ...rest } = prev;
+                              return rest;
+                            }
+                            return { ...prev, weight_kg: parseFloat(val) };
+                          });
+                        }}
+                        placeholder={`Stock: ${selectedVehicle.weight_kg}`}
+                        className={`${inputClass} text-xs`}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </fieldset>
 
           {/* --- TIRES --- */}
           <fieldset>

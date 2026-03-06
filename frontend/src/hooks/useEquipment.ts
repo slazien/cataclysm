@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchApi } from "@/lib/api";
+import { fetchApi, searchVehicles, getVehicleSpec } from "@/lib/api";
 import type {
   BrakePadSearchResult,
   EquipmentProfile,
@@ -10,6 +10,8 @@ import type {
   SessionEquipmentSet,
   SessionWeather,
   TireSpec,
+  VehicleSearchResult,
+  VehicleSpec,
 } from "@/lib/types";
 
 // --- Equipment Profiles ---
@@ -119,6 +121,26 @@ export function useUpdateProfile() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipment-profiles"] });
     },
+  });
+}
+
+// --- Vehicle Search ---
+
+export function useVehicleSearch(query: string) {
+  return useQuery({
+    queryKey: ["vehicle-search", query],
+    queryFn: () => searchVehicles(query),
+    enabled: query.length >= 2,
+    staleTime: 60_000,
+  });
+}
+
+export function useVehicleSpec(make: string, model: string, generation?: string) {
+  return useQuery({
+    queryKey: ["vehicle-spec", make, model, generation],
+    queryFn: () => getVehicleSpec(make, model, generation),
+    enabled: !!make && !!model,
+    staleTime: Infinity,
   });
 }
 

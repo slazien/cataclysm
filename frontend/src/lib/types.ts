@@ -308,6 +308,7 @@ export interface EquipmentProfile {
   id: string;
   name: string;
   tires: TireSpec;
+  vehicle?: VehicleSpec | null;
   brakes?: {
     compound: string | null;
     rotor_type: string | null;
@@ -315,12 +316,14 @@ export interface EquipmentProfile {
     fluid_type: string | null;
   } | null;
   suspension?: Record<string, unknown> | null;
+  vehicle_overrides?: Record<string, number>;
   notes: string | null;
 }
 
 export interface EquipmentProfileCreate {
   name: string;
   tires: TireSpec;
+  vehicle?: VehicleSpec | null;
   brakes?: {
     compound: string | null;
     rotor_type: string | null;
@@ -328,6 +331,7 @@ export interface EquipmentProfileCreate {
     fluid_type: string | null;
   } | null;
   suspension?: Record<string, unknown> | null;
+  vehicle_overrides?: Record<string, number>;
   notes?: string | null;
 }
 
@@ -349,6 +353,35 @@ export interface BrakePadSearchResult {
   temp_range: string;
   initial_bite: string;
   notes: string;
+}
+
+export interface VehicleSearchResult {
+  slug: string;
+  make: string;
+  model: string;
+  generation: string;
+  year_range: [number, number];
+  hp: number;
+  weight_kg: number;
+  drivetrain: string;
+}
+
+export interface VehicleSpec {
+  make: string;
+  model: string;
+  generation: string;
+  year_range: [number, number];
+  weight_kg: number;
+  wheelbase_m: number;
+  track_width_front_m: number;
+  track_width_rear_m: number;
+  cg_height_m: number;
+  weight_dist_front_pct: number;
+  drivetrain: string;
+  hp: number;
+  torque_nm: number;
+  has_aero: boolean;
+  notes: string | null;
 }
 
 export interface SessionWeather {

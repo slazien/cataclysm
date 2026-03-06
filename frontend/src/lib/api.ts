@@ -38,6 +38,8 @@ import type {
   ProgressLeaderboardResponse,
   LineAnalysisData,
   TrackGuideData,
+  VehicleSearchResult,
+  VehicleSpec,
 } from "./types";
 
 const API_BASE = "";
@@ -558,6 +560,21 @@ export async function deleteOrgEvent(slug: string, eventId: string) {
 export async function getProgressLeaderboard(trackName: string, days = 90) {
   return fetchApi<ProgressLeaderboardResponse>(
     `/api/progress/${encodeURIComponent(trackName)}/improvement?days=${days}`,
+  );
+}
+
+// --- Vehicle Search API ---
+
+export async function searchVehicles(query: string) {
+  return fetchApi<VehicleSearchResult[]>(
+    `/api/equipment/vehicles/search?q=${encodeURIComponent(query)}`,
+  );
+}
+
+export async function getVehicleSpec(make: string, model: string, generation?: string) {
+  const params = generation ? `?generation=${encodeURIComponent(generation)}` : '';
+  return fetchApi<VehicleSpec>(
+    `/api/equipment/vehicles/${encodeURIComponent(make)}/${encodeURIComponent(model)}${params}`,
   );
 }
 
