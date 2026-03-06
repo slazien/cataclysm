@@ -7,6 +7,7 @@ from datetime import UTC
 from typing import Annotated
 
 from cataclysm.equipment import (
+    CATEGORY_MU_DEFAULTS,
     BrakeSpec,
     EquipmentProfile,
     MuSource,
@@ -278,13 +279,22 @@ async def weather_lookup(
 
 def _schema_to_tire(s: TireSpecSchema) -> TireSpec:
     """Convert a TireSpecSchema to the domain TireSpec dataclass."""
+    mu = s.estimated_mu
+    mu_source = MuSource(s.mu_source)
+    category = TireCompoundCategory(s.compound_category)
+
+    # When mu is the uncalibrated default (1.0 from formula with no treadwear),
+    # upgrade to the compound-category default for a more useful estimate.
+    if mu_source == MuSource.FORMULA_ESTIMATE and mu == 1.0:
+        mu = CATEGORY_MU_DEFAULTS.get(category, 1.0)
+
     return TireSpec(
         model=s.model,
-        compound_category=TireCompoundCategory(s.compound_category),
+        compound_category=category,
         size=s.size,
         treadwear_rating=s.treadwear_rating,
-        estimated_mu=s.estimated_mu,
-        mu_source=MuSource(s.mu_source),
+        estimated_mu=mu,
+        mu_source=mu_source,
         mu_confidence=s.mu_confidence,
         pressure_psi=s.pressure_psi,
         brand=s.brand,
