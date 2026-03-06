@@ -109,10 +109,10 @@ export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
                         )}
                       </span>
                     </td>
-                    <td className="px-2 py-1.5 text-center lg:px-3 lg:py-2"><GradeChip grade={g.braking} /></td>
-                    <td className="px-2 py-1.5 text-center lg:px-3 lg:py-2"><GradeChip grade={g.trail_braking} /></td>
-                    <td className="px-2 py-1.5 text-center lg:px-3 lg:py-2"><GradeChip grade={g.min_speed} /></td>
-                    <td className="px-2 py-1.5 text-center lg:px-3 lg:py-2"><GradeChip grade={g.throttle} /></td>
+                    <td className="px-2 py-1.5 text-center lg:px-3 lg:py-2"><GradeChip grade={g.braking} reason={g.braking_reason} /></td>
+                    <td className="px-2 py-1.5 text-center lg:px-3 lg:py-2"><GradeChip grade={g.trail_braking} reason={g.trail_braking_reason} /></td>
+                    <td className="px-2 py-1.5 text-center lg:px-3 lg:py-2"><GradeChip grade={g.min_speed} reason={g.min_speed_reason} /></td>
+                    <td className="px-2 py-1.5 text-center lg:px-3 lg:py-2"><GradeChip grade={g.throttle} reason={g.throttle_reason} /></td>
                   </m.tr>
                   <AnimatePresence>
                     {isExpanded && hasNotes && (

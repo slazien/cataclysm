@@ -19,6 +19,10 @@ class CornerGradeSchema(BaseModel):
     min_speed: str
     throttle: str
     notes: str
+    braking_reason: str = ""
+    trail_braking_reason: str = ""
+    min_speed_reason: str = ""
+    throttle_reason: str = ""
 
 
 class PriorityCornerSchema(BaseModel):

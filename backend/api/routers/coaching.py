@@ -413,6 +413,10 @@ async def _run_generation(
                 min_speed=g.min_speed,
                 throttle=g.throttle,
                 notes=g.notes,
+                braking_reason=g.braking_reason,
+                trail_braking_reason=g.trail_braking_reason,
+                min_speed_reason=g.min_speed_reason,
+                throttle_reason=g.throttle_reason,
             )
             for g in report.corner_grades
         ]

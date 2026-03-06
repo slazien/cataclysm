@@ -111,25 +111,25 @@ function CornerCard({
           {cornerGrade.braking && (
             <div className="flex items-center gap-1">
               <span className="text-[10px] text-[var(--text-muted)]">Brk</span>
-              <GradeChip grade={cornerGrade.braking} className="px-1.5 py-0 text-[10px]" />
+              <GradeChip grade={cornerGrade.braking} reason={cornerGrade.braking_reason} className="px-1.5 py-0 text-[10px]" />
             </div>
           )}
           {cornerGrade.trail_braking && (
             <div className="flex items-center gap-1">
               <span className="text-[10px] text-[var(--text-muted)]">Trail</span>
-              <GradeChip grade={cornerGrade.trail_braking} className="px-1.5 py-0 text-[10px]" />
+              <GradeChip grade={cornerGrade.trail_braking} reason={cornerGrade.trail_braking_reason} className="px-1.5 py-0 text-[10px]" />
             </div>
           )}
           {cornerGrade.min_speed && (
             <div className="flex items-center gap-1">
               <span className="text-[10px] text-[var(--text-muted)]">Spd</span>
-              <GradeChip grade={cornerGrade.min_speed} className="px-1.5 py-0 text-[10px]" />
+              <GradeChip grade={cornerGrade.min_speed} reason={cornerGrade.min_speed_reason} className="px-1.5 py-0 text-[10px]" />
             </div>
           )}
           {cornerGrade.throttle && (
             <div className="flex items-center gap-1">
               <span className="text-[10px] text-[var(--text-muted)]">Thr</span>
-              <GradeChip grade={cornerGrade.throttle} className="px-1.5 py-0 text-[10px]" />
+              <GradeChip grade={cornerGrade.throttle} reason={cornerGrade.throttle_reason} className="px-1.5 py-0 text-[10px]" />
             </div>
           )}
         </m.div>

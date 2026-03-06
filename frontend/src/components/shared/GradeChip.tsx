@@ -1,6 +1,12 @@
 'use client';
 
 import { motion as m } from 'motion/react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { motion as motionTokens } from '@/lib/design-tokens';
 
@@ -8,6 +14,7 @@ type Grade = 'A' | 'B' | 'C' | 'D' | 'F';
 
 interface GradeChipProps {
   grade: Grade | string;
+  reason?: string;
   className?: string;
 }
 
@@ -33,7 +40,7 @@ const gradeIndicators: Record<string, { suffix: string; fontWeight: string }> = 
   F: { suffix: '\u00A0\u25BC', fontWeight: 'font-bold' },
 };
 
-export function GradeChip({ grade, className }: GradeChipProps) {
+function ChipContent({ grade, className }: { grade: string; className?: string }) {
   const normalized = grade.toUpperCase();
   const colorClass = gradeColors[normalized] ?? gradeColors['C'];
   const indicator = gradeIndicators[normalized] ?? gradeIndicators['C'];
@@ -56,5 +63,34 @@ export function GradeChip({ grade, className }: GradeChipProps) {
         <span className="text-[0.6rem] leading-none">{indicator.suffix}</span>
       )}
     </m.span>
+  );
+}
+
+export function GradeChip({ grade, reason, className }: GradeChipProps) {
+  if (!reason) {
+    return <ChipContent grade={grade} className={className} />;
+  }
+
+  return (
+    <TooltipProvider delayDuration={0}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex cursor-help"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ChipContent grade={grade} className={className} />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent
+          side="top"
+          sideOffset={6}
+          className="max-w-[220px] text-xs leading-relaxed"
+        >
+          {reason}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

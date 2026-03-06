@@ -203,6 +203,10 @@ class CornerGrade:
     min_speed: str
     throttle: str
     notes: str
+    braking_reason: str = ""
+    trail_braking_reason: str = ""
+    min_speed_reason: str = ""
+    throttle_reason: str = ""
 
 
 @dataclass
@@ -907,9 +911,13 @@ referencing specific telemetry patterns.",
     {{
       "corner": <number>,
       "braking": "<A-F>",
+      "braking_reason": "<10-15 word explanation of WHY this grade, citing one data point>",
       "trail_braking": "<A-F>",
+      "trail_braking_reason": "<10-15 word explanation of WHY this grade, citing one data point>",
       "min_speed": "<A-F>",
+      "min_speed_reason": "<10-15 word explanation of WHY this grade, citing one data point>",
       "throttle": "<A-F>",
+      "throttle_reason": "<10-15 word explanation of WHY this grade, citing one data point>",
       "notes": "<ONE coaching insight about THIS corner — what a trackside coach would \
 actually say. MUST be about what to DO or what's WORKING, with one data point as evidence. \
 NEVER write 'Braking X because..., Trail braking Y because...' — the grades already say that. \
@@ -1037,6 +1045,10 @@ def _parse_coaching_response(text: str) -> CoachingReport:
                 min_speed=g.get("min_speed", "?"),
                 throttle=g.get("throttle", "?"),
                 notes=g.get("notes", ""),
+                braking_reason=g.get("braking_reason", ""),
+                trail_braking_reason=g.get("trail_braking_reason", ""),
+                min_speed_reason=g.get("min_speed_reason", ""),
+                throttle_reason=g.get("throttle_reason", ""),
             )
         )
 

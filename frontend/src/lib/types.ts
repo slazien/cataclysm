@@ -147,6 +147,10 @@ export interface CornerGrade {
   min_speed: string;
   throttle: string;
   notes: string;
+  braking_reason?: string;
+  trail_braking_reason?: string;
+  min_speed_reason?: string;
+  throttle_reason?: string;
 }
 
 export interface CoachingReport {

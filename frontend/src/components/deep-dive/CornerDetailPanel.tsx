@@ -82,15 +82,16 @@ function KpiRow({ label, value, unit = '', delta, deltaUnit, invertDelta }: KpiR
 interface GradeRowProps {
   label: React.ReactNode;
   grade: string;
+  reason?: string;
   explanation?: string | null;
 }
 
-function GradeRow({ label, grade, explanation }: GradeRowProps) {
+function GradeRow({ label, grade, reason, explanation }: GradeRowProps) {
   return (
     <div className="py-1">
       <div className="flex items-center justify-between">
         <span className="text-xs text-[var(--text-muted)]">{label}</span>
-        <GradeChip grade={grade} />
+        <GradeChip grade={grade} reason={reason} />
       </div>
       {explanation && (
         <p className="mt-0.5 text-[11px] leading-snug text-[var(--text-secondary)]">
@@ -297,6 +298,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
             <GradeRow
               label="Braking"
               grade={cornerGrade.braking}
+              reason={cornerGrade.braking_reason}
               explanation={showExplanations ? gradeExplanation(cornerGrade.braking, 'braking', skillLevel) : null}
             />
           )}
@@ -304,6 +306,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
             <GradeRow
               label={<GlossaryTerm term="Trail Braking">Trail Braking</GlossaryTerm>}
               grade={cornerGrade.trail_braking}
+              reason={cornerGrade.trail_braking_reason}
               explanation={showExplanations ? gradeExplanation(cornerGrade.trail_braking, 'trail_braking', skillLevel) : null}
             />
           )}
@@ -311,6 +314,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
             <GradeRow
               label={<GlossaryTerm term="Min Speed">Min Speed</GlossaryTerm>}
               grade={cornerGrade.min_speed}
+              reason={cornerGrade.min_speed_reason}
               explanation={showExplanations ? gradeExplanation(cornerGrade.min_speed, 'min_speed', skillLevel) : null}
             />
           )}
@@ -318,6 +322,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
             <GradeRow
               label="Throttle"
               grade={cornerGrade.throttle}
+              reason={cornerGrade.throttle_reason}
               explanation={showExplanations ? gradeExplanation(cornerGrade.throttle, 'throttle', skillLevel) : null}
             />
           )}
