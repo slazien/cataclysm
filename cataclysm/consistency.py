@@ -27,6 +27,8 @@ class LapConsistency:
     lap_numbers: list[int]
     lap_times_s: list[float]
     consecutive_deltas_s: list[float]
+    has_sufficient_data: bool = True
+    sample_count: int = 0
 
 
 @dataclass
@@ -41,6 +43,8 @@ class CornerConsistencyEntry:
     consistency_score: float  # 0-100
     lap_numbers: list[int]
     min_speeds_mph: list[float]
+    has_sufficient_data: bool = True
+    sample_count: int = 0
 
 
 @dataclass
@@ -94,6 +98,8 @@ def compute_lap_consistency(
             lap_numbers=lap_numbers,
             lap_times_s=lap_times,
             consecutive_deltas_s=[],
+            has_sufficient_data=False,
+            sample_count=len(clean),
         )
 
     times = np.array(lap_times)
@@ -128,6 +134,8 @@ def compute_lap_consistency(
         lap_numbers=lap_numbers,
         lap_times_s=lap_times,
         consecutive_deltas_s=consecutive_deltas,
+        has_sufficient_data=True,
+        sample_count=len(clean),
     )
 
 
@@ -188,6 +196,8 @@ def compute_corner_consistency(
                     consistency_score=100.0,
                     lap_numbers=lap_nums,
                     min_speeds_mph=speeds_mph,
+                    has_sufficient_data=False,
+                    sample_count=len(speeds_mph),
                 )
             )
             continue
@@ -224,6 +234,8 @@ def compute_corner_consistency(
                 consistency_score=score,
                 lap_numbers=lap_nums,
                 min_speeds_mph=speeds_mph,
+                has_sufficient_data=True,
+                sample_count=len(speeds_mph),
             )
         )
 

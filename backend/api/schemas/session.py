@@ -62,8 +62,8 @@ class LapData(BaseModel):
     lat: list[float]
     lon: list[float]
     heading_deg: list[float]
-    lateral_g: list[float]
-    longitudinal_g: list[float]
+    lateral_g: list[float] | None = None
+    longitudinal_g: list[float] | None = None
     lap_time_s: list[float]
     altitude_m: list[float] | None = None
 

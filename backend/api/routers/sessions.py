@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import logging
+import math
 from typing import Annotated, cast
 
+import numpy as np
 from cataclysm.constants import MPS_TO_MPH
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from sqlalchemy.exc import SQLAlchemyError
@@ -148,6 +150,15 @@ def _normalize_score(raw: float) -> float:
     return raw * 100 if raw <= 1 else raw
 
 
+def _is_valid_pace_reference(best_lap_time_s: float, optimal_time_s: float | None) -> bool:
+    """True when the reference pace is finite, positive, and not slower than the lap."""
+    if optimal_time_s is None or best_lap_time_s <= 0:
+        return False
+    if not math.isfinite(optimal_time_s) or optimal_time_s <= 0:
+        return False
+    return optimal_time_s <= best_lap_time_s + 1e-3
+
+
 async def _compute_ideal_lap_time(sd: session_store.SessionData) -> float | None:
     """Integrate ideal-lap speed/distance arrays for the most accurate optimal time.
 
@@ -196,9 +207,10 @@ async def _compute_session_score(sd: session_store.SessionData) -> float | None:
         optimal_time = await _compute_ideal_lap_time(sd)
         if optimal_time is None:
             optimal_time = snap.optimal_lap_time_s
-        gap_pct = 1 - (optimal_time / snap.best_lap_time_s)
-        pace_value = min(100.0, max(0.0, 100 - gap_pct * 500))
-        components.append((pace_value, 0.3))
+        if _is_valid_pace_reference(snap.best_lap_time_s, optimal_time):
+            gap_pct = 1 - (cast(float, optimal_time) / snap.best_lap_time_s)
+            pace_value = min(100.0, max(0.0, 100 - gap_pct * 500))
+            components.append((pace_value, 0.3))
 
     # Corner grades (30%)
     report = await get_any_coaching_report(sd.session_id)
@@ -943,6 +955,16 @@ async def get_lap_data(
 
     df = sd.processed.resampled_laps[lap_number]
     altitude = df["altitude_m"].tolist() if "altitude_m" in df.columns else None
+
+    def _finite_list_or_none(col: str) -> list[float] | None:
+        """Return column values as a list only if finite data exists."""
+        if col not in df.columns:
+            return None
+        arr = df[col].to_numpy()
+        if not np.any(np.isfinite(arr)):
+            return None
+        return arr.tolist()
+
     return LapData(
         lap_number=lap_number,
         distance_m=df["lap_distance_m"].tolist(),
@@ -950,8 +972,8 @@ async def get_lap_data(
         lat=df["lat"].tolist(),
         lon=df["lon"].tolist(),
         heading_deg=df["heading_deg"].tolist(),
-        lateral_g=df["lateral_g"].tolist(),
-        longitudinal_g=df["longitudinal_g"].tolist(),
+        lateral_g=_finite_list_or_none("lateral_g"),
+        longitudinal_g=_finite_list_or_none("longitudinal_g"),
         lap_time_s=df["lap_time_s"].tolist(),
         altitude_m=altitude,
     )

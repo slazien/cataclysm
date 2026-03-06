@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CornerSchema(BaseModel):
@@ -89,8 +89,8 @@ class LinkedChartResponse(BaseModel):
     laps: list[int]
     distance_m: list[float]
     speed_traces: dict[str, list[float]]
-    lateral_g_traces: dict[str, list[float]]
-    longitudinal_g_traces: dict[str, list[float]]
+    lateral_g_traces: dict[str, list[float]] | None = None
+    longitudinal_g_traces: dict[str, list[float]] | None = None
     heading_traces: dict[str, list[float]]
 
 
@@ -243,6 +243,8 @@ class OptimalComparisonResponse(BaseModel):
     actual_lap_time_s: float
     optimal_lap_time_s: float
     total_gap_s: float  # actual - optimal (positive = driver is slower)
+    is_valid: bool = True
+    invalid_reasons: list[str] = Field(default_factory=list)
 
 
 class CornerLineProfileSchema(BaseModel):

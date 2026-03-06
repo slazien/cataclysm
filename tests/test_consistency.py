@@ -118,6 +118,8 @@ class TestLapConsistencyEdgeCases:
         result = compute_lap_consistency(summaries, anomalous_laps=set())
 
         assert result.consistency_score == 100.0
+        assert result.has_sufficient_data is False
+        assert result.sample_count == 1
         assert result.choppiness_score == 100.0
         assert result.spread_score == 100.0
         assert result.jump_score == 100.0
@@ -171,6 +173,7 @@ class TestCornerConsistency:
         entry = result[0]
         assert entry.brake_point_std_m is None
         assert entry.throttle_commit_std_m is None
+        assert entry.has_sufficient_data is True
         assert 0.0 <= entry.consistency_score <= 100.0
 
 
@@ -268,6 +271,8 @@ class TestCornerConsistencyEdgeCases:
         assert entry.min_speed_std_mph == 0.0
         assert entry.min_speed_range_mph == 0.0
         assert entry.consistency_score == 100.0
+        assert entry.has_sufficient_data is False
+        assert entry.sample_count == 1
         assert entry.brake_point_std_m is None
         assert entry.throttle_commit_std_m is None
 

@@ -109,8 +109,8 @@ export function LapReplay() {
     return {
       speed: lapData.speed_mph[idx] ?? 0,
       maxSpeed: d3.max(lapData.speed_mph) ?? 1,
-      lateralG: lapData.lateral_g[idx] ?? 0,
-      longitudinalG: lapData.longitudinal_g[idx] ?? 0,
+      lateralG: lapData.lateral_g?.[idx] ?? 0,
+      longitudinalG: lapData.longitudinal_g?.[idx] ?? 0,
       currentDistance: lapData.distance_m[idx] ?? 0,
       totalDistance: lapData.distance_m[lapData.distance_m.length - 1] ?? 0,
       currentTime: lapData.lap_time_s[idx] ?? 0,

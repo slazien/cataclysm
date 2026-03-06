@@ -96,11 +96,31 @@ def _resample_lap(lap_df: pd.DataFrame, step_m: float = RESAMPLE_STEP_M) -> pd.D
         "z_acc_g",
     ]
 
+    # Required channels are always interpolated; optional IMU channels are
+    # only interpolated when the raw data actually contains finite values.
+    required_channels = {"lap_time_s", "speed_mps", "lat", "lon", "altitude_m"}
+
     for ch in linear_channels:
         if ch not in lap_df.columns:
             continue
         vals = lap_df[ch].to_numpy().astype(float)
-        f = interp1d(dist, vals, kind="linear", bounds_error=False, fill_value="extrapolate")
+        finite_mask = np.isfinite(vals)
+
+        # Optional channels with fewer than 2 finite points are skipped
+        # entirely — they stay absent from the resampled DataFrame so
+        # downstream code can detect genuinely missing telemetry.
+        if ch not in required_channels and int(finite_mask.sum()) < 2:
+            continue
+
+        if finite_mask.all():
+            src_dist, src_vals = dist, vals
+        else:
+            src_dist = dist[finite_mask]
+            src_vals = vals[finite_mask]
+
+        f = interp1d(
+            src_dist, src_vals, kind="linear", bounds_error=False, fill_value="extrapolate"
+        )
         result[ch] = f(new_dist)
 
     # Heading: unwrap before interpolation to handle 360/0 discontinuity
@@ -119,13 +139,18 @@ def _resample_lap(lap_df: pd.DataFrame, step_m: float = RESAMPLE_STEP_M) -> pd.D
 def _filter_short_laps(
     laps: dict[int, pd.DataFrame],
 ) -> dict[int, pd.DataFrame]:
-    """Remove laps shorter than MIN_LAP_FRACTION of the median distance."""
+    """Remove laps shorter than MIN_LAP_FRACTION of the longest lap.
+
+    Using the longest observed lap protects against sessions where aborted or
+    partial laps are the majority. Median-based filtering can otherwise
+    normalize around the partial-lap cluster and let them through.
+    """
     if len(laps) < 2:
         return laps
 
     distances = [lap_df["lap_distance_m"].iloc[-1] for lap_df in laps.values()]
-    median_dist = float(np.median(distances))
-    threshold = median_dist * MIN_LAP_FRACTION
+    reference_dist = float(np.max(distances))
+    threshold = reference_dist * MIN_LAP_FRACTION
 
     return {num: df for num, df in laps.items() if df["lap_distance_m"].iloc[-1] >= threshold}
 

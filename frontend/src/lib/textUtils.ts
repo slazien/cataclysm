@@ -96,7 +96,10 @@ function closeMarkdown(s: string): string {
 export function extractActionTitle(text: string): string {
   // If text starts with a bold section, extract it entirely
   const boldMatch = text.match(/^(\*\*[^*]+\*\*)/);
-  if (boldMatch) return boldMatch[1];
+  if (boldMatch) {
+    // Strip trailing punctuation (: ; — etc.) inside the bold markers
+    return boldMatch[1].replace(/([^*])[,:;\u2014\u2013-]+(\*\*)$/, '$1$2');
+  }
   // Try to grab first short clause
   const match = text.match(/^(.{10,60}?)[.,;:\u2014\u2013-]\s/);
   if (match) return closeMarkdown(match[1].trim());

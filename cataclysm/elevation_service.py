@@ -35,9 +35,20 @@ class ElevationResult:
 
 
 def _cache_key(lats: np.ndarray, lons: np.ndarray) -> str:
-    """Generate cache key from GPS bounding box + point count."""
-    bbox = f"{lats.min():.4f},{lats.max():.4f},{lons.min():.4f},{lons.max():.4f},{len(lats)}"
-    return hashlib.md5(bbox.encode()).hexdigest()  # noqa: S324
+    """Generate cache key from the trace geometry itself.
+
+    Bounding-box keys collide for different laps that share the same overall
+    footprint and point count. Hash the rounded trace so cached altitude stays
+    aligned to the specific driving line that produced it.
+    """
+    lat_trace = np.round(np.asarray(lats, dtype=np.float64), 6)
+    lon_trace = np.round(np.asarray(lons, dtype=np.float64), 6)
+
+    h = hashlib.blake2b(digest_size=16)
+    h.update(np.asarray([len(lat_trace)], dtype=np.int32).tobytes())
+    h.update(lat_trace.tobytes())
+    h.update(lon_trace.tobytes())
+    return h.hexdigest()
 
 
 def _load_cache(key: str) -> np.ndarray | None:

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import math
 from typing import Annotated
 
 from cataclysm.causal_chains import compute_causal_analysis
@@ -56,8 +57,42 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+_ABSOLUTE_PRIORITY_TIME_CAP_S = 5.0
+
 # Track background coaching tasks to prevent GC collection and enable error logging
 _background_tasks: set[asyncio.Task[None]] = set()
+
+
+def _parse_priority_corner_number(value: object) -> int:
+    """Coerce AI-emitted corner identifiers into a safe integer."""
+    try:
+        return int(str(value))
+    except (ValueError, TypeError):
+        return 0
+
+
+def _sanitize_priority_time_cost(
+    value: object,
+    *,
+    corner_num: int,
+    per_corner_caps: dict[int, float],
+    session_cap_s: float | None,
+) -> float:
+    """Bound AI-provided time estimates to session-derived opportunity caps."""
+    try:
+        time_cost = float(str(value))
+    except (TypeError, ValueError):
+        return 0.0
+    if not math.isfinite(time_cost) or time_cost <= 0:
+        return 0.0
+
+    capped = min(time_cost, _ABSOLUTE_PRIORITY_TIME_CAP_S)
+    if session_cap_s is not None:
+        capped = min(capped, session_cap_s)
+    corner_cap = per_corner_caps.get(corner_num)
+    if corner_cap is not None:
+        capped = min(capped, corner_cap)
+    return round(max(capped, 0.0), 3)
 
 
 def _track_task(task: asyncio.Task[None]) -> None:
@@ -326,19 +361,37 @@ async def _run_generation(
                 raise last_exc  # type: ignore[misc]
 
         priority_corners = []
+        per_corner_caps = (
+            {
+                detail.corner_number: max(detail.total_gain_s, 0.0)
+                for detail in corners_gained.per_corner
+            }
+            if corners_gained is not None
+            else {}
+        )
+        session_cap_s = (
+            max(corners_gained.total_gap_s, 0.0)
+            if corners_gained is not None
+            else max(sd.gains.theoretical.gain_s, 0.0)
+            if sd.gains is not None
+            else None
+        )
         for pc in report.priority_corners:
-            try:
-                corner_num = int(pc.get("corner", 0))  # type: ignore[call-overload]
-            except (ValueError, TypeError):
-                corner_num = 0  # AI returned non-numeric (e.g. "Entire Session")
+            corner_num = _parse_priority_corner_number(pc.get("corner", 0))
             priority_corners.append(
                 PriorityCornerSchema(
                     corner=corner_num,
-                    time_cost_s=float(pc.get("time_cost_s", 0) or 0),  # type: ignore[arg-type]
+                    time_cost_s=_sanitize_priority_time_cost(
+                        pc.get("time_cost_s", 0),
+                        corner_num=corner_num,
+                        per_corner_caps=per_corner_caps,
+                        session_cap_s=session_cap_s,
+                    ),
                     issue=str(pc.get("issue", "")),
                     tip=str(pc.get("tip", "")),
                 )
             )
+        priority_corners.sort(key=lambda pc: (-pc.time_cost_s, pc.corner))
 
         corner_grades = [
             CornerGradeSchema(

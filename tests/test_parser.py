@@ -123,6 +123,20 @@ class TestParseRacechronoCsv:
         result = parse_racechrono_csv(racechrono_csv_file)
         assert (result.data["satellites"] >= MIN_SATELLITES).all()
 
+    def test_preserves_raw_rows_for_quality_assessment(self, racechrono_csv_text: str) -> None:
+        bad_row = (
+            "1700009999,0,1,999.0,999.0,5.0,200.0,45.0,95,25,3,"
+            "33.5301,-86.6201,4,20.0,0.0,20,0.0,0.0,0.0,20.0,25,"
+            "0.0,0.0,1.0,25,0.0,0.0,0.0"
+        )
+        result = parse_racechrono_csv(io.StringIO(racechrono_csv_text + bad_row + "\n"))
+        assert result.raw_data is not None
+        assert len(result.raw_data) > len(result.data)
+        assert (result.raw_data["accuracy_m"] > MAX_ACCURACY_M).any()
+        assert (result.raw_data["satellites"] < MIN_SATELLITES).any()
+        assert not (result.data["accuracy_m"] > MAX_ACCURACY_M).any()
+        assert not (result.data["satellites"] < MIN_SATELLITES).any()
+
     def test_speed_non_negative(self, racechrono_csv_file: str) -> None:
         result = parse_racechrono_csv(racechrono_csv_file)
         assert (result.data["speed_mps"] >= 0).all()

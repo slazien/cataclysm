@@ -40,6 +40,11 @@ interface OptimalGapChartProps {
 export function OptimalGapChart({ sessionId }: OptimalGapChartProps) {
   const { data: comparison, isLoading } = useOptimalComparison(sessionId);
   const { convertSpeed, speedUnit } = useUnits();
+  const isInvalidComparison =
+    comparison != null && (!comparison.is_valid || comparison.total_gap_s <= 0);
+  const invalidReason =
+    comparison?.invalid_reasons.find((reason) => reason.trim().length > 0) ??
+    'The physics-optimal reference was invalid for this session.';
 
   // Filter to non-trivial gaps, already sorted by time_cost_s desc from backend
   const opportunities = useMemo(() => {
@@ -49,7 +54,7 @@ export function OptimalGapChart({ sessionId }: OptimalGapChartProps) {
     );
   }, [comparison]);
 
-  const totalGapS = Math.max(comparison?.total_gap_s ?? 0, 0);
+  const totalGapS = comparison?.total_gap_s ?? null;
 
   const { containerRef, dataCanvasRef, dimensions, getDataCtx } = useCanvasChart(MARGINS);
 
@@ -117,6 +122,22 @@ export function OptimalGapChart({ sessionId }: OptimalGapChartProps) {
     return <SkeletonCard height="h-40" />;
   }
 
+  if (isInvalidComparison) {
+    return (
+      <div className="rounded-xl border border-[var(--color-brake)]/30 bg-[var(--color-brake)]/5 p-4">
+        <div className="mb-1 flex items-baseline justify-between gap-3">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Speed vs Optimal</h3>
+          <span className="rounded-full bg-[var(--color-brake)]/10 px-2.5 py-0.5 text-xs font-semibold text-[var(--color-brake)]">
+            Optimal reference unavailable
+          </span>
+        </div>
+        <p className="text-[11px] text-[var(--text-secondary)]">
+          {invalidReason}
+        </p>
+      </div>
+    );
+  }
+
   if (opportunities.length === 0) {
     return null;
   }
@@ -134,7 +155,7 @@ export function OptimalGapChart({ sessionId }: OptimalGapChartProps) {
             Per-corner speed gap vs physics-optimal profile — biggest opportunities first
           </p>
         </div>
-        {totalGapS > 0 && (
+        {totalGapS !== null && totalGapS > 0 && (
           <span className="whitespace-nowrap rounded-full bg-[var(--color-throttle)]/10 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-[var(--color-throttle)]">
             {totalGapS.toFixed(1)}s potential
           </span>

@@ -169,8 +169,10 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
           const spd = convertSpeed(lap.speed_mph[i]);
           if (spd < minSpeed) minSpeed = spd;
           if (spd > maxSpeed) maxSpeed = spd;
-          const absG = Math.abs(lap.longitudinal_g[i]);
-          if (absG > maxAbsG) maxAbsG = absG;
+          if (lap.longitudinal_g) {
+            const absG = Math.abs(lap.longitudinal_g[i]);
+            if (absG > maxAbsG) maxAbsG = absG;
+          }
         }
       }
     }
@@ -322,7 +324,8 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
 
     // Draw brake/throttle fill for the best lap (or first available)
     const gLap = bestData ?? lapDataArr[0];
-    if (gLap && gStripHeight > 0) {
+    if (gLap && gLap.longitudinal_g && gStripHeight > 0) {
+      const gData = gLap.longitudinal_g;
       const zeroY = gScale(0);
 
       // Clip to the strip area
@@ -335,9 +338,9 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
       for (let i = 1; i < gLap.distance_m.length; i++) {
         const x0 = xScale(gLap.distance_m[i - 1]);
         const x1 = xScale(gLap.distance_m[i]);
-        const y0 = gScale(gLap.longitudinal_g[i - 1]);
-        const y1 = gScale(gLap.longitudinal_g[i]);
-        const avgG = (gLap.longitudinal_g[i - 1] + gLap.longitudinal_g[i]) / 2;
+        const y0 = gScale(gData[i - 1]);
+        const y1 = gScale(gData[i]);
+        const avgG = (gData[i - 1] + gData[i]) / 2;
 
         ctx.fillStyle = avgG < 0
           ? 'rgba(239, 68, 68, 0.35)' // braking — red

@@ -32,7 +32,7 @@ const gradeChipVariants = {
   },
 };
 
-function buildSpeechText(
+export function buildSpeechText(
   report: CoachingReport,
   resolveSpeed: (t: string) => string,
 ): string {
@@ -50,8 +50,12 @@ function buildSpeechText(
     parts.push('Here are your top priorities.');
     report.priority_corners.slice(0, 3).forEach((pc, i) => {
       const ordinal = ['First', 'Second', 'Third'][i];
+      const timeEstimate =
+        pc.time_cost_s > 0
+          ? ` Estimated opportunity: up to ${pc.time_cost_s.toFixed(2)} seconds per lap.`
+          : '';
       parts.push(
-        `${ordinal}: Turn ${pc.corner}. ${resolveSpeed(pc.issue)}. ${resolveSpeed(pc.tip)}. This costs you ${pc.time_cost_s.toFixed(2)} seconds per lap.`,
+        `${ordinal}: Turn ${pc.corner}. ${resolveSpeed(pc.issue)}. ${resolveSpeed(pc.tip)}.${timeEstimate}`,
       );
     });
   }

@@ -26,6 +26,15 @@ const CARD_H = 1920;
 const ACCENT = '#6366f1';
 const ACCENT_GLOW = 'rgba(99, 102, 241, 0.4)';
 
+export function getShareScoreDisplay(score: number) {
+  const clamped = Math.min(Math.max(score, 0), 100);
+  return {
+    fraction: clamped / 100,
+    valueText: String(Math.round(clamped)),
+    scaleText: '/ 100',
+  };
+}
+
 function drawBackground(ctx: CanvasRenderingContext2D): void {
   const grad = ctx.createLinearGradient(0, 0, 0, CARD_H);
   grad.addColorStop(0, '#0a0a1a');
@@ -89,10 +98,11 @@ function drawScoreRing(
   cx: number,
   cy: number,
 ): void {
+  const display = getShareScoreDisplay(score);
   const r = 100;
   const lineW = 14;
   const startAngle = -Math.PI / 2;
-  const endAngle = startAngle + (2 * Math.PI * Math.min(score, 10)) / 10;
+  const endAngle = startAngle + 2 * Math.PI * display.fraction;
 
   // Background ring
   ctx.beginPath();
@@ -118,10 +128,10 @@ function drawScoreRing(
   ctx.font = "bold 64px 'Barlow Semi Condensed', sans-serif";
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(score.toFixed(1), cx, cy - 8);
+  ctx.fillText(display.valueText, cx, cy - 8);
   ctx.font = "24px 'Barlow Semi Condensed', sans-serif";
   ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.fillText('/ 10', cx, cy + 32);
+  ctx.fillText(display.scaleText, cx, cy + 32);
 }
 
 function drawStatPill(

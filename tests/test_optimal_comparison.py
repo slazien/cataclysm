@@ -347,6 +347,18 @@ class TestCompareWithOptimal:
         # Small residual from different time-summation methods (n-1 vs n intervals)
         assert abs(result.total_gap_s) < 0.02
 
+    def test_marks_result_invalid_when_optimal_is_slower_than_actual(self) -> None:
+        """If the model is slower than the driver overall, mark comparison invalid."""
+        optimal = _make_optimal_profile(speed=30.0)
+        lap_df = _make_lap_df(speed=40.0)
+        corner = _make_corner(min_speed=35.0)
+
+        result = compare_with_optimal(lap_df, [corner], optimal)
+
+        assert result.total_gap_s < 0.0
+        assert result.is_valid is False
+        assert "aggregate_optimal_slower_than_actual" in result.invalid_reasons
+
 
 # ---------------------------------------------------------------------------
 # TestSpikeRejection — percentile instead of min
@@ -421,3 +433,14 @@ class TestSanityGuard:
 
         assert len(result) == 1
         assert result[0].time_cost_s > 0.0
+
+    def test_compare_with_optimal_marks_invalid_when_optimal_lap_is_slower(self) -> None:
+        """Aggregate validity should fail when the model's lap is slower than actual."""
+        optimal = _make_optimal_profile(speed=30.0)
+        lap_df = _make_lap_df(speed=40.0)
+        corner = _make_corner(min_speed=35.0)
+
+        result = compare_with_optimal(lap_df, [corner], optimal)
+
+        assert result.is_valid is False
+        assert "aggregate_optimal_slower_than_actual" in result.invalid_reasons

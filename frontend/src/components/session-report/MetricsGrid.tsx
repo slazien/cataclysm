@@ -58,11 +58,26 @@ export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced }
           label="Consistency"
           helpKey="metric.consistency"
           value={consistencyScore != null ? `${consistencyScore.toFixed(0)}%` : '\u2014'}
-          highlight={consistencyScore != null ? (consistencyScore >= 80 ? 'good' : consistencyScore >= 60 ? 'none' : 'bad') : 'none'}
+          subtitle={
+            consistency?.lap_consistency?.has_sufficient_data === false
+              ? `Low sample (${consistency.lap_consistency.sample_count ?? 0} laps)`
+              : undefined
+          }
+          highlight={
+            consistencyScore != null
+              ? consistency?.lap_consistency?.has_sufficient_data === false
+                ? 'none'
+                : consistencyScore >= 80
+                  ? 'good'
+                  : consistencyScore >= 60
+                    ? 'none'
+                    : 'bad'
+              : 'none'
+          }
         />
         {isAdvanced && bestLap != null && top3Avg != null && (
           <MetricCard
-            label="Pace Spread"
+            label="Top 3 Gap"
             value={`${((top3Avg - bestLap) * 1000).toFixed(0)}ms`}
             subtitle="Top 3 avg - best lap"
             helpKey="metric.pace-spread"

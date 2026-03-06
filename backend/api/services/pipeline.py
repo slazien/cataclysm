@@ -42,7 +42,6 @@ from cataclysm.grip import estimate_grip_limit
 from cataclysm.grip_calibration import (
     apply_calibration_to_params,
     calibrate_grip_from_telemetry,
-    calibrate_per_corner_grip,
 )
 from cataclysm.optimal_comparison import compare_with_optimal
 from cataclysm.parser import ParsedSession, parse_racechrono_csv
@@ -82,7 +81,8 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
     # 3b. Assess GPS quality
     gps_quality: GPSQualityReport | None = None
     try:
-        gps_quality = assess_gps_quality(parsed.data, processed, anomalous)
+        gps_source = parsed.raw_data if parsed.raw_data is not None else parsed.data
+        gps_quality = assess_gps_quality(gps_source, processed, anomalous)
     except (ValueError, KeyError, IndexError):
         logger.warning("Failed to assess GPS quality for %s", filename, exc_info=True)
 
@@ -402,6 +402,55 @@ def trigger_lidar_prefetch(session_data: SessionData) -> None:
     _track_lidar_task(asyncio.create_task(_lidar_prefetch_impl(session_data)))
 
 
+def _collect_independent_calibration_telemetry(
+    session_data: SessionData,
+    *,
+    target_lap: int,
+) -> tuple[np.ndarray, np.ndarray, list[int]] | None:
+    """Return telemetry from coaching laps other than the target lap.
+
+    The physics reference should not calibrate itself from the same lap it is
+    evaluating. When no independent laps remain, return None so the caller can
+    fall back to equipment/default parameters.
+    """
+    candidate_laps = [
+        lap_num
+        for lap_num in session_data.coaching_laps
+        if lap_num != target_lap and lap_num in session_data.processed.resampled_laps
+    ]
+    if not candidate_laps:
+        return None
+
+    lat_segments: list[np.ndarray] = []
+    lon_segments: list[np.ndarray] = []
+    used_laps: list[int] = []
+
+    for lap_num in candidate_laps:
+        lap_df = session_data.processed.resampled_laps[lap_num]
+        if "lateral_g" not in lap_df.columns or "longitudinal_g" not in lap_df.columns:
+            continue
+
+        lat_g = lap_df["lateral_g"].to_numpy()
+        lon_g = lap_df["longitudinal_g"].to_numpy()
+
+        # Filter to finite values only — interpolation with fill_value="extrapolate"
+        # can produce unrealistic edge values that would inflate grip estimates.
+        finite_mask = np.isfinite(lat_g) & np.isfinite(lon_g)
+        lat_g = lat_g[finite_mask]
+        lon_g = lon_g[finite_mask]
+        if len(lat_g) == 0 or len(lon_g) == 0:
+            continue
+
+        lat_segments.append(lat_g)
+        lon_segments.append(lon_g)
+        used_laps.append(lap_num)
+
+    if not lat_segments:
+        return None
+
+    return np.concatenate(lat_segments), np.concatenate(lon_segments), used_laps
+
+
 async def get_optimal_profile_data(session_data: SessionData) -> dict[str, object]:
     """Compute the physics-optimal velocity profile for a session.
 
@@ -428,51 +477,31 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
         # Equipment-aware vehicle params
         vehicle_params = resolve_vehicle_params(session_id)
 
-        # Auto-calibrate from observed G-G data
+        # Auto-calibrate from independent session telemetry, excluding the lap
+        # currently being evaluated so the benchmark stays externally anchored.
         grip = None
-        if "lateral_g" in best_lap_df.columns and "longitudinal_g" in best_lap_df.columns:
-            lat_g = best_lap_df["lateral_g"].to_numpy()
-            lon_g = best_lap_df["longitudinal_g"].to_numpy()
+        calibration_data = _collect_independent_calibration_telemetry(
+            session_data,
+            target_lap=processed.best_lap,
+        )
+        if calibration_data is not None:
+            lat_g, lon_g, calibration_laps = calibration_data
             grip = calibrate_grip_from_telemetry(lat_g, lon_g)
             if grip is not None:
                 base = vehicle_params or default_vehicle_params()
                 vehicle_params = apply_calibration_to_params(base, grip)
                 logger.info(
-                    "Grip calibration [profile] sid=%s: mu=%.3f lat_g=%.3f "
+                    "Grip calibration [profile] sid=%s laps=%s: mu=%.3f lat_g=%.3f "
                     "brake_g=%.3f accel_g=%.3f confidence=%s",
                     session_id,
+                    calibration_laps,
                     grip.max_lateral_g,
                     grip.max_lateral_g,
                     grip.max_brake_g,
                     grip.max_accel_g,
                     grip.confidence,
                 )
-
-        # Per-corner mu calibration — uses observed lateral G in each corner
-        # zone to build a mu_array for the solver
         mu_array = None
-        corners = session_data.corners
-        if grip is not None and corners and "lateral_g" in best_lap_df.columns:
-            distance_arr = best_lap_df["lap_distance_m"].to_numpy()
-            lat_g_arr = best_lap_df["lateral_g"].to_numpy()
-            per_corner_mu = calibrate_per_corner_grip(lat_g_arr, distance_arr, corners)
-            if per_corner_mu:
-                global_mu = min(
-                    vehicle_params.mu if vehicle_params else 1.0,
-                    vehicle_params.max_lateral_g if vehicle_params else 1.0,
-                )
-                mu_array = np.full(len(curvature_result.distance_m), global_mu)
-                for corner in corners:
-                    if corner.number in per_corner_mu:
-                        c_mask = (curvature_result.distance_m >= corner.entry_distance_m) & (
-                            curvature_result.distance_m <= corner.exit_distance_m
-                        )
-                        mu_array[c_mask] = per_corner_mu[corner.number]
-                logger.info(
-                    "Per-corner mu [profile] sid=%s: %s",
-                    session_id,
-                    {k: round(v, 3) for k, v in per_corner_mu.items()},
-                )
 
         # Compute elevation gradient and vertical curvature for the solver
         # Prefer LIDAR altitude, fall back to GPS
@@ -550,19 +579,24 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
         curvature_result = compute_curvature(best_lap_df, savgol_window=15)
         vehicle_params = resolve_vehicle_params(session_id)
 
-        # Auto-calibrate from observed G-G data
+        # Auto-calibrate from independent session telemetry, excluding the lap
+        # currently being evaluated so the benchmark stays externally anchored.
         grip = None
-        if "lateral_g" in best_lap_df.columns and "longitudinal_g" in best_lap_df.columns:
-            lat_g = best_lap_df["lateral_g"].to_numpy()
-            lon_g = best_lap_df["longitudinal_g"].to_numpy()
+        calibration_data = _collect_independent_calibration_telemetry(
+            session_data,
+            target_lap=processed.best_lap,
+        )
+        if calibration_data is not None:
+            lat_g, lon_g, calibration_laps = calibration_data
             grip = calibrate_grip_from_telemetry(lat_g, lon_g)
             if grip is not None:
                 base = vehicle_params or default_vehicle_params()
                 vehicle_params = apply_calibration_to_params(base, grip)
                 logger.info(
-                    "Grip calibration [comparison] sid=%s: mu=%.3f lat_g=%.3f "
+                    "Grip calibration [comparison] sid=%s laps=%s: mu=%.3f lat_g=%.3f "
                     "brake_g=%.3f accel_g=%.3f confidence=%s",
                     session_id,
+                    calibration_laps,
                     grip.max_lateral_g,
                     grip.max_lateral_g,
                     grip.max_brake_g,
@@ -570,29 +604,7 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
                     grip.confidence,
                 )
 
-        # Per-corner mu calibration
         mu_array = None
-        if grip is not None and corners and "lateral_g" in best_lap_df.columns:
-            distance_arr = best_lap_df["lap_distance_m"].to_numpy()
-            lat_g_arr = best_lap_df["lateral_g"].to_numpy()
-            per_corner_mu = calibrate_per_corner_grip(lat_g_arr, distance_arr, corners)
-            if per_corner_mu:
-                global_mu = min(
-                    vehicle_params.mu if vehicle_params else 1.0,
-                    vehicle_params.max_lateral_g if vehicle_params else 1.0,
-                )
-                mu_array = np.full(len(curvature_result.distance_m), global_mu)
-                for corner in corners:
-                    if corner.number in per_corner_mu:
-                        c_mask = (curvature_result.distance_m >= corner.entry_distance_m) & (
-                            curvature_result.distance_m <= corner.exit_distance_m
-                        )
-                        mu_array[c_mask] = per_corner_mu[corner.number]
-                logger.info(
-                    "Per-corner mu [comparison] sid=%s: %s",
-                    session_id,
-                    {k: round(v, 3) for k, v in per_corner_mu.items()},
-                )
 
         # Compute elevation gradient and vertical curvature for the solver
         # Prefer LIDAR altitude, fall back to GPS
@@ -644,6 +656,8 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
             "actual_lap_time_s": round(result.actual_lap_time_s, 3),
             "optimal_lap_time_s": round(result.optimal_lap_time_s, 3),
             "total_gap_s": round(result.total_gap_s, 3),
+            "is_valid": result.is_valid,
+            "invalid_reasons": result.invalid_reasons,
         }
 
     return await asyncio.to_thread(_compute)

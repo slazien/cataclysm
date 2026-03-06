@@ -4,17 +4,21 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from typing import Any
 
 from cataclysm.constants import MPS_TO_MPH
 from cataclysm.corners import Corner
 from cataclysm.delta import compute_delta
+from fastapi import HTTPException
 
 from backend.api.schemas.coaching import CoachingReportResponse, CornerGradeSchema
 from backend.api.services.coaching_store import get_any_coaching_report
 from backend.api.services.session_store import SessionData
 
 logger = logging.getLogger(__name__)
+
+LAYOUT_LENGTH_TOLERANCE = 0.03
 
 # Map letter grades to numeric scores for skill dimension aggregation
 GRADE_SCORES: dict[str, float] = {"A": 100, "B": 80, "C": 60, "D": 40, "F": 20}
@@ -41,6 +45,50 @@ def _compute_skill_dims(grades: list[CornerGradeSchema]) -> dict[str, float]:
     return {k: round(sum(v) / len(v), 1) if v else 60.0 for k, v in dims.items()}
 
 
+def _normalize_track_name(track_name: str | None) -> str:
+    if not track_name:
+        return ""
+    return re.sub(r"[^a-z0-9]+", " ", track_name.casefold()).strip()
+
+
+def _best_lap_distance_m(sd: SessionData) -> float | None:
+    best_lap = sd.processed.best_lap
+    for summary in sd.processed.lap_summaries:
+        if summary.lap_number == best_lap:
+            return float(summary.lap_distance_m)
+    best_df = sd.processed.resampled_laps.get(best_lap)
+    if best_df is None or best_df.empty or "lap_distance_m" not in best_df.columns:
+        return None
+    return float(best_df["lap_distance_m"].iloc[-1])
+
+
+def validate_session_comparison(sd_a: SessionData, sd_b: SessionData) -> None:
+    """Reject comparisons that are not on the same track/layout."""
+    if sd_a.session_id == sd_b.session_id:
+        return
+
+    track_a = _normalize_track_name(sd_a.snapshot.metadata.track_name)
+    track_b = _normalize_track_name(sd_b.snapshot.metadata.track_name)
+    if track_a != track_b:
+        raise HTTPException(
+            status_code=400,
+            detail="Sessions can only be compared when they are from the same track.",
+        )
+
+    distance_a = _best_lap_distance_m(sd_a)
+    distance_b = _best_lap_distance_m(sd_b)
+    if (
+        distance_a is not None
+        and distance_b is not None
+        and max(distance_a, distance_b) > 0
+        and abs(distance_a - distance_b) / max(distance_a, distance_b) > LAYOUT_LENGTH_TOLERANCE
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Sessions appear to be from different layouts and cannot be compared.",
+        )
+
+
 async def _get_skill_dimensions(session_id: str) -> dict[str, float] | None:
     """Extract skill dimensions from a session's coaching report, if available."""
     report: CoachingReportResponse | None = await get_any_coaching_report(session_id)
@@ -56,6 +104,8 @@ async def compare_sessions(sd_a: SessionData, sd_b: SessionData) -> dict[str, An
     The delta convention is: positive delta_s means session B is slower than A
     (i.e. ``comp_time - ref_time`` where A is the reference).
     """
+    validate_session_comparison(sd_a, sd_b)
+
     best_a = sd_a.processed.best_lap
     best_b = sd_b.processed.best_lap
 

@@ -23,6 +23,10 @@ const priorityColors = [
 
 const priorityLabels = ['Biggest Gain', 'Second Priority', 'Quick Win'];
 
+function formatPriorityBadge(timeCostS: number): string {
+  return timeCostS > 0 ? `Up to ${timeCostS.toFixed(1)}s` : 'Estimate unavailable';
+}
+
 function PriorityCard({
   priority,
   index,
@@ -47,7 +51,7 @@ function PriorityCard({
             {priorityLabels[index] ?? `Priority ${index + 1}`}
           </span>
           <span className="text-xs font-semibold tabular-nums text-[var(--color-brake)]">
-            {priority.time_cost_s > 0 ? '-' : ''}{Math.abs(priority.time_cost_s).toFixed(1)}s
+            {formatPriorityBadge(priority.time_cost_s)}
           </span>
         </div>
         <p className="mt-1 text-sm font-medium text-[var(--text-primary)]">

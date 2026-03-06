@@ -281,6 +281,11 @@ class TestApplyCalibrationToParams:
             drag_coefficient=0.001,
             top_speed_mps=70.0,
             friction_circle_exponent=2.5,
+            load_sensitivity_exponent=0.92,
+            cg_height_m=0.48,
+            track_width_m=1.62,
+            wheel_power_w=180_000.0,
+            mass_kg=1_420.0,
         )
         grip = CalibratedGrip(
             max_lateral_g=1.1,
@@ -304,6 +309,11 @@ class TestApplyCalibrationToParams:
         assert result.drag_coefficient == 0.001
         assert result.top_speed_mps == 70.0
         assert result.friction_circle_exponent == 2.5
+        assert result.load_sensitivity_exponent == 0.92
+        assert result.cg_height_m == 0.48
+        assert result.track_width_m == 1.62
+        assert result.wheel_power_w == 180_000.0
+        assert result.mass_kg == 1_420.0
 
     def test_apply_calibration_mu_from_max_of_lateral_and_brake(self) -> None:
         """mu should be max(max_lateral_g, max_brake_g)."""

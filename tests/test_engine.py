@@ -156,6 +156,15 @@ class TestFilterShortLaps:
         filtered = _filter_short_laps(laps)
         assert 1 in filtered
 
+    def test_majority_partial_laps_removed_against_longest_reference(self) -> None:
+        lap1 = pd.DataFrame({"lap_distance_m": [0.0, 250.0, 500.0]})
+        lap2 = pd.DataFrame({"lap_distance_m": [0.0, 60.0, 120.0]})
+        lap3 = pd.DataFrame({"lap_distance_m": [0.0, 55.0, 110.0]})
+
+        filtered = _filter_short_laps({1: lap1, 2: lap2, 3: lap3})
+
+        assert set(filtered) == {1}
+
 
 class TestProcessSession:
     def test_produces_processed_session(self, parsed_session: object) -> None:
@@ -196,6 +205,32 @@ class TestProcessSession:
         )
         with pytest.raises(ValueError, match="No laps found"):
             process_session(df)
+
+    def test_best_lap_ignores_majority_partial_laps(self) -> None:
+        rows: list[dict[str, float]] = []
+
+        def _append_lap(lap_num: int, total_dist: float, step_dist: float, dt: float) -> None:
+            base_time = len(rows) * dt + lap_num * 100.0
+            for i in range(40):
+                rows.append(
+                    {
+                        "lap_number": float(lap_num),
+                        "elapsed_time": base_time + i * dt,
+                        "distance_m": lap_num * 1000.0 + min(i * step_dist, total_dist),
+                        "speed_mps": 30.0,
+                        "lat": 33.5 + i * 1e-5,
+                        "lon": -86.6 - i * 1e-5,
+                    }
+                )
+
+        _append_lap(1, total_dist=500.0, step_dist=12.8, dt=1.0)
+        _append_lap(2, total_dist=120.0, step_dist=3.1, dt=0.3)
+        _append_lap(3, total_dist=110.0, step_dist=2.8, dt=0.28)
+
+        result = process_session(pd.DataFrame(rows))
+
+        assert result.best_lap == 1
+        assert {s.lap_number for s in result.lap_summaries} == {1}
 
 
 def _make_summary(lap: int, time: float) -> LapSummary:

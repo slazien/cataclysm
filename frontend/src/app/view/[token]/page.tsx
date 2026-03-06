@@ -9,6 +9,13 @@ import { RadarChart } from '@/components/shared/RadarChart';
 import { TrackOutlineSVG } from '@/components/shared/TrackOutlineSVG';
 import { SignUpCTA } from '@/components/shared/SignUpCTA';
 
+export function getPublicScoreDisplay(score: number) {
+  return {
+    valueText: String(Math.round(Math.min(Math.max(score, 0), 100))),
+    labelText: 'Score / 100',
+  };
+}
+
 export default function PublicViewPage() {
   const params = useParams<{ token: string }>();
   const token = params.token;
@@ -63,6 +70,8 @@ export default function PublicViewPage() {
     data.skill_trail_braking != null &&
     data.skill_throttle != null &&
     data.skill_line != null;
+  const publicScore =
+    data.session_score != null ? getPublicScoreDisplay(data.session_score) : null;
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] pb-24">
@@ -100,13 +109,13 @@ export default function PublicViewPage() {
               <p className="text-xs text-[var(--text-muted)]">Consistency</p>
             </div>
           )}
-          {data.session_score != null && (
+          {publicScore && (
             <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4 text-center">
               <Trophy className="mx-auto mb-1 h-5 w-5 text-[var(--text-muted)]" />
               <p className="font-mono text-lg font-bold text-[var(--text-primary)]">
-                {data.session_score.toFixed(1)}
+                {publicScore.valueText}
               </p>
-              <p className="text-xs text-[var(--text-muted)]">Score / 10</p>
+              <p className="text-xs text-[var(--text-muted)]">{publicScore.labelText}</p>
             </div>
           )}
           {data.top_speed_mph != null && (

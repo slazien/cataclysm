@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
+from cataclysm.engine import LapSummary
+from fastapi import HTTPException
 from httpx import AsyncClient
 
+from backend.api.services.comparison import validate_session_comparison
 from backend.tests.conftest import build_synthetic_csv
 
 
@@ -23,6 +28,59 @@ async def _upload_session(
     assert resp.status_code == 200
     session_id: str = resp.json()["session_ids"][0]
     return session_id
+
+
+def _make_session_stub(
+    *,
+    session_id: str,
+    track_name: str,
+    lap_distance_m: float,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        session_id=session_id,
+        snapshot=SimpleNamespace(metadata=SimpleNamespace(track_name=track_name)),
+        processed=SimpleNamespace(
+            best_lap=1,
+            lap_summaries=[
+                LapSummary(
+                    lap_number=1,
+                    lap_time_s=90.0,
+                    lap_distance_m=lap_distance_m,
+                    max_speed_mps=40.0,
+                )
+            ],
+        ),
+    )
+
+
+def test_validate_session_comparison_rejects_different_tracks() -> None:
+    session_a = _make_session_stub(session_id="a", track_name="Barber", lap_distance_m=1000.0)
+    session_b = _make_session_stub(session_id="b", track_name="Road Atlanta", lap_distance_m=1000.0)
+
+    with pytest.raises(HTTPException) as exc_info:
+        validate_session_comparison(session_a, session_b)  # type: ignore[arg-type]
+
+    assert exc_info.value.status_code == 400
+    assert "same track" in str(exc_info.value.detail).lower()
+
+
+def test_validate_session_comparison_rejects_layout_mismatch_on_same_track() -> None:
+    session_a = _make_session_stub(
+        session_id="a",
+        track_name="Barber Motorsports Park",
+        lap_distance_m=3800.0,
+    )
+    session_b = _make_session_stub(
+        session_id="b",
+        track_name="barber motorsports park",
+        lap_distance_m=4200.0,
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        validate_session_comparison(session_a, session_b)  # type: ignore[arg-type]
+
+    assert exc_info.value.status_code == 400
+    assert "layout" in str(exc_info.value.detail).lower()
 
 
 @pytest.mark.asyncio
@@ -79,6 +137,52 @@ async def test_compare_other_session_not_found(client: AsyncClient) -> None:
     response = await client.get(f"/api/sessions/{sid_a}/compare/nonexistent-b")
     assert response.status_code == 404
     assert "nonexistent-b" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_compare_sessions_rejects_different_tracks(client: AsyncClient) -> None:
+    sid_a = await _upload_session(
+        client,
+        csv_bytes=build_synthetic_csv(track_name="Barber Motorsports Park", n_laps=5),
+        filename="barber.csv",
+    )
+    sid_b = await _upload_session(
+        client,
+        csv_bytes=build_synthetic_csv(track_name="Road Atlanta", n_laps=5),
+        filename="road-atlanta.csv",
+    )
+
+    response = await client.get(f"/api/sessions/{sid_a}/compare/{sid_b}")
+
+    assert response.status_code == 400
+    assert "same track" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_compare_sessions_rejects_layout_mismatch(client: AsyncClient) -> None:
+    sid_a = await _upload_session(
+        client,
+        csv_bytes=build_synthetic_csv(
+            track_name="Barber Motorsports Park",
+            n_laps=5,
+            points_per_lap=200,
+        ),
+        filename="layout-a.csv",
+    )
+    sid_b = await _upload_session(
+        client,
+        csv_bytes=build_synthetic_csv(
+            track_name="Barber Motorsports Park",
+            n_laps=5,
+            points_per_lap=280,
+        ),
+        filename="layout-b.csv",
+    )
+
+    response = await client.get(f"/api/sessions/{sid_a}/compare/{sid_b}")
+
+    assert response.status_code == 400
+    assert "layout" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio

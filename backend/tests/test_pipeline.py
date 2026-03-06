@@ -201,6 +201,22 @@ class TestRunPipelineSyncErrorPaths:
         result, _ = self._run_with_patches(_setup)
         assert result.gps_quality is None
 
+    def test_gps_quality_uses_raw_parsed_data_when_available(self) -> None:
+        """GPS quality should receive raw parsed telemetry, not filtered session data."""
+
+        def _setup(mocks: dict[str, MagicMock]) -> None:
+            raw_df = MagicMock(name="raw_df")
+            filtered_df = MagicMock(name="filtered_df")
+            parsed = mocks["parse_racechrono_csv"].return_value
+            parsed.raw_data = raw_df
+            parsed.data = filtered_df
+
+        _, mocks = self._run_with_patches(_setup)
+        assert (
+            mocks["assess_gps_quality"].call_args.args[0]
+            is mocks["parse_racechrono_csv"].return_value.raw_data
+        )
+
     def test_detect_corners_fallback_when_no_track_layout(self) -> None:
         """detect_corners is called when detect_track_or_lookup returns None."""
 

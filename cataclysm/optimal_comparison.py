@@ -6,7 +6,7 @@ to quantify where the driver is leaving the most time on the table.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
@@ -47,6 +47,8 @@ class OptimalComparisonResult:
     total_gap_s: float  # actual - optimal (positive = driver is slower)
     speed_delta_mps: np.ndarray  # per-point: optimal - actual
     distance_m: np.ndarray  # distance array for speed_delta
+    is_valid: bool = True
+    invalid_reasons: list[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -266,6 +268,15 @@ def compare_with_optimal(
     actual_lap_time = float(time_col[-1] - time_col[0])
 
     total_gap = actual_lap_time - optimal.lap_time_s
+    invalid_reasons: list[str] = []
+    if total_gap < -0.05:
+        invalid_reasons.append("aggregate_optimal_slower_than_actual")
+
+    for opp in corner_opportunities:
+        if opp.speed_gap_mps < -1.0 and opp.time_cost_s == 0.0:
+            invalid_reasons.append(f"corner_{opp.corner_number}_model_slower_than_driver")
+
+    is_valid = len(invalid_reasons) == 0
 
     return OptimalComparisonResult(
         corner_opportunities=corner_opportunities,
@@ -274,4 +285,6 @@ def compare_with_optimal(
         total_gap_s=total_gap,
         speed_delta_mps=speed_delta,
         distance_m=distance_m,
+        is_valid=is_valid,
+        invalid_reasons=invalid_reasons,
     )

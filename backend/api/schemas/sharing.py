@@ -43,7 +43,7 @@ class PublicSessionView(BaseModel):
     best_lap_time_s: float | None = None
     n_laps: int | None = None
     consistency_score: float | None = None  # 0-100
-    session_score: float | None = None  # 0-10
+    session_score: float | None = None  # 0-100
     top_speed_mph: float | None = None
     skill_braking: float | None = None  # 0-100
     skill_trail_braking: float | None = None

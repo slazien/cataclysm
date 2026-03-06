@@ -24,6 +24,10 @@ interface PriorityCardsSectionProps {
   cornerGrades?: CornerGrade[];
 }
 
+function formatPriorityBadge(timeCostS: number): string {
+  return timeCostS > 0 ? `Up to ${timeCostS.toFixed(2)}s` : 'Estimate unavailable';
+}
+
 function PriorityCard({
   p,
   isNovice,
@@ -61,7 +65,7 @@ function PriorityCard({
           </span>
         </div>
         <span className="shrink-0 rounded-full bg-[var(--color-throttle)]/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--color-throttle)]">
-          -{p.time_cost_s.toFixed(2)}s
+          {formatPriorityBadge(p.time_cost_s)}
         </span>
       </div>
 

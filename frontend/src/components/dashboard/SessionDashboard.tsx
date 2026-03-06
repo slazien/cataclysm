@@ -15,6 +15,7 @@ import { SessionScore } from './SessionScore';
 import { TopPriorities } from './TopPriorities';
 import { HeroTrackMap } from './HeroTrackMap';
 import { LapTimesBar } from './LapTimesBar';
+import { getComparableSessions } from '@/components/comparison/SessionSelector';
 import { AssignEquipmentButton } from '@/components/equipment/AssignEquipmentButton';
 import { formatLapTime, normalizeScore, parseSessionDate } from '@/lib/formatters';
 import { MPS_TO_MPH } from '@/lib/constants';
@@ -31,6 +32,12 @@ import { motion as m } from 'motion/react';
 import { motion as motionTokens } from '@/lib/design-tokens';
 import { cn } from '@/lib/utils';
 import { TrackWatermark } from '@/components/shared/TrackWatermark';
+import type { ScoreBreakdownMessages } from './SessionScore';
+
+function isValidPaceReference(bestLapTimeS: number | null | undefined, optimalLapTimeS: number | null) {
+  if (!bestLapTimeS || bestLapTimeS <= 0 || optimalLapTimeS === null) return false;
+  return Number.isFinite(optimalLapTimeS) && optimalLapTimeS > 0 && optimalLapTimeS <= bestLapTimeS + 1e-3;
+}
 
 export function SessionDashboard() {
   const sessionId = useSessionStore((s) => s.activeSessionId);
@@ -82,6 +89,7 @@ export function SessionDashboard() {
   // Compute composite session score: consistency (40%) + best/optimal (30%) + corner grades (30%)
   const sessionScoreData = useMemo(() => {
     const components: { key: string; value: number; weight: number }[] = [];
+    const breakdownMessages: ScoreBreakdownMessages = {};
 
     // Consistency component (0-100)
     let consistencyValue: number | null = null;
@@ -93,9 +101,13 @@ export function SessionDashboard() {
     // Best lap vs optimal component (0-100)
     let optimalValue: number | null = null;
     if (idealLapInfo && session && session.best_lap_time_s) {
-      const gapPct = 1 - (idealLapInfo.time / session.best_lap_time_s);
-      optimalValue = Math.min(100, Math.max(0, 100 - gapPct * 500));
-      components.push({ key: 'optimal', value: optimalValue, weight: 0.3 });
+      if (isValidPaceReference(session.best_lap_time_s, idealLapInfo.time)) {
+        const gapPct = 1 - (idealLapInfo.time / session.best_lap_time_s);
+        optimalValue = Math.min(100, Math.max(0, 100 - gapPct * 500));
+        components.push({ key: 'optimal', value: optimalValue, weight: 0.3 });
+      } else {
+        breakdownMessages.optimal = 'Invalid pace reference';
+      }
     }
 
     // Corner grades component (0-100)
@@ -120,7 +132,13 @@ export function SessionDashboard() {
       }
     }
 
-    if (components.length === 0) return { score: null, breakdown: null };
+    if (components.length === 0) {
+      return {
+        score: null,
+        breakdown: null,
+        breakdownMessages: Object.keys(breakdownMessages).length > 0 ? breakdownMessages : null,
+      };
+    }
 
     // Normalize weights to sum to 1 if some components are missing
     const totalWeight = components.reduce((s, c) => s + c.weight, 0);
@@ -133,8 +151,20 @@ export function SessionDashboard() {
         optimal: optimalValue,
         grades: gradesValue,
       },
+      breakdownMessages: Object.keys(breakdownMessages).length > 0 ? breakdownMessages : null,
     };
   }, [consistency, idealLapInfo, session, coachingReport]);
+
+  const scoreBreakdownToShow = useMemo(() => {
+    if (session?.session_score == null) return sessionScoreData.breakdown;
+    if (sessionScoreData.score == null) return null;
+    return Math.abs(session.session_score - sessionScoreData.score) <= 1
+      ? sessionScoreData.breakdown
+      : null;
+  }, [session?.session_score, sessionScoreData.breakdown, sessionScoreData.score]);
+
+  const scoreMessagesToShow =
+    scoreBreakdownToShow !== null ? sessionScoreData.breakdownMessages ?? undefined : undefined;
 
   // No session selected
   if (!sessionId) {
@@ -222,7 +252,12 @@ export function SessionDashboard() {
         animate="animate"
         variants={{ animate: { transition: motionTokens.stagger } }}
       >
-        <SessionScore score={session.session_score ?? sessionScoreData.score} breakdown={sessionScoreData.breakdown} isLoading={consistencyLoading} />
+        <SessionScore
+          score={session.session_score ?? sessionScoreData.score}
+          breakdown={scoreBreakdownToShow}
+          breakdownMessages={scoreMessagesToShow}
+          isLoading={consistencyLoading}
+        />
 
         <MetricCard
           label="Best Lap"
@@ -296,14 +331,18 @@ export function SessionDashboard() {
           }
           subtitle={
             consistency?.lap_consistency
-              ? `${consistency.lap_consistency.std_dev_s.toFixed(2)}s std dev`
+              ? consistency.lap_consistency.has_sufficient_data === false
+                ? `Low sample (${consistency.lap_consistency.sample_count ?? 0} laps)`
+                : `${consistency.lap_consistency.std_dev_s.toFixed(2)}s std dev`
               : undefined
           }
           highlight={
             consistency?.lap_consistency
-              ? normalizeScore(consistency.lap_consistency.consistency_score) >= 80
-                ? 'good'
-                : 'none'
+              ? consistency.lap_consistency.has_sufficient_data === false
+                ? 'none'
+                : normalizeScore(consistency.lap_consistency.consistency_score) >= 80
+                  ? 'good'
+                  : 'none'
               : 'none'
           }
         />
@@ -375,7 +414,12 @@ function CompareButton({ sessionId }: { sessionId: string }) {
   const { data: sessionsData } = useSessions();
 
   const sessions = sessionsData?.items ?? [];
-  const otherSessions = sessions.filter((s) => s.session_id !== sessionId);
+  const currentSession = sessions.find((session) => session.session_id === sessionId);
+  const otherSessions = getComparableSessions({
+    currentSessionId: sessionId,
+    sessions,
+    currentTrackName: currentSession?.track_name,
+  });
 
   // Close dropdown on outside click
   useEffect(() => {

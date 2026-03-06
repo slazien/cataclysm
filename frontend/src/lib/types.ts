@@ -36,8 +36,8 @@ export interface LapData {
   lat: number[];
   lon: number[];
   heading_deg: number[];
-  lateral_g: number[];
-  longitudinal_g: number[];
+  lateral_g: number[] | null;
+  longitudinal_g: number[] | null;
   lap_time_s: number[];
   altitude_m?: number[] | null;
 }
@@ -66,6 +66,8 @@ export interface LapConsistency {
   lap_numbers: number[];
   lap_times_s: number[];
   consecutive_deltas_s: number[];
+  has_sufficient_data?: boolean;
+  sample_count?: number;
 }
 
 export interface TrackPositionConsistency {
@@ -87,6 +89,8 @@ export interface CornerConsistencyEntry {
   consistency_score: number;
   lap_numbers: number[];
   min_speeds_mph: number[];
+  has_sufficient_data?: boolean;
+  sample_count?: number;
 }
 
 export interface SessionConsistency {
@@ -271,6 +275,8 @@ export interface OptimalComparisonData {
   actual_lap_time_s: number;
   optimal_lap_time_s: number;
   total_gap_s: number; // actual - optimal (positive = driver is slower)
+  is_valid: boolean;
+  invalid_reasons: string[];
 }
 
 // --- Equipment Types ---

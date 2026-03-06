@@ -39,9 +39,11 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
     for (const lap of lapDataArr) {
       const ld = d3.max(lap.distance_m);
       if (ld !== undefined && ld > maxDist) maxDist = ld;
-      for (const g of lap.longitudinal_g) {
-        const absG = Math.abs(g);
-        if (absG > maxAbsG) maxAbsG = absG;
+      if (lap.longitudinal_g) {
+        for (const g of lap.longitudinal_g) {
+          const absG = Math.abs(g);
+          if (absG > maxAbsG) maxAbsG = absG;
+        }
       }
     }
 
@@ -82,15 +84,17 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
     // Draw fills and lines for each lap
     for (let li = 0; li < lapDataArr.length; li++) {
       const lap = lapDataArr[li];
+      if (!lap.longitudinal_g) continue;
+      const gData = lap.longitudinal_g;
       const alpha = lapDataArr.length > 1 ? 0.25 : 0.35;
 
       // Filled areas
       for (let i = 1; i < lap.distance_m.length; i++) {
         const x0 = xScale(lap.distance_m[i - 1]);
         const x1 = xScale(lap.distance_m[i]);
-        const y0 = yScale(lap.longitudinal_g[i - 1]);
-        const y1 = yScale(lap.longitudinal_g[i]);
-        const avgG = (lap.longitudinal_g[i - 1] + lap.longitudinal_g[i]) / 2;
+        const y0 = yScale(gData[i - 1]);
+        const y1 = yScale(gData[i]);
+        const avgG = (gData[i - 1] + gData[i]) / 2;
 
         ctx.fillStyle =
           avgG < 0
@@ -115,7 +119,7 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
       ctx.beginPath();
       for (let i = 0; i < lap.distance_m.length; i++) {
         const x = xScale(lap.distance_m[i]);
-        const y = yScale(lap.longitudinal_g[i]);
+        const y = yScale(gData[i]);
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       }
@@ -222,6 +226,7 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
 
       for (let li = 0; li < lapDataArr.length; li++) {
         const lap = lapDataArr[li];
+        if (!lap.longitudinal_g) continue;
         const idx = d3.bisectLeft(lap.distance_m, cursorDist);
         const clampedIdx = Math.min(idx, lap.longitudinal_g.length - 1);
         const gVal = lap.longitudinal_g[clampedIdx];
@@ -250,11 +255,24 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
     );
   }
 
+  // Check if any selected lap has longitudinal G data
+  const hasGData = lapDataArr.some((lap) => lap.longitudinal_g != null && lap.longitudinal_g.length > 0);
+
   if (selectedLaps.length === 0) {
     return (
       <div className="flex h-full items-center justify-center">
         <p className="text-sm text-[var(--text-secondary)]">
           Select laps to view brake/throttle trace
+        </p>
+      </div>
+    );
+  }
+
+  if (!hasGData) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-sm text-[var(--text-secondary)]">
+          Longitudinal G data unavailable in this recording
         </p>
       </div>
     );

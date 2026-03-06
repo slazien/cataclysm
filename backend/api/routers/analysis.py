@@ -239,6 +239,8 @@ async def get_optimal_comparison(
         actual_lap_time_s=result["actual_lap_time_s"],  # type: ignore[arg-type]
         optimal_lap_time_s=result["optimal_lap_time_s"],  # type: ignore[arg-type]
         total_gap_s=result["total_gap_s"],  # type: ignore[arg-type]
+        is_valid=result.get("is_valid", True),  # type: ignore[arg-type]
+        invalid_reasons=result.get("invalid_reasons", []),  # type: ignore[arg-type]
     )
 
 
@@ -303,22 +305,28 @@ async def get_linked_chart_data(
     lateral_g_traces: dict[str, list[float]] = {}
     longitudinal_g_traces: dict[str, list[float]] = {}
     heading_traces: dict[str, list[float]] = {}
+    has_lat_g = False
+    has_lon_g = False
 
     for lap_num in laps:
         df = resampled[lap_num]
         key = str(lap_num)
         speed_traces[key] = (df["speed_mps"] * MPS_TO_MPH).tolist()
-        lateral_g_traces[key] = df["lateral_g"].tolist()
-        longitudinal_g_traces[key] = df["longitudinal_g"].tolist()
         heading_traces[key] = df["heading_deg"].tolist()
+        if "lateral_g" in df.columns:
+            lateral_g_traces[key] = df["lateral_g"].tolist()
+            has_lat_g = True
+        if "longitudinal_g" in df.columns:
+            longitudinal_g_traces[key] = df["longitudinal_g"].tolist()
+            has_lon_g = True
 
     return LinkedChartResponse(
         session_id=session_id,
         laps=laps,
         distance_m=distance_m,
         speed_traces=speed_traces,
-        lateral_g_traces=lateral_g_traces,
-        longitudinal_g_traces=longitudinal_g_traces,
+        lateral_g_traces=lateral_g_traces if has_lat_g else None,
+        longitudinal_g_traces=longitudinal_g_traces if has_lon_g else None,
         heading_traces=heading_traces,
     )
 

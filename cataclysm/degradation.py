@@ -134,7 +134,7 @@ def detect_degradation(
         # Analyze brake fade
         if len(brake_values) >= MIN_LAPS:
             y = np.array(brake_values)
-            x = np.arange(len(y), dtype=float)
+            x = np.array(brake_laps, dtype=float)
             coeffs = np.polyfit(x, y, 1)
             slope = float(coeffs[0])
             y_pred = np.polyval(coeffs, x)
@@ -177,7 +177,7 @@ def detect_degradation(
         # Analyze tire degradation (min speed decreasing)
         if len(speed_values) >= MIN_LAPS:
             y = np.array(speed_values)
-            x = np.arange(len(y), dtype=float)
+            x = np.array(speed_laps, dtype=float)
             coeffs = np.polyfit(x, y, 1)
             slope = float(coeffs[0])
             y_pred = np.polyval(coeffs, x)

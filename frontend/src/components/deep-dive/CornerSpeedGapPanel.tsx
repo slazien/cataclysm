@@ -129,7 +129,7 @@ function CornerFocusView({
   const optimalPct = maxSpeed > 0 ? (optimalSpeed / maxSpeed) * 100 : 0;
   const absGap = Math.abs(convertSpeed(opp.speed_gap_mph));
   const gapDisplay = absGap.toFixed(1);
-  const isGaining = opp.time_cost_s <= 0;
+  const hasTimeCost = opp.time_cost_s > 0;
 
   return (
     <motion.div
@@ -147,14 +147,14 @@ function CornerFocusView({
         <span
           className={cn(
             'rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums',
-            isGaining
-              ? 'bg-[var(--color-throttle)]/10 text-[var(--color-throttle)]'
-              : 'bg-[var(--color-brake)]/10 text-[var(--color-brake)]',
+            hasTimeCost
+              ? 'bg-[var(--color-brake)]/10 text-[var(--color-brake)]'
+              : 'bg-[var(--text-muted)]/10 text-[var(--text-secondary)]',
           )}
         >
-          {isGaining
-            ? `+${Math.abs(opp.time_cost_s).toFixed(2)}s ahead`
-            : `~${opp.time_cost_s.toFixed(2)}s cost`}
+          {hasTimeCost
+            ? `~${opp.time_cost_s.toFixed(2)}s cost`
+            : 'No measurable gap'}
         </span>
       </div>
 
@@ -200,17 +200,7 @@ function CornerFocusView({
       {/* Insight text */}
       <div className="rounded-lg bg-[var(--bg-elevated)] px-3 py-2">
         <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-          {isGaining ? (
-            <>
-              {'You\'re carrying '}
-              <span className="font-semibold tabular-nums text-[var(--color-throttle)]">
-                {gapDisplay} {speedUnit}
-              </span>
-              {' more than the model predicts at Turn '}
-              <span className="font-semibold text-[var(--text-primary)]">{opp.corner_number}</span>
-              {' — this is a strength.'}
-            </>
-          ) : (
+          {hasTimeCost ? (
             <>
               {'You\'re losing '}
               <span className="font-semibold tabular-nums text-[var(--color-brake)]">
@@ -228,6 +218,12 @@ function CornerFocusView({
               </span>
               {' per lap.'}
             </>
+          ) : (
+            <>
+              {'Your speed at Turn '}
+              <span className="font-semibold text-[var(--text-primary)]">{opp.corner_number}</span>
+              {' is close to the model\'s prediction — no significant gap detected.'}
+            </>
           )}
         </p>
       </div>
@@ -241,13 +237,16 @@ export function CornerSpeedGapPanel({ sessionId, selectedCorner }: CornerSpeedGa
   const selectCorner = useAnalysisStore((s) => s.selectCorner);
   const [hoveredCorner, setHoveredCorner] = useState<number | null>(null);
 
+  const isInvalidComparison =
+    comparison != null && (!comparison.is_valid || comparison.total_gap_s <= 0);
+
   // Filter and sort opportunities by time cost (biggest first)
   const opportunities = useMemo(() => {
-    if (!comparison?.corner_opportunities) return [];
+    if (!comparison?.corner_opportunities || isInvalidComparison) return [];
     return comparison.corner_opportunities
       .filter((opp) => opp.speed_gap_mph > MIN_GAP_MPH && opp.time_cost_s > 0)
       .sort((a, b) => b.time_cost_s - a.time_cost_s);
-  }, [comparison]);
+  }, [comparison, isInvalidComparison]);
 
   const maxTimeCost = useMemo(
     () => Math.max(...opportunities.map((o) => o.time_cost_s), 0),
@@ -276,6 +275,19 @@ export function CornerSpeedGapPanel({ sessionId, selectedCorner }: CornerSpeedGa
 
   if (isLoading) {
     return <SkeletonCard height="h-40" />;
+  }
+
+  if (isInvalidComparison) {
+    return (
+      <div className="rounded-xl border border-[var(--color-brake)]/30 bg-[var(--color-brake)]/5 p-4">
+        <h3 className="mb-1 text-sm font-semibold text-[var(--text-primary)] font-[family-name:var(--font-display)]">
+          Speed Gap vs Optimal
+        </h3>
+        <p className="text-xs text-[var(--text-secondary)]">
+          The physics-optimal reference was invalid for this session. Speed gap data is unavailable.
+        </p>
+      </div>
+    );
   }
 
   if (opportunities.length === 0) {

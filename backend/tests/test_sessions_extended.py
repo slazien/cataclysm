@@ -503,6 +503,25 @@ async def test_compute_session_score_corner_grades_with_empty_grade() -> None:
     assert result == pytest.approx(80.0)
 
 
+@pytest.mark.asyncio
+async def test_compute_session_score_skips_invalid_pace_reference() -> None:
+    """Slower-than-actual pace references should not inflate the score."""
+    sd = _make_session_data(best_lap_time_s=90.0, optimal_lap_time_s=92.0)
+
+    consistency = MagicMock()
+    consistency.lap_consistency.consistency_score = 0.82
+    sd.consistency = consistency
+
+    with patch(
+        "backend.api.routers.sessions.get_any_coaching_report",
+        new_callable=AsyncMock,
+        return_value=None,
+    ):
+        result = await _compute_session_score(sd)
+
+    assert result == pytest.approx(82.0)
+
+
 # ===========================================================================
 # upload_sessions — lines 221-231, 234-239, 252-253, 260-281
 # ===========================================================================

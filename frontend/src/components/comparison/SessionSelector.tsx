@@ -8,9 +8,32 @@ import { cn } from '@/lib/utils';
 import { formatLapTime, parseSessionDate } from '@/lib/formatters';
 import { Button } from '@/components/ui/button';
 import { CircularProgress } from '@/components/shared/CircularProgress';
+import type { SessionSummary } from '@/lib/types';
 
 interface SessionSelectorProps {
   currentSessionId: string;
+}
+
+function normalizeTrackName(trackName: string | null | undefined): string {
+  // Mirror backend's _normalize_track_name: casefold + collapse non-alnum to spaces
+  return (trackName ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+export function getComparableSessions({
+  currentSessionId,
+  sessions,
+  currentTrackName,
+}: {
+  currentSessionId: string;
+  sessions: SessionSummary[];
+  currentTrackName: string | null | undefined;
+}): SessionSummary[] {
+  const normalizedCurrentTrack = normalizeTrackName(currentTrackName);
+  return sessions.filter(
+    (session) =>
+      session.session_id !== currentSessionId &&
+      normalizeTrackName(session.track_name) === normalizedCurrentTrack,
+  );
 }
 
 export function SessionSelector({ currentSessionId }: SessionSelectorProps) {
@@ -19,8 +42,12 @@ export function SessionSelector({ currentSessionId }: SessionSelectorProps) {
   const [selectedOtherId, setSelectedOtherId] = useState<string | null>(null);
 
   const sessions = sessionsData?.items ?? [];
-  const otherSessions = sessions.filter((s) => s.session_id !== currentSessionId);
   const currentSession = sessions.find((s) => s.session_id === currentSessionId);
+  const otherSessions = getComparableSessions({
+    currentSessionId,
+    sessions,
+    currentTrackName: currentSession?.track_name,
+  });
 
   function handleCompare() {
     if (selectedOtherId) {
@@ -86,10 +113,10 @@ export function SessionSelector({ currentSessionId }: SessionSelectorProps) {
       {otherSessions.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-12 text-center">
           <p className="text-sm text-[var(--text-secondary)]">
-            No other sessions available for comparison.
+            No comparable sessions available for this track.
           </p>
           <p className="text-xs text-[var(--text-muted)]">
-            Upload more sessions to enable comparison.
+            Upload another session from the same track to enable comparison.
           </p>
         </div>
       ) : (

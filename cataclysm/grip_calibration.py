@@ -201,6 +201,11 @@ def apply_calibration_to_params(
         drag_coefficient=base_params.drag_coefficient,
         top_speed_mps=base_params.top_speed_mps,
         calibrated=True,
+        load_sensitivity_exponent=base_params.load_sensitivity_exponent,
+        cg_height_m=base_params.cg_height_m,
+        track_width_m=base_params.track_width_m,
+        wheel_power_w=base_params.wheel_power_w,
+        mass_kg=base_params.mass_kg,
     )
 
 

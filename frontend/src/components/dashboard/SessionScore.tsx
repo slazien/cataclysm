@@ -15,9 +15,12 @@ export interface ScoreBreakdown {
   grades: number | null;
 }
 
+export type ScoreBreakdownMessages = Partial<Record<keyof ScoreBreakdown, string | null>>;
+
 interface SessionScoreProps {
   score: number | null;
   breakdown: ScoreBreakdown | null;
+  breakdownMessages?: ScoreBreakdownMessages;
   isLoading: boolean;
 }
 
@@ -58,7 +61,31 @@ function ScoreRow({ label, weight, value }: { label: string; weight: string; val
   );
 }
 
-export function SessionScore({ score, breakdown, isLoading }: SessionScoreProps) {
+function UnavailableRow({
+  label,
+  weight,
+  message,
+}: {
+  label: string;
+  weight: string;
+  message: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-[var(--text-secondary)]">
+        {label} <span className="text-[var(--text-muted)]">({weight})</span>
+      </span>
+      <span className="text-right text-[11px] font-medium text-[var(--text-muted)]">{message}</span>
+    </div>
+  );
+}
+
+export function SessionScore({
+  score,
+  breakdown,
+  breakdownMessages,
+  isLoading,
+}: SessionScoreProps) {
   const [displayValue, setDisplayValue] = useState(0);
   const animatedRef = useRef(false);
 
@@ -111,7 +138,9 @@ export function SessionScore({ score, breakdown, isLoading }: SessionScoreProps)
   const dashOffset = CIRCUMFERENCE * (1 - fraction);
   const color = displayScore !== null ? getScoreColor(displayScore) : 'var(--text-muted)';
 
-  const hasBreakdown = breakdown && Object.values(breakdown).some((v) => v !== null);
+  const hasBreakdown =
+    (!!breakdown && Object.values(breakdown).some((v) => v !== null)) ||
+    (!!breakdownMessages && Object.values(breakdownMessages).some((v) => !!v));
 
   const ring = (
     <div className="flex flex-col items-center justify-center rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] px-3 py-2">
@@ -186,8 +215,12 @@ export function SessionScore({ score, breakdown, isLoading }: SessionScoreProps)
           <p className="mb-1.5 font-semibold text-[var(--text-primary)]">Score Breakdown</p>
           <div className="flex flex-col gap-1">
             {BREAKDOWN_ROWS.map(({ key, label, weight }) => {
-              const value = breakdown[key];
-              if (value === null) return null;
+              const value = breakdown?.[key] ?? null;
+              const message = breakdownMessages?.[key];
+              if (value === null && !message) return null;
+              if (value === null && message) {
+                return <UnavailableRow key={key} label={label} weight={weight} message={message} />;
+              }
               return <ScoreRow key={key} label={label} weight={weight} value={value} />;
             })}
           </div>

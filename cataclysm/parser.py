@@ -51,10 +51,11 @@ class SessionMetadata:
 
 @dataclass
 class ParsedSession:
-    """A fully parsed and quality-filtered telemetry session."""
+    """A parsed telemetry session with both filtered and raw-normalized views."""
 
     metadata: SessionMetadata
     data: pd.DataFrame
+    raw_data: pd.DataFrame | None = None
 
 
 def _parse_metadata(lines: list[str]) -> SessionMetadata:
@@ -139,22 +140,21 @@ def parse_racechrono_csv(source: str | io.IOBase) -> ParsedSession:
     critical = ["timestamp", "elapsed_time", "lat", "lon", "speed_mps", "distance_m"]
     df = df.dropna(subset=critical)
 
+    # Normalize ordering/speed before splitting raw vs filtered views so GPS
+    # quality can inspect the original telemetry quality without changing the
+    # rest of the pipeline.
+    df = df.sort_values("elapsed_time").reset_index(drop=True)
+    df["speed_mps"] = np.maximum(df["speed_mps"].to_numpy(), 0.0)
+    raw_df = df.copy()
+
     # Quality filter
     df = df[df["accuracy_m"] <= MAX_ACCURACY_M]
     df = df[df["satellites"] >= MIN_SATELLITES]
 
-    # Fill missing non-critical IMU fields with 0
-    imu_cols = ["lateral_g", "longitudinal_g", "x_acc_g", "y_acc_g", "z_acc_g", "yaw_rate_dps"]
-    for col in imu_cols:
-        if col in df.columns:
-            df[col] = df[col].fillna(0.0)
+    # IMU columns (lateral_g, longitudinal_g, etc.) are left as NaN when
+    # the hardware didn't record them.  Downstream code checks for finite
+    # values and gracefully skips missing channels.
 
     df = df.reset_index(drop=True)
 
-    # Sanity: ensure sorted by elapsed_time
-    df = df.sort_values("elapsed_time").reset_index(drop=True)
-
-    # Speed sanity: clamp negative values
-    df["speed_mps"] = np.maximum(df["speed_mps"].to_numpy(), 0.0)
-
-    return ParsedSession(metadata=metadata, data=df)
+    return ParsedSession(metadata=metadata, data=df, raw_data=raw_df)

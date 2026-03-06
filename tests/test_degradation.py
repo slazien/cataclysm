@@ -192,6 +192,19 @@ class TestDetectBrakeFade:
             event = [e for e in result.events if e.metric == "brake_fade"][0]
             assert event.severity == "mild"
 
+    def test_nonconsecutive_lap_numbers_use_actual_lap_spacing(self) -> None:
+        all_corners = {
+            1: [_make_corner(number=1, peak_brake_g=-0.88)],
+            2: [_make_corner(number=1, peak_brake_g=-0.86)],
+            10: [_make_corner(number=1, peak_brake_g=-0.70)],
+            11: [_make_corner(number=1, peak_brake_g=-0.68)],
+        }
+
+        result = detect_degradation(all_corners, anomalous_laps=set())
+
+        event = [e for e in result.events if e.metric == "brake_fade"][0]
+        assert event.slope == pytest.approx(0.02, abs=1e-6)
+
 
 class TestDetectTireDegradation:
     """Tests for detecting tire degradation (min speed dropping)."""
@@ -245,6 +258,19 @@ class TestDetectTireDegradation:
         if result.has_tire_degradation:
             event = [e for e in result.events if e.metric == "tire_degradation"][0]
             assert event.severity == "moderate"
+
+    def test_nonconsecutive_lap_numbers_use_actual_lap_spacing(self) -> None:
+        all_corners = {
+            1: [_make_corner(number=1, min_speed_mps=29.8)],
+            2: [_make_corner(number=1, min_speed_mps=29.6)],
+            10: [_make_corner(number=1, min_speed_mps=28.0)],
+            11: [_make_corner(number=1, min_speed_mps=27.8)],
+        }
+
+        result = detect_degradation(all_corners, anomalous_laps=set())
+
+        event = [e for e in result.events if e.metric == "tire_degradation"][0]
+        assert event.slope == pytest.approx(-0.2, abs=1e-6)
 
 
 class TestTooFewLaps:

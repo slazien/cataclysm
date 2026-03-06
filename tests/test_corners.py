@@ -594,6 +594,20 @@ class TestExtractKpisPreservesCoachingFields:
         assert c.elevation_change_m == -5.0
         assert c.gradient_pct == -2.5
 
+    def test_recomputes_apex_distance_from_current_lap(
+        self, sample_resampled_lap: pd.DataFrame
+    ) -> None:
+        ref = detect_corners(sample_resampled_lap)
+        if not ref:
+            pytest.skip("No corners detected")
+
+        correct_apex = ref[0].apex_distance_m
+        ref[0].apex_distance_m = correct_apex + 50.0
+
+        result = extract_corner_kpis_for_lap(sample_resampled_lap, ref)
+
+        assert result[0].apex_distance_m == pytest.approx(correct_apex, abs=0.1)
+
 
 # ---------------------------------------------------------------------------
 # TestExtractCornerKpisEdgeCases (lines 527-566)

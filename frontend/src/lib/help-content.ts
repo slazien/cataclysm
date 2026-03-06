@@ -21,13 +21,13 @@ export const helpContent: Record<string, string> = {
   'metric.top-speed':
     'Highest speed recorded at any point during the session.',
   'metric.optimal-lap':
-    'A theoretical "perfect" lap combining your best mini-sector times from different laps. The gap to your best lap shows remaining potential.',
+    'This card uses the app\'s ideal-lap reference: a composite lap reconstructed from the best speed seen at each sampled point around the lap. It is a driver-derived benchmark, not a physics-limit prediction.',
   'metric.session-score':
-    'Overall session rating (0-100) combining: Consistency (40%), Pace vs. optimal lap (30%), and Corner grades (30%). Hover the ring for the full breakdown.',
+    'Overall session rating (0-100) combining available components: Consistency (40%), Pace vs. the ideal-lap pace reference (30%), and Corner grades (30%). If one component is missing or invalid, the remaining weights are renormalized.',
   'metric.sessions':
     'Total number of sessions analyzed. More sessions = more reliable trend data.',
   'metric.pace-spread':
-    'The gap between your fastest and slowest clean laps. Smaller spread = more consistent pace.',
+    'On this screen, this metric is your Top 3 Average minus your Best Lap. Smaller gap = your fast pace is repeatable, not just a one-off peak.',
 
   // ── Charts ───────────────────────────────────────────────
   'chart.speed-trace':
@@ -45,7 +45,7 @@ export const helpContent: Record<string, string> = {
   'chart.brake-consistency':
     'Brake pressure traces overlaid for the same corner across laps. Consistent braking = consistent corner entry.',
   'chart.speed-gap':
-    'Speed difference between two laps at each point. Positive = faster than reference. Helps pinpoint exactly where time is gained or lost.',
+    'Per-corner speed gap between your actual minimum speed and the physics-optimal model. Larger gaps represent more time left on the table.',
   'chart.lap-times-bar':
     'Bar chart of all lap times. Purple = personal best, blue = clean laps, gray = unclean. Dashed lines show PB and average.',
   'chart.time-gained':
@@ -81,11 +81,11 @@ export const helpContent: Record<string, string> = {
 
   // ── Sections ─────────────────────────────────────────────
   'section.top-priorities':
-    'AI-identified corners where you lose the most time, ranked by potential gain. Focus your practice here for the biggest improvement.',
+    'AI-selected focus corners ranked by estimated opportunity. Each time figure shown here is a bounded estimate of potential gain, not a measured fact.',
   'section.corner-grades':
     'Letter grades (A-F) for each corner across four dimensions. Grades are based on your telemetry compared to optimal technique patterns.',
   'section.score-breakdown':
-    'How the session score is calculated: Consistency (40%) measures lap time repeatability, Pace (30%) compares your best to your optimal, Corner Grades (30%) averages your technique scores.',
+    'How the session score is calculated: Consistency (40%) measures lap time repeatability, Pace (30%) compares your best lap to the ideal-lap pace reference, and Corner Grades (30%) average your technique scores. Missing components are re-weighted rather than treated as zero.',
   'section.session-metrics':
     'Key performance indicators summarizing this session. Compare across sessions on the Progress tab.',
   'section.track-guide':

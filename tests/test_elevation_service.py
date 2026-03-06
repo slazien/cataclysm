@@ -50,6 +50,17 @@ class TestCacheKey:
         lons2 = np.array([-86.0, -87.0])
         assert _cache_key(lats1, lons1) != _cache_key(lats2, lons2)
 
+    def test_distinguishes_same_bbox_but_different_trace_shape(self) -> None:
+        """Different traces sharing bbox/length must not collide."""
+        lats1 = np.array([33.0, 33.5, 34.0])
+        lons1 = np.array([-86.0, -86.5, -87.0])
+
+        # Same endpoints + point count, but a different middle point.
+        lats2 = np.array([33.0, 33.2, 34.0])
+        lons2 = np.array([-86.0, -86.8, -87.0])
+
+        assert _cache_key(lats1, lons1) != _cache_key(lats2, lons2)
+
 
 class TestSubsampleIndices:
     def test_small_arrays_return_all(self) -> None:
