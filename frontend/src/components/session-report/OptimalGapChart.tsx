@@ -3,6 +3,7 @@
 import { useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useOptimalComparison } from '@/hooks/useAnalysis';
+import { useSessionEquipment } from '@/hooks/useEquipment';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
 import { useUnits } from '@/hooks/useUnits';
 import { SkeletonCard } from '@/components/shared/SkeletonCard';
@@ -38,7 +39,8 @@ interface OptimalGapChartProps {
 }
 
 export function OptimalGapChart({ sessionId }: OptimalGapChartProps) {
-  const { data: comparison, isLoading } = useOptimalComparison(sessionId);
+  const { data: sessionEquipment } = useSessionEquipment(sessionId);
+  const { data: comparison, isLoading } = useOptimalComparison(sessionId, sessionEquipment?.profile_id);
   const { convertSpeed, speedUnit } = useUnits();
   const isInvalidComparison =
     comparison != null && (!comparison.is_valid || comparison.total_gap_s <= 0);

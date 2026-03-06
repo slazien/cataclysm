@@ -29,9 +29,10 @@ function invalidatePhysicsQueries(
 ) {
   for (const key of PHYSICS_DEPENDENT_KEYS) {
     const queryKey = sessionId ? [key, sessionId] : [key];
-    // resetQueries resets to initial state AND notifies mounted observers,
-    // forcing a refetch even for staleTime: Infinity queries.
-    queryClient.resetQueries({ queryKey });
+    // optimal-comparison queries include equipmentProfileId in their key,
+    // so they automatically refetch when equipment changes. This invalidation
+    // clears stale entries for the old equipment key.
+    queryClient.removeQueries({ queryKey });
   }
 }
 

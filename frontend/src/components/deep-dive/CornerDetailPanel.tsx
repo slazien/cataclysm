@@ -1,6 +1,7 @@
 'use client';
 
 import { useCorners, useAllLapCorners, useOptimalComparison } from '@/hooks/useAnalysis';
+import { useSessionEquipment } from '@/hooks/useEquipment';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useAnalysisStore, useSessionStore } from '@/stores';
 import { useSession } from '@/hooks/useSession';
@@ -110,7 +111,8 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
   const { data: corners } = useCorners(sessionId);
   const { data: allLapCorners } = useAllLapCorners(sessionId);
   const { data: report } = useCoachingReport(sessionId);
-  const { data: optimalComparison } = useOptimalComparison(sessionId);
+  const { data: sessionEquipment } = useSessionEquipment(sessionId);
+  const { data: optimalComparison } = useOptimalComparison(sessionId, sessionEquipment?.profile_id);
   const { convertSpeed, convertDistance, speedUnit, distanceUnit, resolveSpeed } = useUnits();
   const { skillLevel, showFeature } = useSkillLevel();
   const showExplanations = showFeature('grade_explanations');

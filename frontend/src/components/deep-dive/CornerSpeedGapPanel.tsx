@@ -3,6 +3,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useOptimalComparison } from '@/hooks/useAnalysis';
+import { useSessionEquipment } from '@/hooks/useEquipment';
 import { useAnalysisStore } from '@/stores';
 import { useUnits } from '@/hooks/useUnits';
 import { parseCornerNumber } from '@/lib/cornerUtils';
@@ -232,7 +233,8 @@ function CornerFocusView({
 }
 
 export function CornerSpeedGapPanel({ sessionId, selectedCorner }: CornerSpeedGapPanelProps) {
-  const { data: comparison, isLoading } = useOptimalComparison(sessionId);
+  const { data: sessionEquipment } = useSessionEquipment(sessionId);
+  const { data: comparison, isLoading } = useOptimalComparison(sessionId, sessionEquipment?.profile_id);
   const { convertSpeed, speedUnit } = useUnits();
   const selectCorner = useAnalysisStore((s) => s.selectCorner);
   const [hoveredCorner, setHoveredCorner] = useState<number | null>(null);
