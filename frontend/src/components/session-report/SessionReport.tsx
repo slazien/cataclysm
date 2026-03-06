@@ -184,9 +184,7 @@ export function SessionReport() {
             consistency={consistency ?? null}
             isNovice={isNovice}
             isAdvanced={isAdvanced}
-            physicsOptimalLapTime={
-              optimalComparison?.is_valid ? optimalComparison.optimal_lap_time_s : undefined
-            }
+            physicsOptimalLapTime={optimalComparison?.optimal_lap_time_s}
           />
         </div>
 
