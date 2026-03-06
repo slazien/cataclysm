@@ -140,6 +140,22 @@ def get_session_for_user(session_id: str, user_id: str) -> SessionData | None:
     return sd
 
 
+def sync_user_id(old_id: str, new_id: str) -> None:
+    """Update all in-memory sessions owned by old_id to new_id.
+
+    Called when ``ensure_user_exists`` migrates a user's OAuth ID so that
+    ``get_session_for_user`` immediately works with the new ID without
+    waiting for ``list_sessions`` to sync.
+    """
+    count = 0
+    for sd in _store.values():
+        if sd.user_id == old_id:
+            sd.user_id = new_id
+            count += 1
+    if count:
+        logger.info("Synced %d in-memory session(s) from user %s → %s", count, old_id, new_id)
+
+
 def delete_session(session_id: str) -> bool:
     """Delete a session by ID. Returns True if it existed."""
     existed = _store.pop(session_id, None) is not None

@@ -97,6 +97,12 @@ async def ensure_user_exists(db: AsyncSession, user: AuthenticatedUser) -> None:
             {"email": user.email, "new_id": user.user_id},
         )
         await db.flush()
+
+        # 5. Sync in-memory session store so get_session_for_user works
+        #    immediately (DB FKs are migrated but memory still has old_id)
+        from backend.api.services.session_store import sync_user_id
+
+        sync_user_id(old_id, user.user_id)
         return
 
     # Truly new user
@@ -227,6 +233,39 @@ async def verify_session_owner(
         )
     )
     return result.scalar_one_or_none() is not None
+
+
+async def get_session_for_user_with_db_sync(
+    db: AsyncSession,
+    session_id: str,
+    user_id: str,
+) -> SessionData | None:
+    """Get session for user, with DB-backed ownership sync on mismatch.
+
+    When the in-memory store has a stale user_id (e.g. after OAuth sub change
+    and backend restart), the DB may already have the correct FK but the
+    in-memory store still holds the old user_id.  This checks the DB and
+    syncs the in-memory user_id when ownership is confirmed.
+    """
+    from backend.api.services.session_store import get_session, get_session_for_user
+
+    # Fast path: in-memory ownership matches
+    sd = get_session_for_user(session_id, user_id)
+    if sd is not None:
+        return sd
+
+    # Session might exist with stale user_id — check if it's in memory at all
+    sd = get_session(session_id)
+    if sd is None:
+        return None  # Session truly doesn't exist in memory
+
+    # Verify ownership in DB (which ensure_user_exists keeps up to date)
+    if await verify_session_owner(db, session_id, user_id):
+        # DB confirms ownership — sync in-memory store
+        sd.user_id = user_id
+        return sd
+
+    return None
 
 
 async def delete_session_db(

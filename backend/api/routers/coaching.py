@@ -21,7 +21,9 @@ from cataclysm.topic_guardrail import (
 )
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.db.database import get_db
 from backend.api.dependencies import (
     AuthenticatedUser,
     authenticate_websocket,
@@ -55,6 +57,7 @@ from backend.api.services.coaching_store import (
     store_coaching_report,
     unmark_generating,
 )
+from backend.api.services.db_session_store import get_session_for_user_with_db_sync
 from backend.api.services.session_store import SessionData
 
 logger = logging.getLogger(__name__)
@@ -160,13 +163,14 @@ async def generate_report(
     session_id: str,
     body: ReportRequest,
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> CoachingReportResponse:
     """Trigger AI coaching report generation for a session.
 
     Returns immediately with status="generating". The report is built in a
     background task; poll GET /{session_id}/report until status is "ready".
     """
-    sd = session_store.get_session_for_user(session_id, current_user.user_id)
+    sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
@@ -458,6 +462,7 @@ async def _run_generation(
 async def get_report(
     session_id: str,
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
     skill_level: SkillLevel = "intermediate",
 ) -> CoachingReportResponse:
     """Get the coaching report for a session.
@@ -466,7 +471,7 @@ async def get_report(
     or 404 if no report has been generated or requested.
     """
     # Verify session ownership before returning coaching data
-    sd = session_store.get_session_for_user(session_id, current_user.user_id)
+    sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
@@ -567,12 +572,13 @@ def _build_report_content(
 async def download_pdf_report(
     session_id: str,
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Response:
     """Download the coaching report as a PDF file.
 
     Requires both a processed session and a completed coaching report.
     """
-    sd = session_store.get_session_for_user(session_id, current_user.user_id)
+    sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
@@ -599,13 +605,14 @@ async def coaching_chat_http(
     session_id: str,
     body: ChatRequest,
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> FollowUpMessage:
     """HTTP POST endpoint for follow-up coaching conversation.
 
     This replaces the WebSocket endpoint for environments where WebSocket
     proxying is not available (e.g. Next.js rewrites).
     """
-    sd = session_store.get_session_for_user(session_id, current_user.user_id)
+    sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
