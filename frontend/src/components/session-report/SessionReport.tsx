@@ -5,7 +5,7 @@ import { ChevronDown, RefreshCw } from 'lucide-react';
 import { useSessionStore, useUiStore } from '@/stores';
 import { useSession, useSessionLaps } from '@/hooks/useSession';
 import { useAutoReport } from '@/hooks/useAutoReport';
-import { useCorners, useConsistency, useGPSQuality } from '@/hooks/useAnalysis';
+import { useCorners, useConsistency, useGPSQuality, useOptimalComparison } from '@/hooks/useAnalysis';
 import { useRecentAchievements } from '@/hooks/useAchievements';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
 import { OptimalGapChart } from './OptimalGapChart';
@@ -114,6 +114,7 @@ export function SessionReport() {
   const { report, isSkillMismatch, isGenerating, regenRemaining, regenMax, regenerate } = useAutoReport(activeSessionId);
   const { data: consistency } = useConsistency(activeSessionId);
   const { data: gpsQuality } = useGPSQuality(activeSessionId);
+  const { data: optimalComparison } = useOptimalComparison(activeSessionId);
   const { data: recentAchievementsData } = useRecentAchievements(!!activeSessionId);
   const { isNovice, isAdvanced, showFeature } = useSkillLevel();
   const skillLevel = useUiStore((s) => s.skillLevel);
@@ -183,6 +184,9 @@ export function SessionReport() {
             consistency={consistency ?? null}
             isNovice={isNovice}
             isAdvanced={isAdvanced}
+            physicsOptimalLapTime={
+              optimalComparison?.is_valid ? optimalComparison.optimal_lap_time_s : undefined
+            }
           />
         </div>
 

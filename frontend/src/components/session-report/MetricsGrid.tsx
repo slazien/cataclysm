@@ -11,6 +11,8 @@ interface MetricsGridProps {
   consistency: SessionConsistency | null;
   isNovice: boolean;
   isAdvanced: boolean;
+  /** Physics-optimal lap time (equipment-aware). Preferred over session ideal lap when present. */
+  physicsOptimalLapTime?: number;
 }
 
 function formatTime(seconds: number): string {
@@ -19,10 +21,10 @@ function formatTime(seconds: number): string {
   return `${min}:${sec.padStart(6, '0')}`;
 }
 
-export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced }: MetricsGridProps) {
+export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced, physicsOptimalLapTime }: MetricsGridProps) {
   const bestLap = session?.best_lap_time_s;
   const top3Avg = session?.top3_avg_time_s;
-  const optimalLap = session?.optimal_lap_time_s;
+  const optimalLap = physicsOptimalLapTime ?? session?.optimal_lap_time_s;
   const nLaps = session?.n_laps ?? laps?.length;
   const consistencyScore = consistency?.lap_consistency?.consistency_score;
 
