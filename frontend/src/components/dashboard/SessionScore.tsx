@@ -221,7 +221,7 @@ export function SessionScore({
               if (value === null && message) {
                 return <UnavailableRow key={key} label={label} weight={weight} message={message} />;
               }
-              return <ScoreRow key={key} label={label} weight={weight} value={value} />;
+              return <ScoreRow key={key} label={label} weight={weight} value={value!} />;
             })}
           </div>
         </TooltipContent>
