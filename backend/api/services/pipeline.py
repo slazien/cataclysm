@@ -484,7 +484,7 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
         # Fall back to calibration when mu is the uncalibrated default (1.0).
         grip = None
         equipment_has_grip = (
-            has_equipment and vehicle_params is not None and vehicle_params.mu > 1.0
+            has_equipment and vehicle_params is not None and vehicle_params.mu != 1.0
         )
         if not equipment_has_grip:
             calibration_data = _collect_independent_calibration_telemetry(
@@ -608,7 +608,7 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
         # Fall back to calibration when mu is the uncalibrated default (1.0).
         grip = None
         equipment_has_grip = (
-            has_equipment and vehicle_params is not None and vehicle_params.mu > 1.0
+            has_equipment and vehicle_params is not None and vehicle_params.mu != 1.0
         )
         if not equipment_has_grip:
             calibration_data = _collect_independent_calibration_telemetry(
