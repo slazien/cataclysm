@@ -42,9 +42,7 @@ export function OptimalGapChart({ sessionId }: OptimalGapChartProps) {
   const { convertSpeed, speedUnit } = useUnits();
   const isInvalidComparison =
     comparison != null && (!comparison.is_valid || comparison.total_gap_s <= 0);
-  const invalidReason =
-    comparison?.invalid_reasons.find((reason) => reason.trim().length > 0) ??
-    'The physics-optimal reference was invalid for this session.';
+  const invalidReason = 'The physics-optimal reference was invalid for this session. Speed gap data is unavailable.';
 
   // Filter to non-trivial gaps, already sorted by time_cost_s desc from backend
   const opportunities = useMemo(() => {

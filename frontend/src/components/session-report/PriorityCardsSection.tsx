@@ -25,7 +25,7 @@ interface PriorityCardsSectionProps {
 }
 
 function formatPriorityBadge(timeCostS: number): string {
-  return timeCostS > 0 ? `Up to ${timeCostS.toFixed(2)}s` : 'Estimate unavailable';
+  return timeCostS > 0 ? `Up to ${timeCostS.toFixed(1)}s` : 'Estimate unavailable';
 }
 
 function PriorityCard({
