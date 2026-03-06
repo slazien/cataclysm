@@ -215,6 +215,78 @@ Every logger has its own format, quirks, and edge cases. Universal ingestion is 
 
 ---
 
+## Bootstrap Strategy
+
+Cataclysm is bootstrapped as a side project alongside a day job. This means indefinite runway but limited hours. Every decision must optimize for leverage — maximum impact per hour invested.
+
+### Cost structure
+
+| Item | Monthly cost | Notes |
+|------|-------------|-------|
+| Railway (2 services + Postgres) | ~$15-20 | Scales with traffic |
+| Hetzner VPS | ~$5-10 | Backup deployment |
+| Claude API (Haiku 4.5) | ~$0.04/report | Scales with users |
+| Custom domain (future) | ~$1 | ~$12/year |
+| **Total baseline** | **~$30-50** | Before any users |
+
+**Budget ceiling: $100-200/mo.** That leaves ~$50-150/mo for Claude API costs, supporting roughly 1,000-3,000 coaching reports before revenue is needed. At ~3 reports per user (the free trial), that's ~300-1,000 new users before costs hit the ceiling.
+
+### Path to revenue
+
+**Phase 1: Product-market fit (now)**
+Don't build a paywall yet. Every hour goes into making the product undeniably good. The bottleneck is "do people love this?" not "will people pay?"
+
+**Phase 2: Monetization trigger**
+Build the paywall when ~30-50 users have uploaded 3+ sessions each. That's the signal that the product retains. Those users are the first paying customers.
+
+**Phase 3: Session-gated freemium**
+3 full sessions with complete functionality, then tiered subscriptions. This is the right gate because:
+- Time-based trials expire between track events (weeks apart)
+- Feature-gated free tiers prevent the "aha moment" of AI coaching
+- Session-based lets drivers experience the full arc: wow -> progress -> hooked
+- TrackAddict validates this model (3 recordings free)
+
+### Solo builder leverage
+
+**Play to strengths (code + AI):**
+- Ship full features in hours with Claude Code + agent teams
+- Iterate on coaching quality rapidly (prompts, domain knowledge, physics models)
+- Build new data format parsers quickly
+- Infrastructure and DevOps
+
+**Manage bottlenecks (time + distribution):**
+- Content, community, and partnerships are slow — don't try to do all three at once
+- Community presence (HPDE forums, Reddit) and one instructor partnership are the highest-leverage distribution plays
+- Share card virality turns every user into a marketing channel — invest in making share output compelling
+
+### Growth playbook (zero marketing budget)
+
+**Channel 1: Be where they are.**
+Genuine participation in HPDE Facebook groups, r/CarTrackDays, r/HPDE, RaceChrono forums. Help people analyze their data, mention the tool. Consistent presence, not spam.
+
+**Channel 2: Share card virality.**
+Make post-session share cards so visually compelling that drivers post them on Instagram/WhatsApp. Friends ask "what app is that?" Every user becomes an acquisition channel.
+
+**Channel 3: One instructor partnership.**
+Find one data-curious HPDE instructor, give them free Coach-tier access. If they recommend Cataclysm to students, that's 3-5 new users per track day event with built-in trust.
+
+### Shipping priority (limited hours)
+
+1. **Onboarding overhaul** — first session to "wow" in 60 seconds. This is the conversion funnel.
+2. **Mobile polish** — paddock experience on a phone must feel great. This is where users are.
+3. **Second data format** — RaceBox direct import doubles the addressable market.
+4. **Share card quality** — make the output worth sharing. This is the growth engine.
+
+### Go full-time milestone
+
+Two signals, both required:
+- **$500/mo MRR** — proves the market pays, covers infrastructure with margin
+- **5 strangers independently say this changed how they approach track days** — proves the product matters beyond the numbers
+
+Revenue without love is a grind. Love without revenue is a hobby. Both need to be true.
+
+---
+
 ## Appendix: Competitive Pricing Research
 
 Research conducted 2026-03-05. Key reference points:
