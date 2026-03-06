@@ -169,13 +169,18 @@ def apply_calibration_to_params(
     base_params: VehicleParams,
     grip: CalibratedGrip,
 ) -> VehicleParams:
-    """Override VehicleParams with calibrated grip values.
+    """Merge calibrated grip with base VehicleParams, keeping the higher value.
+
+    For each axis, uses max(base, observed) so that calibration can only raise
+    the grip envelope above the base (equipment or defaults), never lower it.
+    This prevents the solver from underestimating a car's capability when the
+    driver hasn't fully explored the grip limit.
 
     Rules:
-    - max_lateral_g = grip.max_lateral_g
-    - max_decel_g = grip.max_brake_g
-    - max_accel_g = grip.max_accel_g
-    - mu = max(max_lateral_g, max_brake_g) (overall friction envelope)
+    - max_lateral_g = max(base, grip.max_lateral_g)
+    - max_decel_g = max(base, grip.max_brake_g)
+    - max_accel_g = max(base, grip.max_accel_g)
+    - mu = max of the resolved lateral and brake values
     - Sets calibrated=True flag
     - Preserves equipment-derived top_speed, aero, drag coefficients
 
@@ -189,13 +194,16 @@ def apply_calibration_to_params(
     Returns
     -------
     VehicleParams
-        New VehicleParams with grip values overridden.
+        New VehicleParams with grip values merged.
     """
+    lat_g = max(base_params.max_lateral_g, grip.max_lateral_g)
+    brake_g = max(base_params.max_decel_g, grip.max_brake_g)
+    accel_g = max(base_params.max_accel_g, grip.max_accel_g)
     return VehicleParams(
-        mu=max(grip.max_lateral_g, grip.max_brake_g),
-        max_accel_g=grip.max_accel_g,
-        max_decel_g=grip.max_brake_g,
-        max_lateral_g=grip.max_lateral_g,
+        mu=max(lat_g, brake_g),
+        max_accel_g=accel_g,
+        max_decel_g=brake_g,
+        max_lateral_g=lat_g,
         friction_circle_exponent=base_params.friction_circle_exponent,
         aero_coefficient=base_params.aero_coefficient,
         drag_coefficient=base_params.drag_coefficient,

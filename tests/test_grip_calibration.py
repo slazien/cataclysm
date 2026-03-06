@@ -341,6 +341,31 @@ class TestApplyCalibrationToParams:
         result2 = apply_calibration_to_params(base, grip2)
         assert result2.mu == 1.4
 
+    def test_calibration_never_lowers_below_base(self) -> None:
+        """Observed grip below base params should not reduce the solver's limits."""
+        base = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+        )
+        grip = CalibratedGrip(
+            max_lateral_g=0.85,  # driver below car's capability
+            max_brake_g=0.9,
+            max_accel_g=0.4,
+            point_count=500,
+            confidence="medium",
+        )
+
+        result = apply_calibration_to_params(base, grip)
+
+        # Should keep base values since they're higher
+        assert result.max_lateral_g == 1.0
+        assert result.max_decel_g == 1.0
+        assert result.max_accel_g == 0.5
+        assert result.mu == 1.0
+        assert result.calibrated is True
+
 
 class TestVehicleParamsCalibratedField:
     """Test that VehicleParams has the calibrated field."""
