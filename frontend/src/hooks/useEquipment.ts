@@ -29,10 +29,9 @@ function invalidatePhysicsQueries(
 ) {
   for (const key of PHYSICS_DEPENDENT_KEYS) {
     const queryKey = sessionId ? [key, sessionId] : [key];
-    // Remove cached data and force refetch — invalidateQueries alone
-    // doesn't reliably refetch staleTime: Infinity queries.
-    queryClient.removeQueries({ queryKey });
-    queryClient.invalidateQueries({ queryKey });
+    // resetQueries resets to initial state AND notifies mounted observers,
+    // forcing a refetch even for staleTime: Infinity queries.
+    queryClient.resetQueries({ queryKey });
   }
 }
 
