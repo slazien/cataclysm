@@ -15,6 +15,7 @@ from backend.api.schemas.achievement import (
     NewAchievementsResponse,
 )
 from backend.api.services.achievement_engine import (
+    check_achievements,
     get_recent_achievements,
     get_user_achievements,
 )
@@ -27,7 +28,13 @@ async def list_achievements(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AchievementListResponse:
-    """Return all achievements with unlock status for the current user."""
+    """Return all achievements with unlock status for the current user.
+
+    Re-evaluates criteria first so achievements earned before the system
+    was introduced (or between uploads) are caught up.
+    """
+    await check_achievements(db, current_user.user_id)
+    await db.commit()
     rows = await get_user_achievements(db, current_user.user_id)
     return AchievementListResponse(
         achievements=[AchievementSchema(**r) for r in rows],  # type: ignore[arg-type]

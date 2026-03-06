@@ -94,6 +94,9 @@ export function useAssignEquipment() {
       queryClient.invalidateQueries({
         queryKey: ["session-equipment", variables.sessionId],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["session", variables.sessionId],
+      });
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
     },
   });
@@ -120,6 +123,10 @@ export function useUpdateProfile() {
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipment-profiles"] });
+      // Profile edits (e.g. vehicle change) affect optimal lap time calculations
+      // for any session using this profile — invalidate all session details
+      queryClient.invalidateQueries({ queryKey: ["session"] });
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
     },
   });
 }
