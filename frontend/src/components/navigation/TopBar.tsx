@@ -147,6 +147,17 @@ export function TopBar() {
           >
             <Settings className="h-4 w-4" />
           </Button>
+          {/* Sign-in button when unauthenticated */}
+          {isAnonymous && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => signIn('google')}
+              className="ml-1 text-xs font-medium text-[var(--cata-accent)] hover:text-[var(--cata-accent)]/80"
+            >
+              Sign in
+            </Button>
+          )}
           {/* User avatar + sign-out */}
           {authSession?.user && (
             <div className="relative ml-1">
