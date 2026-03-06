@@ -307,6 +307,16 @@ record_upload(ip)  # Too late — slots already bypassed
 
 **Anti-pattern**: "The JSON file says X, so the user has X." Local files are snapshots, not live state. If the user says differently, believe the user. When local data contradicts user statements, flag the discrepancy rather than asserting the file is correct.
 
+## Backend Endpoints Without Frontend Consumers Are Invisible Features ([2026-03-06])
+
+**Pattern**: When reviewing or QAing a feature, verify that every backend endpoint has a corresponding frontend consumer. A fully working backend API with no frontend UI is an invisible feature — the user can never access it.
+
+**Why**: The vehicle selection backend was complete (`GET /vehicles/search`, `GET /vehicles/{make}/{model}`, profile create/update accepting `vehicle` field) but `EquipmentSetupModal.tsx` never rendered a vehicle section. The backend was built, tested, and deployed — but completely invisible to users. User discovered this and was justifiably frustrated: "How the fuck did you QA this if its not visible."
+
+**Verification**: After implementing any backend feature, grep the frontend for consumers: `grep -rn "/api/equipment/vehicles" frontend/src/`. If zero results, the feature has no UI. For each backend endpoint, there should be: (1) an `api.ts` function, (2) a hook in `useXxx.ts`, (3) a component that calls the hook.
+
+**Anti-pattern**: "Backend is done, frontend will come later" without tracking the gap. If the gap isn't tracked, it becomes permanent. Either implement both together or create a TODO that blocks the feature from being marked complete.
+
 ## Verify User State Before Making Assumptions ([2026-03-06])
 
 **Pattern**: Before assuming a user lacks something (equipment profile, vehicle setup, etc.), check the data directory or API. Don't assume absence without evidence.
