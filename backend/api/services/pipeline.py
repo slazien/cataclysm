@@ -662,6 +662,14 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
         # Run the full comparison
         result = compare_with_optimal(best_lap_df, corners, optimal)
 
+        if not result.is_valid:
+            logger.warning(
+                "Optimal comparison INVALID sid=%s: total_gap=%.3f reasons=%s",
+                session_id,
+                result.total_gap_s,
+                result.invalid_reasons,
+            )
+
         return {
             "corner_opportunities": [
                 {
