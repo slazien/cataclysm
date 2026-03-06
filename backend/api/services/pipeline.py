@@ -24,7 +24,7 @@ from cataclysm.curvature import compute_curvature
 from cataclysm.elevation import compute_corner_elevation, enrich_corners_with_elevation
 from cataclysm.elevation_profile import compute_gradient_array, compute_vertical_curvature
 from cataclysm.engine import LapSummary, ProcessedSession, find_anomalous_laps, process_session
-from cataclysm.equipment import equipment_to_vehicle_params
+from cataclysm.equipment import MuSource, equipment_to_vehicle_params
 from cataclysm.gains import (
     GainEstimate,
     build_segments,
@@ -333,6 +333,25 @@ def resolve_vehicle_params(session_id: str) -> VehicleParams | None:
     return equipment_to_vehicle_params(profile)
 
 
+def _has_meaningful_grip(session_id: str) -> bool:
+    """Check whether the session's equipment provides a meaningful grip estimate.
+
+    Returns False when mu is the uncalibrated default 1.0 from
+    ``estimate_mu_from_treadwear(0)`` AND the source is ``FORMULA_ESTIMATE``.
+    Curated, manufacturer, or user-overridden mu values of 1.0 are intentional
+    and should be trusted.
+    """
+    se = equipment_store.get_session_equipment(session_id)
+    if se is None:
+        return False
+    profile = equipment_store.get_profile(se.profile_id)
+    if profile is None:
+        return False
+    tire = profile.tires
+    # mu=1.0 from formula estimate with no treadwear is the uncalibrated sentinel
+    return not (tire.mu_source == MuSource.FORMULA_ESTIMATE and tire.estimated_mu == 1.0)
+
+
 async def _try_lidar_elevation(session_data: SessionData) -> np.ndarray | None:
     """Attempt LIDAR elevation fetch for the best lap (async, pre-thread).
 
@@ -476,17 +495,13 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
 
         # Equipment-aware vehicle params
         vehicle_params = resolve_vehicle_params(session_id)
-        has_equipment = vehicle_params is not None
 
         # Auto-calibrate from independent session telemetry, excluding the lap
         # currently being evaluated so the benchmark stays externally anchored.
         # Skip grip calibration when equipment provides meaningful grip data.
-        # Fall back to calibration when mu is the uncalibrated default (1.0).
+        # Fall back to calibration when mu is the uncalibrated default.
         grip = None
-        equipment_has_grip = (
-            has_equipment and vehicle_params is not None and vehicle_params.mu != 1.0
-        )
-        if not equipment_has_grip:
+        if not _has_meaningful_grip(session_id):
             calibration_data = _collect_independent_calibration_telemetry(
                 session_data,
                 target_lap=processed.best_lap,
@@ -605,12 +620,9 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
         # Auto-calibrate from independent session telemetry, excluding the lap
         # currently being evaluated so the benchmark stays externally anchored.
         # Skip grip calibration when equipment provides meaningful grip data.
-        # Fall back to calibration when mu is the uncalibrated default (1.0).
+        # Fall back to calibration when mu is the uncalibrated default.
         grip = None
-        equipment_has_grip = (
-            has_equipment and vehicle_params is not None and vehicle_params.mu != 1.0
-        )
-        if not equipment_has_grip:
+        if not _has_meaningful_grip(session_id):
             calibration_data = _collect_independent_calibration_telemetry(
                 session_data,
                 target_lap=processed.best_lap,
