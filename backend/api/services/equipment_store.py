@@ -292,6 +292,14 @@ def list_profiles() -> list[EquipmentProfile]:
     return sorted(_profiles.values(), key=lambda p: p.name)
 
 
+def list_profiles_for_user(user_id: str) -> list[EquipmentProfile]:
+    """Return equipment profiles owned by *user_id*, sorted by name."""
+    return sorted(
+        (p for p in _profiles.values() if _profile_owners.get(p.id) == user_id),
+        key=lambda p: p.name,
+    )
+
+
 def delete_profile(profile_id: str) -> bool:
     """Remove an equipment profile from memory and disk.
 
@@ -305,9 +313,21 @@ def delete_profile(profile_id: str) -> bool:
     return True
 
 
+def get_profile_owner(profile_id: str) -> str | None:
+    """Return the user_id that owns a profile, or None."""
+    return _profile_owners.get(profile_id)
+
+
 def set_profile_owner(profile_id: str, user_id: str) -> None:
     """Track which user owns a profile (for default-profile lookups)."""
     _profile_owners[profile_id] = user_id
+
+
+def sync_user_id(old_id: str, new_id: str) -> None:
+    """Update profile ownership from old_id to new_id after OAuth migration."""
+    for pid, owner in _profile_owners.items():
+        if owner == old_id:
+            _profile_owners[pid] = new_id
 
 
 def get_default_profile(user_id: str) -> EquipmentProfile | None:

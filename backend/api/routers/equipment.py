@@ -458,8 +458,8 @@ async def create_profile(
 async def list_profiles(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
 ) -> EquipmentProfileList:
-    """List all equipment profiles."""
-    profiles = equipment_store.list_profiles()
+    """List equipment profiles owned by the current user."""
+    profiles = equipment_store.list_profiles_for_user(current_user.user_id)
     items = [_profile_to_response(p) for p in profiles]
     return EquipmentProfileList(items=items, total=len(items))
 
@@ -473,6 +473,9 @@ async def get_profile(
     profile = equipment_store.get_profile(profile_id)
     if profile is None:
         raise HTTPException(status_code=404, detail=f"Profile {profile_id} not found")
+    owner = equipment_store.get_profile_owner(profile_id)
+    if owner is not None and owner != current_user.user_id:
+        raise HTTPException(status_code=404, detail=f"Profile {profile_id} not found")
     return _profile_to_response(profile)
 
 
@@ -485,6 +488,9 @@ async def update_profile(
     """Update an existing equipment profile."""
     existing = equipment_store.get_profile(profile_id)
     if existing is None:
+        raise HTTPException(status_code=404, detail=f"Profile {profile_id} not found")
+    owner = equipment_store.get_profile_owner(profile_id)
+    if owner is not None and owner != current_user.user_id:
         raise HTTPException(status_code=404, detail=f"Profile {profile_id} not found")
 
     updated = EquipmentProfile(
@@ -518,6 +524,9 @@ async def delete_profile(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
 ) -> dict[str, str]:
     """Delete an equipment profile."""
+    owner = equipment_store.get_profile_owner(profile_id)
+    if owner is not None and owner != current_user.user_id:
+        raise HTTPException(status_code=404, detail=f"Profile {profile_id} not found")
     deleted = equipment_store.delete_profile(profile_id)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Profile {profile_id} not found")

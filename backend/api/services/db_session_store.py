@@ -98,11 +98,13 @@ async def ensure_user_exists(db: AsyncSession, user: AuthenticatedUser) -> None:
         )
         await db.flush()
 
-        # 5. Sync in-memory session store so get_session_for_user works
-        #    immediately (DB FKs are migrated but memory still has old_id)
+        # 5. Sync in-memory stores so ownership checks work immediately
+        #    (DB FKs are migrated but memory still has old_id)
+        from backend.api.services import equipment_store
         from backend.api.services.session_store import sync_user_id
 
         sync_user_id(old_id, user.user_id)
+        equipment_store.sync_user_id(old_id, user.user_id)
         return
 
     # Truly new user
