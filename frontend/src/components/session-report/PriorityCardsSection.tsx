@@ -64,7 +64,7 @@ function PriorityCard({
             {actionTitle}
           </span>
         </div>
-        <span className="shrink-0 rounded-full bg-[var(--color-throttle)]/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--color-throttle)]">
+        <span className="shrink-0 rounded-full bg-[var(--color-brake)]/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--color-brake)]">
           {formatPriorityBadge(p.time_cost_s)}
         </span>
       </div>

@@ -69,6 +69,26 @@ describe('resolveSpeedMarkers', () => {
     });
   });
 
+  describe('time markers', () => {
+    it('resolves {{time:N}} to "Ns"', () => {
+      expect(resolveSpeedMarkers('gained {{time:0.18}} on average', false)).toBe(
+        'gained 0.18s on average',
+      );
+    });
+
+    it('resolves {{time:N}} in metric mode too (no conversion)', () => {
+      expect(resolveSpeedMarkers('saved {{time:1.5}} per lap', true)).toBe(
+        'saved 1.5s per lap',
+      );
+    });
+
+    it('handles both speed and time markers in same string', () => {
+      expect(
+        resolveSpeedMarkers('Carry {{speed:3}} more to save {{time:0.2}}', false),
+      ).toBe('Carry 3 mph more to save 0.2s');
+    });
+  });
+
   describe('passthrough', () => {
     it('returns text unchanged when no markers present', () => {
       const text = 'No speed values here.';

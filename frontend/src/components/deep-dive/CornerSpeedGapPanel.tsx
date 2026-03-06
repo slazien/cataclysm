@@ -290,7 +290,7 @@ export function CornerSpeedGapPanel({ sessionId, selectedCorner }: CornerSpeedGa
     );
   }
 
-  if (opportunities.length === 0) {
+  if (opportunities.length === 0 && !focusedOpp) {
     return null;
   }
 
@@ -308,7 +308,7 @@ export function CornerSpeedGapPanel({ sessionId, selectedCorner }: CornerSpeedGa
           </p>
         </div>
         {totalGapS > 0 && (
-          <span className="whitespace-nowrap rounded-full bg-[var(--color-throttle)]/10 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-[var(--color-throttle)]">
+          <span className="whitespace-nowrap rounded-full bg-[var(--color-brake)]/10 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-[var(--color-brake)]">
             {totalGapS.toFixed(1)}s total
           </span>
         )}

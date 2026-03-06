@@ -1,15 +1,20 @@
 const SPEED_MARKER_RE = /\{\{speed:([\d.]+)\}\}/g;
+const TIME_MARKER_RE = /\{\{time:([\d.]+)\}\}/g;
 const SPEED_RANGE_LEGACY_RE = /(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)\s*mph/gi;
 const SPEED_SINGLE_LEGACY_RE = /(\d+(?:\.\d+)?)\s*mph/gi;
 const MPH_TO_KMH = 1.60934;
 
 /**
- * Resolve {{speed:N}} markers and legacy bare "N mph" values in coaching text.
- * N is always in mph. When isMetric is true, converts to km/h.
+ * Resolve {{speed:N}} and {{time:N}} markers, plus legacy bare "N mph" values.
+ * Speed N is always in mph — converts to km/h when isMetric.
+ * Time N is always in seconds — rendered as "Ns" (no unit conversion needed).
  */
 export function resolveSpeedMarkers(text: string, isMetric: boolean): string {
+  // Phase 0: resolve {{time:N}} markers (unit-agnostic, always seconds)
+  let result = text.replace(TIME_MARKER_RE, (_, n: string) => `${n}s`);
+
   // Phase 1: structured {{speed:N}} markers
-  let result = text.replace(SPEED_MARKER_RE, (_, n: string) => {
+  result = result.replace(SPEED_MARKER_RE, (_, n: string) => {
     const mph = parseFloat(n);
     if (isNaN(mph)) return n;
     if (isMetric) {
