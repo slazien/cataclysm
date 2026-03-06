@@ -8,6 +8,25 @@ import { colors, fonts } from '@/lib/design-tokens';
 import type { TrendSessionSummary } from '@/lib/types';
 import { drawTrendAxes } from './progressChartHelpers';
 
+/** Draw a small diamond + label at (x, y). */
+function drawPbLegendEntry(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  ctx.save();
+  ctx.translate(x + 10, y);
+  ctx.rotate(Math.PI / 4);
+  ctx.fillStyle = colors.accent.primary;
+  ctx.fillRect(-3, -3, 6, 6);
+  ctx.strokeStyle = colors.accent.primaryHover;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(-3, -3, 6, 6);
+  ctx.restore();
+
+  ctx.fillStyle = colors.text.secondary;
+  ctx.font = `10px ${fonts.sans}`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('PB Session', x + 26, y);
+}
+
 interface ConsistencyTrendProps {
   sessions: TrendSessionSummary[];
   consistencyTrend: number[];
@@ -127,6 +146,8 @@ export function ConsistencyTrend({ sessions, consistencyTrend, pbIndices, classN
         ctx.strokeRect(-4, -4, 8, 8);
         ctx.restore();
       }
+      // Legend entry
+      drawPbLegendEntry(ctx, MARGINS.left + 8, MARGINS.top + 8);
     }
   }, [sessions, consistencyTrend, pbIndices, xScale, yScale, dimensions, getDataCtx]);
 
@@ -184,7 +205,8 @@ export function ConsistencyTrend({ sessions, consistencyTrend, pbIndices, classN
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
 
-    const label = `Score: ${val.toFixed(1)}`;
+    const isPb = pbIndices?.has(hoveredIdx) ?? false;
+    const label = isPb ? `Score: ${val.toFixed(1)}  ◆ PB` : `Score: ${val.toFixed(1)}`;
     const textWidth = ctx.measureText(label).width;
     const tooltipX = x + textWidth + 20 > MARGINS.left + dimensions.innerWidth ? x - textWidth - 16 : x + 8;
     const tooltipY = MARGINS.top + 4;
