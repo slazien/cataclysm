@@ -1,6 +1,7 @@
 'use client';
 
 import { AlertTriangle } from 'lucide-react';
+import { useUnits } from '@/hooks/useUnits';
 
 interface ConditionsMismatchAlertProps {
   conditionA?: string | null;
@@ -15,6 +16,7 @@ export function ConditionsMismatchAlert({
   conditionB,
   tempB,
 }: ConditionsMismatchAlertProps) {
+  const { formatTemp } = useUnits();
   const conditionsDiffer =
     conditionA != null && conditionB != null && conditionA !== conditionB;
   const tempDelta =
@@ -29,7 +31,7 @@ export function ConditionsMismatchAlert({
   }
   if (tempDiffers && tempA != null && tempB != null) {
     details.push(
-      `Temperature delta: ${tempDelta!.toFixed(1)}\u00B0C (${tempA.toFixed(1)}\u00B0C vs ${tempB.toFixed(1)}\u00B0C)`,
+      `Temperature delta: ${formatTemp(tempDelta!, 1)} (${formatTemp(tempA, 1)} vs ${formatTemp(tempB, 1)})`,
     );
   }
 

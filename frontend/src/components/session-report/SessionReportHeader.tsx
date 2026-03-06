@@ -4,6 +4,7 @@ import type { SessionSummary } from '@/lib/types';
 import type { GPSQualityReport } from '@/lib/types';
 import { ShareButton } from '@/components/dashboard/ShareButton';
 import { ShareSessionDialog } from '@/components/comparison/ShareSessionDialog';
+import { useUnits } from '@/hooks/useUnits';
 
 interface SessionReportHeaderProps {
   session: SessionSummary | null;
@@ -12,6 +13,7 @@ interface SessionReportHeaderProps {
 }
 
 export function SessionReportHeader({ session, gpsQuality, sessionId }: SessionReportHeaderProps) {
+  const { formatTemp } = useUnits();
   const score = session?.session_score;
   const scoreColor = score != null
     ? score >= 80 ? 'text-green-400' : score >= 60 ? 'text-yellow-400' : 'text-red-400'
@@ -46,7 +48,7 @@ export function SessionReportHeader({ session, gpsQuality, sessionId }: SessionR
         )}
         {session?.weather_condition && (
           <span className="rounded-full bg-[var(--bg-elevated)] px-2.5 py-0.5 text-xs font-medium text-[var(--text-secondary)]">
-            {session.weather_temp_c != null ? `${Math.round(session.weather_temp_c)}\u00B0C` : ''} {session.weather_condition}
+            {session.weather_temp_c != null ? formatTemp(session.weather_temp_c) : ''} {session.weather_condition}
           </span>
         )}
         {sessionId && (
