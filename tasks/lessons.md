@@ -317,6 +317,16 @@ record_upload(ip)  # Too late — slots already bypassed
 
 **Anti-pattern**: "Backend is done, frontend will come later" without tracking the gap. If the gap isn't tracked, it becomes permanent. Either implement both together or create a TODO that blocks the feature from being marked complete.
 
+## Sentinel Values That Collide With Domain Values Need Metadata Disambiguation ([2026-03-06])
+
+**Pattern**: When a sentinel/default value (e.g., mu=1.0 for "uncalibrated") can also be a legitimate domain value (e.g., Hankook RS4 endurance tire mu=1.0), never use value-based checks alone. Use accompanying metadata (e.g., `mu_source`) to distinguish "I don't know" from "this is the real value."
+
+**Why**: Grip calibration fallback needed to detect uncalibrated equipment. First attempt: `mu > 1.0` — broke street tires (mu=0.85 is valid). Second attempt: `mu != 1.0` — broke RS4/endurance tires (mu=1.0 is a real curated value). Correct fix: `mu_source == FORMULA_ESTIMATE and mu == 1.0` — only the specific combination of "computed from no data" AND "got the default" is the sentinel case.
+
+**Error signature**: Physics model produces invalid results for some tire categories but not others, or grip calibration unexpectedly runs/skips for specific tire selections.
+
+**Anti-pattern**: `if value == DEFAULT:` when the default can also be a legitimate value. Instead, check `if source == UNCALIBRATED and value == DEFAULT:` using metadata that tracks HOW the value was obtained.
+
 ## Verify User State Before Making Assumptions ([2026-03-06])
 
 **Pattern**: Before assuming a user lacks something (equipment profile, vehicle setup, etc.), check the data directory or API. Don't assume absence without evidence.
