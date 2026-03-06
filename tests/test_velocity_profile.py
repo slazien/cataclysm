@@ -1708,3 +1708,106 @@ class TestPowerLimitedAcceleration:
         p2 = compute_optimal_profile(cr, params_no_mass, closed_circuit=False)
 
         np.testing.assert_array_almost_equal(p1.optimal_speed_mps, p2.optimal_speed_mps)
+
+
+# ---------------------------------------------------------------------------
+# TestDenominatorClamping — vertical curvature safety floor
+# ---------------------------------------------------------------------------
+
+
+class TestDenominatorClamping:
+    """Tests that the denominator floor prevents extreme vertical curvature
+    from producing unrealistically low or high cornering speeds."""
+
+    def test_large_crest_does_not_produce_extreme_low_speed(self) -> None:
+        """A strong crest (negative kv) should not push cornering speed below
+        what 50% curvature reduction would give."""
+        n = 100
+        kappa_lat = 0.02
+        abs_curvature = np.full(n, kappa_lat)
+        params = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+            top_speed_mps=80.0,
+        )
+
+        # Large crest: kv = -0.015 → without floor: denom = 0.02 - 1.0*(-0.015) = 0.035
+        # With floor: denom = max(0.035, 0.5*0.02=0.01) = 0.035 → no change here
+        # But kv = -0.05 → without floor: denom = 0.02 + 0.05 = 0.07 → speed very low
+        # With floor: denom = max(0.07, 0.01) = 0.07 → also no change for crests
+        # Actually crests INCREASE the denominator, compressions DECREASE it.
+        # The floor matters for compressions: kv = +0.019 →
+        # without floor: denom = 0.02 - 0.019 = 0.001 → v = sqrt(9.81/0.001) = 99 m/s!
+        # with floor: denom = max(0.001, 0.01) = 0.01 → v = sqrt(9.81/0.01) = 31.3 m/s
+        kv_extreme_compression = np.full(n, 0.019)
+
+        speed_with_clamp = _compute_max_cornering_speed(
+            abs_curvature, params, vertical_curvature=kv_extreme_compression
+        )
+
+        # Without the floor, speed would be ~99 m/s (unrealistic)
+        # With the floor, it should be bounded around sqrt(g / (0.5 * kappa_lat))
+        floor_speed = np.sqrt(params.mu * G / (0.5 * kappa_lat))
+        assert np.all(speed_with_clamp <= floor_speed + 1.0)
+
+    def test_moderate_compression_still_increases_speed(self) -> None:
+        """Moderate compression (kv = 0.005) should still increase speed vs flat.
+
+        The floor is 50% of lateral curvature, so moderate kv that doesn't
+        push the denominator below the floor should have its full effect.
+        """
+        n = 100
+        kappa_lat = 0.02
+        abs_curvature = np.full(n, kappa_lat)
+        params = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+            top_speed_mps=80.0,
+        )
+
+        speed_flat = _compute_max_cornering_speed(abs_curvature, params)
+        kv_moderate = np.full(n, 0.005)
+        speed_comp = _compute_max_cornering_speed(
+            abs_curvature, params, vertical_curvature=kv_moderate
+        )
+
+        # denom = 0.02 - 1.0*0.005 = 0.015 > floor of 0.01, so full effect applies
+        assert np.all(speed_comp > speed_flat)
+
+    def test_mu_array_increases_speed_in_high_grip_corners(self) -> None:
+        """Per-corner mu_array with higher mu should produce higher corner speed."""
+        n = 800
+        curvature = np.concatenate(
+            [
+                np.zeros(200),
+                np.full(200, 0.01),
+                np.zeros(200),
+                np.full(200, 0.01),
+            ]
+        )
+        cr = _make_curvature_result(curvature, step_m=0.7)
+        params = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+            top_speed_mps=80.0,
+        )
+
+        # Global mu = 1.0 everywhere
+        profile_global = compute_optimal_profile(cr, params, closed_circuit=False)
+
+        # Per-corner: mu=1.2 in corner zones (simulating higher grip)
+        mu_array = np.full(n, 1.0)
+        mu_array[200:400] = 1.2
+        mu_array[600:800] = 1.2
+        profile_percorner = compute_optimal_profile(
+            cr, params, closed_circuit=False, mu_array=mu_array
+        )
+
+        # Mid-corner speed should be higher with per-corner mu
+        assert profile_percorner.optimal_speed_mps[300] > profile_global.optimal_speed_mps[300]

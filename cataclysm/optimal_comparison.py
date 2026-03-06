@@ -188,7 +188,7 @@ def compute_corner_opportunities(
         if not opt_mask.any():
             continue
         optimal_zone_speed = optimal.optimal_speed_mps[opt_mask]
-        optimal_min_speed = float(np.min(optimal_zone_speed))
+        optimal_min_speed = float(np.percentile(optimal_zone_speed, 5))
 
         # --- actual speed interpolated onto the optimal grid ---------------
         interp_actual = _interpolate_speed_at_distance(
@@ -210,6 +210,13 @@ def compute_corner_opportunities(
 
         # --- time cost in this zone ----------------------------------------
         time_cost = _compute_time_cost(interp_actual, optimal_zone_speed, step_m)
+
+        # Sanity guard: if the model says the driver is "ahead of optimal"
+        # (negative time_cost), cap at zero.  A calibrated model should never
+        # predict slower than the driver's own data.  Negative values indicate
+        # solver instability (e.g. elevation-corrupted denominator).
+        if time_cost < 0:
+            time_cost = 0.0
 
         opportunities.append(
             CornerOpportunity(

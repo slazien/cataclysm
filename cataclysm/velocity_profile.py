@@ -170,6 +170,11 @@ def _compute_max_cornering_speed(
             - effective_mu[curved_indices] * kappa_v[curved_indices]
             - params.aero_coefficient * G
         )
+        # Floor: vertical curvature must not reduce effective curvature below
+        # 50% of lateral curvature.  Prevents LIDAR/GPS altitude noise from
+        # dominating the denominator at gentle curves (Codex-identified issue).
+        denom_floor = 0.5 * abs_curvature[curved_indices]
+        denom = np.maximum(denom, denom_floor)
         bounded_mask = denom > 1e-9
         bounded_indices = curved_indices[bounded_mask]
         effective_denom = denom[bounded_mask]
@@ -181,6 +186,9 @@ def _compute_max_cornering_speed(
         denom = (
             abs_curvature[curved_indices] - effective_mu[curved_indices] * kappa_v[curved_indices]
         )
+        # Floor: same 50% clamp as above
+        denom_floor = 0.5 * abs_curvature[curved_indices]
+        denom = np.maximum(denom, denom_floor)
         bounded_mask = denom > 1e-9
         bounded_indices = curved_indices[bounded_mask]
         effective_denom = denom[bounded_mask]

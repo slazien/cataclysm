@@ -215,6 +215,16 @@ def _disable_auto_coaching() -> Generator[None, None, None]:
 
 
 @pytest.fixture(autouse=True)
+def _disable_lidar_prefetch() -> Generator[None, None, None]:
+    """Disable LIDAR prefetch on upload in all tests by default.
+
+    Prevents tests from making HTTP calls to USGS 3DEP.
+    """
+    with patch("backend.api.routers.sessions.trigger_lidar_prefetch"):
+        yield
+
+
+@pytest.fixture(autouse=True)
 def _patch_coaching_db_factory() -> Generator[None, None, None]:
     """Route coaching_store DB writes to the test SQLite database."""
     with patch(

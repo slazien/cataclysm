@@ -346,3 +346,78 @@ class TestCompareWithOptimal:
 
         # Small residual from different time-summation methods (n-1 vs n intervals)
         assert abs(result.total_gap_s) < 0.02
+
+
+# ---------------------------------------------------------------------------
+# TestSpikeRejection — percentile instead of min
+# ---------------------------------------------------------------------------
+
+
+class TestSpikeRejection:
+    """Tests that optimal corner speed uses percentile(5) not min()."""
+
+    def test_spike_does_not_dominate_optimal_speed(self) -> None:
+        """A single spike-depressed point should not drag down the optimal min speed.
+
+        With percentile(5), the spike should be rejected and the corner's
+        optimal speed should reflect the bulk of the zone.
+        """
+        n = 1000
+        speed_arr = np.full(n, 40.0)
+        # Inject 2 spike points inside the corner zone [200..350] → at index ~290, ~295
+        spike_idx = [290, 295]
+        speed_arr[spike_idx] = 20.0  # large spike
+
+        optimal = OptimalProfile(
+            distance_m=np.arange(n) * 0.7,
+            optimal_speed_mps=speed_arr,
+            curvature=np.zeros(n),
+            max_cornering_speed_mps=speed_arr.copy(),
+            optimal_brake_points=[200.0],
+            optimal_throttle_points=[350.0],
+            lap_time_s=17.5,
+            vehicle_params=VehicleParams(
+                mu=1.0, max_accel_g=0.5, max_decel_g=1.0, max_lateral_g=1.0
+            ),
+        )
+        lap_df = _make_lap_df(speed=35.0)
+        corner = _make_corner(min_speed=25.0)
+
+        result = compute_corner_opportunities([corner], lap_df, optimal)
+
+        assert len(result) == 1
+        # With percentile(5), optimal_min_speed should be ~40 not 20
+        assert result[0].optimal_min_speed_mps > 35.0
+
+
+# ---------------------------------------------------------------------------
+# TestSanityGuard — negative time_cost capped at zero
+# ---------------------------------------------------------------------------
+
+
+class TestSanityGuard:
+    """Tests that corners where the model is slower than actual get time_cost=0."""
+
+    def test_negative_time_cost_capped_at_zero(self) -> None:
+        """If optimal speed is lower than actual in a corner zone, time_cost = 0."""
+        # Optimal is SLOWER than actual → model failure
+        optimal = _make_optimal_profile(speed=30.0)
+        lap_df = _make_lap_df(speed=40.0)
+        corner = _make_corner(min_speed=35.0)
+
+        result = compute_corner_opportunities([corner], lap_df, optimal)
+
+        assert len(result) == 1
+        # Without sanity guard, this would be negative
+        assert result[0].time_cost_s == 0.0
+
+    def test_positive_time_cost_unaffected(self) -> None:
+        """Normal case where driver is slower should still produce positive time_cost."""
+        optimal = _make_optimal_profile(speed=40.0)
+        lap_df = _make_lap_df(speed=30.0)
+        corner = _make_corner(min_speed=25.0)
+
+        result = compute_corner_opportunities([corner], lap_df, optimal)
+
+        assert len(result) == 1
+        assert result[0].time_cost_s > 0.0

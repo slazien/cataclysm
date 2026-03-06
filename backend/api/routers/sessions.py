@@ -48,7 +48,7 @@ from backend.api.services.db_session_store import (
     restore_weather_from_snapshot,
     store_session_db,
 )
-from backend.api.services.pipeline import process_upload
+from backend.api.services.pipeline import process_upload, trigger_lidar_prefetch
 
 logger = logging.getLogger(__name__)
 
@@ -346,6 +346,12 @@ async def upload_sessions(
                     await trigger_auto_coaching(sid, sd, skill_level=user_skill_level)
                 except (ValueError, TypeError, KeyError):
                     logger.warning("Auto-coaching failed for %s", sid, exc_info=True)
+
+                # Pre-warm LIDAR elevation cache so Speed Gap panel loads fast
+                try:
+                    trigger_lidar_prefetch(sd)
+                except Exception:
+                    logger.warning("LIDAR prefetch failed for %s", sid, exc_info=True)
 
         except (ValueError, KeyError, IndexError, OSError) as exc:
             logger.warning("Failed to process %s: %s", f.filename, exc, exc_info=True)
