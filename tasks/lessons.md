@@ -299,3 +299,19 @@ record_upload(ip)  # Too late — slots already bypassed
 - **Rule**: Dispatch the code reviewer agent (`superpowers:code-reviewer` or `code-review:code-review`) to review all changed files. This is in ADDITION to automated checks (ruff, mypy, tests), not a replacement.
 - **Why**: User explicitly requested this. Code reviewers catch logic errors, architectural issues, and subtle bugs that linters and tests miss. Added to CLAUDE.md Quality Gates (item 6) and Verification Before Done section.
 
+## Local Data Files May Be Stale vs Deployed State ([2026-03-06])
+
+**Pattern**: Never trust local data files (JSON profiles, cached configs) as the authoritative source for what a user currently has on the deployed server. When the user contradicts what a local file says, the user is correct — the local file is likely a stale snapshot.
+
+**Why**: Read local `data/equipment/profiles/eq_7451a89092cb.json` which showed Falken RT660 tires. Told the user they had RT660s. User corrected: "I have RS4 tires, not rt660 where did u get that from." The local file was outdated relative to the deployed database. Presenting stale data as fact erodes trust.
+
+**Anti-pattern**: "The JSON file says X, so the user has X." Local files are snapshots, not live state. If the user says differently, believe the user. When local data contradicts user statements, flag the discrepancy rather than asserting the file is correct.
+
+## Verify User State Before Making Assumptions ([2026-03-06])
+
+**Pattern**: Before assuming a user lacks something (equipment profile, vehicle setup, etc.), check the data directory or API. Don't assume absence without evidence.
+
+**Why**: Assumed the user had no equipment profile and started explaining why optimal times were off without one. User corrected: "i actually have an equipment profile, you can check it yourself." A simple `ls data/equipment/profiles/` or `grep` would have revealed it instantly. The assumption wasted time and made the analysis less useful.
+
+**Anti-pattern**: "Since you don't have an equipment profile..." without first checking. Always verify: `ls data/equipment/profiles/` or grep for the user's profile before reasoning about their setup.
+
