@@ -14,6 +14,26 @@ import type {
   VehicleSpec,
 } from "@/lib/types";
 
+/**
+ * Query keys whose backend computation depends on vehicle/tire params.
+ * Must be invalidated whenever equipment assignment or profile data changes.
+ */
+const PHYSICS_DEPENDENT_KEYS = [
+  "optimal-comparison",
+  "ideal-lap",
+] as const;
+
+function invalidatePhysicsQueries(
+  queryClient: ReturnType<typeof useQueryClient>,
+  sessionId?: string,
+) {
+  for (const key of PHYSICS_DEPENDENT_KEYS) {
+    queryClient.invalidateQueries({
+      queryKey: sessionId ? [key, sessionId] : [key],
+    });
+  }
+}
+
 // --- Equipment Profiles ---
 
 export function useEquipmentProfiles() {
@@ -52,6 +72,8 @@ export function useDeleteProfile() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipment-profiles"] });
+      // Deleted profile may have been assigned to sessions
+      invalidatePhysicsQueries(queryClient);
     },
   });
 }
@@ -101,6 +123,7 @@ export function useAssignEquipment() {
         queryKey: ["session", variables.sessionId],
       });
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      invalidatePhysicsQueries(queryClient, variables.sessionId);
     },
   });
 }
@@ -130,6 +153,7 @@ export function useUpdateProfile() {
       // for any session using this profile — invalidate all session details
       queryClient.invalidateQueries({ queryKey: ["session"] });
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      invalidatePhysicsQueries(queryClient);
     },
   });
 }
