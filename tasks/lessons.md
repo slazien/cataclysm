@@ -17,6 +17,16 @@
 - **Rule**: `source .venv/bin/activate` before doing anything. Never install packages globally.
 - **Why**: User explicitly requested this. CLAUDE.md now documents the venv requirement.
 
+## Read Repository Instructions First ([2026-03-05])
+- **When**: At the start of any substantive task in this repo, before planning, environment changes, or implementation.
+- **Rule**: Read `CLAUDE.md` first and follow its workflow constraints before touching code.
+- **Why**: I started fixing the numerical trust issues before re-reading the repo instructions. That created avoidable churn around task tracking, verification flow, and environment handling.
+
+## Check For An Existing Project Venv Before Creating Anything New ([2026-03-05])
+- **When**: Any time Python tooling or missing dependencies become relevant.
+- **Rule**: Check for `./.venv` and use it before creating a new environment. If it exists, verify it with a quick import check instead of assuming it is unusable.
+- **Why**: I created a throwaway `.venv-codex` even though the repo already had a working `./.venv`. The user corrected this, and it was unnecessary environment churn.
+
 ## API Response Envelope Double-Unwrapping
 - **When**: Whenever frontend code accesses data from API hooks (useGains, useCorners, useConsistency, etc.)
 - **Rule**: The `api.ts` functions already unwrap the backend envelope (extracting `.data` or `.corners` from `{session_id, data: {...}}`). Frontend components must NEVER access `.data` again on the result. The hook returns the inner payload directly.
@@ -235,6 +245,54 @@ assert not is_generating(session_id, "intermediate")
 **Why**: Imperial/metric unit conversion fix required 4 rounds of fixes across 20+ components. Initial fix caught 11, code reviewer found 3 more, manual sweep found 2 more (SpeedGauge, WeatherPanel), then axis label sweep found 9 more. Each round exposed a new category of missed instances. A single grep for "mph" would have missed "Distance (m)" axis labels, canvas drawing functions, and weather wind speed (stored as km/h, not mph).
 
 **Anti-pattern**: "I grepped for mph and fixed everything" — this catches <50% of unit issues. You also need to search for hardcoded unit LABELS ("(m)", "(km/h)"), hardcoded CONVERSIONS (inline `* 3.28084`), and files that display numeric values WITHOUT the useUnits hook.
+
+## Rate Limiting Must Be Atomic — Separate Check/Record Creates TOCTOU Races ([2026-03-05])
+
+**Pattern**: Never split rate limiting into separate `check()` and `record()` functions called at different points in a request handler. The gap between check and record (e.g., CSV processing time of 5-30s) allows concurrent requests to all pass the check before any records the slot.
+
+**Why**: Anonymous upload rate limiting used `check_anon_rate_limit()` at request start and `record_anon_upload()` after processing. During the processing window, 4+ concurrent uploads from the same IP could all pass the check (seeing count=0) because none had recorded yet. Code reviewer caught this as a Critical security issue.
+
+**Fix pattern**: Combine into a single atomic `check_and_record()` that reserves the slot at check time:
+```python
+# GOOD — atomic check-and-record
+def check_and_record(ip: str) -> tuple[bool, str]:
+    if over_limit(ip):
+        return False, "Rate limited"
+    record_slot(ip)  # Reserve immediately
+    return True, ""
+
+# BAD — separate check and record with processing in between
+if not check_limit(ip):  # 4 requests all pass here
+    return 429
+result = await slow_processing()  # 5-30 seconds
+record_upload(ip)  # Too late — slots already bypassed
+```
+
+**Error signature**: Rate limit allows more uploads than configured maximum when requests arrive concurrently. Difficult to detect in single-request testing.
+
+## MagicMock Boolean Attributes Are Truthy — Set Explicitly in Tests ([2026-03-05])
+
+**Pattern**: When adding boolean field guards (e.g., `if not obj.is_anonymous:`) to code that's tested with `MagicMock()`, the mock's auto-generated attribute returns a truthy `MagicMock` object — not `False`. You must explicitly set `mock.is_anonymous = False` in the test.
+
+**Why**: Adding `if not sd.is_anonymous:` to the startup auto-coaching loop broke `test_lifespan_auto_coaching_triggered_for_each_session` because `MagicMock().is_anonymous` is truthy, so the guard skipped all mock sessions. The fix was a single line: `fake_session.is_anonymous = False`.
+
+**Error signature**: Test that previously passed starts failing after adding a boolean guard. The mock object silently skips the guarded code path because `MagicMock().any_attribute` evaluates to `True`.
+
+**Anti-pattern**: Assuming `MagicMock()` attributes behave like `None` or `False`. They don't — they're `MagicMock` objects which are truthy. Always set boolean attributes explicitly on mocks.
+
+## Verify Multi-Step Flows Are Fully Wired End-to-End ([2026-03-05])
+
+**Pattern**: When implementing a multi-step user flow (e.g., upload → auth → claim), verify that EVERY step is actually connected. Export a function in `api.ts` ≠ it's called somewhere. Store a value in localStorage ≠ something reads it. Each link in the chain must be verified with grep.
+
+**Why**: The session claiming flow had `claimSession()` exported in `api.ts` but never imported or called from any React component. The upload saved to localStorage but nothing read it on auth transition. Code reviewer caught this as a Critical issue — the entire claiming flow was dead code.
+
+**Verification checklist for multi-step flows**:
+1. For each API function: `grep -rn "claimSession" frontend/src/` — is it called?
+2. For each localStorage key: `grep -rn "cataclysm_anon_session_id" frontend/src/` — is it both set AND read?
+3. For each backend endpoint: Is there a frontend caller? Is there a test?
+4. Walk the flow manually: Step 1 produces X → Step 2 consumes X → Step 3 produces Y → ...
+
+**Anti-pattern**: Implementing each step in isolation ("backend claim endpoint ✓, api.ts function ✓, localStorage save ✓") without verifying the connections between steps. Each step works alone but the flow is broken because nothing triggers the next step.
 
 ## Always Run Code Reviewer After Implementation
 - **When**: After finishing ANY implementation task — features, bug fixes, refactors
