@@ -476,31 +476,35 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
 
         # Equipment-aware vehicle params
         vehicle_params = resolve_vehicle_params(session_id)
+        has_equipment = vehicle_params is not None
 
         # Auto-calibrate from independent session telemetry, excluding the lap
         # currently being evaluated so the benchmark stays externally anchored.
+        # Skip grip calibration when equipment is explicitly assigned — trust
+        # the equipment's grip values so profile changes are reflected.
         grip = None
-        calibration_data = _collect_independent_calibration_telemetry(
-            session_data,
-            target_lap=processed.best_lap,
-        )
-        if calibration_data is not None:
-            lat_g, lon_g, calibration_laps = calibration_data
-            grip = calibrate_grip_from_telemetry(lat_g, lon_g)
-            if grip is not None:
-                base = vehicle_params or default_vehicle_params()
-                vehicle_params = apply_calibration_to_params(base, grip)
-                logger.info(
-                    "Grip calibration [profile] sid=%s laps=%s: mu=%.3f lat_g=%.3f "
-                    "brake_g=%.3f accel_g=%.3f confidence=%s",
-                    session_id,
-                    calibration_laps,
-                    grip.max_lateral_g,
-                    grip.max_lateral_g,
-                    grip.max_brake_g,
-                    grip.max_accel_g,
-                    grip.confidence,
-                )
+        if not has_equipment:
+            calibration_data = _collect_independent_calibration_telemetry(
+                session_data,
+                target_lap=processed.best_lap,
+            )
+            if calibration_data is not None:
+                lat_g, lon_g, calibration_laps = calibration_data
+                grip = calibrate_grip_from_telemetry(lat_g, lon_g)
+                if grip is not None:
+                    base = vehicle_params or default_vehicle_params()
+                    vehicle_params = apply_calibration_to_params(base, grip)
+                    logger.info(
+                        "Grip calibration [profile] sid=%s laps=%s: mu=%.3f lat_g=%.3f "
+                        "brake_g=%.3f accel_g=%.3f confidence=%s",
+                        session_id,
+                        calibration_laps,
+                        grip.max_lateral_g,
+                        grip.max_lateral_g,
+                        grip.max_brake_g,
+                        grip.max_accel_g,
+                        grip.confidence,
+                    )
         mu_array = None
 
         # Compute elevation gradient and vertical curvature for the solver
@@ -578,31 +582,35 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
         # Build the optimal profile — Savitzky-Golay smoothing on curvature
         curvature_result = compute_curvature(best_lap_df, savgol_window=15)
         vehicle_params = resolve_vehicle_params(session_id)
+        has_equipment = vehicle_params is not None
 
         # Auto-calibrate from independent session telemetry, excluding the lap
         # currently being evaluated so the benchmark stays externally anchored.
+        # Skip grip calibration when equipment is explicitly assigned — trust
+        # the equipment's grip values so profile changes are reflected.
         grip = None
-        calibration_data = _collect_independent_calibration_telemetry(
-            session_data,
-            target_lap=processed.best_lap,
-        )
-        if calibration_data is not None:
-            lat_g, lon_g, calibration_laps = calibration_data
-            grip = calibrate_grip_from_telemetry(lat_g, lon_g)
-            if grip is not None:
-                base = vehicle_params or default_vehicle_params()
-                vehicle_params = apply_calibration_to_params(base, grip)
-                logger.info(
-                    "Grip calibration [comparison] sid=%s laps=%s: mu=%.3f lat_g=%.3f "
-                    "brake_g=%.3f accel_g=%.3f confidence=%s",
-                    session_id,
-                    calibration_laps,
-                    grip.max_lateral_g,
-                    grip.max_lateral_g,
-                    grip.max_brake_g,
-                    grip.max_accel_g,
-                    grip.confidence,
-                )
+        if not has_equipment:
+            calibration_data = _collect_independent_calibration_telemetry(
+                session_data,
+                target_lap=processed.best_lap,
+            )
+            if calibration_data is not None:
+                lat_g, lon_g, calibration_laps = calibration_data
+                grip = calibrate_grip_from_telemetry(lat_g, lon_g)
+                if grip is not None:
+                    base = vehicle_params or default_vehicle_params()
+                    vehicle_params = apply_calibration_to_params(base, grip)
+                    logger.info(
+                        "Grip calibration [comparison] sid=%s laps=%s: mu=%.3f lat_g=%.3f "
+                        "brake_g=%.3f accel_g=%.3f confidence=%s",
+                        session_id,
+                        calibration_laps,
+                        grip.max_lateral_g,
+                        grip.max_lateral_g,
+                        grip.max_brake_g,
+                        grip.max_accel_g,
+                        grip.confidence,
+                    )
 
         mu_array = None
 

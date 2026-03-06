@@ -287,27 +287,25 @@ async def test_optimal_profile_with_equipment(client: AsyncClient) -> None:
     assert resp_equip.status_code == 200
     equip_data = resp_equip.json()
 
-    # Vehicle params: auto-calibration from G-G data overrides equipment grip
-    # values (mu, lateral, decel, accel) but equipment provides the base for
-    # non-grip fields (aero, drag, top_speed).  The calibrated flag should be True.
+    # Vehicle params: when equipment is assigned, grip calibration is skipped
+    # so the equipment's tire grip (mu) is used directly.
     vp = equip_data["vehicle_params"]
-    assert vp["calibrated"] is True
+    assert vp["calibrated"] is False
     assert vp["mu"] > 0
     assert vp["max_lateral_g"] > 0
     assert vp["max_accel_g"] > 0
     assert vp["max_decel_g"] > 0
     assert equip_data["equipment_profile_id"] == "low-grip"
 
-    # Both baseline and equipped use the same calibrated G-G data for grip.
-    # However, equipment-derived non-grip fields (friction_circle_exponent)
-    # may differ from defaults, so lap times can differ slightly.
+    # Low-grip equipment (mu=0.85 street tire) should produce a SLOWER
+    # optimal lap time than the calibrated default (which picks up the
+    # driver's observed grip envelope from telemetry).
     equip_lap_time = equip_data["lap_time_s"]
     assert equip_lap_time > 0
-    # Lap times should be in the same ballpark (same grip envelope) but not
-    # necessarily identical — friction_circle_exponent and other non-grip
-    # fields derived from equipment can shift the simulated lap time by up
-    # to ~10%.  Use 15% as a generous sanity-check ceiling.
-    assert abs(equip_lap_time - default_lap_time) / default_lap_time < 0.15
+    assert equip_lap_time > default_lap_time, (
+        f"Low-grip equipment ({equip_lap_time:.2f}s) should be slower "
+        f"than calibrated default ({default_lap_time:.2f}s)"
+    )
 
     # Clean up
     equipment_store.delete_session_equipment(session_id)
