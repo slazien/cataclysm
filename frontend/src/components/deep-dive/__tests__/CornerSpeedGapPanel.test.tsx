@@ -19,10 +19,6 @@ vi.mock('@/hooks/useAnalysis', () => ({
   })),
 }));
 
-vi.mock('@/hooks/useEquipment', () => ({
-  useSessionEquipment: vi.fn(() => ({ data: null })),
-}));
-
 vi.mock('@/hooks/useUnits', () => ({
   useUnits: () => ({
     convertSpeed: (value: number) => value,

@@ -480,10 +480,13 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
 
         # Auto-calibrate from independent session telemetry, excluding the lap
         # currently being evaluated so the benchmark stays externally anchored.
-        # Skip grip calibration when equipment is explicitly assigned — trust
-        # the equipment's grip values so profile changes are reflected.
+        # Skip grip calibration when equipment provides meaningful grip data.
+        # Fall back to calibration when mu is the uncalibrated default (1.0).
         grip = None
-        if not has_equipment:
+        equipment_has_grip = (
+            has_equipment and vehicle_params is not None and vehicle_params.mu > 1.0
+        )
+        if not equipment_has_grip:
             calibration_data = _collect_independent_calibration_telemetry(
                 session_data,
                 target_lap=processed.best_lap,
@@ -601,10 +604,13 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
 
         # Auto-calibrate from independent session telemetry, excluding the lap
         # currently being evaluated so the benchmark stays externally anchored.
-        # Skip grip calibration when equipment is explicitly assigned — trust
-        # the equipment's grip values so profile changes are reflected.
+        # Skip grip calibration when equipment provides meaningful grip data.
+        # Fall back to calibration when mu is the uncalibrated default (1.0).
         grip = None
-        if not has_equipment:
+        equipment_has_grip = (
+            has_equipment and vehicle_params is not None and vehicle_params.mu > 1.0
+        )
+        if not equipment_has_grip:
             calibration_data = _collect_independent_calibration_telemetry(
                 session_data,
                 target_lap=processed.best_lap,

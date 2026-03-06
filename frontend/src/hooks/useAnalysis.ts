@@ -117,9 +117,9 @@ export function useDegradation(sessionId: string | null) {
   });
 }
 
-export function useOptimalComparison(sessionId: string | null, equipmentProfileId?: string | null) {
+export function useOptimalComparison(sessionId: string | null) {
   return useQuery<OptimalComparisonData>({
-    queryKey: ["optimal-comparison", sessionId, equipmentProfileId ?? "default"],
+    queryKey: ["optimal-comparison", sessionId],
     queryFn: () => getOptimalComparison(sessionId!),
     enabled: !!sessionId,
     ...IMMUTABLE,

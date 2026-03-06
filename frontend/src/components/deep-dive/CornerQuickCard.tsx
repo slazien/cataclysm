@@ -1,7 +1,6 @@
 'use client';
 
 import { useCorners, useAllLapCorners, useLineAnalysis, useOptimalComparison } from '@/hooks/useAnalysis';
-import { useSessionEquipment } from '@/hooks/useEquipment';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useAnalysisStore } from '@/stores';
 import { GlossaryTerm } from '@/components/shared/GlossaryTerm';
@@ -73,8 +72,7 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
   const { data: report } = useCoachingReport(sessionId);
   const { data: allLapCorners } = useAllLapCorners(sessionId);
   const { data: lineData } = useLineAnalysis(sessionId);
-  const { data: sessionEquipment } = useSessionEquipment(sessionId);
-  const { data: optimalComparison } = useOptimalComparison(sessionId, sessionEquipment?.profile_id);
+  const { data: optimalComparison } = useOptimalComparison(sessionId);
   const { convertSpeed, convertDistance, speedUnit, distanceUnit, resolveSpeed } = useUnits();
 
   if (!selectedCorner) {
