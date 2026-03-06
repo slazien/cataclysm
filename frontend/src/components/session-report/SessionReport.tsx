@@ -187,7 +187,11 @@ export function SessionReport() {
             isNovice={isNovice}
             isAdvanced={isAdvanced}
             physicsOptimalLapTime={
-              optimalComparison?.is_valid ? optimalComparison.optimal_lap_time_s : undefined
+              optimalComparison?.optimal_lap_time_s != null &&
+              optimalComparison.actual_lap_time_s != null &&
+              optimalComparison.optimal_lap_time_s < optimalComparison.actual_lap_time_s
+                ? optimalComparison.optimal_lap_time_s
+                : undefined
             }
           />
         </div>
