@@ -178,6 +178,89 @@ def get_current_user(
     )
 
 
+def get_optional_user(
+    settings: Annotated[Settings, Depends(get_settings)],
+    authorization: str | None = Header(None),
+    session_token: str | None = Cookie(None, alias="authjs.session-token"),
+    secure_session_token: str | None = Cookie(None, alias="__Secure-authjs.session-token"),
+    x_test_user_id: str | None = Header(None, alias="X-Test-User-Id"),
+) -> AuthenticatedUser | None:
+    """Extract and validate user from NextAuth.js JWT, returning None if unauthenticated.
+
+    Same resolution logic as ``get_current_user`` but returns ``None``
+    instead of raising 401.  Used for endpoints that allow anonymous access.
+    """
+    # QA bypass: skip all auth when DEV_AUTH_BYPASS=true
+    if settings.dev_auth_bypass:
+        import os
+
+        if os.getenv("RAILWAY_ENVIRONMENT"):
+            raise RuntimeError(
+                "DEV_AUTH_BYPASS cannot be enabled in a Railway environment. "
+                "Remove the DEV_AUTH_BYPASS environment variable."
+            )
+        user_id = x_test_user_id or settings.test_auth_user_id or "dev-user"
+        test_users = {
+            "test-alex": ("alex@test.cataclysm.dev", "Alex Racer"),
+            "test-jordan": ("jordan@test.cataclysm.dev", "Jordan Swift"),
+            "test-morgan": ("morgan@test.cataclysm.dev", "Morgan Apex"),
+            "dev-user": ("dev@localhost", "QA Test User"),
+        }
+        email, name = test_users.get(user_id, ("dev@localhost", "QA Test User"))
+        return AuthenticatedUser(user_id=user_id, email=email, name=name)
+
+    if not settings.nextauth_secret:
+        return None
+
+    dev_secret = "dev-secret-do-not-use-in-production"
+    is_dev = settings.nextauth_secret == dev_secret
+
+    # Resolve token from header or cookies
+    token: str | None = None
+    salt = _SECURE_COOKIE
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[7:]
+        salt = _SECURE_COOKIE
+    elif secure_session_token:
+        token = secure_session_token
+        salt = _SECURE_COOKIE
+    elif session_token:
+        token = session_token
+        salt = _SESSION_COOKIE
+
+    if not token:
+        if is_dev:
+            return AuthenticatedUser(
+                user_id="dev-user",
+                email="dev@localhost",
+                name="Dev User",
+            )
+        return None
+
+    try:
+        payload = _decrypt_nextauth_token(token, settings.nextauth_secret, salt)
+    except (DecodeError, ValueError, Exception):
+        if is_dev:
+            return AuthenticatedUser(
+                user_id="dev-user",
+                email="dev@localhost",
+                name="Dev User",
+            )
+        return None
+
+    jwt_user_id = payload.get("sub")
+    jwt_email = payload.get("email")
+    if not jwt_user_id or not jwt_email:
+        return None
+
+    return AuthenticatedUser(
+        user_id=jwt_user_id,
+        email=jwt_email,
+        name=payload.get("name", ""),
+        picture=payload.get("picture"),
+    )
+
+
 async def authenticate_websocket(websocket: WebSocket) -> AuthenticatedUser | None:
     """Validate a WebSocket connection using cookies.
 

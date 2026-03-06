@@ -74,3 +74,9 @@ class UploadResponse(BaseModel):
     session_ids: list[str]
     message: str
     newly_unlocked: list[str] = []
+
+
+class ClaimSessionRequest(BaseModel):
+    """Request body for claiming an anonymous session."""
+
+    session_id: str

@@ -13,11 +13,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.api.config import Settings
 from backend.api.db.database import get_db
 from backend.api.db.models import SessionFile as SessionFileModel
-from backend.api.dependencies import AuthenticatedUser, get_current_user, get_settings
+from backend.api.dependencies import (
+    AuthenticatedUser,
+    get_current_user,
+    get_optional_user,
+    get_settings,
+)
 from backend.api.rate_limit import limiter
 from backend.api.routers.coaching import trigger_auto_coaching
 from backend.api.schemas.comparison import ComparisonResult
 from backend.api.schemas.session import (
+    ClaimSessionRequest,
     LapData,
     LapSummary,
     SessionList,
@@ -32,6 +38,7 @@ from backend.api.schemas.track_guide import (
     TrackPeculiarity,
 )
 from backend.api.services import equipment_store, session_store
+from backend.api.services.anon_rate_limit import check_anon_rate_limit, record_anon_upload
 from backend.api.services.coaching_store import clear_coaching_data, get_any_coaching_report
 from backend.api.services.comparison import compare_sessions as run_comparison
 from backend.api.services.db_session_store import (
@@ -221,26 +228,44 @@ async def upload_sessions(
     request: Request,
     files: list[UploadFile],
     settings: Annotated[Settings, Depends(get_settings)],
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser | None, Depends(get_optional_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> UploadResponse:
-    """Upload one or more RaceChrono CSV files and create sessions."""
-    await ensure_user_exists(db, current_user)
+    """Upload one or more RaceChrono CSV files and create sessions.
+
+    Supports both authenticated and anonymous uploads. Anonymous uploads
+    are rate-limited per IP and stored in-memory only (not persisted to
+    PostgreSQL). Authenticated uploads persist to the database as before.
+    """
+    is_anonymous = current_user is None
+
+    # Anonymous rate limiting by IP
+    if is_anonymous:
+        client_ip = request.client.host if request.client else "unknown"
+        allowed, reason = check_anon_rate_limit(client_ip)
+        if not allowed:
+            raise HTTPException(status_code=429, detail=reason)
+    else:
+        assert current_user is not None  # narrowing for mypy
+        client_ip = None
+        await ensure_user_exists(db, current_user)
 
     # Look up user's skill_level for coaching generation
-    from sqlalchemy import select as sa_select
-
-    from backend.api.db.models import User as UserModel
-
-    user_row = (
-        await db.execute(sa_select(UserModel).where(UserModel.id == current_user.user_id))
-    ).scalar_one_or_none()
-    _raw_level = user_row.skill_level if user_row else "intermediate"
-    if _raw_level not in ("novice", "intermediate", "advanced"):
-        _raw_level = "intermediate"
     from backend.api.schemas.coaching import SkillLevel
 
-    user_skill_level = cast(SkillLevel, _raw_level)
+    user_skill_level: SkillLevel = "intermediate"
+    if current_user is not None:
+        from sqlalchemy import select as sa_select
+
+        from backend.api.db.models import User as UserModel
+
+        user_row = (
+            await db.execute(sa_select(UserModel).where(UserModel.id == current_user.user_id))
+        ).scalar_one_or_none()
+        _raw_level = user_row.skill_level if user_row else "intermediate"
+        if _raw_level not in ("novice", "intermediate", "advanced"):
+            _raw_level = "intermediate"
+        user_skill_level = cast(SkillLevel, _raw_level)
 
     session_ids: list[str] = []
     errors: list[str] = []
@@ -277,10 +302,15 @@ async def upload_sessions(
             sid = str(result["session_id"])
             session_ids.append(sid)
 
-            # Tag session with user for ownership enforcement
             sd = session_store.get_session(sid)
             if sd is not None:
-                sd.user_id = current_user.user_id
+                if is_anonymous:
+                    # Tag as anonymous with client IP for rate limiting lookups
+                    sd.is_anonymous = True
+                    sd.client_ip = client_ip
+                elif current_user is not None:
+                    # Tag session with user for ownership enforcement
+                    sd.user_id = current_user.user_id
 
             # Auto-fetch weather (immutable per session, stored in DB)
             if sd is not None and sd.weather is None:
@@ -289,10 +319,8 @@ async def upload_sessions(
                 except (ValueError, TypeError, OSError):
                     logger.warning("Auto weather fetch failed for %s", sid, exc_info=True)
 
-            # Persist session metadata to DB for user scoping.
-            # Commit immediately so the session appears in the list even if
-            # subsequent operations (CSV bytes, coaching) fail.
-            if sd is not None:
+            # Persist session metadata to DB (authenticated users only)
+            if sd is not None and current_user is not None:
                 await store_session_db(db, current_user.user_id, sd)
                 await db.commit()
 
@@ -311,18 +339,24 @@ async def upload_sessions(
                     logger.warning("Failed to persist CSV bytes for %s", sid, exc_info=True)
                     await db.rollback()
 
-                # Auto-generate coaching report in the background
+            # Auto-generate coaching report (both anonymous and authenticated)
+            if sd is not None:
                 try:
                     await trigger_auto_coaching(sid, sd, skill_level=user_skill_level)
                 except (ValueError, TypeError, KeyError):
                     logger.warning("Auto-coaching failed for %s", sid, exc_info=True)
+
+            # Record anonymous upload for rate limiting after successful processing
+            if is_anonymous and client_ip:
+                record_anon_upload(client_ip)
+
         except (ValueError, KeyError, IndexError, OSError) as exc:
             logger.warning("Failed to process %s: %s", f.filename, exc, exc_info=True)
             errors.append(f"{f.filename}: {exc}")
 
-    # Check achievements after all files are processed
+    # Check achievements after all files are processed (authenticated only)
     all_newly_unlocked: list[str] = []
-    if session_ids:
+    if session_ids and current_user is not None:
         try:
             from backend.api.services.achievement_engine import check_achievements
 
@@ -339,6 +373,47 @@ async def upload_sessions(
         msg += f"; {len(errors)} error(s): {'; '.join(errors)}"
 
     return UploadResponse(session_ids=session_ids, message=msg, newly_unlocked=all_newly_unlocked)
+
+
+@router.post("/claim")
+async def claim_anonymous_session(
+    body: ClaimSessionRequest,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, str]:
+    """Claim an anonymous session for the authenticated user.
+
+    Migrates the session from anonymous in-memory storage to the user's
+    account, persisting session metadata to PostgreSQL. The coaching
+    report (already generated and cached) is preserved.
+    """
+    sd = session_store.get_session(body.session_id)
+    if sd is None:
+        raise HTTPException(status_code=404, detail="Session not found or expired")
+    if not sd.is_anonymous:
+        raise HTTPException(status_code=400, detail="Session already claimed")
+
+    # Ensure user row exists for FK references
+    await ensure_user_exists(db, current_user)
+
+    # Claim in-memory session
+    session_store.claim_session(body.session_id, current_user.user_id)
+
+    # Persist session metadata to PostgreSQL
+    await store_session_db(db, current_user.user_id, sd)
+    await db.commit()
+
+    # Check achievements for the newly claimed session
+    try:
+        from backend.api.services.achievement_engine import check_achievements
+
+        await check_achievements(db, current_user.user_id, session_id=body.session_id)
+        await db.commit()
+    except Exception:
+        logger.warning("Achievement check failed on claim", exc_info=True)
+        await db.rollback()
+
+    return {"message": f"Session {body.session_id} claimed successfully"}
 
 
 @router.get("", response_model=SessionList)

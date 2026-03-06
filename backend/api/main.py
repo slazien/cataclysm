@@ -226,9 +226,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         if n_sessions:
             logger.info("Reloaded %d session(s) from disk", n_sessions)
 
+    # Clean up any expired anonymous sessions from a previous run
+    from backend.api.services.session_store import cleanup_expired_anonymous, list_sessions
+
+    n_cleaned = cleanup_expired_anonymous()
+    if n_cleaned:
+        logger.info("Cleaned up %d expired anonymous session(s) at startup", n_cleaned)
+
     # Auto-generate coaching reports for sessions that don't have one yet
     from backend.api.routers.coaching import trigger_auto_coaching
-    from backend.api.services.session_store import list_sessions
 
     all_sessions = list_sessions()
     for sd in all_sessions:

@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from backend.api.db.database import get_db
 from backend.api.db.models import Base
-from backend.api.dependencies import AuthenticatedUser, get_current_user
+from backend.api.dependencies import AuthenticatedUser, get_current_user, get_optional_user
 from backend.api.main import app
 from backend.api.services.session_store import clear_all
 
@@ -228,8 +228,10 @@ def _patch_coaching_db_factory() -> Generator[None, None, None]:
 def _mock_auth() -> Generator[None, None, None]:
     """Override the auth dependency so all test requests are authenticated."""
     app.dependency_overrides[get_current_user] = lambda: _TEST_USER
+    app.dependency_overrides[get_optional_user] = lambda: _TEST_USER
     yield
     app.dependency_overrides.pop(get_current_user, None)
+    app.dependency_overrides.pop(get_optional_user, None)
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -263,6 +265,12 @@ async def _test_db() -> AsyncGenerator[None, None]:
     app.dependency_overrides[get_db] = _override_get_db
     yield
     app.dependency_overrides.pop(get_db, None)
+
+    # Reset the achievement seeding flag so the next test re-seeds definitions
+    # after tables are recreated.
+    from backend.api.services import achievement_engine
+
+    achievement_engine._seeded = False
 
     async with _test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
