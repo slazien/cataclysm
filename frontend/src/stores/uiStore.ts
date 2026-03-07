@@ -19,6 +19,7 @@ interface UiState {
   settingsPanelOpen: boolean;
   unitPreference: UnitPreference;
   toasts: Toast[];
+  uploadPromptOpen: boolean;
   setActiveView: (view: ActiveView) => void;
   setSkillLevel: (level: SkillLevel) => void;
   toggleSessionDrawer: () => void;
@@ -26,6 +27,7 @@ interface UiState {
   setUnitPreference: (pref: UnitPreference) => void;
   addToast: (toast: Omit<Toast, 'id'>) => void;
   removeToast: (id: string) => void;
+  setUploadPromptOpen: (open: boolean) => void;
 }
 
 let toastCounter = 0;
@@ -39,6 +41,7 @@ export const useUiStore = create<UiState>()(
   settingsPanelOpen: false,
   unitPreference: 'imperial',
   toasts: [],
+  uploadPromptOpen: false,
   setActiveView: (view) => set({ activeView: view }),
   setSkillLevel: (level) => set({ skillLevel: level }),
   toggleSessionDrawer: () => set((s) => ({ sessionDrawerOpen: !s.sessionDrawerOpen })),
@@ -49,6 +52,7 @@ export const useUiStore = create<UiState>()(
     set((s) => ({ toasts: [...s.toasts, { ...toast, id }] }));
   },
   removeToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+  setUploadPromptOpen: (open) => set({ uploadPromptOpen: open }),
 }),
     {
       name: 'cataclysm-prefs',

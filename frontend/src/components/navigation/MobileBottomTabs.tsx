@@ -2,7 +2,7 @@
 
 import { motion } from 'motion/react';
 import { FileText, Search, TrendingUp, Timer } from 'lucide-react';
-import { useUiStore } from '@/stores';
+import { useUiStore, useSessionStore } from '@/stores';
 import { cn } from '@/lib/utils';
 
 type ActiveView = 'session-report' | 'deep-dive' | 'progress' | 'debrief';
@@ -17,6 +17,8 @@ const NAV_ITEMS: { icon: typeof FileText; label: string; view: ActiveView }[] = 
 export function MobileBottomTabs() {
   const activeView = useUiStore((s) => s.activeView);
   const setActiveView = useUiStore((s) => s.setActiveView);
+  const setUploadPromptOpen = useUiStore((s) => s.setUploadPromptOpen);
+  const activeSessionId = useSessionStore((s) => s.activeSessionId);
 
   return (
     <div className="flex h-14 shrink-0 items-center border-t border-[var(--cata-border)] bg-[var(--bg-surface)] lg:hidden">
@@ -27,7 +29,13 @@ export function MobileBottomTabs() {
           <motion.button
             key={item.view}
             type="button"
-            onClick={() => setActiveView(item.view)}
+            onClick={() => {
+              if (!activeSessionId) {
+                setUploadPromptOpen(true);
+                return;
+              }
+              setActiveView(item.view);
+            }}
             whileTap={{ scale: 0.95 }}
             transition={{ duration: 0.1 }}
             className={cn(

@@ -18,6 +18,7 @@ import { ToastContainer } from '@/components/shared/ToastContainer';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { KeyboardShortcutOverlay } from '@/components/shared/KeyboardShortcutOverlay';
 import { DisclaimerModal } from '@/components/shared/DisclaimerModal';
+import { UploadPromptDialog } from '@/components/shared/UploadPromptDialog';
 import { AppFooter } from '@/components/shared/AppFooter';
 
 export default function Home() {
@@ -80,6 +81,7 @@ export default function Home() {
       <ToastContainer />
       <KeyboardShortcutOverlay />
       <DisclaimerModal />
+      <UploadPromptDialog />
     </div>
   );
 }

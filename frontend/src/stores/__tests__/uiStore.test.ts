@@ -10,6 +10,7 @@ const INITIAL_STATE = {
   settingsPanelOpen: false,
   unitPreference: 'imperial' as const,
   toasts: [] as Toast[],
+  uploadPromptOpen: false,
 };
 
 describe('uiStore', () => {
@@ -29,6 +30,7 @@ describe('uiStore', () => {
     expect(state.settingsPanelOpen).toBe(false);
     expect(state.unitPreference).toBe('imperial');
     expect(state.toasts).toEqual([]);
+    expect(state.uploadPromptOpen).toBe(false);
   });
 
   // --- setActiveView ---
@@ -248,6 +250,21 @@ describe('uiStore', () => {
     it('is a no-op on an empty toasts list', () => {
       useUiStore.getState().removeToast('ghost-id');
       expect(useUiStore.getState().toasts).toEqual([]);
+    });
+  });
+
+  // --- setUploadPromptOpen ---
+
+  describe('setUploadPromptOpen', () => {
+    it('opens upload prompt', () => {
+      useUiStore.getState().setUploadPromptOpen(true);
+      expect(useUiStore.getState().uploadPromptOpen).toBe(true);
+    });
+
+    it('closes upload prompt', () => {
+      useUiStore.setState({ uploadPromptOpen: true });
+      useUiStore.getState().setUploadPromptOpen(false);
+      expect(useUiStore.getState().uploadPromptOpen).toBe(false);
     });
   });
 

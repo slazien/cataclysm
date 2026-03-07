@@ -27,6 +27,7 @@ export function TopBar() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const toggleSettingsPanel = useUiStore((s) => s.toggleSettingsPanel);
+  const setUploadPromptOpen = useUiStore((s) => s.setUploadPromptOpen);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [wrappedOpen, setWrappedOpen] = useState(false);
   const [badgesOpen, setBadgesOpen] = useState(false);
@@ -83,7 +84,13 @@ export function TopBar() {
             <button
               key={tab.value}
               type="button"
-              onClick={() => setActiveView(tab.value)}
+              onClick={() => {
+                if (!activeSessionId) {
+                  setUploadPromptOpen(true);
+                  return;
+                }
+                setActiveView(tab.value);
+              }}
               className={cn(
                 'relative px-3 py-1.5 font-[family-name:var(--font-display)] text-sm font-medium transition-colors',
                 activeView === tab.value
