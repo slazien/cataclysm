@@ -230,6 +230,7 @@ export function SessionReport() {
             isNovice={isNovice}
             cornerGrades={report.corner_grades}
             optimalComparison={optimalComparison}
+            isOptimalRefreshing={isOptimalStale}
           />
         )}
 

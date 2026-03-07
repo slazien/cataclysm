@@ -23,6 +23,7 @@ interface PriorityCardsSectionProps {
   isNovice: boolean;
   cornerGrades?: CornerGrade[];
   optimalComparison?: OptimalComparisonData | null;
+  isOptimalRefreshing?: boolean;
 }
 
 function formatPriorityBadge(timeCostS: number): string {
@@ -34,12 +35,14 @@ function PriorityCard({
   isNovice,
   gradeForCorner,
   liveTimeCost,
+  isRefreshing,
   onExplore,
 }: {
   p: PriorityCorner;
   isNovice: boolean;
   gradeForCorner: string | null;
   liveTimeCost?: number;
+  isRefreshing?: boolean;
   onExplore: (corner: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -67,7 +70,7 @@ function PriorityCard({
             {actionTitle}
           </span>
         </div>
-        <span className="shrink-0 rounded-full bg-[var(--color-brake)]/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--color-brake)]">
+        <span className={`shrink-0 rounded-full bg-[var(--color-brake)]/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--color-brake)] ${isRefreshing ? 'animate-pulse' : ''}`}>
           {formatPriorityBadge(liveTimeCost ?? p.time_cost_s)}
         </span>
       </div>
@@ -113,7 +116,7 @@ function PriorityCard({
   );
 }
 
-export function PriorityCardsSection({ priorities, isNovice, cornerGrades, optimalComparison }: PriorityCardsSectionProps) {
+export function PriorityCardsSection({ priorities, isNovice, cornerGrades, optimalComparison, isOptimalRefreshing }: PriorityCardsSectionProps) {
   const setActiveView = useUiStore((s) => s.setActiveView);
   const setMode = useAnalysisStore((s) => s.setMode);
   const selectCorner = useAnalysisStore((s) => s.selectCorner);
@@ -138,11 +141,12 @@ export function PriorityCardsSection({ priorities, isNovice, cornerGrades, optim
       <h3 className="mb-3 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Priority Improvements</h3>
       <div className="grid gap-3 lg:grid-cols-3">
         {priorities.slice(0, 3).map((p) => {
-          const liveTimeCost = optimalComparison?.is_valid
-            ? optimalComparison.corner_opportunities?.find(
-                (o) => o.corner_number === p.corner,
-              )?.time_cost_s
-            : undefined;
+          // Use corner_opportunities regardless of is_valid — consistent
+          // with OptimalGapChart and CornerSpeedGapPanel which show
+          // per-corner data even when aggregate comparison is invalid.
+          const liveTimeCost = optimalComparison?.corner_opportunities?.find(
+            (o) => o.corner_number === p.corner,
+          )?.time_cost_s;
           return (
             <PriorityCard
               key={p.corner}
@@ -150,6 +154,7 @@ export function PriorityCardsSection({ priorities, isNovice, cornerGrades, optim
               isNovice={isNovice}
               gradeForCorner={getGradeForCorner(p.corner)}
               liveTimeCost={liveTimeCost}
+              isRefreshing={isOptimalRefreshing}
               onExplore={handleExploreCorner}
             />
           );
