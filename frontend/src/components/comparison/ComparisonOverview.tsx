@@ -151,7 +151,7 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
               Session A
             </span>
             {aFaster && (
-              <span className="rounded-full bg-[var(--color-throttle)]/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-[var(--color-throttle)]">
+              <span className="rounded-full bg-[var(--color-throttle)]/15 px-2 py-0.5 text-[11px] font-semibold uppercase text-[var(--color-throttle)]">
                 Faster
               </span>
             )}
@@ -189,7 +189,7 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
               Session B
             </span>
             {bFaster && (
-              <span className="rounded-full bg-[var(--color-throttle)]/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-[var(--color-throttle)]">
+              <span className="rounded-full bg-[var(--color-throttle)]/15 px-2 py-0.5 text-[11px] font-semibold uppercase text-[var(--color-throttle)]">
                 Faster
               </span>
             )}

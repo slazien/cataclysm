@@ -106,7 +106,7 @@ export function SessionReportHeader({ session, gpsQuality, sessionId }: SessionR
       <span className={`relative font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight ${score != null ? scoreTw(score) : 'text-[var(--text-secondary)]'}`}>
         {score != null ? Math.round(score) : '\u2014'}
       </span>
-      <span className="absolute -bottom-1 rounded-full bg-[var(--bg-surface)] px-1.5 text-[10px] font-medium text-[var(--text-secondary)]">
+      <span className="absolute -bottom-1 rounded-full bg-[var(--bg-surface)] px-1.5 text-[11px] font-medium text-[var(--text-secondary)]">
         SCORE
       </span>
     </div>

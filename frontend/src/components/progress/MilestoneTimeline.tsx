@@ -120,7 +120,7 @@ export function MilestoneTimeline({ sessions, milestones, className }: Milestone
                     </p>
                     <div className="mt-1 flex items-center gap-2">
                       <span
-                        className="inline-block rounded px-1.5 py-0.5 text-[10px] font-medium leading-none"
+                        className="inline-block rounded px-1.5 py-0.5 text-[11px] font-medium leading-none"
                         style={{ backgroundColor: `${color}20`, color }}
                       >
                         {label}

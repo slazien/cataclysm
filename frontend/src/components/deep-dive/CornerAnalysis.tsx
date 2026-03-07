@@ -127,8 +127,8 @@ export function CornerAnalysis() {
                 <TrackMapContainer sessionId={sessionId} />
               </ChartErrorBoundary>
             </div>
-            {/* Corner Detail Panel — overflow-hidden so content never shifts the grid */}
-            <div className="min-h-[12rem] flex-1 overflow-y-auto lg:min-h-0 lg:overflow-hidden">
+            {/* Corner Detail Panel — scrollable on desktop to avoid clipping */}
+            <div className="min-h-[12rem] flex-1 overflow-y-auto lg:min-h-0">
               <ChartErrorBoundary name="Corner Detail">
                 <CornerDetailPanel sessionId={sessionId} />
               </ChartErrorBoundary>
@@ -153,10 +153,10 @@ export function CornerAnalysis() {
 
           {/* Corner navigation hint */}
           <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-secondary)]">
-            <kbd className="rounded border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-1.5 py-0.5 font-mono text-[10px]">
+            <kbd className="rounded border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-1.5 py-0.5 font-mono text-[11px]">
               ←
             </kbd>
-            <kbd className="rounded border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-1.5 py-0.5 font-mono text-[10px]">
+            <kbd className="rounded border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-1.5 py-0.5 font-mono text-[11px]">
               →
             </kbd>
             <span>to cycle corners</span>

@@ -55,7 +55,7 @@ export function MetricCard({
         className,
       )}
     >
-      <p className="flex items-center gap-1 font-[family-name:var(--font-display)] text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
+      <p className="flex items-center gap-1 font-[family-name:var(--font-display)] text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
         <span className="truncate">{label}</span>
         {helpKey && <InfoTooltip helpKey={helpKey} />}
       </p>

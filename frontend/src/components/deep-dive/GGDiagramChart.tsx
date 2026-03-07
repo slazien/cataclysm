@@ -371,7 +371,7 @@ export function GGDiagramChart({ sessionId }: GGDiagramChartProps) {
               <InfoTooltip helpKey="chart.gg-diagram" />
             </span>
           </div>
-          <p className="mt-0.5 text-[10px] text-[var(--text-secondary)]">
+          <p className="mt-0.5 text-[11px] text-[var(--text-secondary)]">
             How much of your performance envelope you use (max {ggData.observed_max_g.toFixed(2)}G)
           </p>
         </div>
@@ -446,7 +446,7 @@ function CornerUtilizationBars({
 }) {
   return (
     <div className="mt-1 space-y-1">
-      <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
+      <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
         Per-Corner Utilization
       </p>
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 sm:grid-cols-3 md:grid-cols-4">
@@ -456,7 +456,7 @@ function CornerUtilizationBars({
             onClick={() => onSelect(c.corner_number)}
             className="group flex items-center gap-1.5 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-[var(--bg-elevated)]"
           >
-            <span className="min-w-[24px] text-[10px] font-semibold text-[var(--text-secondary)]">
+            <span className="min-w-[24px] text-[11px] font-semibold text-[var(--text-secondary)]">
               T{c.corner_number}
             </span>
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--bg-overlay)]">
@@ -473,7 +473,7 @@ function CornerUtilizationBars({
                 }}
               />
             </div>
-            <span className="min-w-[30px] text-right text-[10px] tabular-nums text-[var(--text-secondary)]">
+            <span className="min-w-[30px] text-right text-[11px] tabular-nums text-[var(--text-secondary)]">
               {Math.round(c.utilization_pct)}%
             </span>
           </button>

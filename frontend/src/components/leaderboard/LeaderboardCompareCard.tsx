@@ -79,11 +79,11 @@ export function LeaderboardCompareCard({
 
       {/* Column headers */}
       <div className="grid grid-cols-3 gap-2 border-b border-[var(--cata-border)] pb-1.5">
-        <span className="text-right text-[10px] font-medium uppercase tracking-wider text-[var(--cata-accent)]">
+        <span className="text-right text-[11px] font-medium uppercase tracking-wider text-[var(--cata-accent)]">
           You
         </span>
-        <span className="text-center text-[10px] text-[var(--text-secondary)]">vs</span>
-        <span className="text-left text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
+        <span className="text-center text-[11px] text-[var(--text-secondary)]">vs</span>
+        <span className="text-left text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
           {theirEntry.user_name}
         </span>
       </div>

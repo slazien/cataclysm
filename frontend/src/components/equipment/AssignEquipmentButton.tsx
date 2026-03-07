@@ -147,7 +147,7 @@ function EquipmentDropdown({
         onClick={onClose}
       />
       <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] py-1 shadow-xl">
-        <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+        <p className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
           Equipment Profiles
         </p>
         {profiles.map((profile) => (

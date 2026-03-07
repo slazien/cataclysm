@@ -58,7 +58,7 @@ function StatRow({
         </span>
       </div>
       <div className="text-center">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
           {label}
         </span>
       </div>

@@ -94,13 +94,13 @@ export function CoachingSummaryHero({ report }: CoachingSummaryHeroProps) {
         <div className="space-y-3">
           {primaryFocus && (
             <div className="rounded-lg bg-[var(--cata-accent)]/10 border border-[var(--cata-accent)]/20 px-4 py-3">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--cata-accent)]">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--cata-accent)]">
                 Your #1 Focus
               </span>
               <p className="mt-1 text-sm font-medium leading-relaxed text-[var(--text-primary)]">
                 <MarkdownText>{primaryFocus}</MarkdownText>
               </p>
-              <p className="mt-2 text-[10px] text-[var(--text-secondary)]">
+              <p className="mt-2 text-[11px] text-[var(--text-secondary)]">
                 Based on Allen Berg corner prioritization methodology
               </p>
             </div>

@@ -153,7 +153,7 @@ export function OptimalGapChart({ sessionId }: OptimalGapChartProps) {
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">
             Speed vs Optimal
           </h3>
-          <p className="text-[10px] text-[var(--text-secondary)]">
+          <p className="text-[11px] text-[var(--text-secondary)]">
             Per-corner speed gap vs physics-optimal profile — biggest opportunities first
           </p>
         </div>

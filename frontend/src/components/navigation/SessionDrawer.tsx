@@ -197,12 +197,12 @@ export function SessionDrawer() {
               <details key={group.trackName} open className="mb-3">
                 <summary className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] transition-colors hover:text-[var(--text-secondary)]">
                   <span className="flex-1">{group.trackName}</span>
-                  <span className="text-[10px] font-normal">{group.sessions.length} session{group.sessions.length !== 1 ? 's' : ''}</span>
+                  <span className="text-[11px] font-normal">{group.sessions.length} session{group.sessions.length !== 1 ? 's' : ''}</span>
                 </summary>
                 <div className="flex flex-col gap-1 pb-2 pl-1">
                   {Array.from(dateGroups.entries()).map(([dateCategory, dateSessions]) => (
                     <div key={dateCategory}>
-                      <p className="mb-1 mt-1 text-[10px] font-medium text-[var(--text-secondary)]">{dateCategory}</p>
+                      <p className="mb-1 mt-1 text-[11px] font-medium text-[var(--text-secondary)]">{dateCategory}</p>
                       {dateSessions.map((session) => {
                         const isPB = group.bestLapTime != null && session.best_lap_time_s === group.bestLapTime;
                         return (
@@ -237,7 +237,7 @@ export function SessionDrawer() {
                                 {session.n_laps ?? 0} laps | Best: {formatLapTime(session.best_lap_time_s ?? 0)}
                               </p>
                               {session.tire_model && (
-                                <span className="rounded bg-[var(--bg-elevated)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]">
+                                <span className="rounded bg-[var(--bg-elevated)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-secondary)]">
                                   {session.tire_model}
                                 </span>
                               )}
@@ -322,7 +322,7 @@ function WeatherBadge({
           : Cloud;
 
   return (
-    <span className="inline-flex items-center gap-1 rounded bg-[var(--bg-elevated)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-secondary)]">
+    <span className="inline-flex items-center gap-1 rounded bg-[var(--bg-elevated)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-secondary)]">
       <Icon className="h-2.5 w-2.5" />
       {tempC != null && formatTemp(tempC)}
     </span>
@@ -342,7 +342,7 @@ function SessionScoreBadge({ score }: { score: number | null }) {
   return (
     <span
       className={cn(
-        'inline-flex h-5 min-w-[28px] items-center justify-center rounded border px-1 text-[10px] font-bold',
+        'inline-flex h-5 min-w-[28px] items-center justify-center rounded border px-1 text-[11px] font-bold',
         colors,
       )}
       title={normalized != null ? `Session Score: ${normalized}` : 'No score available'}

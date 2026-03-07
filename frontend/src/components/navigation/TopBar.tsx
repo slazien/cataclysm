@@ -113,6 +113,7 @@ export function TopBar() {
             size="icon-sm"
             onClick={handleUploadClick}
             title="Upload CSV"
+            aria-label="Upload CSV"
             className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           >
             <Upload className="h-4 w-4" />
@@ -131,6 +132,7 @@ export function TopBar() {
               size="icon-sm"
               onClick={() => setWrappedOpen(true)}
               title="Year in Review"
+              aria-label="Year in Review"
               className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >
               <Sparkles className="h-4 w-4" />
@@ -140,6 +142,7 @@ export function TopBar() {
               size="icon-sm"
               onClick={() => setBadgesOpen(true)}
               title="Achievements"
+              aria-label="Achievements"
               className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >
               <Award className="h-4 w-4" />
@@ -150,6 +153,7 @@ export function TopBar() {
             size="icon-sm"
             onClick={toggleSettingsPanel}
             title="Settings"
+            aria-label="Settings"
             className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           >
             <Settings className="h-4 w-4" />
@@ -171,6 +175,7 @@ export function TopBar() {
               <button
                 type="button"
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
+                aria-label="User menu"
                 className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full ring-2 ring-transparent transition-all hover:ring-[var(--cata-accent)]"
               >
                 {authSession.user.image ? (
@@ -219,7 +224,7 @@ export function TopBar() {
             {session?.session_score != null && (
               <span
                 className={cn(
-                  'ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums text-white',
+                  'ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold tabular-nums text-white',
                   (session.session_score ?? 0) >= 80
                     ? 'bg-emerald-500'
                     : (session.session_score ?? 0) >= 60

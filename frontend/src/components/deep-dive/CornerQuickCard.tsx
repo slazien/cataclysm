@@ -214,7 +214,7 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
 
       {/* Grade breakdown */}
       {cornerGrade && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 pt-3 mt-1 border-t border-[var(--cata-border)]">
           {cornerGrade.braking && (
             <div className="flex items-center gap-1">
               <span className="text-xs text-[var(--text-secondary)]">Braking</span>
@@ -255,13 +255,13 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
           : colors.grade.f;
         const errorLabel = lp.line_error_type.replace(/_/g, ' ');
         return (
-          <div className="space-y-1">
+          <div className="space-y-1 pt-3 mt-1 border-t border-[var(--cata-border)]">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-[var(--text-secondary)]">
                 Driving Line
               </span>
               <span
-                className="rounded-sm px-1.5 py-0.5 text-[10px] font-medium uppercase"
+                className="rounded-sm px-1.5 py-0.5 text-[11px] font-medium uppercase"
                 style={{ backgroundColor: `${tierColor}20`, color: tierColor }}
               >
                 {lp.consistency_tier}
@@ -269,19 +269,19 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div>
-                <div className="text-[10px] text-[var(--text-secondary)]">Entry</div>
+                <div className="text-[11px] text-[var(--text-secondary)]">Entry</div>
                 <div className="text-xs font-medium tabular-nums text-[var(--text-primary)]">
                   {lp.d_entry_median > 0 ? '+' : ''}{convertDistance(lp.d_entry_median).toFixed(1)}{distanceUnit}
                 </div>
               </div>
               <div>
-                <div className="text-[10px] text-[var(--text-secondary)]">Apex</div>
+                <div className="text-[11px] text-[var(--text-secondary)]">Apex</div>
                 <div className="text-xs font-medium tabular-nums text-[var(--text-primary)]">
                   {lp.d_apex_median > 0 ? '+' : ''}{convertDistance(lp.d_apex_median).toFixed(1)}{distanceUnit}
                 </div>
               </div>
               <div>
-                <div className="text-[10px] text-[var(--text-secondary)]">Exit</div>
+                <div className="text-[11px] text-[var(--text-secondary)]">Exit</div>
                 <div className="text-xs font-medium tabular-nums text-[var(--text-primary)]">
                   {lp.d_exit_median > 0 ? '+' : ''}{convertDistance(lp.d_exit_median).toFixed(1)}{distanceUnit}
                 </div>
@@ -289,11 +289,11 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
             </div>
             {lp.line_error_type !== 'good_line' && (
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-[var(--text-secondary)]">Issue:</span>
+                <span className="text-[11px] text-[var(--text-secondary)]">Issue:</span>
                 <span className="text-xs capitalize text-[var(--text-secondary)]">
                   {errorLabel}
                 </span>
-                <span className="text-[10px] text-[var(--text-secondary)]">
+                <span className="text-[11px] text-[var(--text-secondary)]">
                   ({lp.severity})
                 </span>
               </div>
@@ -304,25 +304,27 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
 
       {/* AI coaching tip */}
       {(priorityCorner || cornerGrade?.notes) && (
-        <div className="rounded-md border border-[var(--ai-border-from)]/20 bg-[var(--ai-bg)] px-3 py-2">
-          <div className="flex items-start gap-2">
-            <svg
-              className="mt-0.5 h-3.5 w-3.5 shrink-0"
-              style={{ color: colors.ai.icon }}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-              />
-            </svg>
-            <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-              <MarkdownText>{resolveSpeed(priorityCorner?.tip ?? cornerGrade?.notes ?? '')}</MarkdownText>
-            </p>
+        <div className="pt-3 mt-1 border-t border-[var(--cata-border)]">
+          <div className="rounded-md border border-[var(--ai-border-from)]/20 bg-[var(--ai-bg)] px-3 py-2">
+            <div className="flex items-start gap-2">
+              <svg
+                className="mt-0.5 h-3.5 w-3.5 shrink-0"
+                style={{ color: colors.ai.icon }}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                />
+              </svg>
+              <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
+                <MarkdownText>{resolveSpeed(priorityCorner?.tip ?? cornerGrade?.notes ?? '')}</MarkdownText>
+              </p>
+            </div>
           </div>
         </div>
       )}

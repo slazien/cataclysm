@@ -41,7 +41,7 @@ export function AiInsight({ children, mode = 'card', className, badge }: AiInsig
           {children}
         </div>
         {badge && (
-          <span className="shrink-0 rounded-full bg-[var(--ai-icon)]/10 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-[var(--ai-icon)]">
+          <span className="shrink-0 rounded-full bg-[var(--ai-icon)]/10 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-[var(--ai-icon)]">
             {badge}
           </span>
         )}

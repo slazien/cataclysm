@@ -248,7 +248,7 @@ export function WelcomeScreen() {
               <span className="text-xl font-bold text-emerald-400 lg:text-2xl">78</span>
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--cata-accent)]">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--cata-accent)]">
                 #1 Focus
               </p>
               <p className="mt-1 text-sm font-medium leading-relaxed text-[var(--text-primary)]">
@@ -259,13 +259,13 @@ export function WelcomeScreen() {
 
           {/* Corner grades strip */}
           <div className="mt-4 flex items-center gap-3 border-t border-[var(--cata-border)] pt-3">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               Corner Grades
             </span>
             <div className="flex gap-2">
               {SAMPLE_GRADES.map((g) => (
                 <div key={g.turn} className="flex flex-col items-center">
-                  <span className="text-[10px] text-[var(--text-secondary)]">{g.turn}</span>
+                  <span className="text-[11px] text-[var(--text-secondary)]">{g.turn}</span>
                   <span className={cn('text-xs font-bold', g.color)}>{g.grade}</span>
                 </div>
               ))}
@@ -296,7 +296,7 @@ export function WelcomeScreen() {
                 <step.icon className="h-5 w-5 text-[var(--cata-accent)]" />
               </div>
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--cata-accent)]">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--cata-accent)]">
                   Step {step.num}
                 </span>
                 <p className="mt-1 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-primary)]">
@@ -355,7 +355,7 @@ export function WelcomeScreen() {
       </div>
 
       {/* Disclaimer footer */}
-      <p className="mt-8 max-w-2xl px-6 text-center text-[10px] leading-relaxed text-[var(--text-secondary)]/60">
+      <p className="mt-8 max-w-2xl px-6 text-center text-[11px] leading-relaxed text-[var(--text-secondary)]/60">
         AI coaching is for educational purposes only and is not a substitute for professional instruction.
         Track driving carries inherent risks. GPS/telemetry data and AI analysis may contain inaccuracies.
       </p>

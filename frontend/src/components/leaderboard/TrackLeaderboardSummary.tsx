@@ -29,10 +29,10 @@ function RankCard({ icon: Icon, label, value, subtitle, accent }: RankCardProps)
       <span className="font-[family-name:var(--font-display)] text-lg font-bold tracking-tight text-[var(--text-primary)]">
         {value}
       </span>
-      <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
+      <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
         {label}
       </span>
-      <span className="text-[10px] text-[var(--text-secondary)]">{subtitle}</span>
+      <span className="text-[11px] text-[var(--text-secondary)]">{subtitle}</span>
     </div>
   );
 }

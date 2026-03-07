@@ -48,7 +48,7 @@ export function ContextChips() {
         <Badge
           key={chip.label}
           variant="secondary"
-          className="bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--cata-border)] text-[10px] font-medium"
+          className="bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--cata-border)] text-[11px] font-medium"
         >
           <span className="text-[var(--text-secondary)]">{chip.label}:</span>
           &nbsp;{chip.value}

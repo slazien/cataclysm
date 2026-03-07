@@ -62,7 +62,7 @@ export function ComparisonSummary({
         <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] px-4 py-3 text-center">
           <div className="mb-1 flex items-center justify-center gap-1.5">
             <Clock className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               Gap
             </span>
           </div>
@@ -75,7 +75,7 @@ export function ComparisonSummary({
         <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] px-4 py-3 text-center">
           <div className="mb-1 flex items-center justify-center gap-1.5">
             <Gauge className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               Corners Won
             </span>
           </div>
@@ -100,7 +100,7 @@ export function ComparisonSummary({
         {/* Lap Times Pill */}
         <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] px-4 py-3 text-center">
           <div className="mb-1">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               Best Laps
             </span>
           </div>

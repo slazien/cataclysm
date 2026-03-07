@@ -476,7 +476,7 @@ export function ProgressView() {
                       {badge.tier === 'gold' ? '🥇' : badge.tier === 'silver' ? '🥈' : '🥉'}
                     </span>
                   </div>
-                  <span className="text-center text-[10px] font-medium text-[var(--text-primary)]">
+                  <span className="text-center text-[11px] font-medium text-[var(--text-primary)]">
                     {badge.name}
                   </span>
                 </div>

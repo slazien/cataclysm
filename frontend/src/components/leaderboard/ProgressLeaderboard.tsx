@@ -34,7 +34,7 @@ function PercentileBadge({ percentile }: { percentile: number }) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold',
+        'inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold',
         color,
       )}
     >
@@ -136,12 +136,12 @@ export function ProgressLeaderboard({
                   <div className="flex items-center gap-2">
                     {entry.user_name}
                     {isYou && (
-                      <span className="rounded-full bg-[var(--cata-accent)]/20 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--cata-accent)]">
+                      <span className="rounded-full bg-[var(--cata-accent)]/20 px-1.5 py-0.5 text-[11px] font-semibold text-[var(--cata-accent)]">
                         You
                       </span>
                     )}
                   </div>
-                  <div className="mt-0.5 text-[10px] text-[var(--text-secondary)] md:hidden">
+                  <div className="mt-0.5 text-[11px] text-[var(--text-secondary)] md:hidden">
                     {formatTimeShort(entry.best_lap_first)} &rarr;{' '}
                     {formatTimeShort(entry.best_lap_latest)}
                   </div>

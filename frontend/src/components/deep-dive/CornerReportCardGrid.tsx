@@ -110,26 +110,26 @@ function CornerCard({
         >
           {cornerGrade.braking && (
             <div className="flex items-center gap-1">
-              <span className="text-[10px] text-[var(--text-secondary)]">Brk</span>
-              <GradeChip grade={cornerGrade.braking} reason={cornerGrade.braking_reason} className="px-1.5 py-0 text-[10px]" />
+              <span className="text-[11px] text-[var(--text-secondary)]">Brk</span>
+              <GradeChip grade={cornerGrade.braking} reason={cornerGrade.braking_reason} className="px-1.5 py-0 text-[11px]" />
             </div>
           )}
           {cornerGrade.trail_braking && (
             <div className="flex items-center gap-1">
-              <span className="text-[10px] text-[var(--text-secondary)]">Trail</span>
-              <GradeChip grade={cornerGrade.trail_braking} reason={cornerGrade.trail_braking_reason} className="px-1.5 py-0 text-[10px]" />
+              <span className="text-[11px] text-[var(--text-secondary)]">Trail</span>
+              <GradeChip grade={cornerGrade.trail_braking} reason={cornerGrade.trail_braking_reason} className="px-1.5 py-0 text-[11px]" />
             </div>
           )}
           {cornerGrade.min_speed && (
             <div className="flex items-center gap-1">
-              <span className="text-[10px] text-[var(--text-secondary)]">Spd</span>
-              <GradeChip grade={cornerGrade.min_speed} reason={cornerGrade.min_speed_reason} className="px-1.5 py-0 text-[10px]" />
+              <span className="text-[11px] text-[var(--text-secondary)]">Spd</span>
+              <GradeChip grade={cornerGrade.min_speed} reason={cornerGrade.min_speed_reason} className="px-1.5 py-0 text-[11px]" />
             </div>
           )}
           {cornerGrade.throttle && (
             <div className="flex items-center gap-1">
-              <span className="text-[10px] text-[var(--text-secondary)]">Thr</span>
-              <GradeChip grade={cornerGrade.throttle} reason={cornerGrade.throttle_reason} className="px-1.5 py-0 text-[10px]" />
+              <span className="text-[11px] text-[var(--text-secondary)]">Thr</span>
+              <GradeChip grade={cornerGrade.throttle} reason={cornerGrade.throttle_reason} className="px-1.5 py-0 text-[11px]" />
             </div>
           )}
         </m.div>
@@ -148,13 +148,13 @@ function CornerCard({
         <div className="rounded-md bg-[var(--ai-bg)] px-2 py-1.5">
           <div className="flex items-start gap-1.5">
             <span
-              className="mt-0.5 shrink-0 text-[10px] text-[var(--ai-icon)]"
+              className="mt-0.5 shrink-0 text-[11px] text-[var(--ai-icon)]"
               role="img"
               aria-label="AI"
             >
               &#x1F916;
             </span>
-            <p className="line-clamp-2 text-[10px] leading-relaxed text-[var(--text-secondary)]">
+            <p className="line-clamp-2 text-[11px] leading-relaxed text-[var(--text-secondary)]">
               {resolveSpeed(priorityCorner.tip)}
             </p>
           </div>

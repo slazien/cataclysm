@@ -176,7 +176,7 @@ export function LapGridSelector() {
                 <span className="text-[11px] font-semibold leading-none text-white/90">
                   L{lap.lap_number}
                 </span>
-                <span className="mt-0.5 text-[10px] tabular-nums leading-none text-white/70">
+                <span className="mt-0.5 text-[11px] tabular-nums leading-none text-white/70">
                   {formatLapTime(lap.lap_time_s)}
                 </span>
               </motion.button>
@@ -185,7 +185,7 @@ export function LapGridSelector() {
         </motion.div>
 
         {/* Legend */}
-        <div className="mt-2.5 flex items-center gap-3 text-[10px] text-[var(--text-secondary)]">
+        <div className="mt-2.5 flex items-center gap-3 text-[11px] text-[var(--text-secondary)]">
           <span className="flex items-center gap-1">
             <span
               className="inline-block h-2 w-4 rounded-sm"

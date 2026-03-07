@@ -26,6 +26,7 @@ export function FloatingChatButton() {
             'lg:bottom-8 lg:right-8',
           )}
           title="Open AI Coach (press /)"
+          aria-label="Open AI Coach"
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0, opacity: 0 }}
@@ -36,7 +37,7 @@ export function FloatingChatButton() {
           <MessageCircle className="h-6 w-6" />
           {hasMessages && (
             <motion.span
-              className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white"
+              className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[11px] font-bold text-white"
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: 'spring', stiffness: 500, damping: 15, delay: 0.2 }}

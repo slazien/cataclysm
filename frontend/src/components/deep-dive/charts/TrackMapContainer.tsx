@@ -74,7 +74,7 @@ export function TrackMapContainer({ sessionId }: TrackMapContainerProps) {
             key={mode}
             onClick={() => setViewMode(mode)}
             className={cn(
-              'px-2 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors',
+              'px-2 py-1 text-[11px] font-semibold uppercase tracking-wider transition-colors',
               viewMode === mode
                 ? 'bg-[var(--bg-overlay)] text-[var(--text-primary)]'
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-secondary)]',
@@ -88,7 +88,7 @@ export function TrackMapContainer({ sessionId }: TrackMapContainerProps) {
       <button
         onClick={toggleSat}
         className={cn(
-          'flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors',
+          'flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold uppercase tracking-wider transition-colors',
           satEnabled
             ? 'border-[var(--color-optimal)] bg-[var(--bg-overlay)] text-[var(--text-primary)]'
             : 'border-[var(--cata-border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-secondary)]',
@@ -101,7 +101,7 @@ export function TrackMapContainer({ sessionId }: TrackMapContainerProps) {
 
       {showExaggerationSlider && (
         <div className="flex items-center gap-1 rounded-md border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-2 py-1">
-          <span className="text-[9px] text-[var(--text-secondary)]">{exaggeration.toFixed(1)}×</span>
+          <span className="text-[10px] text-[var(--text-secondary)]">{exaggeration.toFixed(1)}×</span>
           <input
             type="range"
             min={EXAGGERATION_MIN}

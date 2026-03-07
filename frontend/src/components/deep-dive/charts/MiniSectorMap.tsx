@@ -249,7 +249,7 @@ export function MiniSectorMap() {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-3 text-[10px] text-[var(--text-secondary)]">
+      <div className="flex items-center gap-3 text-[11px] text-[var(--text-secondary)]">
         <span className="flex items-center gap-1">
           <span
             className="inline-block h-2 w-3 rounded-sm"

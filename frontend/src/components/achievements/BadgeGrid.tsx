@@ -93,11 +93,11 @@ function AchievementBadge({ achievement }: { achievement: Achievement }) {
       <span className="text-center text-xs font-medium text-[var(--text-primary)]">
         {achievement.name}
       </span>
-      <span className="text-center text-[10px] text-[var(--text-secondary)]">
+      <span className="text-center text-[11px] text-[var(--text-secondary)]">
         {achievement.description}
       </span>
       {achievement.unlocked && achievement.unlocked_at && (
-        <span className="text-[10px] text-[var(--text-secondary)]">
+        <span className="text-[11px] text-[var(--text-secondary)]">
           {new Date(achievement.unlocked_at).toLocaleDateString()}
         </span>
       )}

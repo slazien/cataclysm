@@ -21,7 +21,7 @@ export function MobileBottomTabs() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
 
   return (
-    <div className="flex h-14 shrink-0 items-center border-t border-[var(--cata-border)] bg-[var(--bg-surface)] lg:hidden">
+    <div role="tablist" className="flex h-14 shrink-0 items-center border-t border-[var(--cata-border)] bg-[var(--bg-surface)] lg:hidden">
       {NAV_ITEMS.map((item) => {
         const Icon = item.icon;
         const isActive = activeView === item.view;
@@ -29,6 +29,9 @@ export function MobileBottomTabs() {
           <motion.button
             key={item.view}
             type="button"
+            role="tab"
+            aria-selected={isActive}
+            aria-label={item.label}
             onClick={() => {
               if (!activeSessionId) {
                 setUploadPromptOpen(true);
@@ -46,7 +49,7 @@ export function MobileBottomTabs() {
             )}
           >
             <Icon className="h-5 w-5" />
-            <span className="font-[family-name:var(--font-display)] text-[10px] font-medium">{item.label}</span>
+            <span className="font-[family-name:var(--font-display)] text-[11px] font-medium">{item.label}</span>
           </motion.button>
         );
       })}

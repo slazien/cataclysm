@@ -381,7 +381,7 @@ export function EquipmentSetupModal({
                   {/* Quick override for HP and weight */}
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <div>
-                      <label className="mb-0.5 block text-[10px] font-medium text-[var(--text-secondary)]">
+                      <label className="mb-0.5 block text-[11px] font-medium text-[var(--text-secondary)]">
                         Override HP
                       </label>
                       <input
@@ -402,7 +402,7 @@ export function EquipmentSetupModal({
                       />
                     </div>
                     <div>
-                      <label className="mb-0.5 block text-[10px] font-medium text-[var(--text-secondary)]">
+                      <label className="mb-0.5 block text-[11px] font-medium text-[var(--text-secondary)]">
                         Override Weight (kg)
                       </label>
                       <input

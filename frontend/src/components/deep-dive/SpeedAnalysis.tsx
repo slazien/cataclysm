@@ -104,7 +104,7 @@ export function SpeedAnalysis() {
               <InfoTooltip helpKey="chart.delta-t" className="pointer-events-auto" />
             </div>
             {showLegend && (
-              <p className="pointer-events-none text-[10px] text-[var(--text-secondary)] opacity-60">
+              <p className="pointer-events-none text-[11px] text-[var(--text-secondary)]">
                 below zero = compare lap faster
               </p>
             )}
@@ -137,7 +137,7 @@ export function SpeedAnalysis() {
                 </h3>
                 <InfoTooltip helpKey="chart.driving-line" className="pointer-events-auto" />
               </div>
-              <p className="pointer-events-none text-[10px] text-[var(--text-secondary)] opacity-60">
+              <p className="pointer-events-none text-[11px] text-[var(--text-secondary)]">
                 lateral offset from reference line
               </p>
             </div>

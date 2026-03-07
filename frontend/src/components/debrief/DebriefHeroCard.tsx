@@ -29,7 +29,7 @@ export function DebriefHeroCard({
       <p className="text-xs font-medium uppercase tracking-widest text-[var(--text-secondary)]">
         {trackName}
       </p>
-      <p className="mb-3 text-[10px] text-[var(--text-secondary)]">{sessionDate}</p>
+      <p className="mb-3 text-[11px] text-[var(--text-secondary)]">{sessionDate}</p>
 
       {/* Best Lap Time — pit board hero, massive */}
       <p
@@ -51,7 +51,7 @@ export function DebriefHeroCard({
 
       {/* Delta vs previous best */}
       {deltaPrevBest != null && (
-        <p className="mt-2 font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--color-throttle)]">
+        <p className={`mt-2 font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight ${deltaPrevBest < 0 ? 'text-[var(--color-throttle)]' : 'text-[var(--color-brake)]'}`}>
           {deltaPrevBest < 0 ? '' : '+'}
           {deltaPrevBest.toFixed(3)}s vs previous best
         </p>
@@ -64,7 +64,7 @@ export function DebriefHeroCard({
             <p className="font-[family-name:var(--font-display)] text-2xl font-bold text-[var(--text-primary)] lg:text-3xl">
               {consistencyScore}%
             </p>
-            <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
               Consistency
             </p>
           </div>
@@ -73,7 +73,7 @@ export function DebriefHeroCard({
           <p className="font-[family-name:var(--font-display)] text-2xl font-bold text-[var(--text-primary)] lg:text-3xl">
             {nLaps}
           </p>
-          <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
+          <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
             Laps
           </p>
         </div>

@@ -156,7 +156,7 @@ export function SkillRadarEvolution({ sessionId, trackName }: SkillRadarEvolutio
       {/* Session legend */}
       {showHistory && hasHistory && (
         <div className="mt-3 space-y-1 border-t border-[var(--cata-border)] pt-3">
-          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
             Sessions
           </p>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">

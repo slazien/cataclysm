@@ -49,9 +49,9 @@ export function LapPill({
           : undefined
       }
     >
-      {isPb && <span className="text-[10px]" aria-label="Personal best">&#9733;</span>}
+      {isPb && <span className="text-[11px]" aria-label="Personal best">&#9733;</span>}
       {selected && role && (
-        <span className="text-[9px] font-bold uppercase opacity-80">
+        <span className="text-[10px] font-bold uppercase opacity-80">
           {role === 'reference' ? 'REF' : 'CMP'}
         </span>
       )}

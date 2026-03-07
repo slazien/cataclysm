@@ -289,7 +289,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
 
       {/* Per-category grades */}
       {cornerGrade && (
-        <div className="space-y-0.5">
+        <div className="space-y-0.5 pt-3 mt-1 border-t border-[var(--cata-border)]">
           <h4 className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
             Grades
             <InfoTooltip helpKey="section.corner-grades" />
@@ -331,18 +331,22 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
 
       {/* AI coaching tip */}
       {(priorityCorner?.tip || cornerGrade?.notes) && (
-        <AiInsight mode="card">
-          <p className="text-xs leading-relaxed"><MarkdownText>{resolveSpeed(priorityCorner?.tip ?? cornerGrade?.notes ?? '')}</MarkdownText></p>
-        </AiInsight>
+        <div className="pt-3 mt-1 border-t border-[var(--cata-border)]">
+          <AiInsight mode="card">
+            <p className="text-xs leading-relaxed"><MarkdownText>{resolveSpeed(priorityCorner?.tip ?? cornerGrade?.notes ?? '')}</MarkdownText></p>
+          </AiInsight>
+        </div>
       )}
 
       {/* Corner leaderboard */}
       {session?.track_name && (
+        <div className="pt-3 mt-1 border-t border-[var(--cata-border)]">
         <CornerLeaderboard
           trackName={session.track_name}
           cornerNumber={cornerNumber}
           limit={5}
         />
+        </div>
       )}
     </div>
   );

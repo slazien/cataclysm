@@ -100,7 +100,7 @@ function GapBar({
         {/* Label inside or outside bar */}
         <span
           className={cn(
-            'relative z-10 whitespace-nowrap text-[10px] font-medium tabular-nums',
+            'relative z-10 whitespace-nowrap text-[11px] font-medium tabular-nums',
             widthPct > 45 ? 'pl-1.5 text-white' : 'text-[var(--text-secondary)]',
           )}
           style={widthPct <= 45 ? { paddingLeft: `calc(${Math.max(widthPct, 2)}% + 6px)` } : undefined}
@@ -303,7 +303,7 @@ export function CornerSpeedGapPanel({ sessionId, selectedCorner }: CornerSpeedGa
             Speed Gap vs Optimal
             <InfoTooltip helpKey="chart.speed-gap" />
           </h3>
-          <p className="text-[10px] text-[var(--text-secondary)]">
+          <p className="text-[11px] text-[var(--text-secondary)]">
             Per-corner time cost from speed deficit
           </p>
         </div>

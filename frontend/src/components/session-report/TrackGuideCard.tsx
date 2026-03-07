@@ -97,7 +97,7 @@ function StatCard({ icon: Icon, label, value }: { icon: React.ComponentType<{ cl
     <div className="flex items-center gap-2">
       <Icon className="h-4 w-4 shrink-0 text-[var(--cata-accent)]" />
       <div className="min-w-0">
-        <p className="text-[10px] uppercase tracking-wider text-[var(--text-secondary)]">{label}</p>
+        <p className="text-[11px] uppercase tracking-wider text-[var(--text-secondary)]">{label}</p>
         <p className="truncate text-sm font-medium text-[var(--text-primary)]">{value}</p>
       </div>
     </div>
@@ -117,23 +117,23 @@ function KeyCornerCard({ corner }: { corner: KeyCorner }) {
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--cata-accent)]/10 px-2 py-0.5 text-[10px] font-semibold text-[var(--cata-accent)]">
+        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--cata-accent)]/10 px-2 py-0.5 text-[11px] font-semibold text-[var(--cata-accent)]">
           Exit speed critical
         </span>
-        <span className="text-[10px] text-[var(--text-secondary)]">
+        <span className="text-[11px] text-[var(--text-secondary)]">
           {formatDistance(corner.straight_after_m)} straight after
         </span>
       </div>
 
       {corner.blind && (
-        <div className="mt-1.5 flex items-center gap-1 text-[10px] text-amber-400">
+        <div className="mt-1.5 flex items-center gap-1 text-[11px] text-amber-400">
           <AlertTriangle className="h-3 w-3" />
           <span>Blind</span>
         </div>
       )}
 
       {corner.camber && corner.camber !== 'positive' && (
-        <div className="mt-1 flex items-center gap-1 text-[10px] text-amber-400">
+        <div className="mt-1 flex items-center gap-1 text-[11px] text-amber-400">
           <AlertTriangle className="h-3 w-3" />
           <span className="capitalize">{corner.camber}</span>
         </div>
@@ -333,11 +333,11 @@ export function TrackGuideCard({ sessionId }: TrackGuideCardProps) {
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-[var(--cata-border)]">
-                    <th className="pb-1.5 pl-2 pr-3 text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">Corner</th>
-                    <th className="pb-1.5 pr-3 text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">Dir</th>
-                    <th className="pb-1.5 pr-3 text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">Type</th>
-                    <th className="pb-1.5 pr-3 text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">Elevation</th>
-                    <th className="pb-1.5 pr-2 text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">Special</th>
+                    <th className="pb-1.5 pl-2 pr-3 text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">Corner</th>
+                    <th className="pb-1.5 pr-3 text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">Dir</th>
+                    <th className="pb-1.5 pr-3 text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">Type</th>
+                    <th className="pb-1.5 pr-3 text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">Elevation</th>
+                    <th className="pb-1.5 pr-2 text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">Special</th>
                   </tr>
                 </thead>
                 <tbody>

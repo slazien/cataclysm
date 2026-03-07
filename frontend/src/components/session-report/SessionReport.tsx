@@ -208,7 +208,7 @@ export function SessionReport() {
 
         {report?.skill_level && (
           <div className="flex items-center justify-between -mt-4">
-            <p className="text-[10px] text-[var(--text-secondary)]">
+            <p className="text-[11px] text-[var(--text-secondary)]">
               Generated for {report.skill_level.charAt(0).toUpperCase() + report.skill_level.slice(1)}
             </p>
             <button

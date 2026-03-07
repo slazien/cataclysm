@@ -40,7 +40,7 @@ export function TestUserSwitcher() {
     <div className="fixed bottom-4 right-4 z-[9999]">
       {expanded && (
         <div className="mb-2 rounded-lg border border-yellow-600/40 bg-gray-900/95 p-2 shadow-xl backdrop-blur-sm">
-          <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-wider text-yellow-500">
+          <p className="mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-wider text-yellow-500">
             Switch Test User
           </p>
           {TEST_USERS.map((user) => (
