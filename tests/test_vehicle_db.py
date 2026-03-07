@@ -137,7 +137,7 @@ class TestFindVehicle:
     def test_find_corvette_c8(self) -> None:
         result = find_vehicle("Chevrolet", "Corvette", "C8")
         assert result is not None
-        assert result.hp == 490
+        assert result.hp == 495
         assert result.drivetrain == "RWD"
         assert result.weight_dist_front_pct == 40.0
 
