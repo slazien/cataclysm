@@ -211,7 +211,7 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
   const { data: lineData } = useLineAnalysis(sessionId);
   const { data: corners } = useCorners(sessionId);
   const { convertSpeed, speedUnit } = useUnits();
-  const [exaggeration, setExaggeration] = useState(1);
+  const [exaggeration, setExaggeration] = useState(4);
   const [rotateAligned, setRotateAligned] = useState(false);
   const [showTimeDots, setShowTimeDots] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
