@@ -201,9 +201,12 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
             </span>
           )}
         </div>
-        <span className="text-xs text-[var(--text-secondary)]">
-          {displayLap ? `L${displayLap}` : 'Best lap'} · {corner.apex_type} apex
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-[var(--text-secondary)]">
+            {displayLap ? `L${displayLap}` : 'Best lap'} · {corner.apex_type} apex
+          </span>
+          <kbd className="rounded border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-1 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]">←→</kbd>
+        </div>
       </div>
 
       {/* KPIs */}

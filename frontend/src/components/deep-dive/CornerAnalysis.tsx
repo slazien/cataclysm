@@ -151,16 +151,6 @@ export function CornerAnalysis() {
             </div>
           </div>
 
-          {/* Corner navigation hint */}
-          <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-secondary)]">
-            <kbd className="rounded border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-1.5 py-0.5 font-mono text-[11px]">
-              ←
-            </kbd>
-            <kbd className="rounded border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-1.5 py-0.5 font-mono text-[11px]">
-              →
-            </kbd>
-            <span>to cycle corners</span>
-          </div>
         </>
       )}
     </div>
