@@ -191,6 +191,52 @@ class TestCalibrateGripFromTelemetry:
         assert result_lenient is not None
 
 
+class TestCalibrateGripInsufficientAccelData:
+    """Cover line 147: return None when accel data is insufficient."""
+
+    def test_returns_none_when_only_accel_data_missing(self) -> None:
+        """Sufficient lateral and braking data, but no acceleration events → None."""
+        rng = np.random.default_rng(999)
+        n = 300
+
+        # Block 1: coasting — sufficient lateral data (feeds lat_mask)
+        lateral_g = np.zeros(n)
+        longitudinal_g = np.zeros(n)
+
+        # 150 pts: coasting with lateral variation, |lon_g| < 0.2
+        lateral_g[:150] = rng.uniform(-1.0, 1.0, size=150)
+        longitudinal_g[:150] = rng.uniform(-0.1, 0.1, size=150)
+
+        # 150 pts: straight-line braking, |lat_g| < 0.2 AND lon_g < -0.2
+        lateral_g[150:] = rng.uniform(-0.1, 0.1, size=150)
+        longitudinal_g[150:] = rng.uniform(-1.0, -0.3, size=150)
+
+        # No acceleration events at all — accel_mask will be empty → line 147
+        result = calibrate_grip_from_telemetry(lateral_g, longitudinal_g)
+
+        assert result is None
+
+
+class TestBuildGGVSurfaceEmptyBins:
+    """Cover line 392: return None when no valid speed bins exist."""
+
+    def test_returns_none_when_all_bins_have_too_few_points(self) -> None:
+        """With enough total points but min_points_per_sector exceeds total data,
+        every speed bin is skipped and valid_speed_bins is empty (line 392)."""
+        rng = np.random.default_rng(42)
+        # 100 total points (>= _MIN_GGV_TOTAL_POINTS=50), passes the early guard.
+        # Set min_points_per_sector=101 so no single bin can ever reach the threshold
+        # (we only have 100 points total across all bins).
+        n = 100
+        speed_mps = rng.uniform(10.0, 30.0, size=n)  # default 5 m/s bins → ~4 bins
+        lat_g = rng.uniform(-1.0, 1.0, size=n)
+        lon_g = rng.uniform(-0.8, 0.5, size=n)
+
+        result = build_ggv_surface(speed_mps, lat_g, lon_g, min_points_per_sector=101)
+
+        assert result is None
+
+
 class TestConfidenceLevels:
     """Tests for confidence classification in CalibratedGrip."""
 

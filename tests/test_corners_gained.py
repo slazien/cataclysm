@@ -275,6 +275,47 @@ class TestComputeCornersGainedNoOpportunity:
         if result is not None:
             assert "Insufficient data" in result.coaching_summary or result.total_gap_s >= 0
 
+    def test_insufficient_data_summary_line225(self) -> None:
+        """Line 225: 'Insufficient data' summary when all per-corner gains are <= 0."""
+        from cataclysm.corners_gained import _MIN_LAPS
+
+        # Create a session where every corner has zero gains after scaling.
+        # The scale factor is total_gap / raw_total; when raw_total > 0 but
+        # all corners get 0 due to stats, we get no top_ops → line 225.
+        # Use stats with best == mean for min_speed and throttle → zero gains.
+        # Use brake_std=0 → zero braking gain. Use gain_s=0 → zero consistency.
+        zero_corner = _make_corner(
+            1,
+            brake_std=0.0,
+            speed_best=22.0,
+            speed_mean=22.0,  # best == mean → zero min_speed gain
+            throttle_best=300.0,
+            throttle_mean=300.0,  # best == mean → zero throttle gain
+            gain_s=0.0,  # zero consistency gain
+            n_laps=_MIN_LAPS,
+        )
+        zero_corner.stats_brake_point = _make_stats(std=0.0, n_laps=_MIN_LAPS)
+        corners = [
+            zero_corner,
+            _make_corner(2, speed_best=22.0, speed_mean=22.0, gain_s=0.0),
+            _make_corner(3, speed_best=22.0, speed_mean=22.0, gain_s=0.0),
+        ]
+        # Also zero throttle for corners 2 and 3
+        for c in corners[1:]:
+            c.stats_throttle_commit = _make_stats(best=300.0, mean=300.0, n_laps=_MIN_LAPS)
+            c.stats_brake_point = _make_stats(std=0.0, n_laps=_MIN_LAPS)
+        session = SessionCornerAnalysis(
+            corners=corners,
+            best_lap=1,
+            total_consistency_gain_s=0.0,
+            n_laps_analyzed=_MIN_LAPS,
+        )
+        result = compute_corners_gained(session, target_lap_s=90.0, current_best_s=95.0)
+        # When raw_total==0, scale=0, all per_corner gains=0, top_ops=[]
+        # → line 225 executes
+        assert result is not None
+        assert "Insufficient data" in result.coaching_summary
+
     def test_negative_total_gain_breaks_early(self) -> None:
         """When sorted corner gains are all <= 0, loop breaks at first entry (line 207)."""
         # The break only fires when sorted_corners[0].total_gain_s <= 0

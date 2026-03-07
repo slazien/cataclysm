@@ -500,43 +500,15 @@ if (isPending) return <Skeleton />;  // Renders in SSR HTML correctly
 
 **Anti-pattern**: Reading PriorityCardsSection.tsx → SessionReport.tsx → useAnalysis.ts → api.ts → Providers.tsx → forming a theory → THEN opening the browser. Instead: browser → observe → targeted code reading → fix.
 
-## Incremental String Building: Use `+=` Not `=` When Accumulating Sections ([2026-03-07])
+## Avoid Order-Dependent Assertions in Tests ([2026-03-07])
 
-**Pattern**: When building up a multi-section string (like a prompt or report) across multiple conditional blocks, always use `+=` to append. Using `=` silently overwrites everything previously accumulated in that variable.
+**Pattern**: When asserting on collections (lists of corners, priority items, etc.), use set-based or `any()`-based assertions instead of asserting on specific indices. Serialization/deserialization, dict ordering, and sorting can change element order.
 
-```python
-# GOOD — accumulates both sections
-instruction = ""
-if best_corner_data:
-    instruction += "<best_corner>...</best_corner>\n"
-if line_analysis_data:
-    instruction += "<line_analysis>...</line_analysis>\n"
+**Why**: `test_generate_report` broke with `assert data["priority_corners"][0]["corner"] == 3` because the coaching store returned corners in a different order than the mock's input order. Fixed by asserting `{pc["corner"] for pc in data["priority_corners"]} == {3, 5}`.
 
-# BAD — second block silently overwrites the first
-instruction = ""
-if best_corner_data:
-    instruction += "<best_corner>...</best_corner>\n"
-if line_analysis_data:
-    instruction = "<line_analysis>...</line_analysis>\n"  # Oops, = not +=
-```
+## Coverage.py + Python 3.12 Async Router Artifact ([2026-03-07])
 
-**Why**: In `coaching.py`, `line_instruction = "..."` on line 841 used `=` instead of `+=`, silently overwriting the best-corner instruction added on line 833. The feature appeared to work (line analysis showed up) but best-corner data was lost. Code reviewer caught this — it would have been invisible in testing because both features worked individually.
+**Pattern**: When running `--cov` on FastAPI routers with Python 3.12, expect artificially low coverage on async endpoint bodies. coverage.py 7.x uses `sys.monitoring` (PEP 669) which doesn't correctly attribute execution inside async coroutines — the `def` line is covered but body lines aren't, even when test assertions prove they ran.
 
-**Error signature**: A multi-section prompt/report shows some sections but not others, despite all data being present. No error raised. The missing section was added first but overwritten by a later section.
-
-## Check `cataclysm/constants.py` Before Defining New Constants ([2026-03-07])
-
-**Pattern**: Before defining any conversion factor, threshold, or domain constant in a module, check `cataclysm/constants.py` first. The project has a central constants module — duplicating values creates drift risk.
-
-**Why**: Defined `MPS_TO_MPH = 2.23694` locally in `corner_line.py` when `cataclysm.constants` already exports the same value. Code reviewer flagged it. If the central value ever changed (e.g., for higher precision), the local copy would silently diverge.
-
-**Verification**: `grep -rn "CONSTANT_NAME" cataclysm/constants.py` before any `UPPER_SNAKE = number` definition.
-
-## Merge Feature Branch Into Staging BEFORE Promoting to Main ([2026-03-07])
-
-**Pattern**: When asked to push staging to prod while working on a feature branch with uncommitted-to-staging commits, always merge the feature branch into staging FIRST, then merge staging into main. Never checkout main directly — it reverts uncommitted work and forces stash/restore gymnastics.
-
-**Correct sequence**: `git checkout staging && git merge feature-branch && git push origin staging` → `git checkout main && git merge staging --ff-only && git push origin main`
-
-**Why**: Checking out main first reverts the working tree to main's state, requiring stash and multi-step recovery. The feature branch commits aren't on staging yet, so promoting staging to main without merging first loses the feature work.
+**Why**: Backend overall shows 96% but services layer is 100%. The ~4% gap is entirely async router bodies. Don't chase these lines with more tests — they're already tested. Test synchronous helpers directly and call async functions with patched dependencies instead of routing through ASGI client when possible.
 

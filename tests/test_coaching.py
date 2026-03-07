@@ -2723,15 +2723,12 @@ class TestTrackIntroNoviceOnly:
 # ---------------------------------------------------------------------------
 
 
-class TestResolveSpeedMarkersEdgeCases:
+class TestResolveSpeedMarkersAdditionalEdgeCases:
     """Line 55-56: ValueError in float conversion returns raw value."""
 
     def test_non_numeric_marker_returns_raw(self) -> None:
         """A non-numeric speed marker should return the raw value (lines 55-56)."""
         # Force the regex to match but float() to fail
-        import re
-
-        from cataclysm.coaching import _SPEED_MARKER_RE
 
         # Build text that matches the regex but has non-numeric group
         # The regex is r"\{\{speed:([\d.]+)\}\}" so it only matches digits
@@ -2900,3 +2897,43 @@ class TestGenerateCoachingReportNoKey:
                     "Test Track",
                 )
         assert "ANTHROPIC_API_KEY" in report.summary
+
+
+# ---------------------------------------------------------------------------
+# Additional coverage: lines 59-60 and 71-72 (ValueError paths in nested funcs)
+# ---------------------------------------------------------------------------
+
+
+class TestResolveSpeedMarkersValueErrorPaths:
+    """Lines 59-60, 71-72: ValueError branches in _replace_range and _replace.
+
+    The regex pattern only matches [\\d.]+ so float() never normally raises.
+    We cover these branches by patching the regex sub to call the inner
+    functions with non-numeric group matches.
+    """
+
+    def test_replace_range_value_error_returns_raw(self) -> None:
+        """Line 59-60: ValueError in _replace_range returns 'a-b' fallback."""
+        import re
+        from unittest.mock import patch
+
+        # Patch the range regex to match 'abc' and 'def' as groups 1 and 2
+        mock_pattern = re.compile(r"\{\{speed:([\w.]+)-([\w.]+)\}\}")
+
+        with patch("cataclysm.coaching._SPEED_RANGE_MARKER_RE", mock_pattern):
+            result = resolve_speed_markers("{{speed:abc-def}} target")
+        # float("abc") raises ValueError → returns "abc-def"
+        assert "abc-def" in result
+
+    def test_replace_value_error_returns_raw(self) -> None:
+        """Line 71-72: ValueError in _replace returns raw value."""
+        import re
+        from unittest.mock import patch
+
+        # Patch the single-value regex to match a non-numeric string
+        mock_pattern = re.compile(r"\{\{speed:([\w.]+)\}\}")
+
+        with patch("cataclysm.coaching._SPEED_MARKER_RE", mock_pattern):
+            result = resolve_speed_markers("{{speed:notanumber}} target")
+        # float("notanumber") raises ValueError → returns "notanumber"
+        assert "notanumber" in result

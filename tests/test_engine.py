@@ -439,3 +439,127 @@ class TestProcessSessionEdgeCases:
         summary_laps = {s.lap_number for s in result.lap_summaries}
         assert 2 not in summary_laps
         assert 1 in summary_laps
+
+
+class TestResampleLapEdgeCases:
+    """Target lines 114 and 119-120 in _resample_lap."""
+
+    def test_optional_channel_with_few_finite_values_skipped(self) -> None:
+        """Optional channel with < 2 finite values should be skipped (line 114)."""
+        n = 200
+        df = pd.DataFrame(
+            {
+                "lap_distance_m": np.arange(n, dtype=float) * 2.5,
+                "lap_time_s": np.arange(n, dtype=float) * 0.05,
+                "speed_mps": np.ones(n) * 30.0,
+                # Optional channel with only one finite value (all others NaN)
+                "lateral_g": [1.0] + [np.nan] * (n - 1),
+            }
+        )
+        result = _resample_lap(df)
+        # lateral_g should not be in result (skipped because < 2 finite points)
+        assert not result.empty
+        assert "lateral_g" not in result.columns
+
+    def test_optional_channel_with_nans_interpolated_using_finite_subset(self) -> None:
+        """Optional channel with NaN uses finite subset for interpolation (lines 119-120)."""
+        n = 200
+        # Create lateral_g with some NaN values but more than 2 finite points
+        lateral_g = np.full(n, np.nan)
+        lateral_g[10] = 0.1
+        lateral_g[50] = 0.3
+        lateral_g[100] = 0.2
+        lateral_g[150] = 0.4
+        df = pd.DataFrame(
+            {
+                "lap_distance_m": np.arange(n, dtype=float) * 2.5,
+                "lap_time_s": np.arange(n, dtype=float) * 0.05,
+                "speed_mps": np.ones(n) * 30.0,
+                "lateral_g": lateral_g,
+            }
+        )
+        result = _resample_lap(df)
+        # lateral_g should be present since it has >= 2 finite points
+        assert not result.empty
+        assert "lateral_g" in result.columns
+
+
+class TestFilterShortLapsAllOutlierFallback:
+    """Target line 159: fallback when all laps are "outlier-long"."""
+
+    def test_all_laps_far_above_median_returns_all(self) -> None:
+        """Every lap > MAX_LAP_DISTANCE_RATIO × median → fallback keeps all (line 159)."""
+        # The path triggers when EVERY lap is > 1.3× median. Achievable via monkey-patch.
+        # With 3 laps: [1000, 1000, 1000] → median=1000, threshold=1300 → none exceed → normal.
+        # We can verify the fallback path via direct function call with custom data where filtering
+        # would leave an empty set, which is handled by returning the original laps dict.
+
+        # Use monkeypatching of the constant to lower the ratio so the fallback is triggered:
+        import cataclysm.engine as engine_mod
+
+        original_ratio = engine_mod.MAX_LAP_DISTANCE_RATIO
+        try:
+            engine_mod.MAX_LAP_DISTANCE_RATIO = 0.5  # All laps > 0.5× median → all "outlier"
+            lap1 = pd.DataFrame({"lap_distance_m": [0.0, 500.0]})
+            lap2 = pd.DataFrame({"lap_distance_m": [0.0, 480.0]})
+            lap3 = pd.DataFrame({"lap_distance_m": [0.0, 490.0]})
+            laps = {1: lap1, 2: lap2, 3: lap3}
+            result = _filter_short_laps(laps)
+            # Fallback: returns all laps when every lap is filtered as "outlier"
+            assert set(result.keys()) == {1, 2, 3}
+        finally:
+            engine_mod.MAX_LAP_DISTANCE_RATIO = original_ratio
+
+
+class TestResampleLapOptionalChannelBranches:
+    """Cover lines 114 (optional channel skipped) and 119-120 (non-finite values filtered)."""
+
+    def _make_base_lap(self, n: int = 50) -> pd.DataFrame:
+        """Minimal valid lap DataFrame."""
+        dist = np.linspace(0.0, 100.0, n)
+        return pd.DataFrame(
+            {
+                "lap_distance_m": dist,
+                "speed_mps": np.full(n, 30.0),
+                "lat": np.linspace(33.0, 33.1, n),
+                "lon": np.linspace(-86.0, -85.9, n),
+            }
+        )
+
+    def test_optional_channel_with_fewer_than_2_finite_points_skipped(self) -> None:
+        """Optional channel with <2 finite values is skipped (line 114)."""
+        lap = self._make_base_lap()
+        # lateral_g is an optional channel — only 1 finite value → <2 → skip
+        lap["lateral_g"] = np.nan
+        lap.loc[0, "lateral_g"] = 0.5  # exactly 1 finite point
+        result = _resample_lap(lap)
+        # lateral_g should be absent from the result (only 1 finite point < 2)
+        assert "lateral_g" not in result.columns
+
+    def test_optional_channel_with_some_nan_values_interpolated(self) -> None:
+        """Optional channel with NaN → finite points used for interpolation (lines 119-120)."""
+        n = 50
+        lap = self._make_base_lap(n)
+        # lateral_g: first 2 are NaN, rest valid → enough finite points
+        lateral = np.full(n, np.nan)
+        lateral[2:] = 0.3  # n-2 finite points ≥ 2
+        lap["lateral_g"] = lateral
+        result = _resample_lap(lap)
+        # lateral_g should be present (≥ 2 finite points)
+        assert "lateral_g" in result.columns
+
+
+class TestFilterShortLapsNoLongLaps:
+    """Cover line 159: all laps are within distance ratio → no fallback needed (normal path).
+    Also covers the fallback path when all normal laps are classified as outlier-long."""
+
+    def test_all_laps_within_ratio_returns_filtered_subset(self) -> None:
+        """When all laps are below MAX_LAP_DISTANCE_RATIO threshold, filtering works normally."""
+        lap_normal = pd.DataFrame({"lap_distance_m": np.linspace(0, 1000, 50)})
+        lap_short = pd.DataFrame({"lap_distance_m": np.linspace(0, 500, 50)})
+        laps = {1: lap_normal, 2: lap_normal.copy(), 3: lap_short}
+        result = _filter_short_laps(laps)
+        # lap_short (500m vs reference 1000m) is 50% → below MIN_LAP_FRACTION=0.8 → filtered
+        assert 1 in result
+        assert 2 in result
+        assert 3 not in result

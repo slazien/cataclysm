@@ -1075,3 +1075,49 @@ class TestCornerTypeInPatternTriggers:
         snippet_ids = [sid for sid, _ in triggers]
         assert "CT.HAIRPIN" in snippet_ids
         assert "CT.SWEEPER" in snippet_ids
+
+
+# ---------------------------------------------------------------------------
+# Tests: Additional edge cases for coverage
+# ---------------------------------------------------------------------------
+
+
+class TestSessionLevelSnippetsEmptyCornerLists:
+    """Cover _session_level_snippets line 368: non-empty dict with empty value lists."""
+
+    def test_dict_with_empty_lap_lists_returns_empty(self) -> None:
+        """When all_lap_corners has keys but all lap lists are empty,
+        the secondary guard (line 368) fires and returns []."""
+        # all_lap_corners is truthy (non-empty dict), but all values are [].
+        # This bypasses the line-359 guard and hits the line-368 guard.
+        result = _session_level_snippets({1: [], 2: []})
+        assert result == []
+
+
+class TestSelectKbSnippetsNonExistentSnippetId:
+    """Cover select_kb_snippets line 597: snippet is None when sid not in KB_SNIPPETS."""
+
+    def test_unknown_snippet_id_is_silently_skipped(self) -> None:
+        """When selected_ids contains an ID not in KB_SNIPPETS, it is skipped
+        without error (line 597: if snippet is None: continue)."""
+        # Inject a fake snippet ID via _session_level_snippets returning a
+        # non-existent key.  Use a real corner so other code paths stay clean.
+        all_corners: dict[int, list[Corner]] = {
+            1: [_make_corner(min_speed=36.0)],  # triggers AERO.1 (real ID)
+        }
+
+        def _fake_session_triggers(
+            corners: dict[int, list[Corner]],
+        ) -> list[tuple[str, float]]:
+            # Return one real ID and one non-existent ID
+            return [("AERO.1", 0.15), ("NONEXISTENT.FAKE.99", 0.15)]
+
+        with patch(
+            "cataclysm.kb_selector._session_level_snippets",
+            side_effect=_fake_session_triggers,
+        ):
+            result = select_kb_snippets(all_corners, "intermediate")
+
+        # AERO.1 is real and should appear; the fake ID should be skipped silently
+        assert "AERO.1" in result
+        assert "NONEXISTENT.FAKE.99" not in result

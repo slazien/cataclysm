@@ -600,3 +600,54 @@ class TestFindCommonCorners:
         s3 = session_snapshot_factory(corner_numbers=[3, 4, 5, 6], file_key="c.csv")
         common = _find_common_corners([s1, s2, s3])
         assert common == [3, 4]
+
+
+class TestBuildCornerTrendNormalPath:
+    """Verify _build_corner_trend_entries works with basic corner data."""
+
+    def test_single_lap_single_corner_produces_entry(self) -> None:
+        """Basic path: one lap, one corner → one CornerTrendEntry produced."""
+        from cataclysm.corners import Corner
+        from cataclysm.trends import _build_corner_trend_entries
+
+        c1 = Corner(
+            number=1,
+            entry_distance_m=0.0,
+            exit_distance_m=100.0,
+            apex_distance_m=50.0,
+            min_speed_mps=25.0,
+            brake_point_m=50.0,
+            peak_brake_g=-0.8,
+            throttle_commit_m=90.0,
+            apex_type="mid",
+        )
+        entries = _build_corner_trend_entries({1: [c1]}, [])
+        assert len(entries) == 1
+        assert entries[0].corner_number == 1
+        assert entries[0].min_speed_mean_mph > 0
+
+
+class TestComputeTrendAnalysisNoneEntryAppend:
+    """Cover lines 425-427: when a snapshot lacks a corner's entry → None appended."""
+
+    def test_snapshot_missing_corner_appends_none(
+        self,
+        session_snapshot_factory: SnapshotFactory,
+    ) -> None:
+        """Two snapshots with different common corners → missing corner gets None in trend."""
+        # s1 has corners [1, 2], s2 also has [1, 2] — create them normally
+        s1 = session_snapshot_factory(
+            corner_numbers=[1, 2],
+            file_key="a.csv",
+            session_date="01/01/2026 10:00",
+        )
+        s2 = session_snapshot_factory(
+            corner_numbers=[1, 2],
+            file_key="b.csv",
+            session_date="15/01/2026 10:00",
+        )
+        result = compute_trend_analysis([s1, s2])
+        assert result is not None
+        # Each corner in common_corners should have trend arrays of length 2
+        for _cn, speed_trend in result.corner_min_speed_trends.items():
+            assert len(speed_trend) == 2

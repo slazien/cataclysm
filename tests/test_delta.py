@@ -79,3 +79,23 @@ class TestComputeDelta:
         comp = _make_lap(500, speed=25.0)
         result = compute_delta(ref, comp, corners=[])
         assert result.corner_deltas == []
+
+    def test_corner_beyond_end_of_delta_array_skipped(self) -> None:
+        """Corner entry_idx >= len(delta) → skipped (line 78)."""
+        ref = _make_lap(100, speed=30.0)  # ~70m track
+        comp = _make_lap(100, speed=25.0)
+        # Corner with entry far beyond the track end
+        far_corner = Corner(
+            number=1,
+            entry_distance_m=500.0,  # far beyond 70m
+            exit_distance_m=600.0,
+            apex_distance_m=550.0,
+            min_speed_mps=20.0,
+            brake_point_m=490.0,
+            peak_brake_g=-0.5,
+            throttle_commit_m=590.0,
+            apex_type="mid",
+        )
+        result = compute_delta(ref, comp, corners=[far_corner])
+        # Corner should be skipped → no corner deltas
+        assert result.corner_deltas == []

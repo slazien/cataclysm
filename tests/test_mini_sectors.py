@@ -108,3 +108,47 @@ def test_delta_calculation() -> None:
     # Lap 2 (best in each sector) should have zero or near-zero deltas
     lap2 = result.lap_data[2]
     assert all(abs(d) < 0.01 for d in lap2.deltas_s)
+
+
+def test_zero_track_length_returns_empty() -> None:
+    """Best lap with distance 0 → returns empty result (line 73)."""
+    zero_dist_lap = pd.DataFrame(
+        {
+            "lap_distance_m": np.zeros(10),
+            "lap_time_s": np.arange(10, dtype=float),
+            "speed_mps": np.ones(10) * 30.0,
+            "lat": np.full(10, 33.5),
+            "lon": np.full(10, -86.6),
+        }
+    )
+    result = compute_mini_sectors({1: zero_dist_lap}, [1], 1, n_sectors=5)
+    assert result.sectors == []
+    assert result.best_sector_times_s == []
+
+
+def test_clean_lap_not_in_resampled_skipped() -> None:
+    """clean_laps referencing a missing lap → skipped (line 112)."""
+    resampled = {1: _make_lap(1)}
+    # lap 99 is in clean_laps but not in resampled
+    result = compute_mini_sectors(resampled, [1, 99], 1, n_sectors=5)
+    # Lap 99 should not appear in lap_data
+    assert 99 not in result.lap_data
+    assert 1 in result.lap_data
+
+
+def test_zero_track_length_returns_empty_v2() -> None:
+    """Best lap has track_length <= 0 → returns empty MiniSectorAnalysis (line 73)."""
+    # Create a lap with all-zero lap_distance_m so track_length = 0
+    n = 10
+    zero_dist_lap = pd.DataFrame(
+        {
+            "lap_distance_m": np.zeros(n),
+            "lap_time_s": np.linspace(0, 5, n),
+            "speed_mps": np.full(n, 30.0),
+            "lat": np.full(n, 33.5),
+            "lon": np.full(n, -86.6),
+        }
+    )
+    result = compute_mini_sectors({1: zero_dist_lap}, [1], 1, n_sectors=5)
+    assert result.sectors == []
+    assert result.best_sector_times_s == []

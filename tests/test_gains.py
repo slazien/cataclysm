@@ -829,3 +829,82 @@ class TestReconstructIdealLapEdgeCases:
         ideal = reconstruct_ideal_lap(resampled, segs, seg_times, [1], 1)
         # Should not crash, and should use lap 1 as fallback
         assert len(ideal.speed_mps) == n
+
+    def test_segment_outside_track_range_is_skipped(self) -> None:
+        """Segment outside the reference lap distance range → mask empty → continue (line 482)."""
+        n = 100
+        step = 0.7
+        dist = np.arange(n) * step  # 0 to ~69.3m
+        base = {
+            "lap_distance_m": dist,
+            "heading_deg": np.zeros(n),
+            "lat": np.full(n, 33.53),
+            "lon": np.full(n, -86.62),
+            "lateral_g": np.zeros(n),
+            "longitudinal_g": np.zeros(n),
+            "yaw_rate_dps": np.zeros(n),
+            "altitude_m": np.full(n, 200.0),
+            "x_acc_g": np.zeros(n),
+            "y_acc_g": np.zeros(n),
+            "z_acc_g": np.ones(n),
+            "speed_mps": np.full(n, 30.0),
+            "lap_time_s": np.cumsum(np.full(n, step / 30.0)),
+        }
+        resampled = {1: pd.DataFrame(base)}
+        # Segment far beyond the track → mask will be all-False
+        segs = [SegmentDefinition("S_far", 500.0, 600.0, is_corner=False)]
+        seg_times: dict[str, dict[int, float]] = {"S_far": {1: 2.0}}
+        ideal = reconstruct_ideal_lap(resampled, segs, seg_times, [1], 1)
+        # Should not crash; ideal_speed is zeros since mask was empty
+        assert len(ideal.speed_mps) == n
+
+
+class TestTheoreticalBestCleanLapMissing:
+    """Target line 313: clean lap not in resampled_laps → continue."""
+
+    def test_some_clean_laps_missing_still_computes(self) -> None:
+        """Some clean laps not in resampled are skipped (line 313), others succeed."""
+        lap1 = _make_lap(200, 30.0)
+        resampled = {1: lap1}
+        # clean_laps has both 1 (present) and 5 (missing)
+        result = compute_theoretical_best(resampled, [1, 5], 5.0, sector_size_m=50.0)
+        # Lap 1 is present → boundary_times is non-empty → computes a real result
+        assert result is not None
+        # Should complete without error
+        assert result.theoretical_time_s <= 5.0
+
+
+class TestTheoreticalBestAllLapsMissing:
+    """Cover line 321: all clean laps missing from resampled_laps → fallback result."""
+
+    def test_all_clean_laps_absent_returns_fallback(self) -> None:
+        """All clean_laps absent from resampled_laps → boundary_times empty → fallback."""
+        lap1 = _make_lap(200, 30.0)
+        resampled = {1: lap1}
+        # clean_laps has only laps not in resampled
+        result = compute_theoretical_best(resampled, [99, 100], 5.0, sector_size_m=50.0)
+        assert result is not None
+        assert result.gain_s == 0.0
+        assert result.theoretical_time_s == 5.0
+
+
+class TestReconstructIdealLapNoMaskMatch:
+    """Cover line 482: segment mask has no hits → segment skipped."""
+
+    def test_segment_beyond_reference_distance_skipped(self) -> None:
+        """Segment entry/exit beyond ref_distance → mask all False → skipped (line 482)."""
+        lap = _make_lap(100, 30.0)
+        resampled = {1: lap}
+        # Segment completely beyond lap distance
+        far_segment = SegmentDefinition(
+            name="far_seg",
+            entry_distance_m=10000.0,  # way beyond 100 * 0.7 = 70m
+            exit_distance_m=11000.0,
+            is_corner=False,
+        )
+        # segment_times has this segment but it's out of range
+        segment_times: dict[str, dict[int, float]] = {"far_seg": {1: 5.0}}
+        result = reconstruct_ideal_lap(resampled, [far_segment], segment_times, [1], 1)
+        # Should not raise; segment is skipped, ideal_speed stays zeros
+        assert result is not None
+        assert len(result.distance_m) > 0

@@ -680,6 +680,36 @@ class TestEquipmentToVehicleParams:
         assert params.wheel_power_w == 0.0
         assert params.mass_kg == 0.0
 
+    def test_vehicle_weight_override_applied(self) -> None:
+        """vehicle_overrides['weight_kg'] overrides the vehicle's weight (line 259)."""
+        from cataclysm.vehicle_db import VEHICLE_DATABASE
+
+        vehicle = VEHICLE_DATABASE["mazda_miata_nd"]
+        tire = TireSpec(
+            model="Override",
+            compound_category=TireCompoundCategory.STREET,
+            size="225/45R17",
+            treadwear_rating=200,
+            estimated_mu=1.0,
+            mu_source=MuSource.CURATED_TABLE,
+            mu_confidence="high",
+        )
+        profile_no_override = EquipmentProfile(id="t1", name="Stock", tires=tire, vehicle=vehicle)
+        profile_with_override = EquipmentProfile(
+            id="t2",
+            name="Light",
+            tires=tire,
+            vehicle=vehicle,
+            vehicle_overrides={"weight_kg": 900.0},  # lighter than stock ND (~1058 kg)
+        )
+        params_stock = equipment_to_vehicle_params(profile_no_override)
+        params_light = equipment_to_vehicle_params(profile_with_override)
+
+        # Override reduces weight → mass_kg should reflect the override value
+        assert params_light.mass_kg == pytest.approx(900.0)
+        # Stock should use vehicle's actual weight
+        assert params_stock.mass_kg == pytest.approx(vehicle.weight_kg)
+
     def test_load_sensitivity_all_categories(self) -> None:
         """Every category should wire the correct load sensitivity exponent."""
         for cat in TireCompoundCategory:
