@@ -23,7 +23,9 @@ from cataclysm.equipment import (
 from cataclysm.vehicle_db import VehicleSpec
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.db.database import get_db
 from backend.api.dependencies import AuthenticatedUser, get_current_user
 from backend.api.schemas.equipment import (
     BrakePadSearchResult,
@@ -39,7 +41,8 @@ from backend.api.schemas.equipment import (
     VehicleSearchResult,
     VehicleSpecSchema,
 )
-from backend.api.services import equipment_store, session_store
+from backend.api.services import equipment_store
+from backend.api.services.db_session_store import get_session_for_user_with_db_sync
 from backend.api.services.pipeline import invalidate_physics_cache, invalidate_profile_cache
 
 router = APIRouter()
@@ -577,10 +580,12 @@ async def set_session_equipment(
     session_id: str,
     body: SessionEquipmentSet,
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SessionEquipmentResponse:
     """Assign an equipment profile to a session."""
-    # Validate session exists and ownership
-    sd = session_store.get_session_for_user(session_id, current_user.user_id)
+    # Validate session exists and ownership — use DB-backed sync so that
+    # stale in-memory user_ids (e.g. after backend restart) don't cause 404s.
+    sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 

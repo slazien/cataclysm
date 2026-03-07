@@ -47,6 +47,7 @@ from backend.api.services.comparison import compare_sessions as run_comparison
 from backend.api.services.db_session_store import (
     delete_session_db,
     ensure_user_exists,
+    get_session_for_user_with_db_sync,
     list_sessions_for_user,
     restore_weather_from_snapshot,
     store_session_db,
@@ -589,9 +590,10 @@ async def list_sessions(
 async def get_session(
     session_id: str,
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SessionSummary:
     """Get metadata and summary for a single session."""
-    sd = session_store.get_session_for_user(session_id, current_user.user_id)
+    sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
@@ -631,13 +633,14 @@ async def compare_sessions(
     session_id: str,
     other_id: str,
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ComparisonResult:
     """Compare best laps of two sessions (multi-driver comparison)."""
-    sd_a = session_store.get_session_for_user(session_id, current_user.user_id)
+    sd_a = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
     if sd_a is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
-    sd_b = session_store.get_session_for_user(other_id, current_user.user_id)
+    sd_b = await get_session_for_user_with_db_sync(db, other_id, current_user.user_id)
     if sd_b is None:
         raise HTTPException(status_code=404, detail=f"Session {other_id} not found")
 
@@ -705,6 +708,7 @@ async def delete_session(
 async def get_session_weather(
     session_id: str,
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, object]:
     """Get weather conditions for a session.
 
@@ -712,7 +716,7 @@ async def get_session_weather(
     live lookup using the session's GPS centroid and date, then stores
     the result permanently.
     """
-    sd = session_store.get_session_for_user(session_id, current_user.user_id)
+    sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
@@ -889,6 +893,7 @@ async def backfill_weather(
 async def get_track_guide(
     session_id: str,
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> TrackGuideResponse:
     """Get structured track guide data for the Track Briefing Card.
 
@@ -896,7 +901,7 @@ async def get_track_guide(
     """
     from cataclysm.track_db import get_key_corners, get_peculiarities, lookup_track
 
-    sd = session_store.get_session_for_user(session_id, current_user.user_id)
+    sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
@@ -971,9 +976,10 @@ async def get_track_guide(
 async def get_lap_summaries(
     session_id: str,
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> list[LapSummary]:
     """Get lap summaries for a session."""
-    sd = session_store.get_session_for_user(session_id, current_user.user_id)
+    sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
@@ -995,9 +1001,10 @@ async def get_lap_data(
     session_id: str,
     lap_number: int,
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> LapData:
     """Get resampled telemetry data for a specific lap (columnar JSON)."""
-    sd = session_store.get_session_for_user(session_id, current_user.user_id)
+    sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
@@ -1037,9 +1044,10 @@ async def get_lap_tags(
     session_id: str,
     lap_number: int,
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, object]:
     """Get tags for a specific lap."""
-    sd = session_store.get_session_for_user(session_id, current_user.user_id)
+    sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
     if lap_number not in sd.processed.resampled_laps:
@@ -1057,9 +1065,10 @@ async def set_lap_tags(
     lap_number: int,
     tags: list[str],
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, object]:
     """Set tags for a specific lap."""
-    sd = session_store.get_session_for_user(session_id, current_user.user_id)
+    sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
     if lap_number not in sd.processed.resampled_laps:
