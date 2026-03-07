@@ -68,6 +68,35 @@ async def update_me(
                 detail="Invalid skill_level. Must be one of: "
                 f"{', '.join(sorted(_VALID_SKILL_LEVELS))}",
             )
+        old_level = user.skill_level
         user.skill_level = body.skill_level
+
+        # Queue coaching reports for the new skill level so they're ready
+        if body.skill_level != old_level:
+            import logging
+
+            from backend.api.routers.coaching import trigger_auto_coaching
+            from backend.api.services.session_store import list_sessions_for_user
+
+            logger = logging.getLogger(__name__)
+            sessions = list_sessions_for_user(current_user.user_id)
+            for sd in sessions:
+                try:
+                    await trigger_auto_coaching(
+                        sd.session_id,
+                        sd,
+                        skill_level=body.skill_level,
+                    )
+                except (ValueError, TypeError, KeyError):
+                    logger.warning(
+                        "Coaching queue failed for %s on skill change",
+                        sd.session_id,
+                    )
+            if sessions:
+                logger.info(
+                    "Queued %d coaching report(s) for new skill level %s",
+                    len(sessions),
+                    body.skill_level,
+                )
 
     return user
