@@ -28,6 +28,7 @@ from backend.api.dependencies import (
     AuthenticatedUser,
     authenticate_websocket,
     get_current_user,
+    get_user_or_anon,
 )
 from backend.api.rate_limit import limiter
 from backend.api.schemas.coaching import (
@@ -462,7 +463,7 @@ async def _run_generation(
 @router.get("/{session_id}/report", response_model=CoachingReportResponse)
 async def get_report(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
     skill_level: SkillLevel = "intermediate",
 ) -> CoachingReportResponse:
@@ -572,7 +573,7 @@ def _build_report_content(
 @router.get("/{session_id}/report/pdf")
 async def download_pdf_report(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Response:
     """Download the coaching report as a PDF file.

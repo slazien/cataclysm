@@ -15,7 +15,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from backend.api.db.database import get_db
 from backend.api.db.models import Base
-from backend.api.dependencies import AuthenticatedUser, get_current_user, get_optional_user
+from backend.api.dependencies import (
+    AuthenticatedUser,
+    get_current_user,
+    get_optional_user,
+    get_user_or_anon,
+)
 from backend.api.main import app
 from backend.api.services.session_store import clear_all
 
@@ -239,9 +244,11 @@ def _mock_auth() -> Generator[None, None, None]:
     """Override the auth dependency so all test requests are authenticated."""
     app.dependency_overrides[get_current_user] = lambda: _TEST_USER
     app.dependency_overrides[get_optional_user] = lambda: _TEST_USER
+    app.dependency_overrides[get_user_or_anon] = lambda: _TEST_USER
     yield
     app.dependency_overrides.pop(get_current_user, None)
     app.dependency_overrides.pop(get_optional_user, None)
+    app.dependency_overrides.pop(get_user_or_anon, None)
 
 
 @pytest_asyncio.fixture(autouse=True)

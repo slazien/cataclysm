@@ -26,7 +26,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.db.database import get_db
-from backend.api.dependencies import AuthenticatedUser, get_current_user
+from backend.api.dependencies import AuthenticatedUser, get_current_user, get_user_or_anon
 from backend.api.schemas.equipment import (
     BrakePadSearchResult,
     BrakeSpecSchema,
@@ -635,7 +635,7 @@ async def set_session_equipment(
 @router.get("/{session_id}/equipment", response_model=SessionEquipmentResponse)
 async def get_session_equipment(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SessionEquipmentResponse:
     """Get the effective equipment assignment for a session."""

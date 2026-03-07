@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.db.database import get_db
-from backend.api.dependencies import AuthenticatedUser, get_current_user
+from backend.api.dependencies import AuthenticatedUser, get_user_or_anon
 from backend.api.schemas.analysis import (
     AllLapsCornerResponse,
     ConsistencyResponse,
@@ -79,7 +79,7 @@ async def _get_session_or_404(db: AsyncSession, session_id: str, user_id: str) -
 @router.get("/{session_id}/corners", response_model=CornerResponse)
 async def get_corners(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> CornerResponse:
     """Return corners detected on the best lap."""
@@ -97,7 +97,7 @@ async def get_corners(
 )
 async def get_all_laps_corners(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> AllLapsCornerResponse:
     """Corner KPIs for every lap in the session."""
@@ -112,7 +112,7 @@ async def get_all_laps_corners(
 @router.get("/{session_id}/consistency", response_model=ConsistencyResponse)
 async def get_consistency(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ConsistencyResponse:
     """Compute session consistency metrics."""
@@ -129,7 +129,7 @@ async def get_consistency(
 @router.get("/{session_id}/grip", response_model=GripResponse)
 async def get_grip(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> GripResponse:
     """Estimate grip limits from multi-lap telemetry."""
@@ -146,7 +146,7 @@ async def get_grip(
 @router.get("/{session_id}/gps-quality", response_model=GPSQualityResponse)
 async def get_gps_quality(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> GPSQualityResponse:
     """Return GPS quality assessment for a session."""
@@ -163,7 +163,7 @@ async def get_gps_quality(
 @router.get("/{session_id}/gains", response_model=GainsResponse)
 async def get_gains(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> GainsResponse:
     """Compute three-tier gain estimates (consistency, composite, theoretical)."""
@@ -180,7 +180,7 @@ async def get_gains(
 @router.get("/{session_id}/ideal-lap", response_model=IdealLapResponse)
 async def get_ideal_lap(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> IdealLapResponse:
     """Reconstruct ideal lap from best segments across all clean laps."""
@@ -202,7 +202,7 @@ async def get_ideal_lap(
 @router.get("/{session_id}/optimal-profile", response_model=OptimalProfileResponse)
 async def get_optimal_profile(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> OptimalProfileResponse:
     """Compute the physics-optimal velocity profile for the track.
@@ -234,7 +234,7 @@ async def get_optimal_profile(
 )
 async def get_optimal_comparison(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> OptimalComparisonResponse:
     """Compare actual best-lap speeds against the physics-optimal profile per-corner.
@@ -262,7 +262,7 @@ async def get_delta(
     session_id: str,
     ref: Annotated[int, Query(description="Reference lap number")],
     comp: Annotated[int, Query(description="Comparison lap number")],
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> DeltaResponse:
     """Compute delta-T between two laps at each distance point."""
@@ -300,7 +300,7 @@ async def get_linked_chart_data(
         list[int],
         Query(description="Lap numbers to include in linked charts"),
     ],
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> LinkedChartResponse:
     """Bundle telemetry data for synchronized linked charts."""
@@ -349,7 +349,7 @@ async def get_linked_chart_data(
 @router.get("/{session_id}/sectors", response_model=SectorResponse)
 async def get_sectors(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SectorResponse:
     """Compute per-lap sector splits with personal bests and composite time."""
@@ -409,7 +409,7 @@ async def get_sectors(
 @router.get("/{session_id}/mini-sectors")
 async def get_mini_sectors(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
     n_sectors: int = Query(default=20, ge=3, le=100),
     lap: int | None = Query(default=None),
@@ -463,7 +463,7 @@ async def get_mini_sectors(
 @router.get("/{session_id}/degradation", response_model=DegradationResponse)
 async def get_degradation(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> DegradationResponse:
     """Detect brake fade and tire degradation across the session."""
@@ -498,7 +498,7 @@ async def get_degradation(
 @router.get("/{session_id}/gg-diagram", response_model=GGDiagramResponse)
 async def get_gg_diagram(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
     corner: int | None = Query(
         default=None, ge=1, description="Filter to a specific corner number"
@@ -559,7 +559,7 @@ async def get_gg_diagram(
 )
 async def get_speed_sensitivity(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SpeedSensitivityResponse:
     """Compute per-corner speed sensitivity (seconds saved per +1 mph min speed).
@@ -635,7 +635,7 @@ async def get_speed_sensitivity(
 )
 async def get_line_analysis(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
     laps: Annotated[
         list[int] | None,

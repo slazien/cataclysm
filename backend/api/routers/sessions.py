@@ -21,6 +21,7 @@ from backend.api.dependencies import (
     get_current_user,
     get_optional_user,
     get_settings,
+    get_user_or_anon,
 )
 from backend.api.rate_limit import limiter
 from backend.api.routers.coaching import trigger_auto_coaching
@@ -595,7 +596,7 @@ async def list_sessions(
 @router.get("/{session_id}", response_model=SessionSummary)
 async def get_session(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SessionSummary:
     """Get metadata and summary for a single session."""
@@ -717,7 +718,7 @@ async def delete_session(
 @router.get("/{session_id}/weather")
 async def get_session_weather(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, object]:
     """Get weather conditions for a session.
@@ -902,7 +903,7 @@ async def backfill_weather(
 @router.get("/{session_id}/track-guide", response_model=TrackGuideResponse)
 async def get_track_guide(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> TrackGuideResponse:
     """Get structured track guide data for the Track Briefing Card.
@@ -985,7 +986,7 @@ async def get_track_guide(
 @router.get("/{session_id}/laps", response_model=list[LapSummary])
 async def get_lap_summaries(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> list[LapSummary]:
     """Get lap summaries for a session."""
@@ -1010,7 +1011,7 @@ async def get_lap_summaries(
 async def get_lap_data(
     session_id: str,
     lap_number: int,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> LapData:
     """Get resampled telemetry data for a specific lap (columnar JSON)."""
@@ -1053,7 +1054,7 @@ async def get_lap_data(
 async def get_lap_tags(
     session_id: str,
     lap_number: int,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, object]:
     """Get tags for a specific lap."""

@@ -198,6 +198,28 @@ def get_optional_user(
         return None
 
 
+_ANON_USER = AuthenticatedUser(user_id="anon", email="anon@localhost", name="Anonymous")
+
+
+def get_user_or_anon(
+    settings: Annotated[Settings, Depends(get_settings)],
+    authorization: str | None = Header(None),
+    session_token: str | None = Cookie(None, alias="authjs.session-token"),
+    secure_session_token: str | None = Cookie(None, alias="__Secure-authjs.session-token"),
+    x_test_user_id: str | None = Header(None, alias="X-Test-User-Id"),
+) -> AuthenticatedUser:
+    """Like ``get_optional_user`` but returns a sentinel anonymous user instead of None.
+
+    Used for read-only endpoints that should work for both authenticated users
+    and anonymous uploads.  The session store already allows access to
+    ``is_anonymous=True`` sessions regardless of user_id.
+    """
+    user = get_optional_user(
+        settings, authorization, session_token, secure_session_token, x_test_user_id
+    )
+    return user if user is not None else _ANON_USER
+
+
 async def authenticate_websocket(websocket: WebSocket) -> AuthenticatedUser | None:
     """Validate a WebSocket connection using cookies.
 
