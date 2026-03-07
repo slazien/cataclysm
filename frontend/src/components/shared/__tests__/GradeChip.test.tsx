@@ -101,22 +101,25 @@ describe('GradeChip', () => {
       expect(suffixSpan?.textContent).toContain('\u25BC');
     });
 
-    it('renders no suffix span for B grade', () => {
+    it('renders a plus suffix for B grade', () => {
       const { container } = render(<GradeChip grade="B" />);
       const suffixSpan = container.querySelector('span.text-\\[0\\.6rem\\]');
-      expect(suffixSpan).not.toBeInTheDocument();
+      expect(suffixSpan).toBeInTheDocument();
+      expect(suffixSpan?.textContent).toContain('+');
     });
 
-    it('renders no suffix span for C grade', () => {
+    it('renders a tilde suffix for C grade', () => {
       const { container } = render(<GradeChip grade="C" />);
       const suffixSpan = container.querySelector('span.text-\\[0\\.6rem\\]');
-      expect(suffixSpan).not.toBeInTheDocument();
+      expect(suffixSpan).toBeInTheDocument();
+      expect(suffixSpan?.textContent).toContain('~');
     });
 
-    it('renders no suffix span for D grade', () => {
+    it('renders an exclamation suffix for D grade', () => {
       const { container } = render(<GradeChip grade="D" />);
       const suffixSpan = container.querySelector('span.text-\\[0\\.6rem\\]');
-      expect(suffixSpan).not.toBeInTheDocument();
+      expect(suffixSpan).toBeInTheDocument();
+      expect(suffixSpan?.textContent).toContain('!');
     });
   });
 

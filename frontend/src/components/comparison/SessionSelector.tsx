@@ -104,7 +104,7 @@ export function SessionSelector({ currentSessionId }: SessionSelectorProps) {
             {currentSession.track_name} &mdash; {currentSession.session_date}
           </p>
           <p className="mt-0.5 font-mono text-lg font-semibold text-[var(--text-primary)]">
-            {formatLapTime(currentSession.best_lap_time_s ?? 0)}
+            {currentSession.best_lap_time_s != null ? formatLapTime(currentSession.best_lap_time_s) : '--:--.---'}
           </p>
         </div>
       )}
@@ -153,7 +153,7 @@ export function SessionSelector({ currentSessionId }: SessionSelectorProps) {
                   </div>
                   <div className="text-right">
                     <p className="font-mono text-sm font-semibold text-[var(--text-primary)]">
-                      {formatLapTime(s.best_lap_time_s ?? 0)}
+                      {s.best_lap_time_s != null ? formatLapTime(s.best_lap_time_s) : '--:--.---'}
                     </p>
                     <p className="font-mono text-xs text-[var(--text-secondary)]">
                       {s.session_id.slice(0, 8)}

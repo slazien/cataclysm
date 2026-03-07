@@ -90,7 +90,7 @@ export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
   const { data: allLapCorners } = useAllLapCorners(sessionId);
   const { convertDistance, distanceUnit } = useUnits();
 
-  const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx } =
+  const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx, makeTouchProps } =
     useCanvasChart(MARGINS);
 
   const cornerNumber = selectedCorner ? parseCornerNumber(selectedCorner) : null;
@@ -338,6 +338,7 @@ export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
           style={{ width: '100%', height: '100%', cursor: 'crosshair', zIndex: 2, pointerEvents: 'auto' }}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
+          {...makeTouchProps(handleMouseMove, handleMouseLeave)}
         />
       </div>
     </div>

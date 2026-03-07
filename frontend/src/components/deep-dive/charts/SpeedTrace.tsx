@@ -80,7 +80,7 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
   const { data: lapDataArr, isLoading } = useMultiLapData(sessionId, selectedLaps);
   const { data: corners } = useCorners(sessionId);
 
-  const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx } =
+  const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx, makeTouchProps } =
     useCanvasChart(MARGINS);
 
   // Build scales
@@ -259,6 +259,7 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
           className="absolute inset-0"
           onMouseMove={handleOverlayMouseMove}
           onMouseLeave={handleOverlayMouseLeave}
+          {...makeTouchProps(handleOverlayMouseMove, handleOverlayMouseLeave)}
           style={{ width: '100%', height: '100%', cursor: 'crosshair', zIndex: 2, pointerEvents: 'auto' }}
         />
       </motion.div>

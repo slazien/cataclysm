@@ -110,6 +110,47 @@ export function useCanvasChart(margins: ChartMargins = DEFAULT_MARGINS) {
     return overlayCanvasRef.current?.getContext('2d') ?? null;
   }, []);
 
+  /**
+   * Returns onTouchStart / onTouchMove / onTouchEnd props that translate
+   * single-finger touches into the same clientX/clientY coordinates the
+   * mouse handlers expect, so canvas charts work on mobile without any
+   * per-chart changes.
+   *
+   * Usage: <canvas {...makeTouchProps(handleOverlayMouseMove, handleOverlayMouseLeave)} />
+   */
+  const makeTouchProps = useCallback(
+    (
+      onMove: (e: React.MouseEvent<HTMLCanvasElement>) => void,
+      onLeave: () => void,
+    ) => ({
+      onTouchStart: (e: React.TouchEvent<HTMLCanvasElement>) => {
+        // Prevent scroll while interacting with the chart
+        e.preventDefault();
+        const touch = e.touches[0];
+        if (!touch) return;
+        onMove({
+          currentTarget: e.currentTarget,
+          clientX: touch.clientX,
+          clientY: touch.clientY,
+        } as unknown as React.MouseEvent<HTMLCanvasElement>);
+      },
+      onTouchMove: (e: React.TouchEvent<HTMLCanvasElement>) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        if (!touch) return;
+        onMove({
+          currentTarget: e.currentTarget,
+          clientX: touch.clientX,
+          clientY: touch.clientY,
+        } as unknown as React.MouseEvent<HTMLCanvasElement>);
+      },
+      onTouchEnd: () => {
+        onLeave();
+      },
+    }),
+    [],
+  );
+
   return {
     containerRef,
     dataCanvasRef,
@@ -117,5 +158,6 @@ export function useCanvasChart(margins: ChartMargins = DEFAULT_MARGINS) {
     dimensions,
     getDataCtx,
     getOverlayCtx,
+    makeTouchProps,
   };
 }

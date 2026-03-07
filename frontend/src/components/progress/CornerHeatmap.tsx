@@ -52,7 +52,7 @@ export function CornerHeatmap({
   const [metric, setMetric] = useState<HeatmapMetric>('min_speed');
   const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
 
-  const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx } =
+  const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, makeTouchProps } =
     useCanvasChart(MARGINS);
 
   // Select the data based on metric
@@ -295,6 +295,7 @@ export function CornerHeatmap({
           style={{ width: '100%', height: '100%', cursor: 'pointer', zIndex: 2, pointerEvents: 'auto' }}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
+          {...makeTouchProps(handleMouseMove, handleMouseLeave)}
           onClick={handleClick}
         />
         {tooltip && (

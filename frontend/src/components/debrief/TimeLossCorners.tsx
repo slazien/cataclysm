@@ -30,7 +30,7 @@ export function TimeLossCorners({ corners }: TimeLossCornersProps) {
             </span>
 
             {/* Tip — single line, truncated if needed */}
-            <span className="min-w-0 flex-1 truncate text-sm text-[var(--text-secondary)]">
+            <span className="min-w-0 flex-1 line-clamp-2 text-sm text-[var(--text-secondary)]">
               <MarkdownText>{resolveSpeed(pc.tip)}</MarkdownText>
             </span>
 

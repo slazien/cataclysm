@@ -19,6 +19,7 @@ export function EquipmentProfileList() {
   const updateMutation = useUpdateProfile();
   const [modalOpen, setModalOpen] = useState(false);
   const [editProfile, setEditProfile] = useState<EquipmentProfile | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const profiles = profilesData?.items ?? [];
 
@@ -27,9 +28,11 @@ export function EquipmentProfileList() {
     setModalOpen(true);
   }
 
-  function handleDelete(profileId: string, name: string) {
-    if (window.confirm(`Delete profile "${name}"?`)) {
-      deleteMutation.mutate(profileId);
+  function handleDelete(profileId: string) {
+    if (confirmDeleteId === profileId) {
+      deleteMutation.mutate(profileId, { onSettled: () => setConfirmDeleteId(null) });
+    } else {
+      setConfirmDeleteId(profileId);
     }
   }
 
@@ -128,12 +131,20 @@ export function EquipmentProfileList() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDelete(profile.id, profile.name)}
+                  onClick={() => handleDelete(profile.id)}
+                  onBlur={() => { if (confirmDeleteId === profile.id) setConfirmDeleteId(null); }}
                   disabled={deleteMutation.isPending}
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-red-500/10 hover:text-red-400"
-                  title="Delete profile"
+                  className={`flex h-7 items-center justify-center rounded-md transition-colors ${
+                    confirmDeleteId === profile.id
+                      ? 'w-auto gap-1 bg-red-500/20 px-2 text-red-400'
+                      : 'w-7 text-[var(--text-secondary)] hover:bg-red-500/10 hover:text-red-400'
+                  }`}
+                  title={confirmDeleteId === profile.id ? 'Click again to confirm' : 'Delete profile'}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
+                  {confirmDeleteId === profile.id && (
+                    <span className="text-[11px] font-medium">Delete?</span>
+                  )}
                 </button>
               </div>
             </div>

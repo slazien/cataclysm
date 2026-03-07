@@ -34,9 +34,9 @@ const chipVariants = {
 // Colorblind-safe indicators: shape/weight supplements color
 const gradeIndicators: Record<string, { suffix: string; fontWeight: string }> = {
   A: { suffix: '\u00A0\u2713', fontWeight: 'font-bold' },
-  B: { suffix: '', fontWeight: 'font-bold' },
-  C: { suffix: '', fontWeight: 'font-medium' },
-  D: { suffix: '', fontWeight: 'font-normal' },
+  B: { suffix: '\u00A0+', fontWeight: 'font-bold' },
+  C: { suffix: '\u00A0~', fontWeight: 'font-medium' },
+  D: { suffix: '\u00A0!', fontWeight: 'font-normal' },
   F: { suffix: '\u00A0\u25BC', fontWeight: 'font-bold' },
 };
 

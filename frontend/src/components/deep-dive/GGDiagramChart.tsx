@@ -47,6 +47,7 @@ export function GGDiagramChart({ sessionId }: GGDiagramChartProps) {
     dimensions,
     getDataCtx,
     getOverlayCtx,
+    makeTouchProps,
   } = useCanvasChart(MARGINS);
 
   // Build symmetric scales centered at 0
@@ -417,6 +418,7 @@ export function GGDiagramChart({ sessionId }: GGDiagramChartProps) {
             className="absolute inset-0"
             onMouseMove={handleOverlayMouseMove}
             onMouseLeave={handleOverlayMouseLeave}
+            {...makeTouchProps(handleOverlayMouseMove, handleOverlayMouseLeave)}
             style={{
               width: '100%',
               height: '100%',
