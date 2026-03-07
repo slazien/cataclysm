@@ -335,31 +335,31 @@ record_upload(ip)  # Too late — slots already bypassed
 
 **Anti-pattern**: `if value == DEFAULT:` when the default can also be a legitimate value. Instead, check `if source == UNCALIBRATED and value == DEFAULT:` using metadata that tracks HOW the value was obtained.
 
-## TanStack Query Keys Must Mirror queryFn Inputs — Not External Dependencies ([2026-03-06])
+## Query Key + queryFn Must Stay In Sync When Using Cache-Busters ([2026-03-06, corrected 2026-03-07])
 
-**Pattern**: A query key should contain ONLY the values that the `queryFn` actually uses to fetch data. Never add a dependent variable (whose value comes from another async query) to the key just to "trigger refetches" — use `invalidateQueries` for that.
+**Pattern**: When a backend response depends on state the user can change (like equipment profile), you need BOTH:
+1. The dependent value in the React Query key (for distinct cache entries)
+2. The dependent value in the queryFn's URL (as a cache-buster, to avoid browser HTTP cache collisions)
 
-**Why**: Adding `equipmentProfileId` (from `useSessionEquipment`) to the `useOptimalComparison` query key created a race condition that took 4+ commits to diagnose:
-1. User switches equipment → `invalidatePhysicsQueries()` fires targeting `["optimal-comparison", sessionId, OLD_PROFILE_ID]`
-2. Equipment query resolves → component re-renders with NEW profile ID → query key becomes `["optimal-comparison", sessionId, NEW_PROFILE_ID]`
-3. The invalidation from step 1 doesn't match the new key → no refetch fires
-4. The new key is seen for the first time with `staleTime: Infinity` → TanStack treats it as a fresh query that needs fetching, but the timing gap means it may or may not fire depending on render order
-
-**Fix**: Remove `equipmentProfileId` from the key. The `queryFn` calls `getOptimalComparison(sessionId)` — the backend uses the session's assigned equipment, not a frontend-supplied profile ID. Invalidation with prefix `["optimal-comparison", sessionId]` now directly hits the active query.
+If you put the value in the key but NOT the URL, the browser HTTP cache (`Cache-Control: max-age=60`) serves the old response to the new key. If you put it in the URL but NOT the key, React Query overwrites the old entry.
 
 ```typescript
-// GOOD — key mirrors queryFn inputs
-queryKey: ["optimal-comparison", sessionId],
-queryFn: () => getOptimalComparison(sessionId!),
+// CORRECT — key and URL both include profileId
+queryKey: ["optimal-comparison", sessionId, profileId],
+queryFn: () => getOptimalComparison(sessionId!, profileId), // appends ?_eq=profileId
 
-// BAD — key includes external dependency not used by queryFn
-queryKey: ["optimal-comparison", sessionId, equipmentProfileId ?? "default"],
-queryFn: () => getOptimalComparison(sessionId!),  // doesn't use equipmentProfileId!
+// WRONG — key includes profileId but URL doesn't → browser HTTP cache collision
+queryKey: ["optimal-comparison", sessionId, profileId],
+queryFn: () => getOptimalComparison(sessionId!), // same URL for all profiles!
+
+// WRONG — URL includes profileId but key doesn't → overwrites previous profile's cache
+queryKey: ["optimal-comparison", sessionId],
+queryFn: () => getOptimalComparison(sessionId!, profileId),
 ```
 
-**Error signature**: Cache invalidation appears to work (you can see the invalidation call in React Query devtools) but no network request fires. The query shows as "stale" under the old key while a new, unfetched key exists.
+**Why**: This bug took 4+ commits across 2 sessions. First attempt put profileId in key only → browser served stale HTTP response. Second attempt removed profileId from key → invalidation-only approach was fragile. Correct fix: put in both key AND URL. Use `keepPreviousData` for smooth transitions and `isPlaceholderData` for loading animation.
 
-**General rule**: If a value affects the backend response but isn't passed BY the frontend in the request, it's a backend-side dependency. Handle it via invalidation, not query key inclusion.
+**Error signature**: Equipment switch updates the equipment name but the optimal target value stays the same, or returns different values for the same equipment on A→B→A cycles.
 
 ## Verify User State Before Making Assumptions ([2026-03-06])
 
@@ -376,6 +376,68 @@ queryFn: () => getOptimalComparison(sessionId!),  // doesn't use equipmentProfil
 **Why**: Changed staging frontend domain from `frontend-staging-b78c` to `cataclysm-staging` but only updated Railway env vars. User had to say "update your docs" before I updated the 3 doc files. Each doc file that references a URL/config value is a maintenance liability — update them all atomically.
 
 **Verification**: After changing any referenced value, run `grep -rn "old_value" CLAUDE.md docs/ tasks/` and the memory directory to find all occurrences.
+
+## TOCTOU Fixes Must Capture ALL Mutable State Reads Atomically ([2026-03-07])
+
+**Pattern**: When fixing a TOCTOU (Time-of-Check-Time-of-Use) race by capturing state before a boundary (thread pool, async task, network call), capture ALL reads from the mutable source — not just the cache key. If you capture `profile_id` but still call `resolve_vehicle_params(session_id)` inside the boundary, you've only fixed half the race.
+
+**Why**: First TOCTOU fix captured `profile_id` before `asyncio.to_thread()` for the cache key, but `_compute()` still called `resolve_vehicle_params(session_id)` and `_has_meaningful_grip(session_id)` inside the thread — both re-read the equipment store. If equipment changed between capture and thread execution, the computation used profile B's params but the result was cached under profile A's key.
+
+**Checklist for TOCTOU fixes**:
+1. Identify the mutable state source (e.g., equipment store)
+2. List ALL reads from that source in the protected region
+3. Move ALL reads before the boundary
+4. Pass captured values into the protected region via closure/args
+5. Use `nonlocal` in Python closures if captured values may be reassigned
+
+**Error signature**: Values look correct on first computation but A→B→A switching produces inconsistent results. The cache key is correct but the cached data belongs to a different state.
+
+## Multi-Layer Cache Bugs Need Layer-by-Layer Diagnosis ([2026-03-07])
+
+**Pattern**: When a caching bug manifests (stale data, inconsistent values on toggle), enumerate ALL caching layers between the user and the data source, then test each independently. Don't assume the bug is in the most obvious layer.
+
+**Methodology**:
+1. **Enumerate layers**: For this codebase: Browser HTTP cache (`Cache-Control`), React Query cache (in-memory), Backend physics cache (in-memory dict)
+2. **Test each layer**: Browser → Network tab shows 304/cached vs 200; React Query → devtools show query key + data; Backend → server logs show cache hit/miss
+3. **Fix bottom-up**: Fix the deepest layer first (backend), then middle (React Query), then shallowest (browser HTTP)
+4. **Verify after each fix**: Deploy, test A→B→A cycle, confirm values change
+
+**Why**: Equipment switching bug appeared as "values don't change" — initially attributed to React Query invalidation. Real root cause was browser HTTP cache serving stale responses for the same URL. Took 2 sessions because the browser cache layer was invisible (React Query appeared to work correctly since it fired fetches — but the fetches got browser-cached responses).
+
+**Caching layers in Cataclysm**:
+| Layer | Cache Key | TTL | Fix |
+|-------|-----------|-----|-----|
+| Browser HTTP | URL | `max-age=60` | `_eq=profileId` param |
+| React Query | `[endpoint, sessionId, profileId]` | `Infinity` | profileId in key + `keepPreviousData` |
+| Backend physics | `(session_id:endpoint, profile_id)` | 30 min | Atomic state capture before thread |
+
+**Error signature**: Values that seem to update "sometimes" — because whether the browser cache is hit depends on timing (within 60s = stale, after 60s = fresh).
+
+## Gate Dependent Queries on Parent Query Settlement ([2026-03-07])
+
+**Pattern**: When query B's cache key depends on query A's result (e.g., optimal-comparison key includes profileId from session-equipment), gate B with `enabled: A.isFetched`. Without this, B fires with a default/null key while A is loading, triggering a wasted computation that gets discarded when A resolves.
+
+```typescript
+// GOOD — waits for equipment to settle
+const { data: equipment, isFetched: equipmentSettled } = useSessionEquipment(sessionId);
+const profileId = equipment?.profile_id ?? null;
+return useQuery({
+  queryKey: ["optimal-comparison", sessionId, profileId],
+  enabled: !!sessionId && equipmentSettled,  // gates on parent
+});
+
+// BAD — fires immediately with null profileId
+const { data: equipment } = useSessionEquipment(sessionId);
+const profileId = equipment?.profile_id ?? null;
+return useQuery({
+  queryKey: ["optimal-comparison", sessionId, profileId],  // null while loading
+  enabled: !!sessionId,  // fires with wrong key
+});
+```
+
+**Why**: Without gating, optimal-comparison fires with `profileId=null` (equipment still loading), triggers an 8-second backend computation with default vehicle params, then throws it away when equipment resolves and profileId changes. The `~200ms` wait for equipment to settle saves `~8s` of wasted backend compute.
+
+**Error signature**: Backend logs show TWO optimal-comparison computations for the same session on page load — one with `profile_id=None` and one with the actual profile ID.
 
 ## Cache Invalidation Must Cover ALL CRUD Mutation Endpoints ([2026-03-06])
 
