@@ -71,13 +71,11 @@ export function useKeyboardShortcuts() {
           break;
         case 'ArrowLeft':
         case 'ArrowRight': {
-          if (
-            activeView !== 'deep-dive' ||
-            deepDiveMode !== 'corner' ||
-            !corners ||
-            corners.length === 0
-          )
-            break;
+          // Allow corner cycling in Corner tab, or in Speed tab when a corner is selected
+          const cornerCycleAllowed =
+            activeView === 'deep-dive' &&
+            (deepDiveMode === 'corner' || (deepDiveMode === 'speed' && selectedCorner));
+          if (!cornerCycleAllowed || !corners || corners.length === 0) break;
           e.preventDefault();
           e.stopPropagation();
 

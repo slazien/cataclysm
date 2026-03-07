@@ -1,6 +1,6 @@
 'use client';
 
-import { useCorners, useAllLapCorners, useOptimalComparison } from '@/hooks/useAnalysis';
+import { useCorners, useAllLapCorners, useOptimalComparison, useLineAnalysis } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useAnalysisStore, useSessionStore } from '@/stores';
 import { useSession } from '@/hooks/useSession';
@@ -16,6 +16,7 @@ import { useUnits } from '@/hooks/useUnits';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
 import { gradeExplanation } from '@/lib/skill-content';
 import { InfoTooltip } from '@/components/shared/InfoTooltip';
+import { CornerLineMap } from '@/components/deep-dive/charts/CornerLineMap';
 import type { Corner, CornerGrade, PriorityCorner } from '@/lib/types';
 
 interface CornerDetailPanelProps {
@@ -111,6 +112,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
   const { data: allLapCorners } = useAllLapCorners(sessionId);
   const { data: report } = useCoachingReport(sessionId);
   const { data: optimalComparison } = useOptimalComparison(sessionId);
+  const { data: lineData } = useLineAnalysis(sessionId);
   const { convertSpeed, convertDistance, speedUnit, distanceUnit, resolveSpeed } = useUnits();
   const { skillLevel, showFeature } = useSkillLevel();
   const showExplanations = showFeature('grade_explanations');
@@ -335,6 +337,18 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
           <AiInsight mode="card">
             <p className="text-xs leading-relaxed"><MarkdownText>{resolveSpeed(priorityCorner?.tip ?? cornerGrade?.notes ?? '')}</MarkdownText></p>
           </AiInsight>
+        </div>
+      )}
+
+      {/* Bird's-eye corner line map */}
+      {lineData?.available && lineData.lap_traces?.length > 0 && (
+        <div className="pt-3 mt-1 border-t border-[var(--cata-border)]">
+          <div className="mb-1.5 text-xs font-medium text-[var(--text-secondary)]">
+            Racing Line Map
+          </div>
+          <div className="rounded-md border border-[var(--cata-border)] bg-[var(--bg-base)] overflow-hidden">
+            <CornerLineMap sessionId={sessionId} cornerNumber={cornerNumber} />
+          </div>
         </div>
       )}
 
