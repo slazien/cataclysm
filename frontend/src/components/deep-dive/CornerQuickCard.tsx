@@ -10,6 +10,7 @@ import { colors } from '@/lib/design-tokens';
 import { worstGrade } from '@/lib/gradeUtils';
 import { parseCornerNumber } from '@/lib/cornerUtils';
 import { useUnits } from '@/hooks/useUnits';
+import { CornerLineMap } from '@/components/deep-dive/charts/CornerLineMap';
 import type { Corner, CornerGrade, CornerLineProfile, PriorityCorner } from '@/lib/types';
 
 interface CornerQuickCardProps {
@@ -301,6 +302,18 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
           </div>
         );
       })()}
+
+      {/* Bird's-eye corner line map */}
+      {lineData?.available && lineData.lap_traces?.length > 0 && (
+        <div className="pt-3 mt-1 border-t border-[var(--cata-border)]">
+          <div className="mb-1.5 text-xs font-medium text-[var(--text-secondary)]">
+            Racing Line Map
+          </div>
+          <div className="rounded-md border border-[var(--cata-border)] bg-[var(--bg-base)] overflow-hidden">
+            <CornerLineMap sessionId={sessionId} cornerNumber={cornerNumber} />
+          </div>
+        </div>
+      )}
 
       {/* AI coaching tip */}
       {(priorityCorner || cornerGrade?.notes) && (

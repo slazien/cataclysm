@@ -31,6 +31,7 @@ from backend.api.schemas.analysis import (
     GripResponse,
     IdealLapResponse,
     LapSectorSplitsSchema,
+    LapSpatialTraceSchema,
     LateralOffsetTraceSchema,
     LineAnalysisResponse,
     LinkedChartResponse,
@@ -659,6 +660,7 @@ async def get_line_analysis(
             reference_e=[],
             reference_n=[],
             n_laps_used=0,
+            lap_traces=[],
         )
 
     from cataclysm.gps_line import compute_lateral_offsets
@@ -708,6 +710,7 @@ async def get_line_analysis(
             reference_e=ref.e.tolist(),
             reference_n=ref.n.tolist(),
             n_laps_used=ref.n_laps_used,
+            lap_traces=[],
         )
 
     # Compute lateral offsets for requested traces
@@ -731,6 +734,23 @@ async def get_line_analysis(
     # Distance grid from shortest trace
     distance_m = traces[0].distance_m[:min_len].tolist() if traces else []
 
+    # Build per-lap spatial traces (E/N + speed) for bird's-eye corner map
+    resampled = sd.processed.resampled_laps
+    lap_traces: list[LapSpatialTraceSchema] = []
+    for trace in traces:
+        speed_arr: list[float] = []
+        if trace.lap_number in resampled:
+            df = resampled[trace.lap_number]
+            speed_arr = df["speed_mps"].to_numpy()[:min_len].tolist()
+        lap_traces.append(
+            LapSpatialTraceSchema(
+                lap_number=trace.lap_number,
+                e=trace.e[:min_len].tolist(),
+                n=trace.n[:min_len].tolist(),
+                speed_mps=speed_arr,
+            )
+        )
+
     corner_profiles = [_profile_to_schema(p) for p in sd.corner_line_profiles]
 
     return LineAnalysisResponse(
@@ -742,4 +762,5 @@ async def get_line_analysis(
         reference_e=ref.e[:min_len].tolist(),
         reference_n=ref.n[:min_len].tolist(),
         n_laps_used=ref.n_laps_used,
+        lap_traces=lap_traces,
     )

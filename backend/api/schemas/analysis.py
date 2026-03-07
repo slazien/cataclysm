@@ -281,6 +281,15 @@ class LateralOffsetTraceSchema(BaseModel):
     offsets_m: list[float]  # signed offset at each distance point
 
 
+class LapSpatialTraceSchema(BaseModel):
+    """Per-lap ENU coordinates + speed for bird's-eye corner map."""
+
+    lap_number: int
+    e: list[float]  # East coords (meters from session origin)
+    n: list[float]  # North coords (meters from session origin)
+    speed_mps: list[float]  # speed at each point
+
+
 class LineAnalysisResponse(BaseModel):
     """Full line analysis: corner profiles + per-lap lateral offsets."""
 
@@ -292,3 +301,6 @@ class LineAnalysisResponse(BaseModel):
     reference_e: list[float]  # reference centerline East coords
     reference_n: list[float]  # reference centerline North coords
     n_laps_used: int  # laps used to build reference
+    lap_traces: list[LapSpatialTraceSchema] = Field(
+        default_factory=list, description="Per-lap ENU + speed for corner map"
+    )

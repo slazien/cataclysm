@@ -847,6 +847,13 @@ export interface LateralOffsetTrace {
   offsets_m: number[];
 }
 
+export interface LapSpatialTrace {
+  lap_number: number;
+  e: number[];
+  n: number[];
+  speed_mps: number[];
+}
+
 export interface LineAnalysisData {
   session_id: string;
   available: boolean;
@@ -856,4 +863,5 @@ export interface LineAnalysisData {
   reference_e: number[];
   reference_n: number[];
   n_laps_used: number;
+  lap_traces: LapSpatialTrace[];
 }
