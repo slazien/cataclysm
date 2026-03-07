@@ -1,6 +1,7 @@
 'use client';
 
 import { motion as m } from 'motion/react';
+import { cn } from '@/lib/utils';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { motion as motionTokens } from '@/lib/design-tokens';
 import type { SessionSummary, LapSummary, SessionConsistency } from '@/lib/types';
@@ -13,6 +14,8 @@ interface MetricsGridProps {
   isAdvanced: boolean;
   /** Physics-optimal lap time (equipment-aware). Preferred over session ideal lap when present. */
   physicsOptimalLapTime?: number;
+  /** True while the optimal target is being recomputed for new equipment. */
+  isOptimalRefreshing?: boolean;
 }
 
 function formatTime(seconds: number): string {
@@ -21,7 +24,7 @@ function formatTime(seconds: number): string {
   return `${min}:${sec.padStart(6, '0')}`;
 }
 
-export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced, physicsOptimalLapTime }: MetricsGridProps) {
+export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced, physicsOptimalLapTime, isOptimalRefreshing }: MetricsGridProps) {
   const bestLap = session?.best_lap_time_s;
   const top3Avg = session?.top3_avg_time_s;
   const optimalLap = physicsOptimalLapTime;
@@ -51,6 +54,7 @@ export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced, 
             value={formatTime(optimalLap)}
             subtitle={optimalDelta != null ? `${optimalDelta.toFixed(3)}s potential` : undefined}
             helpKey="metric.optimal-lap"
+            className={cn(isOptimalRefreshing && 'animate-pulse')}
           />
         )}
         {!isNovice && (

@@ -120,6 +120,13 @@ export function useAssignEquipment() {
         queryKey: ["session", variables.sessionId],
       });
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      // Belt-and-suspenders: also invalidate all optimal-comparison queries
+      // for this session.  The query key already includes profileId so a new
+      // query is created on switch, but invalidation ensures any in-flight
+      // or stale queries are cleared.
+      queryClient.invalidateQueries({
+        queryKey: ["optimal-comparison", variables.sessionId],
+      });
     },
   });
 }
