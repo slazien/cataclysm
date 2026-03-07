@@ -1,6 +1,6 @@
 """Curated database of common HPDE/track-day cars with manufacturer specs.
 
-Provides lookup and search functions over a static collection of ~45 well-known
+Provides lookup and search functions over a static collection of ~50 well-known
 track-day vehicles spanning sports cars, muscle cars, hot hatches, and sedans.
 Each entry carries real manufacturer specs for weight, wheelbase, power, and
 drivetrain, plus estimated CG height and track width from published data.
@@ -498,6 +498,24 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         has_aero=False,
         cd_a=0.59,
         notes="2.0 L turbo flat-4 (base). GTS has 4.0 flat-6.",
+    ),
+    "porsche_cayman_gt4_718": VehicleSpec(
+        make="Porsche",
+        model="Cayman GT4",
+        generation="718",
+        year_range=(2020, 2025),
+        weight_kg=1420,
+        wheelbase_m=2.475,
+        track_width_front_m=1.524,
+        track_width_rear_m=1.544,
+        cg_height_m=0.45,
+        weight_dist_front_pct=43.0,
+        drivetrain="RWD",
+        hp=414,
+        torque_nm=420,
+        has_aero=True,
+        cd_a=0.68,
+        notes="4.0 L flat-6 NA (shared with 992 GT3). Fixed rear wing.",
     ),
     "porsche_911_gt3_991": VehicleSpec(
         make="Porsche",
