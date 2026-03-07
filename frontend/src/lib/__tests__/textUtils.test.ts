@@ -1,4 +1,9 @@
-import { resolveSpeedMarkers, extractActionTitle, extractDetailText } from '../textUtils';
+import {
+  resolveSpeedMarkers,
+  extractActionTitle,
+  extractDetailText,
+  formatCoachingText,
+} from '../textUtils';
 
 describe('resolveSpeedMarkers', () => {
   describe('imperial mode (isMetric=false)', () => {
@@ -42,6 +47,28 @@ describe('resolveSpeedMarkers', () => {
       // 100 * 1.60934 = 160.934 -> 161 (0 decimals)
       expect(resolveSpeedMarkers('Top speed {{speed:100}}', true)).toBe(
         'Top speed 161 km/h',
+      );
+    });
+  });
+
+  describe('range markers {{speed:N-M}}', () => {
+    it('resolves range marker to "N-M mph" in imperial', () => {
+      expect(resolveSpeedMarkers('within {{speed:1-2}} of your best', false)).toBe(
+        'within 1-2 mph of your best',
+      );
+    });
+
+    it('converts range marker to km/h in metric', () => {
+      // 1*1.60934=2, 2*1.60934=3
+      expect(resolveSpeedMarkers('within {{speed:1-2}} of your best', true)).toBe(
+        'within 2-3 km/h of your best',
+      );
+    });
+
+    it('handles decimal range marker', () => {
+      // 1.5*1.60934=2.4, 2.5*1.60934=4.0
+      expect(resolveSpeedMarkers('gap of {{speed:1.5-2.5}}', true)).toBe(
+        'gap of 2.4-4.0 km/h',
       );
     });
   });
@@ -204,5 +231,123 @@ describe('extractDetailText', () => {
   it('falls back to clause-based split when no bold', () => {
     const text = 'Late braking into T5, causing consistent overshoot at the apex.';
     expect(extractDetailText(text)).toBe('causing consistent overshoot at the apex.');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatCoachingText
+// ---------------------------------------------------------------------------
+
+describe('formatCoachingText', () => {
+  it('returns text unchanged when it already has paragraph breaks', () => {
+    const text = 'First paragraph.\n\nSecond paragraph.';
+    expect(formatCoachingText(text)).toBe(text);
+  });
+
+  it('inserts break before "Lap N:" markers', () => {
+    const text = 'Do something. Lap 1-2: brake later. Lap 3-4: try trail braking.';
+    const result = formatCoachingText(text);
+    expect(result).toContain('\n\nLap 1-2:');
+    expect(result).toContain('\n\nLap 3-4:');
+  });
+
+  it('inserts break before "On Laps N" markers', () => {
+    const text = 'Warm up first. On Laps 1-2 focus on braking.';
+    const result = formatCoachingText(text);
+    expect(result).toContain('\n\nOn Laps 1-2');
+  });
+
+  it('inserts break before section headers like Measure:/Target:/Goal:', () => {
+    const text = 'Focus on entry speed. Measure: brake-to-apex delta. Target: under 0.5s.';
+    const result = formatCoachingText(text);
+    expect(result).toContain('\n\nMeasure:');
+    expect(result).toContain('\n\nTarget:');
+  });
+
+  it('inserts break before evidence sentences like "Early laps"', () => {
+    const text = 'Braking is consistent. Early laps show good brake points.';
+    const result = formatCoachingText(text);
+    expect(result).toContain('\n\nEarly laps');
+  });
+
+  it('inserts break before "This" sentences (not "This is")', () => {
+    const text = 'Speed drops by 5mph. This suggests tire degradation.';
+    const result = formatCoachingText(text);
+    expect(result).toContain('\n\nThis suggests');
+  });
+
+  it('does not insert break before "This is"', () => {
+    const text = 'Speed drops by 5mph. This is normal.';
+    const result = formatCoachingText(text);
+    expect(result).not.toContain('\n\nThis is');
+  });
+
+  it('inserts break before Focus:/Setup:/Key: headers', () => {
+    const text = 'Go faster. Focus: corner entry. Setup: lower tire pressure.';
+    const result = formatCoachingText(text);
+    expect(result).toContain('\n\nFocus:');
+    expect(result).toContain('\n\nSetup:');
+  });
+
+  it('inserts break before action instructions like "Focus on"', () => {
+    const text = 'Speed is good. Focus on trail braking next.';
+    const result = formatCoachingText(text);
+    expect(result).toContain('\n\nFocus on');
+  });
+
+  it('inserts break before numbered steps', () => {
+    const text = 'Here is the drill. 1. Brake at the 2-board. 2. Trail brake to apex.';
+    const result = formatCoachingText(text);
+    expect(result).toContain('\n\n1. Brake');
+    expect(result).toContain('\n\n2. Trail');
+  });
+
+  it('inserts break before "Throttle is"', () => {
+    const text = 'Summary of findings. Throttle is consistent across the session.';
+    const result = formatCoachingText(text);
+    expect(result).toContain('\n\nThrottle is');
+  });
+
+  it('returns text unchanged when no patterns match', () => {
+    const text = 'Simple text without any coaching markers';
+    expect(formatCoachingText(text)).toBe(text);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// closeMarkdown (tested via extractActionTitle)
+// ---------------------------------------------------------------------------
+
+describe('closeMarkdown via extractActionTitle', () => {
+  it('closes unclosed bold markers in truncated text', () => {
+    // Build text where first clause has an unclosed **
+    // "**Bold start but no close, overflow text" -> clause extraction gets "**Bold start but no close"
+    // which has 1 ** -> odd count -> should append **
+    const text = '**Bold start but no close, overflow text that continues.';
+    const result = extractActionTitle(text);
+    // The bold match regex won't match since there's no closing **
+    // So it falls through to clause extraction: "**Bold start but no close"
+    // closeMarkdown sees 1 ** (odd) -> appends **
+    expect(result).toContain('**');
+    // Count ** occurrences - should be even
+    const boldCount = (result.match(/\*\*/g) || []).length;
+    expect(boldCount % 2).toBe(0);
+  });
+
+  it('closes unclosed italic markers in truncated text', () => {
+    // Text with a lone * that gets truncated by clause extraction
+    const text = '*italic start here, then continues with more text.';
+    const result = extractActionTitle(text);
+    // closeMarkdown should close the lone *
+    const withoutBold = result.replace(/\*\*/g, '');
+    const italicCount = (withoutBold.match(/\*/g) || []).length;
+    expect(italicCount % 2).toBe(0);
+  });
+
+  it('does not add extra markers when markdown is already balanced', () => {
+    const text = '**Good bold title**, then more text follows here.';
+    const result = extractActionTitle(text);
+    // Bold title is properly extracted with matching markers
+    expect(result).toBe('**Good bold title**');
   });
 });

@@ -43,10 +43,26 @@ from cataclysm.track_db import TrackLayout, get_key_corners, get_peculiarities
 logger = logging.getLogger(__name__)
 
 _SPEED_MARKER_RE = re.compile(r"\{\{speed:([\d.]+)\}\}")
+_SPEED_RANGE_MARKER_RE = re.compile(r"\{\{speed:([\d.]+)-([\d.]+)\}\}")
 
 
 def resolve_speed_markers(text: str, *, metric: bool = False) -> str:
-    """Resolve ``{{speed:N}}`` markers to display text.  N is always mph."""
+    """Resolve ``{{speed:N}}`` and ``{{speed:N-M}}`` markers to display text.
+
+    N is always mph.  Range markers are an LLM edge-case fallback.
+    """
+
+    def _replace_range(m: re.Match[str]) -> str:
+        a, b = m.group(1), m.group(2)
+        try:
+            mph_a, mph_b = float(a), float(b)
+        except ValueError:
+            return f"{a}-{b}"
+        if metric:
+            dec_a = len(a.split(".")[1]) if "." in a else 0
+            dec_b = len(b.split(".")[1]) if "." in b else 0
+            return f"{mph_a * 1.60934:.{dec_a}f}-{mph_b * 1.60934:.{dec_b}f} km/h"
+        return f"{a}-{b} mph"
 
     def _replace(m: re.Match[str]) -> str:
         val = m.group(1)
@@ -59,7 +75,9 @@ def resolve_speed_markers(text: str, *, metric: bool = False) -> str:
             return f"{mph * 1.60934:.{dec}f} km/h"
         return f"{val} mph"
 
-    return _SPEED_MARKER_RE.sub(_replace, text)
+    # Process range markers first, then single markers
+    result = _SPEED_RANGE_MARKER_RE.sub(_replace_range, text)
+    return _SPEED_MARKER_RE.sub(_replace, result)
 
 
 _validator: CoachingValidator | None = None
@@ -999,7 +1017,9 @@ let's close the gap to those"
 SPEED FORMATTING: In ALL text fields \
 (primary_focus, summary, issue, tip, notes, patterns, drills), \
 wrap every speed value with the marker {{{{speed:N}}}} where N is the numeric value in mph. \
+For ranges, use TWO separate markers: {{{{speed:1}}}}-{{{{speed:2}}}}, NOT {{{{speed:1-2}}}}. \
 Example: "Carry {{{{speed:3}}}} more through the apex" or "Min speed was {{{{speed:42.5}}}}". \
+Example range: "within {{{{speed:1}}}}-{{{{speed:2}}}} of your best". \
 Never write bare "mph" or "km/h" in text fields — always use {{{{speed:N}}}}.
 </instructions>"""
 

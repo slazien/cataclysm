@@ -1,4 +1,5 @@
 const SPEED_MARKER_RE = /\{\{speed:([\d.]+)\}\}/g;
+const SPEED_RANGE_MARKER_RE = /\{\{speed:([\d.]+)-([\d.]+)\}\}/g;
 const TIME_MARKER_RE = /\{\{time:([\d.]+)\}\}/g;
 const SPEED_RANGE_LEGACY_RE = /(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)\s*mph/gi;
 const SPEED_SINGLE_LEGACY_RE = /(\d+(?:\.\d+)?)\s*mph/gi;
@@ -13,7 +14,20 @@ export function resolveSpeedMarkers(text: string, isMetric: boolean): string {
   // Phase 0: resolve {{time:N}} markers (unit-agnostic, always seconds)
   let result = text.replace(TIME_MARKER_RE, (_, n: string) => `${n}s`);
 
-  // Phase 1: structured {{speed:N}} markers
+  // Phase 1a: range markers {{speed:N-M}} (LLM sometimes emits these)
+  result = result.replace(SPEED_RANGE_MARKER_RE, (_, a: string, b: string) => {
+    const mphA = parseFloat(a);
+    const mphB = parseFloat(b);
+    if (isNaN(mphA) || isNaN(mphB)) return `${a}-${b}`;
+    if (isMetric) {
+      const decA = a.includes('.') ? a.split('.')[1].length : 0;
+      const decB = b.includes('.') ? b.split('.')[1].length : 0;
+      return `${(mphA * MPH_TO_KMH).toFixed(decA)}-${(mphB * MPH_TO_KMH).toFixed(decB)} km/h`;
+    }
+    return `${a}-${b} mph`;
+  });
+
+  // Phase 1b: structured {{speed:N}} markers
   result = result.replace(SPEED_MARKER_RE, (_, n: string) => {
     const mph = parseFloat(n);
     if (isNaN(mph)) return n;
