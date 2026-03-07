@@ -23,17 +23,17 @@ const PHYSICS_DEPENDENT_KEYS = [
   "ideal-lap",
 ] as const;
 
-function resetPhysicsQueries(
+function invalidatePhysicsQueries(
   queryClient: ReturnType<typeof useQueryClient>,
   sessionId?: string,
 ) {
   for (const key of PHYSICS_DEPENDENT_KEYS) {
     const queryKey = sessionId ? [key, sessionId] : [key];
-    // resetQueries clears cached data immediately (components show loading
-    // skeletons) and triggers a fresh fetch for active observers.  This is
-    // more reliable than invalidateQueries for staleTime: Infinity queries,
-    // which can leave stale data visible during the background refetch.
-    queryClient.resetQueries({ queryKey });
+    // invalidateQueries marks stale and triggers a background refetch while
+    // keeping the previous value visible.  This avoids a flash of stale
+    // fallback data (the equipment-independent ideal lap) during the
+    // transition.  invalidateQueries overrides staleTime: Infinity.
+    queryClient.invalidateQueries({ queryKey });
   }
 }
 
@@ -76,7 +76,7 @@ export function useDeleteProfile() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipment-profiles"] });
       // Deleted profile may have been assigned to sessions
-      resetPhysicsQueries(queryClient);
+      invalidatePhysicsQueries(queryClient);
     },
   });
 }
@@ -129,7 +129,7 @@ export function useAssignEquipment() {
         queryKey: ["session", variables.sessionId],
       });
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
-      resetPhysicsQueries(queryClient, variables.sessionId);
+      invalidatePhysicsQueries(queryClient, variables.sessionId);
     },
   });
 }
@@ -159,7 +159,7 @@ export function useUpdateProfile() {
       // for any session using this profile — invalidate all session details
       queryClient.invalidateQueries({ queryKey: ["session"] });
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
-      resetPhysicsQueries(queryClient);
+      invalidatePhysicsQueries(queryClient);
     },
   });
 }

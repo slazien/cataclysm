@@ -35,6 +35,34 @@ describe('MetricsGrid', () => {
     expect(screen.queryByText('Pace Spread')).toBeNull();
   });
 
+  it('does not show optimal target when physics value is absent', () => {
+    render(
+      <MetricsGrid
+        session={{
+          session_id: 'sess-1',
+          track_name: 'Barber',
+          session_date: '2026-02-22',
+          n_laps: 8,
+          n_clean_laps: 6,
+          best_lap_time_s: 100,
+          top3_avg_time_s: 100.3,
+          avg_lap_time_s: 101,
+          consistency_score: 82,
+          session_score: 78,
+          optimal_lap_time_s: 98.5,
+        }}
+        laps={[]}
+        consistency={null}
+        isNovice={false}
+        isAdvanced={false}
+      />,
+    );
+
+    // Without physicsOptimalLapTime, the card should not appear — no fallback
+    expect(screen.queryByText('Optimal Target')).toBeNull();
+    expect(screen.queryByText('1:38.500')).toBeNull();
+  });
+
   it('prefers physics-optimal lap time over session ideal lap', () => {
     render(
       <MetricsGrid

@@ -24,7 +24,7 @@ function formatTime(seconds: number): string {
 export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced, physicsOptimalLapTime }: MetricsGridProps) {
   const bestLap = session?.best_lap_time_s;
   const top3Avg = session?.top3_avg_time_s;
-  const optimalLap = physicsOptimalLapTime ?? session?.optimal_lap_time_s;
+  const optimalLap = physicsOptimalLapTime;
   const nLaps = session?.n_laps ?? laps?.length;
   const consistencyScore = consistency?.lap_consistency?.consistency_score;
 
