@@ -32,7 +32,7 @@ export function StudentCard({ student, isSelected, onClick }: StudentCardProps) 
             className="h-9 w-9 rounded-full object-cover"
           />
         ) : (
-          <User className="h-4 w-4 text-[var(--text-muted)]" />
+          <User className="h-4 w-4 text-[var(--text-secondary)]" />
         )}
       </div>
 
@@ -41,7 +41,7 @@ export function StudentCard({ student, isSelected, onClick }: StudentCardProps) 
         <p className="truncate text-sm font-medium text-[var(--text-primary)]">
           {student.name}
         </p>
-        <p className="truncate text-xs text-[var(--text-muted)]">{student.email}</p>
+        <p className="truncate text-xs text-[var(--text-secondary)]">{student.email}</p>
         {student.recent_flags.length > 0 && (
           <div className="mt-1.5 flex flex-wrap gap-1">
             {student.recent_flags.slice(0, 3).map((flag, i) => (
@@ -51,7 +51,7 @@ export function StudentCard({ student, isSelected, onClick }: StudentCardProps) 
         )}
       </div>
 
-      <ChevronRight className="h-4 w-4 flex-shrink-0 text-[var(--text-muted)]" />
+      <ChevronRight className="h-4 w-4 flex-shrink-0 text-[var(--text-secondary)]" />
     </button>
   );
 }

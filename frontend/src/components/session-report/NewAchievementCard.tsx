@@ -28,9 +28,9 @@ export function NewAchievementCard({ achievements, onViewAll }: NewAchievementCa
         </h3>
       </div>
       <p className="text-sm font-semibold text-[var(--text-primary)]">{latest.name}</p>
-      <p className="text-xs text-[var(--text-muted)]">{latest.description}</p>
+      <p className="text-xs text-[var(--text-secondary)]">{latest.description}</p>
       {achievements.length > 1 && (
-        <p className="mt-1 text-xs text-[var(--text-muted)]">
+        <p className="mt-1 text-xs text-[var(--text-secondary)]">
           +{achievements.length - 1} more
         </p>
       )}

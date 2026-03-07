@@ -58,7 +58,7 @@ function Sparkline({ data, width, height }: { data: SparklineData; width: number
           dominantBaseline="middle"
           fill="currentColor"
           fontSize={9}
-          className="text-[var(--text-muted)]"
+          className="text-[var(--text-secondary)]"
         >
           --
         </text>
@@ -155,13 +155,13 @@ export function CornerTrendSparklines({
               className="flex items-center gap-2 rounded-md border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-2.5 py-2"
             >
               <div className="min-w-0 shrink-0">
-                <p className="text-[10px] font-medium text-[var(--text-muted)]">
+                <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                   T{data.cornerKey}
                 </p>
                 <p className={cn('text-sm font-semibold tabular-nums', colors.text)}>
                   {data.latestValue != null ? `${convertSpeed(data.latestValue).toFixed(0)}` : '--'}
                 </p>
-                <p className="text-[9px] text-[var(--text-muted)]">{speedUnit}</p>
+                <p className="text-[9px] text-[var(--text-secondary)]">{speedUnit}</p>
               </div>
               <div className="min-w-0 flex-1">
                 <Sparkline data={data} width={72} height={28} />

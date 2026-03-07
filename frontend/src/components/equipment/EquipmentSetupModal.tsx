@@ -280,14 +280,14 @@ export function EquipmentSetupModal({
 
           {/* --- VEHICLE --- */}
           <fieldset>
-            <legend className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            <legend className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               <span className="inline-flex items-center gap-1.5"><Car className="h-3.5 w-3.5" />Vehicle</span>
             </legend>
             <div className="flex flex-col gap-3">
               {!selectedVehicle ? (
                 <>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-secondary)]" />
                     <input
                       type="text"
                       value={vehicleQuery}
@@ -297,7 +297,7 @@ export function EquipmentSetupModal({
                     />
                   </div>
                   {searchingVehicles && (
-                    <p className="text-xs text-[var(--text-muted)]">Searching...</p>
+                    <p className="text-xs text-[var(--text-secondary)]">Searching...</p>
                   )}
                   {vehicleResults && vehicleResults.length > 0 && (
                     <div className="max-h-48 overflow-y-auto rounded-md border border-[var(--cata-border)]">
@@ -312,7 +312,7 @@ export function EquipmentSetupModal({
                             <p className="text-sm font-medium text-[var(--text-primary)]">
                               {v.make} {v.model}
                             </p>
-                            <p className="text-xs text-[var(--text-muted)]">
+                            <p className="text-xs text-[var(--text-secondary)]">
                               {v.generation} | {v.year_range[0]}-{v.year_range[1]}
                             </p>
                           </div>
@@ -326,7 +326,7 @@ export function EquipmentSetupModal({
                     </div>
                   )}
                   {vehicleQuery.length >= 2 && !searchingVehicles && vehicleResults?.length === 0 && (
-                    <p className="text-xs text-[var(--text-muted)]">No vehicles found</p>
+                    <p className="text-xs text-[var(--text-secondary)]">No vehicles found</p>
                   )}
                 </>
               ) : (
@@ -347,32 +347,32 @@ export function EquipmentSetupModal({
                         setVehicleQuery('');
                         setVehicleOverrides({});
                       }}
-                      className="rounded p-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                      className="rounded p-0.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     >
                       <X className="h-4 w-4" />
                     </button>
                   </div>
                   <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
                     <div>
-                      <span className="text-[var(--text-muted)]">Power</span>
+                      <span className="text-[var(--text-secondary)]">Power</span>
                       <p className="font-medium text-[var(--text-primary)]">
                         {vehicleOverrides.hp ?? selectedVehicle.hp} HP
                         {vehicleOverrides.hp != null && (
-                          <span className="ml-1 text-[var(--text-muted)]">(stock: {selectedVehicle.hp})</span>
+                          <span className="ml-1 text-[var(--text-secondary)]">(stock: {selectedVehicle.hp})</span>
                         )}
                       </p>
                     </div>
                     <div>
-                      <span className="text-[var(--text-muted)]">Weight</span>
+                      <span className="text-[var(--text-secondary)]">Weight</span>
                       <p className="font-medium text-[var(--text-primary)]">
                         {Math.round((vehicleOverrides.weight_kg ?? selectedVehicle.weight_kg) * 2.205)} lb
                         {vehicleOverrides.weight_kg != null && (
-                          <span className="ml-1 text-[var(--text-muted)]">(stock: {Math.round(selectedVehicle.weight_kg * 2.205)})</span>
+                          <span className="ml-1 text-[var(--text-secondary)]">(stock: {Math.round(selectedVehicle.weight_kg * 2.205)})</span>
                         )}
                       </p>
                     </div>
                     <div>
-                      <span className="text-[var(--text-muted)]">Torque</span>
+                      <span className="text-[var(--text-secondary)]">Torque</span>
                       <p className="font-medium text-[var(--text-primary)]">
                         {Math.round((vehicleOverrides.torque_nm ?? selectedVehicle.torque_nm) * 0.7376)} ft-lb
                       </p>
@@ -381,7 +381,7 @@ export function EquipmentSetupModal({
                   {/* Quick override for HP and weight */}
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <div>
-                      <label className="mb-0.5 block text-[10px] font-medium text-[var(--text-muted)]">
+                      <label className="mb-0.5 block text-[10px] font-medium text-[var(--text-secondary)]">
                         Override HP
                       </label>
                       <input
@@ -402,7 +402,7 @@ export function EquipmentSetupModal({
                       />
                     </div>
                     <div>
-                      <label className="mb-0.5 block text-[10px] font-medium text-[var(--text-muted)]">
+                      <label className="mb-0.5 block text-[10px] font-medium text-[var(--text-secondary)]">
                         Override Weight (kg)
                       </label>
                       <input
@@ -430,13 +430,13 @@ export function EquipmentSetupModal({
 
           {/* --- TIRES --- */}
           <fieldset>
-            <legend className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            <legend className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               Tires
             </legend>
             <div className="flex flex-col gap-3">
               {/* Tire search */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-secondary)]" />
                 <input
                   type="text"
                   value={tireQuery}
@@ -451,7 +451,7 @@ export function EquipmentSetupModal({
 
               {/* Tire search results */}
               {searchingTires && (
-                <p className="text-xs text-[var(--text-muted)]">Searching...</p>
+                <p className="text-xs text-[var(--text-secondary)]">Searching...</p>
               )}
               {tireResults && tireResults.length > 0 && !selectedTire && (
                 <div className="max-h-36 overflow-y-auto rounded-md border border-[var(--cata-border)]">
@@ -464,12 +464,12 @@ export function EquipmentSetupModal({
                     >
                       <div>
                         <p className="text-sm font-medium text-[var(--text-primary)]">{tire.model}</p>
-                        <p className="text-xs text-[var(--text-muted)]">
+                        <p className="text-xs text-[var(--text-secondary)]">
                           {COMPOUND_LABELS[tire.compound_category] ?? tire.compound_category}
                           {tire.treadwear_rating ? ` | TW ${tire.treadwear_rating}` : ''}
                         </p>
                       </div>
-                      <span className="text-xs text-[var(--text-muted)]">{tire.brand}</span>
+                      <span className="text-xs text-[var(--text-secondary)]">{tire.brand}</span>
                     </button>
                   ))}
                 </div>
@@ -525,7 +525,7 @@ export function EquipmentSetupModal({
                     <button
                       type="button"
                       onClick={() => setTireSizeOpen((v) => !v)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]"
                     >
                       <ChevronDown className="h-3.5 w-3.5" />
                     </button>
@@ -570,13 +570,13 @@ export function EquipmentSetupModal({
 
           {/* --- BRAKES --- */}
           <fieldset>
-            <legend className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            <legend className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               Brakes
             </legend>
             <div className="flex flex-col gap-3">
               {/* Pad search */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-secondary)]" />
                 <input
                   type="text"
                   value={padQuery}
@@ -591,7 +591,7 @@ export function EquipmentSetupModal({
 
               {/* Pad search results */}
               {searchingPads && (
-                <p className="text-xs text-[var(--text-muted)]">Searching...</p>
+                <p className="text-xs text-[var(--text-secondary)]">Searching...</p>
               )}
               {padResults && padResults.length > 0 && !selectedPad && (
                 <div className="max-h-36 overflow-y-auto rounded-md border border-[var(--cata-border)]">
@@ -604,11 +604,11 @@ export function EquipmentSetupModal({
                     >
                       <div>
                         <p className="text-sm font-medium text-[var(--text-primary)]">{pad.model}</p>
-                        <p className="text-xs text-[var(--text-muted)]">
+                        <p className="text-xs text-[var(--text-secondary)]">
                           {pad.category} | {pad.temp_range}
                         </p>
                       </div>
-                      <span className="text-xs text-[var(--text-muted)]">{pad.brand}</span>
+                      <span className="text-xs text-[var(--text-secondary)]">{pad.brand}</span>
                     </button>
                   ))}
                 </div>

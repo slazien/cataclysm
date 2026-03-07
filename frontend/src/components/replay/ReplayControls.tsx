@@ -116,9 +116,9 @@ export function ReplayControls({
         {/* Center: distance / time readout */}
         <div className="flex items-center gap-3 font-mono text-xs text-[var(--text-secondary)]">
           <span>{formatLength(currentDistance)}</span>
-          <span className="text-[var(--text-muted)]">/</span>
+          <span className="text-[var(--text-secondary)]">/</span>
           <span>{formatLength(totalDistance)}</span>
-          <span className="mx-1 text-[var(--text-muted)]">|</span>
+          <span className="mx-1 text-[var(--text-secondary)]">|</span>
           <span>{formatTime(currentTime)}</span>
         </div>
 

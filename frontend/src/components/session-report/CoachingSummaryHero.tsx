@@ -53,7 +53,7 @@ function GeneratingProgress({ startedAt, estimatedS }: { startedAt?: string | nu
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-xs text-[var(--text-muted)]">
+          <p className="text-xs text-[var(--text-secondary)]">
             Generating coaching insights... ~{Math.ceil(estimatedS)}s
           </p>
         </>
@@ -61,7 +61,7 @@ function GeneratingProgress({ startedAt, estimatedS }: { startedAt?: string | nu
         <>
           <div className="h-4 w-3/4 animate-pulse rounded bg-[var(--bg-elevated)]" />
           <div className="h-4 w-1/2 animate-pulse rounded bg-[var(--bg-elevated)]" />
-          <p className="mt-2 text-xs text-[var(--text-muted)]">Generating coaching insights...</p>
+          <p className="mt-2 text-xs text-[var(--text-secondary)]">Generating coaching insights...</p>
         </>
       )}
     </div>
@@ -89,7 +89,7 @@ export function CoachingSummaryHero({ report }: CoachingSummaryHeroProps) {
           estimatedS={report?.generation_estimated_s}
         />
       ) : report?.status === 'error' ? (
-        <p className="text-sm text-[var(--text-muted)]">{summary ?? 'Coaching report unavailable.'}</p>
+        <p className="text-sm text-[var(--text-secondary)]">{summary ?? 'Coaching report unavailable.'}</p>
       ) : summary ? (
         <div className="space-y-3">
           {primaryFocus && (
@@ -100,7 +100,7 @@ export function CoachingSummaryHero({ report }: CoachingSummaryHeroProps) {
               <p className="mt-1 text-sm font-medium leading-relaxed text-[var(--text-primary)]">
                 <MarkdownText>{primaryFocus}</MarkdownText>
               </p>
-              <p className="mt-2 text-[10px] text-[var(--text-muted)]">
+              <p className="mt-2 text-[10px] text-[var(--text-secondary)]">
                 Based on Allen Berg corner prioritization methodology
               </p>
             </div>
@@ -124,7 +124,7 @@ export function CoachingSummaryHero({ report }: CoachingSummaryHeroProps) {
           </div>
         </div>
       ) : (
-        <p className="text-sm text-[var(--text-muted)]">No coaching summary available.</p>
+        <p className="text-sm text-[var(--text-secondary)]">No coaching summary available.</p>
       )}
     </div>
   );

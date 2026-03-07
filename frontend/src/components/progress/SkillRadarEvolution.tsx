@@ -123,7 +123,7 @@ export function SkillRadarEvolution({ sessionId, trackName }: SkillRadarEvolutio
             Skill Evolution
             <InfoTooltip helpKey="chart.skill-radar-evolution" />
           </h3>
-          <p className="text-xs text-[var(--text-muted)]">{trackName}</p>
+          <p className="text-xs text-[var(--text-secondary)]">{trackName}</p>
         </div>
         <div className="flex items-center gap-2">
           {hasHistory && (
@@ -134,7 +134,7 @@ export function SkillRadarEvolution({ sessionId, trackName }: SkillRadarEvolutio
                 'flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors',
                 showHistory
                   ? 'bg-indigo-500/20 text-indigo-400'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-secondary)]',
               )}
               title={showHistory ? 'Hide session history' : 'Show session history'}
             >
@@ -142,7 +142,7 @@ export function SkillRadarEvolution({ sessionId, trackName }: SkillRadarEvolutio
               {showHistory ? 'History On' : 'History Off'}
             </button>
           )}
-          <span className="text-xs text-[var(--text-tertiary)]">Avg: {avgScore}/100</span>
+          <span className="text-xs text-[var(--text-secondary)]">Avg: {avgScore}/100</span>
         </div>
       </div>
 
@@ -156,7 +156,7 @@ export function SkillRadarEvolution({ sessionId, trackName }: SkillRadarEvolutio
       {/* Session legend */}
       {showHistory && hasHistory && (
         <div className="mt-3 space-y-1 border-t border-[var(--cata-border)] pt-3">
-          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
             Sessions
           </p>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
@@ -172,7 +172,7 @@ export function SkillRadarEvolution({ sessionId, trackName }: SkillRadarEvolutio
                       opacity: opacity + 0.25,
                     }}
                   />
-                  <span className="text-[11px] text-[var(--text-muted)]">
+                  <span className="text-[11px] text-[var(--text-secondary)]">
                     {formatShortDate(entry.date)}
                   </span>
                 </div>

@@ -293,7 +293,7 @@ export function SessionBoxPlot({ sessions, className }: SessionBoxPlotProps) {
   if (n === 0) {
     return (
       <div className={`flex h-full items-center justify-center ${className ?? ''}`}>
-        <p className="text-sm text-[var(--text-muted)]">No session data available</p>
+        <p className="text-sm text-[var(--text-secondary)]">No session data available</p>
       </div>
     );
   }

@@ -67,7 +67,7 @@ export function UploadPromptDialog() {
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="absolute right-3 top-3 rounded p-1 text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+              className="absolute right-3 top-3 rounded p-1 text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
               aria-label="Close"
             >
               <X className="h-4 w-4" />

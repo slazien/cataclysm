@@ -37,7 +37,7 @@ export function GlossaryTerm({ term, children }: GlossaryTermProps) {
             {isNovice ? entry.noviceExplanation : entry.definition}
           </p>
           {isNovice && entry.example && (
-            <p className="mt-1 text-xs text-[var(--text-muted)] italic">
+            <p className="mt-1 text-xs text-[var(--text-secondary)] italic">
               Example: {entry.example}
             </p>
           )}

@@ -55,7 +55,7 @@ export function MetricCard({
         className,
       )}
     >
-      <p className="flex items-center gap-1 font-[family-name:var(--font-display)] text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+      <p className="flex items-center gap-1 font-[family-name:var(--font-display)] text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
         <span className="truncate">{label}</span>
         {helpKey && <InfoTooltip helpKey={helpKey} />}
       </p>
@@ -70,7 +70,7 @@ export function MetricCard({
                 'text-xs font-medium tabular-nums',
                 isPositive && 'text-[var(--color-brake)]',
                 isNegative && 'text-[var(--color-throttle)]',
-                !isPositive && !isNegative && 'text-[var(--text-muted)]',
+                !isPositive && !isNegative && 'text-[var(--text-secondary)]',
               )}
             >
               {isPositive ? '+' : ''}
@@ -78,7 +78,7 @@ export function MetricCard({
             </span>
           )}
           {(subtitle || deltaLabel) && (
-            <span className="text-[11px] text-[var(--text-muted)]">{deltaLabel ?? subtitle}</span>
+            <span className="text-[11px] text-[var(--text-secondary)]">{deltaLabel ?? subtitle}</span>
           )}
         </div>
       )}

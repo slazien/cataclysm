@@ -29,7 +29,7 @@ function PercentileBadge({ percentile }: { percentile: number }) {
         ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
         : percentile <= 50
           ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
-          : 'bg-zinc-500/20 text-zinc-300 border-zinc-500/30';
+          : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--cata-border)]';
 
   return (
     <span
@@ -66,7 +66,7 @@ export function ProgressLeaderboard({
 
   if (isLoading) {
     return (
-      <div className="animate-pulse text-sm text-zinc-400">
+      <div className="animate-pulse text-sm text-[var(--text-secondary)]">
         Loading improvement leaderboard...
       </div>
     );
@@ -96,7 +96,7 @@ export function ProgressLeaderboard({
         </div>
         {data.your_rank != null && data.your_percentile != null && (
           <div className="flex items-center gap-2">
-            <span className="text-xs text-[var(--text-muted)]">
+            <span className="text-xs text-[var(--text-secondary)]">
               You: #{data.your_rank}
             </span>
             <PercentileBadge percentile={data.your_percentile} />
@@ -107,7 +107,7 @@ export function ProgressLeaderboard({
       {/* Table */}
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-xs text-[var(--text-muted)] border-b border-[var(--cata-border)]/50">
+          <tr className="text-xs text-[var(--text-secondary)] border-b border-[var(--cata-border)]/50">
             <th className="px-4 py-2 text-left w-12">#</th>
             <th className="px-4 py-2 text-left">Driver</th>
             <th className="px-4 py-2 text-right">Rate/Session</th>
@@ -129,7 +129,7 @@ export function ProgressLeaderboard({
                     : 'hover:bg-[var(--bg-elevated)]/50',
                 )}
               >
-                <td className="px-4 py-2 font-mono text-[var(--text-muted)]">
+                <td className="px-4 py-2 font-mono text-[var(--text-secondary)]">
                   {entry.rank}
                 </td>
                 <td className="px-4 py-2 text-[var(--text-primary)]">
@@ -141,7 +141,7 @@ export function ProgressLeaderboard({
                       </span>
                     )}
                   </div>
-                  <div className="mt-0.5 text-[10px] text-[var(--text-muted)] md:hidden">
+                  <div className="mt-0.5 text-[10px] text-[var(--text-secondary)] md:hidden">
                     {formatTimeShort(entry.best_lap_first)} &rarr;{' '}
                     {formatTimeShort(entry.best_lap_latest)}
                   </div>
@@ -166,7 +166,7 @@ export function ProgressLeaderboard({
                 >
                   {formatImprovement(entry.total_improvement_s)}
                 </td>
-                <td className="hidden md:table-cell px-4 py-2 text-right text-[var(--text-muted)]">
+                <td className="hidden md:table-cell px-4 py-2 text-right text-[var(--text-secondary)]">
                   {entry.n_sessions}
                 </td>
               </tr>
@@ -177,7 +177,7 @@ export function ProgressLeaderboard({
 
       {/* Footer */}
       <div className="flex items-center justify-between px-4 py-2 border-t border-[var(--cata-border)]">
-        <span className="text-xs text-[var(--text-muted)]">
+        <span className="text-xs text-[var(--text-secondary)]">
           Last {days} days
         </span>
         <button

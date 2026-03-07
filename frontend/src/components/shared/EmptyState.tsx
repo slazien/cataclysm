@@ -32,7 +32,7 @@ export function EmptyState({
           <Icon className="h-8 w-8 text-[var(--cata-accent)]" />
         ) : (
           <svg
-            className="h-8 w-8 text-[var(--text-muted)]"
+            className="h-8 w-8 text-[var(--text-secondary)]"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"

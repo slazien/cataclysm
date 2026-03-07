@@ -358,7 +358,7 @@ export function LapTimesBar({ sessionId }: LapTimesBarProps) {
   if (isLoading) {
     return (
       <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium uppercase tracking-wider text-[var(--text-muted)]">
+        <h2 className="text-sm font-medium uppercase tracking-wider text-[var(--text-secondary)]">
           Lap Times
         </h2>
         <div className="h-[220px] animate-pulse rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)]" />
@@ -369,7 +369,7 @@ export function LapTimesBar({ sessionId }: LapTimesBarProps) {
   if (!laps || laps.length === 0) {
     return (
       <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium uppercase tracking-wider text-[var(--text-muted)]">
+        <h2 className="text-sm font-medium uppercase tracking-wider text-[var(--text-secondary)]">
           Lap Times
         </h2>
         <div className="flex h-[220px] items-center justify-center rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)]">
@@ -382,7 +382,7 @@ export function LapTimesBar({ sessionId }: LapTimesBarProps) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-4">
-        <h2 className="flex items-center gap-1.5 text-sm font-medium uppercase tracking-wider text-[var(--text-muted)]">
+        <h2 className="flex items-center gap-1.5 text-sm font-medium uppercase tracking-wider text-[var(--text-secondary)]">
           Lap Times
           <InfoTooltip helpKey="chart.lap-times-bar" />
         </h2>

@@ -192,7 +192,7 @@ export function ComparisonDeepDive({
           </div>
         )}
         {aiError && (
-          <p className="text-sm text-[var(--text-muted)]">{aiError}</p>
+          <p className="text-sm text-[var(--text-secondary)]">{aiError}</p>
         )}
         {aiNarrative && (
           <div className="space-y-3">
@@ -215,16 +215,16 @@ export function ComparisonDeepDive({
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--cata-border)]">
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
                     Corner
                   </th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
                     {inviterName}
                   </th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
                     {challengerName}
                   </th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
                     Delta
                   </th>
                 </tr>
@@ -252,7 +252,7 @@ export function ComparisonDeepDive({
                           'px-3 py-2 text-right font-mono font-medium',
                           isPositive && 'text-[var(--color-throttle)]',
                           isNegative && 'text-[var(--color-brake)]',
-                          !isPositive && !isNegative && 'text-[var(--text-muted)]',
+                          !isPositive && !isNegative && 'text-[var(--text-secondary)]',
                         )}
                       >
                         {isPositive ? '+' : ''}

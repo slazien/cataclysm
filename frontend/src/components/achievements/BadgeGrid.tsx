@@ -97,7 +97,7 @@ function AchievementBadge({ achievement }: { achievement: Achievement }) {
         {achievement.description}
       </span>
       {achievement.unlocked && achievement.unlocked_at && (
-        <span className="text-[10px] text-[var(--text-muted)]">
+        <span className="text-[10px] text-[var(--text-secondary)]">
           {new Date(achievement.unlocked_at).toLocaleDateString()}
         </span>
       )}

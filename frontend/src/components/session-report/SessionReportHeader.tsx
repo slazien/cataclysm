@@ -84,7 +84,7 @@ function BreakdownRow({ label, value }: { label: string; value: number | null | 
   const rounded = Math.round(value);
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="text-xs text-[var(--text-muted)]">{label}</span>
+      <span className="text-xs text-[var(--text-secondary)]">{label}</span>
       <span className={`text-xs font-semibold tabular-nums ${scoreTw(rounded)}`}>
         {rounded}
       </span>
@@ -103,10 +103,10 @@ export function SessionReportHeader({ session, gpsQuality, sessionId }: SessionR
   const scoreCircle = (
     <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-[var(--bg-elevated)]">
       <ScoreRing score={score ?? null} />
-      <span className={`relative font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight ${score != null ? scoreTw(score) : 'text-[var(--text-muted)]'}`}>
+      <span className={`relative font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight ${score != null ? scoreTw(score) : 'text-[var(--text-secondary)]'}`}>
         {score != null ? Math.round(score) : '\u2014'}
       </span>
-      <span className="absolute -bottom-1 rounded-full bg-[var(--bg-surface)] px-1.5 text-[10px] font-medium text-[var(--text-muted)]">
+      <span className="absolute -bottom-1 rounded-full bg-[var(--bg-surface)] px-1.5 text-[10px] font-medium text-[var(--text-secondary)]">
         SCORE
       </span>
     </div>
@@ -144,7 +144,7 @@ export function SessionReportHeader({ session, gpsQuality, sessionId }: SessionR
         <h1 className="truncate font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-[var(--text-primary)]">
           {session?.track_name ?? 'Loading...'}
         </h1>
-        <p className="text-sm text-[var(--text-muted)]">{session?.session_date ?? ''}</p>
+        <p className="text-sm text-[var(--text-secondary)]">{session?.session_date ?? ''}</p>
       </div>
 
       {/* Badges + Share actions */}

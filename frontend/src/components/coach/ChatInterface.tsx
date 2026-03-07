@@ -120,7 +120,7 @@ export function ChatMessages() {
   return (
     <div className="flex flex-col gap-3 px-4 py-3">
       {chatHistory.length === 0 && !isWaiting && (
-        <p className="text-xs text-[var(--text-tertiary)] text-center py-8">
+        <p className="text-xs text-[var(--text-secondary)] text-center py-8">
           {reportReady
             ? 'Ask a question about your driving to get started.'
             : 'Chat will be available once the coaching report is ready.'}
@@ -134,7 +134,7 @@ export function ChatMessages() {
       {isWaiting && (
         <div className="flex items-start gap-2">
           <AiInsight mode="compact">
-            <span className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)]">
+            <span className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
               <CircularProgress size={12} strokeWidth={1.5} />
               Thinking...
             </span>
@@ -189,7 +189,7 @@ export function ChatInput() {
           onKeyDown={handleKeyDown}
           placeholder="Ask about your driving..."
           rows={1}
-          className="flex-1 resize-none rounded-lg border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--cata-accent)] focus:outline-none"
+          className="flex-1 resize-none rounded-lg border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--cata-accent)] focus:outline-none"
           disabled={inputDisabled}
         />
         <Button

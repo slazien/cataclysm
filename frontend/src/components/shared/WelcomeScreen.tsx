@@ -355,7 +355,7 @@ export function WelcomeScreen() {
       </div>
 
       {/* Disclaimer footer */}
-      <p className="mt-8 max-w-2xl px-6 text-center text-[10px] leading-relaxed text-[var(--text-muted)]/60">
+      <p className="mt-8 max-w-2xl px-6 text-center text-[10px] leading-relaxed text-[var(--text-secondary)]/60">
         AI coaching is for educational purposes only and is not a substitute for professional instruction.
         Track driving carries inherent risks. GPS/telemetry data and AI analysis may contain inaccuracies.
       </p>

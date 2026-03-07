@@ -41,7 +41,7 @@ interface KpiRowProps {
 function KpiRow({ label, value, delta, unit = '' }: KpiRowProps) {
   return (
     <div className="flex items-center justify-between py-1.5">
-      <span className="text-xs text-[var(--text-muted)]">{label}</span>
+      <span className="text-xs text-[var(--text-secondary)]">{label}</span>
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium tabular-nums text-[var(--text-primary)]">
           {value}
@@ -165,7 +165,7 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
             </span>
           )}
         </div>
-        <span className="text-xs text-[var(--text-muted)]">
+        <span className="text-xs text-[var(--text-secondary)]">
           {displayLap ? `L${displayLap}` : 'Best lap'} · {corner.apex_type} apex
         </span>
       </div>
@@ -217,25 +217,25 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
         <div className="flex flex-wrap gap-2">
           {cornerGrade.braking && (
             <div className="flex items-center gap-1">
-              <span className="text-xs text-[var(--text-muted)]">Braking</span>
+              <span className="text-xs text-[var(--text-secondary)]">Braking</span>
               <GradeChip grade={cornerGrade.braking} />
             </div>
           )}
           {cornerGrade.trail_braking && (
             <div className="flex items-center gap-1">
-              <span className="text-xs text-[var(--text-muted)]"><GlossaryTerm term="Trail Braking">Trail</GlossaryTerm></span>
+              <span className="text-xs text-[var(--text-secondary)]"><GlossaryTerm term="Trail Braking">Trail</GlossaryTerm></span>
               <GradeChip grade={cornerGrade.trail_braking} />
             </div>
           )}
           {cornerGrade.min_speed && (
             <div className="flex items-center gap-1">
-              <span className="text-xs text-[var(--text-muted)]"><GlossaryTerm term="Min Speed">Min Spd</GlossaryTerm></span>
+              <span className="text-xs text-[var(--text-secondary)]"><GlossaryTerm term="Min Speed">Min Spd</GlossaryTerm></span>
               <GradeChip grade={cornerGrade.min_speed} />
             </div>
           )}
           {cornerGrade.throttle && (
             <div className="flex items-center gap-1">
-              <span className="text-xs text-[var(--text-muted)]">Throttle</span>
+              <span className="text-xs text-[var(--text-secondary)]">Throttle</span>
               <GradeChip grade={cornerGrade.throttle} />
             </div>
           )}
@@ -257,7 +257,7 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
         return (
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-[var(--text-muted)]">
+              <span className="text-xs font-medium text-[var(--text-secondary)]">
                 Driving Line
               </span>
               <span
@@ -269,19 +269,19 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div>
-                <div className="text-[10px] text-[var(--text-muted)]">Entry</div>
+                <div className="text-[10px] text-[var(--text-secondary)]">Entry</div>
                 <div className="text-xs font-medium tabular-nums text-[var(--text-primary)]">
                   {lp.d_entry_median > 0 ? '+' : ''}{convertDistance(lp.d_entry_median).toFixed(1)}{distanceUnit}
                 </div>
               </div>
               <div>
-                <div className="text-[10px] text-[var(--text-muted)]">Apex</div>
+                <div className="text-[10px] text-[var(--text-secondary)]">Apex</div>
                 <div className="text-xs font-medium tabular-nums text-[var(--text-primary)]">
                   {lp.d_apex_median > 0 ? '+' : ''}{convertDistance(lp.d_apex_median).toFixed(1)}{distanceUnit}
                 </div>
               </div>
               <div>
-                <div className="text-[10px] text-[var(--text-muted)]">Exit</div>
+                <div className="text-[10px] text-[var(--text-secondary)]">Exit</div>
                 <div className="text-xs font-medium tabular-nums text-[var(--text-primary)]">
                   {lp.d_exit_median > 0 ? '+' : ''}{convertDistance(lp.d_exit_median).toFixed(1)}{distanceUnit}
                 </div>
@@ -289,11 +289,11 @@ export function CornerQuickCard({ sessionId }: CornerQuickCardProps) {
             </div>
             {lp.line_error_type !== 'good_line' && (
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-[var(--text-muted)]">Issue:</span>
+                <span className="text-[10px] text-[var(--text-secondary)]">Issue:</span>
                 <span className="text-xs capitalize text-[var(--text-secondary)]">
                   {errorLabel}
                 </span>
-                <span className="text-[10px] text-[var(--text-muted)]">
+                <span className="text-[10px] text-[var(--text-secondary)]">
                   ({lp.severity})
                 </span>
               </div>

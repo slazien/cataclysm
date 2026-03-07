@@ -45,7 +45,7 @@ export function SuggestedQuestions({ onAsk }: SuggestedQuestionsProps) {
 
   return (
     <div className="px-4 py-2 border-b border-[var(--cata-border)]">
-      <p className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase tracking-wider mb-1.5">
+      <p className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
         Suggested
       </p>
       <div className="flex flex-wrap gap-1.5">

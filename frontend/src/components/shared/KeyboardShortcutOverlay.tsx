@@ -38,7 +38,7 @@ export function KeyboardShortcutOverlay() {
       <div className="mx-4 w-full max-w-sm rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-6 shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-[var(--text-primary)]">Keyboard Shortcuts</h2>
-          <button type="button" onClick={() => setVisible(false)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+          <button type="button" onClick={() => setVisible(false)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
             <X className="h-5 w-5" />
           </button>
         </div>

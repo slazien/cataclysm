@@ -16,7 +16,7 @@ export function StudentSessionList({ studentId, studentName }: StudentSessionLis
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-5 w-5 animate-spin text-[var(--text-muted)]" />
+        <Loader2 className="h-5 w-5 animate-spin text-[var(--text-secondary)]" />
       </div>
     );
   }
@@ -25,7 +25,7 @@ export function StudentSessionList({ studentId, studentName }: StudentSessionLis
 
   if (sessions.length === 0) {
     return (
-      <div className="py-8 text-center text-sm text-[var(--text-muted)]">
+      <div className="py-8 text-center text-sm text-[var(--text-secondary)]">
         No sessions found for {studentName}
       </div>
     );
@@ -43,7 +43,7 @@ export function StudentSessionList({ studentId, studentName }: StudentSessionLis
               <p className="text-sm font-medium text-[var(--text-primary)]">
                 {s.track_name}
               </p>
-              <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-[var(--text-muted)]">
+              <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-[var(--text-secondary)]">
                 {s.session_date && (
                   <span className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />

@@ -29,7 +29,7 @@ export function CornerScorecard({
   if (cornerDeltas.length === 0) {
     return (
       <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-6 text-center">
-        <p className="text-sm text-[var(--text-muted)]">No corner data available</p>
+        <p className="text-sm text-[var(--text-secondary)]">No corner data available</p>
       </div>
     );
   }
@@ -47,16 +47,16 @@ export function CornerScorecard({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--cata-border)]">
-              <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+              <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
                 Corner
               </th>
-              <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+              <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
                 A Speed
               </th>
-              <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+              <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
                 B Speed
               </th>
-              <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+              <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
                 Delta
               </th>
             </tr>
@@ -110,7 +110,7 @@ export function CornerScorecard({
                       'px-3 py-2 text-right font-mono font-medium',
                       isPositive && 'text-[var(--color-throttle)]',
                       isNegative && 'text-[var(--color-brake)]',
-                      !isPositive && !isNegative && 'text-[var(--text-muted)]',
+                      !isPositive && !isNegative && 'text-[var(--text-secondary)]',
                     )}
                   >
                     {isPositive ? '+' : ''}

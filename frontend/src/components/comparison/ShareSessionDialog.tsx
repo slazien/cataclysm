@@ -166,7 +166,7 @@ export function ShareSessionDialog({ sessionId }: ShareSessionDialogProps) {
         ) : (
           <div className="flex flex-col gap-4 py-2">
             <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-elevated)] p-3">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
                 Track
               </p>
               <p className="text-sm font-medium text-[var(--text-primary)]">{trackName}</p>
@@ -219,7 +219,7 @@ export function ShareSessionDialog({ sessionId }: ShareSessionDialogProps) {
             </div>
 
             {expiresDate && (
-              <p className="text-xs text-[var(--text-muted)]">
+              <p className="text-xs text-[var(--text-secondary)]">
                 This link expires on {expiresDate}.
               </p>
             )}

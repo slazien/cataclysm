@@ -46,7 +46,7 @@ function ToastCard({ toast }: { toast: Toast }) {
         </div>
         <button
           onClick={() => removeToast(toast.id)}
-          className="shrink-0 rounded p-0.5 text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+          className="shrink-0 rounded p-0.5 text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
           aria-label="Dismiss"
         >
           <X className="h-3.5 w-3.5" />
@@ -69,7 +69,7 @@ function ToastCard({ toast }: { toast: Toast }) {
       </span>
       <button
         onClick={() => removeToast(toast.id)}
-        className="shrink-0 rounded p-0.5 text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+        className="shrink-0 rounded p-0.5 text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
         aria-label="Dismiss"
       >
         <X className="h-3.5 w-3.5" />

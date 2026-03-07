@@ -108,7 +108,7 @@ export function LapGridSelector() {
         sideOffset={6}
         className="w-auto min-w-[260px] max-w-[360px] border-[var(--cata-border)] bg-[var(--bg-surface)] p-3"
       >
-        <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+        <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
           Select up to 2 laps
         </p>
 
@@ -185,7 +185,7 @@ export function LapGridSelector() {
         </motion.div>
 
         {/* Legend */}
-        <div className="mt-2.5 flex items-center gap-3 text-[10px] text-[var(--text-muted)]">
+        <div className="mt-2.5 flex items-center gap-3 text-[10px] text-[var(--text-secondary)]">
           <span className="flex items-center gap-1">
             <span
               className="inline-block h-2 w-4 rounded-sm"

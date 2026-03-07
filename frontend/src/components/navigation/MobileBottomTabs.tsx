@@ -42,7 +42,7 @@ export function MobileBottomTabs() {
               'flex flex-1 flex-col items-center justify-center gap-0.5 transition-colors',
               isActive
                 ? 'text-[var(--cata-accent)]'
-                : 'text-[var(--text-muted)] active:text-[var(--text-secondary)]',
+                : 'text-[var(--text-secondary)] active:text-[var(--text-secondary)]',
             )}
           >
             <Icon className="h-5 w-5" />

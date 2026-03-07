@@ -33,7 +33,7 @@ interface FlagBadgeProps {
 export function FlagBadge({ flagType, className }: FlagBadgeProps) {
   const style = FLAG_STYLES[flagType] ?? {
     bg: 'bg-[var(--bg-elevated)]',
-    text: 'text-[var(--text-muted)]',
+    text: 'text-[var(--text-secondary)]',
     label: flagType,
   };
 

@@ -23,7 +23,7 @@ function IntroCard({ data }: { data: WrappedData }) {
       <Sparkles className="h-16 w-16 text-[var(--cata-accent)]" />
       <h2 className="text-5xl font-bold text-white">{data.year}</h2>
       <p className="text-xl text-[var(--text-secondary)]">Your Year in Review</p>
-      <p className="text-sm text-[var(--text-muted)]">
+      <p className="text-sm text-[var(--text-secondary)]">
         {data.total_sessions} session{data.total_sessions !== 1 ? 's' : ''} analyzed
       </p>
     </div>
@@ -58,7 +58,7 @@ function StatsCard({ data }: { data: WrappedData }) {
               <s.icon className="h-7 w-7" style={{ color: s.color }} />
             </div>
             <span className="text-2xl font-bold text-white">{s.value}</span>
-            <span className="text-xs text-[var(--text-muted)]">{s.label}</span>
+            <span className="text-xs text-[var(--text-secondary)]">{s.label}</span>
           </div>
         ))}
       </div>
@@ -71,7 +71,7 @@ function ImprovementCard({ data }: { data: WrappedData }) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
         <h3 className="text-2xl font-semibold text-white">Biggest Improvement</h3>
-        <p className="text-[var(--text-muted)]">
+        <p className="text-[var(--text-secondary)]">
           Visit the same track twice to track your improvement!
         </p>
       </div>
@@ -82,11 +82,11 @@ function ImprovementCard({ data }: { data: WrappedData }) {
     <div className="flex h-full flex-col items-center justify-center gap-6 p-8 text-center">
       <h3 className="text-2xl font-semibold text-white">Biggest Improvement</h3>
       <div className="rounded-2xl bg-[var(--bg-elevated)] p-6">
-        <p className="text-sm text-[var(--text-muted)]">{data.biggest_improvement_track}</p>
+        <p className="text-sm text-[var(--text-secondary)]">{data.biggest_improvement_track}</p>
         <p className="mt-2 text-4xl font-bold text-[#22c55e]">
           -{data.biggest_improvement_s.toFixed(2)}s
         </p>
-        <p className="mt-1 text-xs text-[var(--text-muted)]">faster from first to last session</p>
+        <p className="mt-1 text-xs text-[var(--text-secondary)]">faster from first to last session</p>
       </div>
       <div className="text-sm text-[var(--text-secondary)]">
         Best consistency: {data.best_consistency_score.toFixed(0)}%
@@ -113,7 +113,7 @@ function PersonalityCard({ data }: { data: WrappedData }) {
         {data.personality_description}
       </p>
       {data.tracks_visited.length > 0 && (
-        <div className="mt-2 text-xs text-[var(--text-muted)]">
+        <div className="mt-2 text-xs text-[var(--text-secondary)]">
           Tracks: {data.tracks_visited.join(', ')}
         </div>
       )}
@@ -200,7 +200,7 @@ export function SeasonWrapped({ open, onClose }: SeasonWrappedProps) {
 
         {error && (
           <div className="flex h-full items-center justify-center p-8 text-center">
-            <p className="text-[var(--text-muted)]">Could not load your year in review.</p>
+            <p className="text-[var(--text-secondary)]">Could not load your year in review.</p>
           </div>
         )}
 

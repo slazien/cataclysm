@@ -163,7 +163,7 @@ function CornerFocusView({
         {/* Your speed bar */}
         <div className="space-y-1">
           <div className="flex items-baseline justify-between">
-            <span className="text-[11px] text-[var(--text-muted)]">Your Min Speed</span>
+            <span className="text-[11px] text-[var(--text-secondary)]">Your Min Speed</span>
             <span className="text-sm font-medium tabular-nums text-[var(--text-primary)]">
               {yourSpeed.toFixed(1)} {speedUnit}
             </span>
@@ -181,7 +181,7 @@ function CornerFocusView({
         {/* Optimal speed bar */}
         <div className="space-y-1">
           <div className="flex items-baseline justify-between">
-            <span className="text-[11px] text-[var(--text-muted)]">Optimal Min Speed</span>
+            <span className="text-[11px] text-[var(--text-secondary)]">Optimal Min Speed</span>
             <span className="text-sm font-medium tabular-nums text-[var(--color-throttle)]">
               {optimalSpeed.toFixed(1)} {speedUnit}
             </span>
@@ -303,7 +303,7 @@ export function CornerSpeedGapPanel({ sessionId, selectedCorner }: CornerSpeedGa
             Speed Gap vs Optimal
             <InfoTooltip helpKey="chart.speed-gap" />
           </h3>
-          <p className="text-[10px] text-[var(--text-muted)]">
+          <p className="text-[10px] text-[var(--text-secondary)]">
             Per-corner time cost from speed deficit
           </p>
         </div>

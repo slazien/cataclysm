@@ -51,7 +51,7 @@ export function InstructorDashboard() {
   if (isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
+        <Loader2 className="h-6 w-6 animate-spin text-[var(--text-secondary)]" />
       </div>
     );
   }
@@ -80,7 +80,7 @@ export function InstructorDashboard() {
               setSelectedStudent(null);
               setShowFlagForm(false);
             }}
-            className="rounded-lg p-1.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+            className="rounded-lg p-1.5 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
@@ -88,7 +88,7 @@ export function InstructorDashboard() {
             <h2 className="text-lg font-semibold text-[var(--text-primary)]">
               {selectedStudent.name}
             </h2>
-            <p className="text-xs text-[var(--text-muted)]">{selectedStudent.email}</p>
+            <p className="text-xs text-[var(--text-secondary)]">{selectedStudent.email}</p>
           </div>
           <button
             type="button"
@@ -142,7 +142,7 @@ export function InstructorDashboard() {
                 onChange={(e) => setFlagDesc(e.target.value)}
                 placeholder="Describe the flag..."
                 rows={2}
-                className="w-full rounded-lg border border-[var(--cata-border)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--text-muted)] focus:outline-none"
+                className="w-full rounded-lg border border-[var(--cata-border)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--cata-accent)] focus:outline-none"
               />
               <button
                 type="button"
@@ -175,12 +175,12 @@ export function InstructorDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Users className="h-5 w-5 text-[var(--text-muted)]" />
+          <Users className="h-5 w-5 text-[var(--text-secondary)]" />
           <h1 className="text-xl font-semibold text-[var(--text-primary)]">
             Instructor Dashboard
           </h1>
         </div>
-        <span className="text-sm text-[var(--text-muted)]">
+        <span className="text-sm text-[var(--text-secondary)]">
           {students.length} student{students.length !== 1 ? 's' : ''}
         </span>
       </div>
@@ -191,7 +191,7 @@ export function InstructorDashboard() {
       {/* Student list */}
       {students.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-12 text-center">
-          <Users className="h-8 w-8 text-[var(--text-muted)]" />
+          <Users className="h-8 w-8 text-[var(--text-secondary)]" />
           <p className="text-sm text-[var(--text-secondary)]">
             No students linked yet. Generate an invite code above.
           </p>

@@ -88,7 +88,7 @@ export function CornerAnalysis() {
             'rounded-md p-1.5 transition-colors',
             viewMode === 'grid'
               ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)]'
-              : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-secondary)]',
           )}
           title="Report Card Grid"
         >
@@ -100,7 +100,7 @@ export function CornerAnalysis() {
             'rounded-md p-1.5 transition-colors',
             viewMode === 'detail'
               ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)]'
-              : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-secondary)]',
           )}
           title="Detail View"
         >
@@ -152,7 +152,7 @@ export function CornerAnalysis() {
           </div>
 
           {/* Corner navigation hint */}
-          <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-muted)]">
+          <div className="flex items-center justify-center gap-2 text-xs text-[var(--text-secondary)]">
             <kbd className="rounded border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-1.5 py-0.5 font-mono text-[10px]">
               ←
             </kbd>

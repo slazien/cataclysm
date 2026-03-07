@@ -361,7 +361,7 @@ export function LapTimeTrend({
   if (sessions.length === 0) {
     return (
       <div className={`flex h-full items-center justify-center ${className ?? ''}`}>
-        <p className="text-sm text-[var(--text-muted)]">No trend data available</p>
+        <p className="text-sm text-[var(--text-secondary)]">No trend data available</p>
       </div>
     );
   }

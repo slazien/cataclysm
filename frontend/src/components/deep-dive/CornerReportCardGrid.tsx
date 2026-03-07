@@ -110,25 +110,25 @@ function CornerCard({
         >
           {cornerGrade.braking && (
             <div className="flex items-center gap-1">
-              <span className="text-[10px] text-[var(--text-muted)]">Brk</span>
+              <span className="text-[10px] text-[var(--text-secondary)]">Brk</span>
               <GradeChip grade={cornerGrade.braking} reason={cornerGrade.braking_reason} className="px-1.5 py-0 text-[10px]" />
             </div>
           )}
           {cornerGrade.trail_braking && (
             <div className="flex items-center gap-1">
-              <span className="text-[10px] text-[var(--text-muted)]">Trail</span>
+              <span className="text-[10px] text-[var(--text-secondary)]">Trail</span>
               <GradeChip grade={cornerGrade.trail_braking} reason={cornerGrade.trail_braking_reason} className="px-1.5 py-0 text-[10px]" />
             </div>
           )}
           {cornerGrade.min_speed && (
             <div className="flex items-center gap-1">
-              <span className="text-[10px] text-[var(--text-muted)]">Spd</span>
+              <span className="text-[10px] text-[var(--text-secondary)]">Spd</span>
               <GradeChip grade={cornerGrade.min_speed} reason={cornerGrade.min_speed_reason} className="px-1.5 py-0 text-[10px]" />
             </div>
           )}
           {cornerGrade.throttle && (
             <div className="flex items-center gap-1">
-              <span className="text-[10px] text-[var(--text-muted)]">Thr</span>
+              <span className="text-[10px] text-[var(--text-secondary)]">Thr</span>
               <GradeChip grade={cornerGrade.throttle} reason={cornerGrade.throttle_reason} className="px-1.5 py-0 text-[10px]" />
             </div>
           )}
@@ -137,7 +137,7 @@ function CornerCard({
 
       {/* Min speed KPI */}
       <div className="flex items-center justify-between">
-        <span className="text-xs text-[var(--text-muted)]">Min Speed</span>
+        <span className="text-xs text-[var(--text-secondary)]">Min Speed</span>
         <span className="text-xs font-medium tabular-nums text-[var(--text-primary)]">
           {convertSpeed(corner.min_speed_mph).toFixed(1)} {speedUnit}
         </span>

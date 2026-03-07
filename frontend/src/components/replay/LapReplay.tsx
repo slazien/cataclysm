@@ -197,7 +197,7 @@ export function LapReplay() {
 
           {/* Lap info badge */}
           <div className="flex items-center justify-center gap-2 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] px-3 py-2">
-            <span className="text-xs text-[var(--text-muted)]">Lap</span>
+            <span className="text-xs text-[var(--text-secondary)]">Lap</span>
             <span className="font-mono text-sm font-semibold text-[var(--text-primary)]">
               {replayLapNumber}
             </span>

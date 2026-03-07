@@ -65,7 +65,7 @@ function PriorityCard({
           <span className="font-[family-name:var(--font-display)] text-sm font-bold text-[var(--text-primary)]">
             Turn {p.corner}
           </span>
-          <span className="mx-1.5 text-[var(--text-muted)]">&mdash;</span>
+          <span className="mx-1.5 text-[var(--text-secondary)]">&mdash;</span>
           <span className="text-sm font-medium text-[var(--text-primary)]">
             {actionTitle}
           </span>
@@ -86,7 +86,7 @@ function PriorityCard({
 
       {/* Novice tip - always visible when available */}
       {isNovice && p.tip && (
-        <p className="mb-2 text-xs leading-relaxed text-[var(--text-muted)]">{formatCoachingText(resolveSpeed(p.tip))}</p>
+        <p className="mb-2 text-xs leading-relaxed text-[var(--text-secondary)]">{formatCoachingText(resolveSpeed(p.tip))}</p>
       )}
 
       {/* Expandable detail section */}
@@ -94,7 +94,7 @@ function PriorityCard({
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-1 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
+          className="flex items-center gap-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-secondary)]"
         >
           {expanded ? (
             <>

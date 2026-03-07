@@ -33,7 +33,7 @@ export class ChartErrorBoundary extends React.Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className="flex h-full min-h-[100px] flex-col items-center justify-center gap-2 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-          <p className="text-xs text-[var(--text-muted)]">
+          <p className="text-xs text-[var(--text-secondary)]">
             {this.props.name ? `${this.props.name} failed to render` : 'Chart failed to render'}
           </p>
           <button

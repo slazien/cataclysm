@@ -366,12 +366,12 @@ export function GGDiagramChart({ sessionId }: GGDiagramChartProps) {
             <span className="text-2xl font-bold tabular-nums text-[var(--text-primary)]">
               {Math.round(ggData.overall_utilization_pct)}%
             </span>
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
               Grip Utilization
               <InfoTooltip helpKey="chart.gg-diagram" />
             </span>
           </div>
-          <p className="mt-0.5 text-[10px] text-[var(--text-tertiary)]">
+          <p className="mt-0.5 text-[10px] text-[var(--text-secondary)]">
             How much of your performance envelope you use (max {ggData.observed_max_g.toFixed(2)}G)
           </p>
         </div>
@@ -446,7 +446,7 @@ function CornerUtilizationBars({
 }) {
   return (
     <div className="mt-1 space-y-1">
-      <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+      <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
         Per-Corner Utilization
       </p>
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 sm:grid-cols-3 md:grid-cols-4">
@@ -473,7 +473,7 @@ function CornerUtilizationBars({
                 }}
               />
             </div>
-            <span className="min-w-[30px] text-right text-[10px] tabular-nums text-[var(--text-muted)]">
+            <span className="min-w-[30px] text-right text-[10px] tabular-nums text-[var(--text-secondary)]">
               {Math.round(c.utilization_pct)}%
             </span>
           </button>

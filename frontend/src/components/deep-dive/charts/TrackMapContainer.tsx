@@ -77,7 +77,7 @@ export function TrackMapContainer({ sessionId }: TrackMapContainerProps) {
               'px-2 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors',
               viewMode === mode
                 ? 'bg-[var(--bg-overlay)] text-[var(--text-primary)]'
-                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-secondary)]',
             )}
           >
             {label}
@@ -91,7 +91,7 @@ export function TrackMapContainer({ sessionId }: TrackMapContainerProps) {
           'flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors',
           satEnabled
             ? 'border-[var(--color-optimal)] bg-[var(--bg-overlay)] text-[var(--text-primary)]'
-            : 'border-[var(--cata-border)] bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+            : 'border-[var(--cata-border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-secondary)]',
         )}
         title="Toggle satellite overlay"
       >
@@ -101,7 +101,7 @@ export function TrackMapContainer({ sessionId }: TrackMapContainerProps) {
 
       {showExaggerationSlider && (
         <div className="flex items-center gap-1 rounded-md border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-2 py-1">
-          <span className="text-[9px] text-[var(--text-muted)]">{exaggeration.toFixed(1)}×</span>
+          <span className="text-[9px] text-[var(--text-secondary)]">{exaggeration.toFixed(1)}×</span>
           <input
             type="range"
             min={EXAGGERATION_MIN}
@@ -117,7 +117,7 @@ export function TrackMapContainer({ sessionId }: TrackMapContainerProps) {
 
       <button
         onClick={toggleFullscreen}
-        className="flex items-center justify-center rounded-md border border-[var(--cata-border)] bg-[var(--bg-elevated)] p-1 text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+        className="flex items-center justify-center rounded-md border border-[var(--cata-border)] bg-[var(--bg-elevated)] p-1 text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
         title={fullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
       >
         {fullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}

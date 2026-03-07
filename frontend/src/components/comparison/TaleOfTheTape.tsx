@@ -58,7 +58,7 @@ function StatRow({
         </span>
       </div>
       <div className="text-center">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
           {label}
         </span>
       </div>
@@ -85,7 +85,7 @@ export function TaleOfTheTape({ sessionA, sessionB, aiSummary }: TaleOfTheTapePr
           <p className="text-sm font-semibold text-[var(--text-primary)] font-[family-name:var(--font-display)]">
             {sessionA.driverName || 'Driver A'}
           </p>
-          <p className="text-xs text-[var(--text-muted)]">{sessionA.trackName}</p>
+          <p className="text-xs text-[var(--text-secondary)]">{sessionA.trackName}</p>
         </div>
         <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--cata-accent)]/40 bg-[var(--cata-accent)]/10">
           <span className="text-xs font-bold text-[var(--cata-accent)] font-[family-name:var(--font-display)]">
@@ -96,7 +96,7 @@ export function TaleOfTheTape({ sessionA, sessionB, aiSummary }: TaleOfTheTapePr
           <p className="text-sm font-semibold text-[var(--text-primary)] font-[family-name:var(--font-display)]">
             {sessionB.driverName || 'Driver B'}
           </p>
-          <p className="text-xs text-[var(--text-muted)]">{sessionB.trackName}</p>
+          <p className="text-xs text-[var(--text-secondary)]">{sessionB.trackName}</p>
         </div>
       </div>
 

@@ -85,7 +85,7 @@ export function RawDataTable() {
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className="cursor-pointer px-3 py-2 text-left text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                  className="cursor-pointer px-3 py-2 text-left text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-secondary)]"
                   onClick={() => toggleSort(col.key)}
                 >
                   <span className="inline-flex items-center gap-1">
@@ -94,7 +94,7 @@ export function RawDataTable() {
                   </span>
                 </th>
               ))}
-              <th className="px-3 py-2 text-left text-xs font-medium text-[var(--text-muted)]">
+              <th className="px-3 py-2 text-left text-xs font-medium text-[var(--text-secondary)]">
                 Clean
               </th>
             </tr>

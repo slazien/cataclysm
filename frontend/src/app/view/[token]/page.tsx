@@ -93,38 +93,38 @@ export default function PublicViewPage() {
         <div className="grid w-full grid-cols-2 gap-3">
           {data.best_lap_time_s != null && (
             <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4 text-center">
-              <Timer className="mx-auto mb-1 h-5 w-5 text-[var(--text-muted)]" />
+              <Timer className="mx-auto mb-1 h-5 w-5 text-[var(--text-secondary)]" />
               <p className="font-mono text-lg font-bold text-[var(--text-primary)]">
                 {formatLapTime(data.best_lap_time_s)}
               </p>
-              <p className="text-xs text-[var(--text-muted)]">Best Lap</p>
+              <p className="text-xs text-[var(--text-secondary)]">Best Lap</p>
             </div>
           )}
           {data.consistency_score != null && (
             <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4 text-center">
-              <Target className="mx-auto mb-1 h-5 w-5 text-[var(--text-muted)]" />
+              <Target className="mx-auto mb-1 h-5 w-5 text-[var(--text-secondary)]" />
               <p className="font-mono text-lg font-bold text-[var(--text-primary)]">
                 {Math.round(data.consistency_score)}%
               </p>
-              <p className="text-xs text-[var(--text-muted)]">Consistency</p>
+              <p className="text-xs text-[var(--text-secondary)]">Consistency</p>
             </div>
           )}
           {publicScore && (
             <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4 text-center">
-              <Trophy className="mx-auto mb-1 h-5 w-5 text-[var(--text-muted)]" />
+              <Trophy className="mx-auto mb-1 h-5 w-5 text-[var(--text-secondary)]" />
               <p className="font-mono text-lg font-bold text-[var(--text-primary)]">
                 {publicScore.valueText}
               </p>
-              <p className="text-xs text-[var(--text-muted)]">{publicScore.labelText}</p>
+              <p className="text-xs text-[var(--text-secondary)]">{publicScore.labelText}</p>
             </div>
           )}
           {data.top_speed_mph != null && (
             <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4 text-center">
-              <Gauge className="mx-auto mb-1 h-5 w-5 text-[var(--text-muted)]" />
+              <Gauge className="mx-auto mb-1 h-5 w-5 text-[var(--text-secondary)]" />
               <p className="font-mono text-lg font-bold text-[var(--text-primary)]">
                 {Math.round(data.top_speed_mph)} mph
               </p>
-              <p className="text-xs text-[var(--text-muted)]">Top Speed</p>
+              <p className="text-xs text-[var(--text-secondary)]">Top Speed</p>
             </div>
           )}
         </div>

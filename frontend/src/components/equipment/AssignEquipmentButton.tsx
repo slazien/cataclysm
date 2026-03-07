@@ -95,7 +95,7 @@ export function AssignEquipmentButton({ sessionId }: AssignEquipmentButtonProps)
             toggleSettingsPanel();
           }
         }}
-        className="flex items-center gap-1.5 rounded-md border border-dashed border-[var(--cata-border)] bg-[var(--bg-surface)] px-2.5 py-1 text-xs text-[var(--text-muted)] transition-colors hover:border-[var(--text-secondary)] hover:text-[var(--text-secondary)]"
+        className="flex items-center gap-1.5 rounded-md border border-dashed border-[var(--cata-border)] bg-[var(--bg-surface)] px-2.5 py-1 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--text-secondary)] hover:text-[var(--text-secondary)]"
       >
         <Settings2 className="h-3 w-3" />
         Equipment
@@ -147,7 +147,7 @@ function EquipmentDropdown({
         onClick={onClose}
       />
       <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] py-1 shadow-xl">
-        <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+        <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
           Equipment Profiles
         </p>
         {profiles.map((profile) => (
@@ -168,7 +168,7 @@ function EquipmentDropdown({
                     <Star className="h-2.5 w-2.5 shrink-0 fill-amber-400 text-amber-400" />
                   )}
                 </p>
-                <p className="text-xs text-[var(--text-muted)]">
+                <p className="text-xs text-[var(--text-secondary)]">
                   {profile.tires.model}
                 </p>
               </div>
@@ -182,7 +182,7 @@ function EquipmentDropdown({
                 e.stopPropagation();
                 onEditProfile(profile);
               }}
-              className="ml-2 rounded p-1 text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-surface)] hover:text-[var(--text-secondary)]"
+              className="ml-2 rounded p-1 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface)] hover:text-[var(--text-secondary)]"
               title="Edit profile"
             >
               <Pencil className="h-3 w-3" />

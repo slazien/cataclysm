@@ -297,7 +297,7 @@ export function ProgressView() {
                     className="flex items-center gap-1 rounded-md px-2 py-0.5 font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-surface)]"
                   >
                     {effectiveTrack}
-                    <ChevronDown className="size-4 text-[var(--text-muted)]" />
+                    <ChevronDown className="size-4 text-[var(--text-secondary)]" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="min-w-[200px]">
@@ -313,7 +313,7 @@ export function ProgressView() {
                       >
                         <span className="flex w-full items-center justify-between gap-3">
                           <span>{t.name}</span>
-                          <span className="text-xs text-[var(--text-muted)]">
+                          <span className="text-xs text-[var(--text-secondary)]">
                             {t.sessionCount < 2
                               ? `${t.sessionCount} session`
                               : `${t.sessionCount} sessions`}
@@ -356,31 +356,31 @@ export function ProgressView() {
         {/* 3. Journey Card */}
         {heroMetrics && journeyMetrics && trendData.sessions.length >= 2 && (
           <div className="rounded-lg border-l-[3px] border-l-[var(--cata-accent)] bg-gradient-to-r from-[var(--bg-surface)] to-[color-mix(in_srgb,var(--bg-surface)_92%,white)] p-4">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-[var(--text-secondary)]">
               Your journey at {trendData.track_name}
             </p>
             <div className="flex items-baseline gap-4 lg:gap-6">
               <div className="min-w-0">
-                <p className="text-xs text-[var(--text-muted)]">Started</p>
+                <p className="text-xs text-[var(--text-secondary)]">Started</p>
                 <p className="font-[family-name:var(--font-display)] text-xl font-bold tracking-tight text-[var(--text-secondary)] lg:text-2xl">
                   {formatTimeShort(journeyMetrics.firstBestLap)}
                 </p>
-                <p className="text-xs text-[var(--text-muted)]">{journeyMetrics.firstDate}</p>
+                <p className="text-xs text-[var(--text-secondary)]">{journeyMetrics.firstDate}</p>
               </div>
-              <span className="text-lg text-[var(--text-muted)]">&rarr;</span>
+              <span className="text-lg text-[var(--text-secondary)]">&rarr;</span>
               <div className="min-w-0">
-                <p className="text-xs text-[var(--text-muted)]">Now</p>
+                <p className="text-xs text-[var(--text-secondary)]">Now</p>
                 <p className="font-[family-name:var(--font-display)] text-xl font-bold tracking-tight text-[var(--text-primary)] lg:text-2xl">
                   {formatTimeShort(journeyMetrics.latestBestLap)}
                 </p>
-                <p className="text-xs text-[var(--text-muted)]">{journeyMetrics.latestDate}</p>
+                <p className="text-xs text-[var(--text-secondary)]">{journeyMetrics.latestDate}</p>
               </div>
               <div className="ml-auto min-w-0 text-right">
-                <p className="text-xs text-[var(--text-muted)]">Improvement</p>
+                <p className="text-xs text-[var(--text-secondary)]">Improvement</p>
                 <p className="font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight text-[var(--color-throttle)]">
                   -{journeyMetrics.improvement.toFixed(1)}s
                 </p>
-                <p className="text-xs text-[var(--text-muted)]">{trendData.sessions.length} sessions</p>
+                <p className="text-xs text-[var(--text-secondary)]">{trendData.sessions.length} sessions</p>
               </div>
             </div>
           </div>

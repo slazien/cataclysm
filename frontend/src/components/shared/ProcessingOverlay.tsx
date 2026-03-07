@@ -79,7 +79,7 @@ export function ProcessingOverlay() {
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
         <div className="w-full max-w-xs rounded-xl border border-red-500/30 bg-[var(--bg-surface)] p-6 text-center shadow-2xl">
           <p className="text-sm font-medium text-red-400">Upload failed</p>
-          <p className="mt-1 text-xs text-[var(--text-muted)]">
+          <p className="mt-1 text-xs text-[var(--text-secondary)]">
             Please check your CSV format and try again
           </p>
         </div>
@@ -114,7 +114,7 @@ export function ProcessingOverlay() {
                       ? 'text-green-400'
                       : status === 'active'
                         ? 'text-[var(--text-primary)]'
-                        : 'text-[var(--text-muted)]'
+                        : 'text-[var(--text-secondary)]'
                   }`}
                 >
                   {step.label}

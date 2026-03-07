@@ -253,7 +253,7 @@ export function CornerHeatmap({
   if (nCorners === 0 || nSessions === 0) {
     return (
       <div className={`flex h-full items-center justify-center ${className ?? ''}`}>
-        <p className="text-sm text-[var(--text-muted)]">No corner trend data available</p>
+        <p className="text-sm text-[var(--text-secondary)]">No corner trend data available</p>
       </div>
     );
   }

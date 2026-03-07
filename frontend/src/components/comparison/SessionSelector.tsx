@@ -86,7 +86,7 @@ export function SessionSelector({ currentSessionId }: SessionSelectorProps) {
                 {currentSession.track_name}
               </span>
             ) : (
-              <span className="font-mono text-[var(--text-muted)]">
+              <span className="font-mono text-[var(--text-secondary)]">
                 {currentSessionId.slice(0, 8)}
               </span>
             )}
@@ -97,7 +97,7 @@ export function SessionSelector({ currentSessionId }: SessionSelectorProps) {
       {/* Current Session Info */}
       {currentSession && (
         <div className="rounded-lg border border-[var(--cata-accent)]/30 bg-[var(--cata-accent)]/5 px-5 py-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
             Current Session
           </p>
           <p className="mt-1 text-sm font-medium text-[var(--text-primary)]">
@@ -115,13 +115,13 @@ export function SessionSelector({ currentSessionId }: SessionSelectorProps) {
           <p className="text-sm text-[var(--text-secondary)]">
             No comparable sessions available for this track.
           </p>
-          <p className="text-xs text-[var(--text-muted)]">
+          <p className="text-xs text-[var(--text-secondary)]">
             Upload another session from the same track to enable comparison.
           </p>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
             Select a session to compare
           </p>
           <div className="flex flex-col gap-1">
@@ -155,7 +155,7 @@ export function SessionSelector({ currentSessionId }: SessionSelectorProps) {
                     <p className="font-mono text-sm font-semibold text-[var(--text-primary)]">
                       {formatLapTime(s.best_lap_time_s ?? 0)}
                     </p>
-                    <p className="font-mono text-xs text-[var(--text-muted)]">
+                    <p className="font-mono text-xs text-[var(--text-secondary)]">
                       {s.session_id.slice(0, 8)}
                     </p>
                   </div>

@@ -105,7 +105,7 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
             className={cn(
               'h-5 w-5',
               isTie
-                ? 'text-[var(--text-muted)]'
+                ? 'text-[var(--text-secondary)]'
                 : aFaster
                   ? 'text-[var(--color-throttle)]'
                   : 'text-[var(--color-brake)]',
@@ -147,7 +147,7 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
           )}
         >
           <div className="mb-3 flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               Session A
             </span>
             {aFaster && (
@@ -158,18 +158,18 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
           </div>
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
-              <MapPin className="h-3.5 w-3.5 text-[var(--text-muted)]" />
+              <MapPin className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
               <span className="text-sm text-[var(--text-primary)]">{data.session_a_track}</span>
             </div>
             <div className="flex items-center gap-2">
-              <Clock className="h-3.5 w-3.5 text-[var(--text-muted)]" />
+              <Clock className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
               <span className="font-mono text-lg font-semibold text-[var(--text-primary)]">
                 {data.session_a_best_lap !== null
                   ? formatLapTime(data.session_a_best_lap)
                   : '--:--'}
               </span>
             </div>
-            <p className="font-mono text-xs text-[var(--text-muted)]">
+            <p className="font-mono text-xs text-[var(--text-secondary)]">
               {data.session_a_id.slice(0, 8)}
             </p>
           </div>
@@ -185,7 +185,7 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
           )}
         >
           <div className="mb-3 flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               Session B
             </span>
             {bFaster && (
@@ -196,18 +196,18 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
           </div>
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
-              <MapPin className="h-3.5 w-3.5 text-[var(--text-muted)]" />
+              <MapPin className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
               <span className="text-sm text-[var(--text-primary)]">{data.session_b_track}</span>
             </div>
             <div className="flex items-center gap-2">
-              <Clock className="h-3.5 w-3.5 text-[var(--text-muted)]" />
+              <Clock className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
               <span className="font-mono text-lg font-semibold text-[var(--text-primary)]">
                 {data.session_b_best_lap !== null
                   ? formatLapTime(data.session_b_best_lap)
                   : '--:--'}
               </span>
             </div>
-            <p className="font-mono text-xs text-[var(--text-muted)]">
+            <p className="font-mono text-xs text-[var(--text-secondary)]">
               {data.session_b_id.slice(0, 8)}
             </p>
           </div>
@@ -265,16 +265,16 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--cata-border)]">
-                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
                     Corner
                   </th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
                     A Min Speed
                   </th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
                     B Min Speed
                   </th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
                     Delta
                   </th>
                 </tr>
@@ -302,7 +302,7 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
                           'px-3 py-2 text-right font-mono font-medium',
                           isPositive && 'text-[var(--color-throttle)]',
                           isNegative && 'text-[var(--color-brake)]',
-                          !isPositive && !isNegative && 'text-[var(--text-muted)]',
+                          !isPositive && !isNegative && 'text-[var(--text-secondary)]',
                         )}
                       >
                         {isPositive ? '+' : ''}

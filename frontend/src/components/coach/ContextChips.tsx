@@ -50,7 +50,7 @@ export function ContextChips() {
           variant="secondary"
           className="bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--cata-border)] text-[10px] font-medium"
         >
-          <span className="text-[var(--text-tertiary)]">{chip.label}:</span>
+          <span className="text-[var(--text-secondary)]">{chip.label}:</span>
           &nbsp;{chip.value}
         </Badge>
       ))}

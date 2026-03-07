@@ -231,7 +231,7 @@ export function ConsistencyTrend({ sessions, consistencyTrend, pbIndices, classN
   if (sessions.length === 0) {
     return (
       <div className={`flex h-full items-center justify-center ${className ?? ''}`}>
-        <p className="text-sm text-[var(--text-muted)]">No consistency data available</p>
+        <p className="text-sm text-[var(--text-secondary)]">No consistency data available</p>
       </div>
     );
   }

@@ -41,7 +41,7 @@ export function RunGroupManager({ groups, onChange, disabled }: RunGroupManagerP
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <Tag className="h-4 w-4 text-[var(--text-muted)]" />
+        <Tag className="h-4 w-4 text-[var(--text-secondary)]" />
         <span className="text-sm font-medium text-[var(--text-primary)]">Run Groups</span>
       </div>
 
@@ -81,7 +81,7 @@ export function RunGroupManager({ groups, onChange, disabled }: RunGroupManagerP
           disabled={disabled}
           className={cn(
             'flex-1 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-primary)] px-3 py-1.5 text-sm text-[var(--text-primary)]',
-            'placeholder:text-[var(--text-muted)] focus:border-[var(--text-muted)] focus:outline-none',
+            'placeholder:text-[var(--text-muted)] focus:border-[var(--cata-accent)] focus:outline-none',
             disabled && 'opacity-50',
           )}
         />
@@ -111,7 +111,7 @@ export function RunGroupManager({ groups, onChange, disabled }: RunGroupManagerP
                 <button
                   type="button"
                   onClick={() => removeGroup(g)}
-                  className="ml-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                  className="ml-0.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 >
                   <X className="h-3 w-3" />
                 </button>

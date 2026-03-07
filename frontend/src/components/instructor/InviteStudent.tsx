@@ -51,7 +51,7 @@ export function InviteStudent() {
           <button
             type="button"
             onClick={handleCopy}
-            className="rounded p-1 text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+            className="rounded p-1 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
           >
             {copied ? (
               <Check className="h-4 w-4 text-[var(--color-throttle)]" />

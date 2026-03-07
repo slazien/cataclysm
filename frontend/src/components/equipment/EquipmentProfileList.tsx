@@ -73,7 +73,7 @@ export function EquipmentProfileList() {
 
   return (
     <fieldset className="mb-6 min-w-0">
-      <legend className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+      <legend className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
         Equipment Profiles
       </legend>
 
@@ -84,7 +84,7 @@ export function EquipmentProfileList() {
           ))}
         </div>
       ) : profiles.length === 0 ? (
-        <p className="py-4 text-center text-sm text-[var(--text-muted)]">
+        <p className="py-4 text-center text-sm text-[var(--text-secondary)]">
           No equipment profiles yet
         </p>
       ) : (
@@ -101,7 +101,7 @@ export function EquipmentProfileList() {
                   )}
                   {profile.name}
                 </p>
-                <p className="truncate text-xs text-[var(--text-muted)]">
+                <p className="truncate text-xs text-[var(--text-secondary)]">
                   {formatSummary(profile)}
                 </p>
               </div>
@@ -112,7 +112,7 @@ export function EquipmentProfileList() {
                   className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
                     profile.is_default
                       ? 'text-amber-400 hover:bg-[var(--bg-elevated)] hover:text-amber-300'
-                      : 'text-[var(--text-muted)] hover:bg-[var(--bg-elevated)] hover:text-amber-400'
+                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-amber-400'
                   }`}
                   title={profile.is_default ? 'Remove default' : 'Set as default'}
                 >
@@ -121,7 +121,7 @@ export function EquipmentProfileList() {
                 <button
                   type="button"
                   onClick={() => handleEdit(profile)}
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
                   title="Edit profile"
                 >
                   <Pencil className="h-3.5 w-3.5" />
@@ -130,7 +130,7 @@ export function EquipmentProfileList() {
                   type="button"
                   onClick={() => handleDelete(profile.id, profile.name)}
                   disabled={deleteMutation.isPending}
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-muted)] transition-colors hover:bg-red-500/10 hover:text-red-400"
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-red-500/10 hover:text-red-400"
                   title="Delete profile"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -144,7 +144,7 @@ export function EquipmentProfileList() {
       <button
         type="button"
         onClick={handleCreateNew}
-        className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-[var(--cata-border)] px-3 py-2 text-xs text-[var(--text-muted)] transition-colors hover:border-[var(--text-secondary)] hover:text-[var(--text-secondary)]"
+        className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-[var(--cata-border)] px-3 py-2 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--text-secondary)] hover:text-[var(--text-secondary)]"
       >
         <Plus className="h-3.5 w-3.5" />
         New Profile

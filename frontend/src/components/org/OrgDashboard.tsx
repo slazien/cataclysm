@@ -119,7 +119,7 @@ export function OrgDashboard({ slug }: OrgDashboardProps) {
   if (isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
+        <Loader2 className="h-6 w-6 animate-spin text-[var(--text-secondary)]" />
       </div>
     );
   }
@@ -127,7 +127,7 @@ export function OrgDashboard({ slug }: OrgDashboardProps) {
   if (error || !org) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3">
-        <Building2 className="h-8 w-8 text-[var(--text-muted)]" />
+        <Building2 className="h-8 w-8 text-[var(--text-secondary)]" />
         <p className="text-sm text-[var(--color-brake)]">
           Organization not found or you don&apos;t have access.
         </p>
@@ -158,7 +158,7 @@ export function OrgDashboard({ slug }: OrgDashboardProps) {
         )}
         <div className="flex-1">
           <h1 className="text-xl font-semibold text-[var(--text-primary)]">{org.name}</h1>
-          <p className="text-sm text-[var(--text-muted)]">
+          <p className="text-sm text-[var(--text-secondary)]">
             {org.member_count} member{org.member_count !== 1 ? 's' : ''}
           </p>
         </div>
@@ -178,7 +178,7 @@ export function OrgDashboard({ slug }: OrgDashboardProps) {
               'flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
               activeTab === key
                 ? 'border-[var(--color-throttle)] text-[var(--text-primary)]'
-                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+                : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-secondary)]',
             )}
           >
             <Icon className="h-4 w-4" />
@@ -226,7 +226,7 @@ export function OrgDashboard({ slug }: OrgDashboardProps) {
                   value={memberUserId}
                   onChange={(e) => setMemberUserId(e.target.value)}
                   placeholder="User ID"
-                  className="w-full rounded-lg border border-[var(--cata-border)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--text-muted)] focus:outline-none"
+                  className="w-full rounded-lg border border-[var(--cata-border)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--cata-accent)] focus:outline-none"
                 />
                 <div className="flex gap-2">
                   {(['student', 'instructor', 'owner'] as const).map((r) => (
@@ -250,7 +250,7 @@ export function OrgDashboard({ slug }: OrgDashboardProps) {
                   value={memberRunGroup}
                   onChange={(e) => setMemberRunGroup(e.target.value)}
                   placeholder="Run group (optional)"
-                  className="w-full rounded-lg border border-[var(--cata-border)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--text-muted)] focus:outline-none"
+                  className="w-full rounded-lg border border-[var(--cata-border)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--cata-accent)] focus:outline-none"
                 />
                 <button
                   type="button"
@@ -271,7 +271,7 @@ export function OrgDashboard({ slug }: OrgDashboardProps) {
           {/* Members list */}
           {members.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-12 text-center">
-              <Users className="h-8 w-8 text-[var(--text-muted)]" />
+              <Users className="h-8 w-8 text-[var(--text-secondary)]" />
               <p className="text-sm text-[var(--text-secondary)]">No members yet.</p>
             </div>
           ) : (
@@ -292,11 +292,11 @@ export function OrgDashboard({ slug }: OrgDashboardProps) {
                           {member.name}
                         </span>
                         <RoleIcon className={cn('h-3.5 w-3.5', ROLE_COLORS[member.role])} />
-                        <span className="text-xs capitalize text-[var(--text-muted)]">
+                        <span className="text-xs capitalize text-[var(--text-secondary)]">
                           {member.role}
                         </span>
                       </div>
-                      <p className="text-xs text-[var(--text-muted)]">{member.email}</p>
+                      <p className="text-xs text-[var(--text-secondary)]">{member.email}</p>
                     </div>
                     {member.run_group && (
                       <span className="rounded-full bg-[var(--bg-elevated)] px-2.5 py-0.5 text-xs text-[var(--text-secondary)]">
@@ -307,7 +307,7 @@ export function OrgDashboard({ slug }: OrgDashboardProps) {
                       type="button"
                       onClick={() => handleRemoveMember(member.user_id)}
                       disabled={removeMemberMutation.isPending}
-                      className="rounded-lg p-1.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--color-brake)]/10 hover:text-[var(--color-brake)]"
+                      className="rounded-lg p-1.5 text-[var(--text-secondary)] transition-colors hover:bg-[var(--color-brake)]/10 hover:text-[var(--color-brake)]"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -351,20 +351,20 @@ export function OrgDashboard({ slug }: OrgDashboardProps) {
                   value={eventName}
                   onChange={(e) => setEventName(e.target.value)}
                   placeholder="Event name (e.g. Track Day #1)"
-                  className="w-full rounded-lg border border-[var(--cata-border)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--text-muted)] focus:outline-none"
+                  className="w-full rounded-lg border border-[var(--cata-border)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--cata-accent)] focus:outline-none"
                 />
                 <input
                   type="text"
                   value={eventTrack}
                   onChange={(e) => setEventTrack(e.target.value)}
                   placeholder="Track name (e.g. Barber Motorsports Park)"
-                  className="w-full rounded-lg border border-[var(--cata-border)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--text-muted)] focus:outline-none"
+                  className="w-full rounded-lg border border-[var(--cata-border)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--cata-accent)] focus:outline-none"
                 />
                 <input
                   type="datetime-local"
                   value={eventDate}
                   onChange={(e) => setEventDate(e.target.value)}
-                  className="w-full rounded-lg border border-[var(--cata-border)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--text-muted)] focus:outline-none"
+                  className="w-full rounded-lg border border-[var(--cata-border)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--cata-accent)] focus:outline-none"
                 />
                 <RunGroupManager groups={eventRunGroups} onChange={setEventRunGroups} />
                 <button
@@ -395,7 +395,7 @@ export function OrgDashboard({ slug }: OrgDashboardProps) {
           {/* Events list */}
           {events.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-12 text-center">
-              <Calendar className="h-8 w-8 text-[var(--text-muted)]" />
+              <Calendar className="h-8 w-8 text-[var(--text-secondary)]" />
               <p className="text-sm text-[var(--text-secondary)]">
                 No events scheduled. Create one above.
               </p>
@@ -407,16 +407,16 @@ export function OrgDashboard({ slug }: OrgDashboardProps) {
                   key={ev.id}
                   className="flex items-center gap-3 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-3"
                 >
-                  <Calendar className="h-5 w-5 text-[var(--text-muted)]" />
+                  <Calendar className="h-5 w-5 text-[var(--text-secondary)]" />
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-[var(--text-primary)]">
                         {ev.name}
                       </span>
-                      <ChevronRight className="h-3 w-3 text-[var(--text-muted)]" />
+                      <ChevronRight className="h-3 w-3 text-[var(--text-secondary)]" />
                       <span className="text-sm text-[var(--text-secondary)]">{ev.track_name}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-[var(--text-muted)]">
+                    <div className="flex items-center gap-3 text-xs text-[var(--text-secondary)]">
                       <span>
                         {new Date(ev.event_date).toLocaleDateString(undefined, {
                           weekday: 'short',
@@ -434,7 +434,7 @@ export function OrgDashboard({ slug }: OrgDashboardProps) {
                     type="button"
                     onClick={() => handleDeleteEvent(ev.id)}
                     disabled={deleteEventMutation.isPending}
-                    className="rounded-lg p-1.5 text-[var(--text-muted)] transition-colors hover:bg-[var(--color-brake)]/10 hover:text-[var(--color-brake)]"
+                    className="rounded-lg p-1.5 text-[var(--text-secondary)] transition-colors hover:bg-[var(--color-brake)]/10 hover:text-[var(--color-brake)]"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>

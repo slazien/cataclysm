@@ -158,7 +158,7 @@ export function SessionDrawer() {
                 : 'border-[var(--cata-border)] hover:border-[var(--text-muted)]',
             )}
           >
-            <Upload className="h-5 w-5 text-[var(--text-muted)]" />
+            <Upload className="h-5 w-5 text-[var(--text-secondary)]" />
             <p className="text-xs text-[var(--text-secondary)]">
               {uploadMutation.isPending
                 ? 'Uploading...'
@@ -178,7 +178,7 @@ export function SessionDrawer() {
         {/* Session list grouped by track */}
         <ScrollArea className="min-h-0 flex-1 px-4">
           {sessions.length === 0 && (
-            <p className="py-8 text-center text-sm text-[var(--text-muted)]">
+            <p className="py-8 text-center text-sm text-[var(--text-secondary)]">
               No sessions yet. Upload a CSV to get started.
             </p>
           )}
@@ -195,14 +195,14 @@ export function SessionDrawer() {
 
             return (
               <details key={group.trackName} open className="mb-3">
-                <summary className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]">
+                <summary className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] transition-colors hover:text-[var(--text-secondary)]">
                   <span className="flex-1">{group.trackName}</span>
                   <span className="text-[10px] font-normal">{group.sessions.length} session{group.sessions.length !== 1 ? 's' : ''}</span>
                 </summary>
                 <div className="flex flex-col gap-1 pb-2 pl-1">
                   {Array.from(dateGroups.entries()).map(([dateCategory, dateSessions]) => (
                     <div key={dateCategory}>
-                      <p className="mb-1 mt-1 text-[10px] font-medium text-[var(--text-muted)]">{dateCategory}</p>
+                      <p className="mb-1 mt-1 text-[10px] font-medium text-[var(--text-secondary)]">{dateCategory}</p>
                       {dateSessions.map((session) => {
                         const isPB = group.bestLapTime != null && session.best_lap_time_s === group.bestLapTime;
                         return (
@@ -233,7 +233,7 @@ export function SessionDrawer() {
                               <SessionScoreBadge score={session.session_score ?? session.consistency_score} />
                             </div>
                             <div className="mt-1 flex items-center gap-1.5">
-                              <p className="text-xs text-[var(--text-muted)]">
+                              <p className="text-xs text-[var(--text-secondary)]">
                                 {session.n_laps ?? 0} laps | Best: {formatLapTime(session.best_lap_time_s ?? 0)}
                               </p>
                               {session.tire_model && (
@@ -333,7 +333,7 @@ function SessionScoreBadge({ score }: { score: number | null }) {
   const normalized = score != null ? Math.round(normalizeScore(score)) : null;
   const colors =
     normalized == null || normalized < 40
-      ? 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30'
+      ? 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--cata-border)]'
       : normalized >= 80
         ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
         : normalized >= 60

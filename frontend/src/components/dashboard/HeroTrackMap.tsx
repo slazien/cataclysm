@@ -247,7 +247,7 @@ export function HeroTrackMap({ sessionId, bestLapNumber }: HeroTrackMapProps) {
   if (lapLoading || cornersLoading) {
     return (
       <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium uppercase tracking-wider text-[var(--text-muted)]">
+        <h2 className="text-sm font-medium uppercase tracking-wider text-[var(--text-secondary)]">
           Track Map
         </h2>
         <div className="flex items-center justify-center rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-8">
@@ -260,7 +260,7 @@ export function HeroTrackMap({ sessionId, bestLapNumber }: HeroTrackMapProps) {
   if (!projected || projected.x.length === 0) {
     return (
       <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium uppercase tracking-wider text-[var(--text-muted)]">
+        <h2 className="text-sm font-medium uppercase tracking-wider text-[var(--text-secondary)]">
           Track Map
         </h2>
         <div className="flex items-center justify-center rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-8">
@@ -272,7 +272,7 @@ export function HeroTrackMap({ sessionId, bestLapNumber }: HeroTrackMapProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium uppercase tracking-wider text-[var(--text-muted)]">
+      <h2 className="text-sm font-medium uppercase tracking-wider text-[var(--text-secondary)]">
         Track Map
       </h2>
       <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-1">

@@ -37,7 +37,7 @@ function CompareRow({ label, yours, theirs, advantage }: CompareRowProps) {
       >
         {yours}
       </span>
-      <span className="text-center text-xs text-[var(--text-muted)]">{label}</span>
+      <span className="text-center text-xs text-[var(--text-secondary)]">{label}</span>
       <span
         className={`text-left text-sm font-mono tabular-nums ${
           isTheirAdvantage ? 'text-emerald-400 font-semibold' : 'text-[var(--text-primary)]'
@@ -71,7 +71,7 @@ export function LeaderboardCompareCard({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full p-1 text-[var(--text-muted)] transition hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+          className="rounded-full p-1 text-[var(--text-secondary)] transition hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
         >
           <X className="h-4 w-4" />
         </button>
@@ -82,7 +82,7 @@ export function LeaderboardCompareCard({
         <span className="text-right text-[10px] font-medium uppercase tracking-wider text-[var(--cata-accent)]">
           You
         </span>
-        <span className="text-center text-[10px] text-[var(--text-muted)]">vs</span>
+        <span className="text-center text-[10px] text-[var(--text-secondary)]">vs</span>
         <span className="text-left text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
           {theirEntry.user_name}
         </span>
@@ -114,7 +114,7 @@ export function LeaderboardCompareCard({
             They are {Math.abs(timeAdvantage).toFixed(3)}s faster
           </span>
         ) : (
-          <span className="text-xs font-medium text-[var(--text-muted)]">
+          <span className="text-xs font-medium text-[var(--text-secondary)]">
             Identical times
           </span>
         )}

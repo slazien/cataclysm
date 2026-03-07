@@ -23,13 +23,13 @@ function RankCard({ icon: Icon, label, value, subtitle, accent }: RankCardProps)
       <Icon
         className={cn(
           'h-4 w-4',
-          accent ? 'text-yellow-400' : 'text-[var(--text-muted)]',
+          accent ? 'text-yellow-400' : 'text-[var(--text-secondary)]',
         )}
       />
       <span className="font-[family-name:var(--font-display)] text-lg font-bold tracking-tight text-[var(--text-primary)]">
         {value}
       </span>
-      <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+      <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
         {label}
       </span>
       <span className="text-[10px] text-[var(--text-secondary)]">{subtitle}</span>
@@ -93,7 +93,7 @@ export function TrackLeaderboardSummary({ trackName }: TrackLeaderboardSummaryPr
           />
         </div>
       ) : (
-        <p className="text-sm text-[var(--text-muted)]">
+        <p className="text-sm text-[var(--text-secondary)]">
           No leaderboard data available yet.
         </p>
       )}

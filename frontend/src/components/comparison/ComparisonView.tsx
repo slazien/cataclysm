@@ -69,7 +69,7 @@ export function ComparisonView({ token }: ComparisonViewProps) {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
+        <Loader2 className="h-6 w-6 animate-spin text-[var(--text-secondary)]" />
         <p className="text-sm text-[var(--text-secondary)]">Loading comparison...</p>
       </div>
     );
@@ -81,7 +81,7 @@ export function ComparisonView({ token }: ComparisonViewProps) {
         <p className="text-sm text-[var(--text-primary)]">
           Failed to load comparison data.
         </p>
-        <p className="mt-1 text-xs text-[var(--text-muted)]">
+        <p className="mt-1 text-xs text-[var(--text-secondary)]">
           {error instanceof Error ? error.message : 'The share link may be expired or invalid.'}
         </p>
       </div>

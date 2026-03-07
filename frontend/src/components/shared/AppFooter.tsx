@@ -7,7 +7,7 @@ const EMAIL = 'cataclysm.hpde@gmail.com';
 export function AppFooter() {
   return (
     <footer className="shrink-0 border-t border-[var(--cata-border)] bg-[var(--bg-surface)] px-4 py-2">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-[10px] text-[var(--text-muted)]">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-[10px] text-[var(--text-secondary)]">
         <span>
           Built by <span className="text-[var(--text-secondary)]">Przemek Zientala</span>
         </span>

@@ -145,7 +145,7 @@ export default function SharePage() {
         {/* Session Info Card */}
         <div className="w-full rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-5">
           <div className="flex items-center gap-3">
-            <MapPin className="h-5 w-5 text-[var(--text-muted)]" />
+            <MapPin className="h-5 w-5 text-[var(--text-secondary)]" />
             <div>
               <p className="font-medium text-[var(--text-primary)]">{meta.track_name}</p>
               {meta.best_lap_time_s !== null && (
@@ -194,17 +194,17 @@ export default function SharePage() {
               <p className="text-sm font-medium text-[var(--text-primary)]">
                 Processing your session...
               </p>
-              <p className="text-xs text-[var(--text-muted)]">
+              <p className="text-xs text-[var(--text-secondary)]">
                 This may take a few seconds
               </p>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3">
-              <Upload className="h-8 w-8 text-[var(--text-muted)]" />
+              <Upload className="h-8 w-8 text-[var(--text-secondary)]" />
               <p className="text-sm font-medium text-[var(--text-primary)]">
                 Drop your RaceChrono CSV here
               </p>
-              <p className="text-xs text-[var(--text-muted)]">
+              <p className="text-xs text-[var(--text-secondary)]">
                 or click to browse
               </p>
             </div>

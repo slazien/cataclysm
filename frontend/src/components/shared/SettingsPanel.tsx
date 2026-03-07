@@ -60,7 +60,7 @@ export function SettingsPanel() {
           <button
             type="button"
             onClick={toggle}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
           >
             <X className="h-4 w-4" />
           </button>
@@ -73,7 +73,7 @@ export function SettingsPanel() {
 
           {/* Skill Level */}
           <fieldset className="mb-6 min-w-0">
-            <legend className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+            <legend className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
               Skill Level
             </legend>
             <div className="space-y-2">
@@ -114,7 +114,7 @@ export function SettingsPanel() {
                     <span className="text-sm font-medium text-[var(--text-primary)]">
                       {level.label}
                     </span>
-                    <p className="text-xs text-[var(--text-muted)]">{level.description}</p>
+                    <p className="text-xs text-[var(--text-secondary)]">{level.description}</p>
                   </div>
                 </label>
               ))}
@@ -123,7 +123,7 @@ export function SettingsPanel() {
 
           {/* Units */}
           <fieldset className="min-w-0">
-            <legend className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+            <legend className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
               Units
             </legend>
             <div className="space-y-2">
@@ -161,7 +161,7 @@ export function SettingsPanel() {
                     <span className="text-sm font-medium text-[var(--text-primary)]">
                       {option.label}
                     </span>
-                    <p className="text-xs text-[var(--text-muted)]">{option.description}</p>
+                    <p className="text-xs text-[var(--text-secondary)]">{option.description}</p>
                   </div>
                 </label>
               ))}

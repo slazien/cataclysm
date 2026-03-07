@@ -52,7 +52,7 @@ function KpiRow({ label, value, unit = '', delta, deltaUnit, invertDelta }: KpiR
 
   return (
     <div className="flex items-center justify-between py-1.5">
-      <span className="text-xs text-[var(--text-muted)]">{label}</span>
+      <span className="text-xs text-[var(--text-secondary)]">{label}</span>
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium tabular-nums text-[var(--text-primary)]">
           {value}
@@ -90,7 +90,7 @@ function GradeRow({ label, grade, reason, explanation }: GradeRowProps) {
   return (
     <div className="py-1">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-[var(--text-muted)]">{label}</span>
+        <span className="text-xs text-[var(--text-secondary)]">{label}</span>
         <GradeChip grade={grade} reason={reason} />
       </div>
       {explanation && (
@@ -236,7 +236,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
             </span>
           )}
         </div>
-        <span className="text-xs text-[var(--text-muted)]">
+        <span className="text-xs text-[var(--text-secondary)]">
           {displayLap ? `L${displayLap}` : 'Best lap'}{apexLabel ? ` · ${apexLabel}` : ''}
         </span>
       </div>
@@ -290,7 +290,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
       {/* Per-category grades */}
       {cornerGrade && (
         <div className="space-y-0.5">
-          <h4 className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+          <h4 className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
             Grades
             <InfoTooltip helpKey="section.corner-grades" />
           </h4>

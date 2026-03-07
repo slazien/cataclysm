@@ -95,7 +95,7 @@ export function TopBar() {
                 'relative px-3 py-1.5 font-[family-name:var(--font-display)] text-sm font-medium transition-colors',
                 activeView === tab.value
                   ? 'text-[var(--text-primary)]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-secondary)]',
               )}
             >
               {tab.label}
@@ -189,7 +189,7 @@ export function TopBar() {
                 <div className="absolute right-0 top-9 z-50 w-48 rounded-md border border-[var(--cata-border)] bg-[var(--bg-surface)] py-1 shadow-lg">
                   <div className="border-b border-[var(--cata-border)] px-3 py-2">
                     <p className="text-sm font-medium text-[var(--text-primary)]">{authSession.user.name}</p>
-                    <p className="text-xs text-[var(--text-muted)]">{authSession.user.email}</p>
+                    <p className="text-xs text-[var(--text-secondary)]">{authSession.user.email}</p>
                   </div>
                   <button
                     type="button"
@@ -230,8 +230,8 @@ export function TopBar() {
                 {Math.round(session.session_score)}
               </span>
             )}
-            <ChevronRight className="h-3 w-3 text-[var(--text-muted)]" />
-            <span className="hidden text-[var(--text-muted)] sm:inline">{session?.session_date ?? ''}</span>
+            <ChevronRight className="h-3 w-3 text-[var(--text-secondary)]" />
+            <span className="hidden text-[var(--text-secondary)] sm:inline">{session?.session_date ?? ''}</span>
           </button>
 
           {/* Right: Lap pills (deep-dive only) */}

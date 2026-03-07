@@ -22,14 +22,14 @@ function ExpandableItem({ text, bullet }: { text: string; bullet: string }) {
   return (
     <li className="text-sm text-[var(--text-secondary)]">
       <div className="flex items-start gap-1">
-        <span className="mt-0.5 shrink-0 text-[var(--text-muted)]">{bullet}</span>
+        <span className="mt-0.5 shrink-0 text-[var(--text-secondary)]">{bullet}</span>
         <div className="min-w-0">
           <span><MarkdownText>{title}</MarkdownText></span>
           {hasDetail && (
             <button
               type="button"
               onClick={() => setExpanded(!expanded)}
-              className="ml-1.5 inline-flex items-center gap-0.5 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
+              className="ml-1.5 inline-flex items-center gap-0.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-secondary)]"
             >
               {expanded ? (
                 <>Less <ChevronUp className="inline h-3 w-3" /></>
@@ -39,7 +39,7 @@ function ExpandableItem({ text, bullet }: { text: string; bullet: string }) {
             </button>
           )}
           {expanded && detail && (
-            <div className="mt-1 text-[var(--text-muted)]">
+            <div className="mt-1 text-[var(--text-secondary)]">
               <MarkdownText block>{detail}</MarkdownText>
             </div>
           )}
@@ -74,7 +74,7 @@ export function PatternsAndDrillsSection({ patterns, drills }: PatternsAndDrills
             <button
               type="button"
               onClick={() => setShowAllPatterns(!showAllPatterns)}
-              className="mt-2 flex items-center gap-1 text-xs text-[var(--text-muted)] transition-colors hover:text-[var(--text-secondary)]"
+              className="mt-2 flex items-center gap-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-secondary)]"
             >
               {showAllPatterns ? (
                 <>Show less <ChevronUp className="h-3 w-3" /></>

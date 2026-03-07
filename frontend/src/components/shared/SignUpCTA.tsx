@@ -13,7 +13,7 @@ export function SignUpCTA() {
       <div className="mx-auto flex max-w-2xl items-center justify-between gap-4 px-4 py-3">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-[var(--text-primary)]">Analyze your own track days</p>
-          <p className="text-xs text-[var(--text-muted)]">AI coaching, corner analysis, and progress tracking</p>
+          <p className="text-xs text-[var(--text-secondary)]">AI coaching, corner analysis, and progress tracking</p>
         </div>
         <div className="flex items-center gap-2">
           <a
@@ -24,7 +24,7 @@ export function SignUpCTA() {
           </a>
           <button
             onClick={() => setDismissed(true)}
-            className="rounded p-1 text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+            className="rounded p-1 text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
             aria-label="Dismiss"
           >
             <X className="h-4 w-4" />

@@ -38,7 +38,7 @@ export function ComparisonLegend() {
         <span className="tabular-nums text-[var(--text-secondary)]">
           {formatLapTime(refInfo.lap_time_s)}
         </span>
-        <span className="text-[var(--text-muted)]">Reference</span>
+        <span className="text-[var(--text-secondary)]">Reference</span>
       </div>
 
       {/* Compare lap */}
@@ -53,7 +53,7 @@ export function ComparisonLegend() {
         <span className="tabular-nums text-[var(--text-secondary)]">
           {formatLapTime(cmpInfo.lap_time_s)}
         </span>
-        <span className="text-[var(--text-muted)]">Compare</span>
+        <span className="text-[var(--text-secondary)]">Compare</span>
       </div>
 
       {/* Delta summary */}

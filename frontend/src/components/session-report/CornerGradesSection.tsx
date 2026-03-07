@@ -55,17 +55,17 @@ export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--cata-border)] bg-[var(--bg-surface)]">
-              <th className="px-2 py-1.5 text-left font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">Corner</th>
-              <th className="px-2 py-1.5 text-center font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">
+              <th className="px-2 py-1.5 text-left font-medium text-[var(--text-secondary)] lg:px-3 lg:py-2">Corner</th>
+              <th className="px-2 py-1.5 text-center font-medium text-[var(--text-secondary)] lg:px-3 lg:py-2">
                 <span className="inline-flex items-center gap-1">Braking <InfoTooltip helpKey="grade.braking" side="bottom" /></span>
               </th>
-              <th className="px-2 py-1.5 text-center font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">
+              <th className="px-2 py-1.5 text-center font-medium text-[var(--text-secondary)] lg:px-3 lg:py-2">
                 <span className="inline-flex items-center gap-1">Trail Braking <InfoTooltip helpKey="grade.trail-braking" side="bottom" /></span>
               </th>
-              <th className="px-2 py-1.5 text-center font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">
+              <th className="px-2 py-1.5 text-center font-medium text-[var(--text-secondary)] lg:px-3 lg:py-2">
                 <span className="inline-flex items-center gap-1">Min Speed <InfoTooltip helpKey="grade.min-speed" side="bottom" /></span>
               </th>
-              <th className="px-2 py-1.5 text-center font-medium text-[var(--text-muted)] lg:px-3 lg:py-2">
+              <th className="px-2 py-1.5 text-center font-medium text-[var(--text-secondary)] lg:px-3 lg:py-2">
                 <span className="inline-flex items-center gap-1">Throttle <InfoTooltip helpKey="grade.throttle" side="bottom" /></span>
               </th>
             </tr>
@@ -137,7 +137,7 @@ export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
           </m.tbody>
         </table>
       </div>
-      <p className="mt-2 text-xs text-[var(--text-muted)]">
+      <p className="mt-2 text-xs text-[var(--text-secondary)]">
         Click any row to deep dive. Use the arrow icon to expand coaching notes.
       </p>
     </div>

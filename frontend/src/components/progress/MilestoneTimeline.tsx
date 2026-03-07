@@ -64,7 +64,7 @@ export function MilestoneTimeline({ sessions, milestones, className }: Milestone
   if (milestones.length === 0) {
     return (
       <div className={className}>
-        <p className="py-6 text-center text-sm text-[var(--text-muted)]">
+        <p className="py-6 text-center text-sm text-[var(--text-secondary)]">
           No milestones yet — keep driving!
         </p>
       </div>
@@ -74,9 +74,9 @@ export function MilestoneTimeline({ sessions, milestones, className }: Milestone
   return (
     <div className={className}>
       {/* Summary bar */}
-      <div className="mb-3 flex items-center gap-3 text-xs text-[var(--text-muted)]">
+      <div className="mb-3 flex items-center gap-3 text-xs text-[var(--text-secondary)]">
         <span>{sortedMilestones.length} milestones across {sessionCount} sessions</span>
-        <span className="text-[var(--text-muted)]/50">•</span>
+        <span className="text-[var(--text-secondary)]/50">•</span>
         <span>{dateRange}</span>
       </div>
 
@@ -125,7 +125,7 @@ export function MilestoneTimeline({ sessions, milestones, className }: Milestone
                       >
                         {label}
                       </span>
-                      <span className="text-[11px] text-[var(--text-muted)]">
+                      <span className="text-[11px] text-[var(--text-secondary)]">
                         {formatDate(m.session_date)}
                       </span>
                     </div>

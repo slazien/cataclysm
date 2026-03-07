@@ -45,10 +45,10 @@ function MetricColumns({
     case 'sector_time':
       return (
         <>
-          <td className="px-4 py-2 text-right font-mono text-zinc-300">
+          <td className="px-4 py-2 text-right font-mono text-[var(--text-primary)]">
             {formatTime(entry.sector_time_s)}
           </td>
-          <td className="px-4 py-2 text-right text-zinc-400">
+          <td className="px-4 py-2 text-right text-[var(--text-secondary)]">
             {fmtSpd(entry.min_speed_mps)}
           </td>
         </>
@@ -56,10 +56,10 @@ function MetricColumns({
     case 'min_speed':
       return (
         <>
-          <td className="px-4 py-2 text-right font-mono text-zinc-300">
+          <td className="px-4 py-2 text-right font-mono text-[var(--text-primary)]">
             {fmtSpd(entry.min_speed_mps)}
           </td>
-          <td className="px-4 py-2 text-right text-zinc-400">
+          <td className="px-4 py-2 text-right text-[var(--text-secondary)]">
             {formatTime(entry.sector_time_s)}
           </td>
         </>
@@ -67,10 +67,10 @@ function MetricColumns({
     case 'brake_point':
       return (
         <>
-          <td className="px-4 py-2 text-right font-mono text-zinc-300">
+          <td className="px-4 py-2 text-right font-mono text-[var(--text-primary)]">
             {entry.brake_point_m != null ? formatDistance(entry.brake_point_m) : '--'}
           </td>
-          <td className="px-4 py-2 text-right text-zinc-400">
+          <td className="px-4 py-2 text-right text-[var(--text-secondary)]">
             {formatTime(entry.sector_time_s)}
           </td>
         </>
@@ -78,10 +78,10 @@ function MetricColumns({
     case 'consistency':
       return (
         <>
-          <td className="px-4 py-2 text-right font-mono text-zinc-300">
+          <td className="px-4 py-2 text-right font-mono text-[var(--text-primary)]">
             {entry.consistency_cv != null ? formatCV(entry.consistency_cv) : '--'}
           </td>
-          <td className="px-4 py-2 text-right text-zinc-400">
+          <td className="px-4 py-2 text-right text-[var(--text-secondary)]">
             {formatTime(entry.sector_time_s)}
           </td>
         </>
@@ -144,7 +144,7 @@ export function CornerLeaderboard({
 
   if (isLoading) {
     return (
-      <div className="animate-pulse text-sm text-zinc-400">
+      <div className="animate-pulse text-sm text-[var(--text-secondary)]">
         Loading leaderboard...
       </div>
     );
@@ -161,7 +161,7 @@ export function CornerLeaderboard({
   const isEmpty = !data || data.entries.length === 0;
 
   return (
-    <div className="relative rounded-lg border border-zinc-700 bg-zinc-800/50 overflow-hidden">
+    <div className="relative rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] overflow-hidden">
       {/* Compare overlay */}
       {selectedEntry && userEntry && selectedEntry.rank !== userEntry.rank && (
         <LeaderboardCompareCard
@@ -183,7 +183,7 @@ export function CornerLeaderboard({
               'whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors',
               category === c.key
                 ? 'bg-[var(--cata-accent)] text-white'
-                : 'bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
+                : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-secondary)]',
             )}
           >
             {c.icon} {c.label}
@@ -191,21 +191,21 @@ export function CornerLeaderboard({
         ))}
       </div>
 
-      <div className="px-4 py-3 border-b border-zinc-700">
-        <h3 className="text-sm font-semibold text-zinc-200">
+      <div className="px-4 py-3 border-b border-[var(--cata-border)]">
+        <h3 className="text-sm font-semibold text-[var(--text-primary)]">
           Corner {cornerNumber} Leaderboard
         </h3>
       </div>
 
       {isEmpty ? (
-        <div className="px-4 py-6 text-center text-sm text-zinc-500">
+        <div className="px-4 py-6 text-center text-sm text-[var(--text-secondary)]">
           No leaderboard data for this category yet.
         </div>
       ) : (
         <>
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-xs text-zinc-400 border-b border-zinc-700/50">
+              <tr className="text-xs text-[var(--text-secondary)] border-b border-[var(--cata-border)]/50">
                 <th className="px-4 py-2 text-left w-12">#</th>
                 <th className="px-4 py-2 text-left">Driver</th>
                 <th className="px-4 py-2 text-right">{primaryHeader}</th>
@@ -218,17 +218,17 @@ export function CornerLeaderboard({
                   key={entry.rank}
                   onClick={() => setSelectedEntry(entry)}
                   className={cn(
-                    'border-b border-zinc-700/30 cursor-pointer transition-colors',
+                    'border-b border-[var(--cata-border)]/30 cursor-pointer transition-colors',
                     entry.is_king
                       ? 'bg-yellow-500/10'
-                      : 'hover:bg-zinc-700/30',
+                      : 'hover:bg-[var(--bg-elevated)]/50',
                     selectedEntry?.rank === entry.rank && 'ring-1 ring-inset ring-[var(--cata-accent)]',
                   )}
                 >
-                  <td className="px-4 py-2 text-zinc-400 font-mono">
+                  <td className="px-4 py-2 text-[var(--text-secondary)] font-mono">
                     {entry.rank}
                   </td>
-                  <td className="px-4 py-2 text-zinc-200 flex items-center gap-2">
+                  <td className="px-4 py-2 text-[var(--text-primary)] flex items-center gap-2">
                     {entry.user_name}
                     {entry.is_king && <KingBadge />}
                   </td>
@@ -240,7 +240,7 @@ export function CornerLeaderboard({
 
           {/* Share footer */}
           <div className="flex items-center justify-between px-4 py-2 border-t border-[var(--cata-border)]">
-            <span className="text-xs text-[var(--text-muted)]">
+            <span className="text-xs text-[var(--text-secondary)]">
               {CATEGORIES.find((c) => c.key === category)?.label}
             </span>
             <button

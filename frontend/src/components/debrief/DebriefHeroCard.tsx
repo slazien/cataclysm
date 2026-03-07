@@ -26,10 +26,10 @@ export function DebriefHeroCard({
   return (
     <div className="rounded-xl border border-[var(--cata-border)] bg-gradient-to-br from-[var(--bg-surface)] to-[var(--bg-elevated)] p-6 text-center lg:p-10">
       {/* Track + Date — secondary info, muted */}
-      <p className="text-xs font-medium uppercase tracking-widest text-[var(--text-muted)]">
+      <p className="text-xs font-medium uppercase tracking-widest text-[var(--text-secondary)]">
         {trackName}
       </p>
-      <p className="mb-3 text-[10px] text-[var(--text-muted)]">{sessionDate}</p>
+      <p className="mb-3 text-[10px] text-[var(--text-secondary)]">{sessionDate}</p>
 
       {/* Best Lap Time — pit board hero, massive */}
       <p
@@ -64,7 +64,7 @@ export function DebriefHeroCard({
             <p className="font-[family-name:var(--font-display)] text-2xl font-bold text-[var(--text-primary)] lg:text-3xl">
               {consistencyScore}%
             </p>
-            <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
               Consistency
             </p>
           </div>
@@ -73,7 +73,7 @@ export function DebriefHeroCard({
           <p className="font-[family-name:var(--font-display)] text-2xl font-bold text-[var(--text-primary)] lg:text-3xl">
             {nLaps}
           </p>
-          <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
             Laps
           </p>
         </div>

@@ -61,8 +61,8 @@ export function ComparisonSummary({
         {/* Gap Pill */}
         <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] px-4 py-3 text-center">
           <div className="mb-1 flex items-center justify-center gap-1.5">
-            <Clock className="h-3.5 w-3.5 text-[var(--text-muted)]" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            <Clock className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               Gap
             </span>
           </div>
@@ -74,8 +74,8 @@ export function ComparisonSummary({
         {/* Corners Won Pill */}
         <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] px-4 py-3 text-center">
           <div className="mb-1 flex items-center justify-center gap-1.5">
-            <Gauge className="h-3.5 w-3.5 text-[var(--text-muted)]" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            <Gauge className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               Corners Won
             </span>
           </div>
@@ -84,23 +84,23 @@ export function ComparisonSummary({
               <span style={{ color: '#58a6ff' }} className="font-semibold">
                 {cornersWonA}
               </span>
-              <span className="mx-1 text-[var(--text-muted)]">-</span>
+              <span className="mx-1 text-[var(--text-secondary)]">-</span>
               <span style={{ color: '#f97316' }} className="font-semibold">
                 {cornersWonB}
               </span>
-              <span className="ml-1 text-xs text-[var(--text-muted)]">
+              <span className="ml-1 text-xs text-[var(--text-secondary)]">
                 / {totalCorners}
               </span>
             </p>
           ) : (
-            <p className="text-sm text-[var(--text-muted)]">--</p>
+            <p className="text-sm text-[var(--text-secondary)]">--</p>
           )}
         </div>
 
         {/* Lap Times Pill */}
         <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] px-4 py-3 text-center">
           <div className="mb-1">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               Best Laps
             </span>
           </div>
@@ -115,7 +115,7 @@ export function ComparisonSummary({
                 ? formatLapTime(comparison.session_a_best_lap)
                 : '--:--'}
             </span>
-            <span className="text-[var(--text-muted)]">vs</span>
+            <span className="text-[var(--text-secondary)]">vs</span>
             <span
               className={cn(
                 'font-mono font-semibold',

@@ -551,7 +551,7 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
   return (
     <div className="relative h-full w-full rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)]">
       <div className="pointer-events-none absolute left-3 top-1 z-10 flex items-center gap-1.5">
-        <h3 className="rounded bg-[var(--bg-surface)]/80 px-1 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
+        <h3 className="rounded bg-[var(--bg-surface)]/80 px-1 text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
           Turn {cornerNumber} Speed
         </h3>
         <InfoTooltip helpKey="chart.corner-speed-overlay" className="pointer-events-auto" />
