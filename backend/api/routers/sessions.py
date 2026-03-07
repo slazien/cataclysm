@@ -276,6 +276,7 @@ async def upload_sessions(
         assert current_user is not None  # narrowing for mypy
         client_ip = None
         await ensure_user_exists(db, current_user)
+        await db.commit()  # Commit user row before heavy file processing
 
     # Look up user's skill_level for coaching generation
     from backend.api.schemas.coaching import SkillLevel
