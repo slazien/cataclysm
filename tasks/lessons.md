@@ -361,3 +361,13 @@ queryFn: () => getOptimalComparison(sessionId!),  // doesn't use equipmentProfil
 
 **Anti-pattern**: "Since you don't have an equipment profile..." without first checking. Always verify: `ls data/equipment/profiles/` or grep for the user's profile before reasoning about their setup.
 
+## Cache Invalidation Must Cover ALL CRUD Mutation Endpoints ([2026-03-06])
+
+**Pattern**: When adding cache invalidation to a set of CRUD endpoints, enumerate ALL mutation operations (create, update, delete) and add invalidation to each. Don't stop at the obvious ones (update) — delete is equally important and easy to forget.
+
+**Why**: Added `invalidate_profile_cache()` to `update_profile()` but missed `delete_profile()`. Code reviewer caught it. A deleted profile would leave stale cached physics results for up to 30 minutes. The fix was a one-liner but the bug was a correctness gap.
+
+**Verification**: After adding cache invalidation, grep for ALL endpoints that mutate the cached entity: `grep -n "def.*profile\|def.*equipment" backend/api/routers/equipment.py` and verify each mutation endpoint has the corresponding invalidation call.
+
+**Anti-pattern**: "I added invalidation to update, that covers it." No — delete, create (if it replaces), and any bulk operations also need invalidation.
+
