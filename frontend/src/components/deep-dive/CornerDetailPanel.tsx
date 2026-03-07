@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback } from 'react';
 import { useCorners, useAllLapCorners, useOptimalComparison, useLineAnalysis } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useAnalysisStore, useSessionStore } from '@/stores';
@@ -105,6 +106,7 @@ function GradeRow({ label, grade, reason, explanation }: GradeRowProps) {
 
 export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
   const selectedCorner = useAnalysisStore((s) => s.selectedCorner);
+  const selectCorner = useAnalysisStore((s) => s.selectCorner);
   const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const { data: session } = useSession(activeSessionId);
@@ -116,6 +118,21 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
   const { convertSpeed, convertDistance, speedUnit, distanceUnit, resolveSpeed } = useUnits();
   const { skillLevel, showFeature } = useSkillLevel();
   const showExplanations = showFeature('grade_explanations');
+
+  const cycleCorner = useCallback(
+    (direction: 'prev' | 'next') => {
+      if (!corners || corners.length === 0) return;
+      const nums = corners.map((c) => c.number).sort((a, b) => a - b);
+      const currentNum = selectedCorner ? parseInt(selectedCorner.replace('T', ''), 10) : 0;
+      const idx = nums.indexOf(currentNum);
+      const nextIdx =
+        direction === 'next'
+          ? idx < nums.length - 1 ? idx + 1 : 0
+          : idx > 0 ? idx - 1 : nums.length - 1;
+      selectCorner(`T${nums[nextIdx]}`);
+    },
+    [corners, selectedCorner, selectCorner],
+  );
 
   if (!selectedCorner) {
     return (
@@ -218,10 +235,28 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
     <div className="flex h-full flex-col gap-3 overflow-y-auto rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => cycleCorner('prev')}
+            className="flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+            aria-label="Previous corner"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">
             Turn {cornerNumber}
           </h3>
+          <button
+            onClick={() => cycleCorner('next')}
+            className="flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+            aria-label="Next corner"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
           {overallGrade && <GradeChip grade={overallGrade} />}
           {optimalOpp && optimalOpp.time_cost_s !== 0 && (
             <span
