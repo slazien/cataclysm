@@ -25,7 +25,7 @@ from cataclysm.curvature import CurvatureResult, compute_curvature
 from cataclysm.elevation import compute_corner_elevation, enrich_corners_with_elevation
 from cataclysm.elevation_profile import compute_gradient_array, compute_vertical_curvature
 from cataclysm.engine import LapSummary, ProcessedSession, find_anomalous_laps, process_session
-from cataclysm.equipment import MuSource, equipment_to_vehicle_params
+from cataclysm.equipment import CATEGORY_MU_DEFAULTS, MuSource, equipment_to_vehicle_params
 from cataclysm.gains import (
     GainEstimate,
     build_segments,
@@ -458,6 +458,29 @@ def _has_meaningful_grip(session_id: str) -> bool:
     return not (tire.mu_source == MuSource.FORMULA_ESTIMATE and tire.estimated_mu == 1.0)
 
 
+# Margin above CATEGORY_MU_DEFAULTS to account for within-category variation
+# (e.g., Yokohama A052 vs Hankook RS4, both 200TW but different grip levels),
+# alignment/camber benefits, and better-than-average tire samples.
+_COMPOUND_MU_CAP_MARGIN = 1.15
+
+
+def _get_compound_mu_cap(session_id: str) -> float | None:
+    """Get the maximum realistic mu for the session's tire compound category.
+
+    Returns ``CATEGORY_MU_DEFAULTS[category] * 1.15``, or *None* if no
+    equipment is assigned.  The 15% margin accounts for within-category
+    variation and setup advantages.
+    """
+    se = equipment_store.get_session_equipment(session_id)
+    if se is None:
+        return None
+    profile = equipment_store.get_profile(se.profile_id)
+    if profile is None:
+        return None
+    base_mu = CATEGORY_MU_DEFAULTS[profile.tires.compound_category]
+    return base_mu * _COMPOUND_MU_CAP_MARGIN
+
+
 async def _try_lidar_elevation(session_data: SessionData) -> np.ndarray | None:
     """Attempt LIDAR elevation fetch for the best lap (async, pre-thread).
 
@@ -629,6 +652,7 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
     profile_id = _current_profile_id(session_id)
     vehicle_params = resolve_vehicle_params(session_id)
     has_meaningful_grip = _has_meaningful_grip(session_id)
+    mu_cap = _get_compound_mu_cap(session_id)
 
     cached = _get_physics_cached(session_id, "profile", profile_id)
     if cached is not None:
@@ -660,10 +684,14 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
                 grip = calibrate_grip_from_telemetry(lat_g, lon_g)
                 if grip is not None:
                     base = vehicle_params or default_vehicle_params()
-                    vehicle_params = apply_calibration_to_params(base, grip)
+                    vehicle_params = apply_calibration_to_params(
+                        base,
+                        grip,
+                        mu_cap=mu_cap,
+                    )
                     logger.info(
                         "Grip calibration [profile] sid=%s laps=%s: mu=%.3f lat_g=%.3f "
-                        "brake_g=%.3f accel_g=%.3f confidence=%s",
+                        "brake_g=%.3f accel_g=%.3f confidence=%s mu_cap=%s",
                         session_id,
                         calibration_laps,
                         vehicle_params.mu,
@@ -671,6 +699,7 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
                         grip.max_brake_g,
                         grip.max_accel_g,
                         grip.confidence,
+                        mu_cap,
                     )
         mu_array = None
 
@@ -743,6 +772,7 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
     profile_id = _current_profile_id(session_id)
     vehicle_params = resolve_vehicle_params(session_id)
     has_meaningful_grip = _has_meaningful_grip(session_id)
+    mu_cap = _get_compound_mu_cap(session_id)
 
     cached = _get_physics_cached(session_id, "comparison", profile_id)
     if cached is not None:
@@ -790,10 +820,14 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
                 grip = calibrate_grip_from_telemetry(lat_g, lon_g)
                 if grip is not None:
                     base = vehicle_params or default_vehicle_params()
-                    vehicle_params = apply_calibration_to_params(base, grip)
+                    vehicle_params = apply_calibration_to_params(
+                        base,
+                        grip,
+                        mu_cap=mu_cap,
+                    )
                     logger.info(
                         "Grip calibration [comparison] sid=%s laps=%s: mu=%.3f lat_g=%.3f "
-                        "brake_g=%.3f accel_g=%.3f confidence=%s",
+                        "brake_g=%.3f accel_g=%.3f confidence=%s mu_cap=%s",
                         session_id,
                         calibration_laps,
                         vehicle_params.mu,
@@ -801,6 +835,7 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
                         grip.max_brake_g,
                         grip.max_accel_g,
                         grip.confidence,
+                        mu_cap,
                     )
 
         mu_array = None

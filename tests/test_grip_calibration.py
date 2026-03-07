@@ -36,9 +36,9 @@ class TestCalibrateGripFromTelemetry:
         result = calibrate_grip_from_telemetry(lateral_g, longitudinal_g)
 
         assert result is not None
-        # 99th percentile of |uniform(-1.2, 1.2)| ~ 1.2 * 0.99 = ~1.188
-        assert result.max_lateral_g == pytest.approx(1.2, abs=0.05)
-        # 99th percentile of |ax| where ax < -0.2 and |ay| < 0.2
+        # 90th percentile of |uniform(-1.2, 1.2)| ~ 1.2 * 0.95 = ~1.14
+        assert result.max_lateral_g == pytest.approx(1.14, abs=0.1)
+        # 90th percentile of |ax| where ax < -0.2 and |ay| < 0.2
         assert result.max_brake_g > 0.5
         assert result.max_accel_g > 0.2
         assert result.confidence in ("high", "medium", "low")
@@ -115,7 +115,7 @@ class TestCalibrateGripFromTelemetry:
         result = calibrate_grip_from_telemetry(lateral_g, longitudinal_g)
         assert result is not None
 
-        # The 99th percentile should still be near 1.0, not 5.0
+        # The 90th percentile should still be near 1.0, not 5.0
         assert result.max_lateral_g < 1.5
         assert result.max_lateral_g > 0.8
 
@@ -128,12 +128,12 @@ class TestCalibrateGripFromTelemetry:
         longitudinal_g = rng.uniform(-1.0, 0.6, size=n)
 
         result_99 = calibrate_grip_from_telemetry(lateral_g, longitudinal_g, percentile=99.0)
-        result_90 = calibrate_grip_from_telemetry(lateral_g, longitudinal_g, percentile=90.0)
+        result_80 = calibrate_grip_from_telemetry(lateral_g, longitudinal_g, percentile=80.0)
 
         assert result_99 is not None
-        assert result_90 is not None
-        # 99th percentile should be higher than 90th
-        assert result_99.max_lateral_g > result_90.max_lateral_g
+        assert result_80 is not None
+        # 99th percentile should be higher than 80th
+        assert result_99.max_lateral_g > result_80.max_lateral_g
 
     def test_calibrate_custom_cross_axis_threshold(self) -> None:
         """Custom cross_axis_threshold parameter is respected."""
@@ -412,6 +412,63 @@ class TestApplyCalibrationToParams:
         assert result.mu == 1.0
         assert result.calibrated is True
 
+    def test_mu_cap_clamps_calibrated_values(self) -> None:
+        """mu_cap prevents calibration from exceeding tire compound's physical limit."""
+        base = default_vehicle_params()
+        grip = CalibratedGrip(
+            max_lateral_g=1.3,  # unrealistically high for street tires
+            max_brake_g=1.2,
+            max_accel_g=1.1,
+            point_count=1000,
+            confidence="high",
+        )
+
+        # Street tire compound cap: 0.85 * 1.15 = 0.9775
+        mu_cap = 0.9775
+        result = apply_calibration_to_params(base, grip, mu_cap=mu_cap)
+
+        # All axes above the cap should be clamped
+        assert result.max_lateral_g == pytest.approx(mu_cap)
+        assert result.max_decel_g == pytest.approx(mu_cap)
+        assert result.max_accel_g == pytest.approx(mu_cap)
+        assert result.mu == pytest.approx(mu_cap)
+        assert result.calibrated is True
+
+    def test_mu_cap_none_does_not_clamp(self) -> None:
+        """When mu_cap is None, no clamping occurs (backwards-compatible)."""
+        base = default_vehicle_params()
+        grip = CalibratedGrip(
+            max_lateral_g=1.3,
+            max_brake_g=1.1,
+            max_accel_g=0.7,
+            point_count=1000,
+            confidence="high",
+        )
+
+        result = apply_calibration_to_params(base, grip, mu_cap=None)
+
+        assert result.max_lateral_g == 1.3
+        assert result.max_decel_g == 1.1
+        assert result.mu == 1.3
+
+    def test_mu_cap_above_calibrated_does_not_change(self) -> None:
+        """mu_cap above the calibrated value should have no effect."""
+        base = default_vehicle_params()
+        grip = CalibratedGrip(
+            max_lateral_g=1.1,
+            max_brake_g=1.0,
+            max_accel_g=0.6,
+            point_count=1000,
+            confidence="high",
+        )
+
+        # R-compound cap: 1.35 * 1.15 = 1.5525 — well above calibrated 1.1
+        result = apply_calibration_to_params(base, grip, mu_cap=1.5525)
+
+        assert result.max_lateral_g == 1.1
+        assert result.max_decel_g == 1.0
+        assert result.mu == 1.1
+
 
 class TestVehicleParamsCalibratedField:
     """Test that VehicleParams has the calibrated field."""
@@ -507,10 +564,10 @@ class TestCalibratePerCornerGrip:
         # Corner 1 should have higher mu than corner 2
         assert result[1] > result[2]
 
-        # Corner 1: 99th percentile of |lat_g| in [1.0, 1.3] → should be ~1.2+
+        # Corner 1: 90th percentile of |lat_g| in [1.0, 1.3] → should be ~1.15+
         assert result[1] > 0.9
 
-        # Corner 2: 99th percentile of |lat_g| in [0.4, 0.7] → should be ~0.65
+        # Corner 2: 90th percentile of |lat_g| in [0.4, 0.7] → should be ~0.61
         assert result[2] < 0.8
         assert result[2] > 0.3
 

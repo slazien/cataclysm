@@ -7,7 +7,9 @@ underestimates the car's actual capability at specific corners.
 
 The approach:
 1. Filter G-G data by cross-axis threshold to isolate pure-axis events.
-2. Take the 99th percentile (not max) to reject sensor spikes.
+2. Take the 90th percentile (not max) to reject transient spikes from weight
+   transfer, curb strikes, and sensor noise.  This better represents sustained
+   cornering capability rather than momentary peaks.
 3. Classify confidence based on available data point count.
 
 Also provides a speed-bucketed GGV (G-G-Velocity) surface that captures how
@@ -51,9 +53,9 @@ _TWO_PI = 2.0 * np.pi
 class CalibratedGrip:
     """Observed vehicle capability extracted from G-G data."""
 
-    max_lateral_g: float  # 99th percentile |ay| when |ax| < 0.2g
-    max_brake_g: float  # 99th percentile |ax| when ax < -0.2g, |ay| < 0.2g
-    max_accel_g: float  # 99th percentile |ax| when ax > 0.2g, |ay| < 0.2g
+    max_lateral_g: float  # 90th percentile |ay| when |ax| < 0.2g
+    max_brake_g: float  # 90th percentile |ax| when ax < -0.2g, |ay| < 0.2g
+    max_accel_g: float  # 90th percentile |ax| when ax > 0.2g, |ay| < 0.2g
     point_count: int  # number of data points used (minimum across axes)
     confidence: str  # "high" (>500 pts per axis), "medium" (100-500), "low" (<100)
 
@@ -92,7 +94,7 @@ def calibrate_grip_from_telemetry(
     lateral_g: np.ndarray,
     longitudinal_g: np.ndarray,
     *,
-    percentile: float = 99.0,
+    percentile: float = 90.0,
     cross_axis_threshold: float = 0.2,
     min_points: int = 20,
 ) -> CalibratedGrip | None:
@@ -109,7 +111,9 @@ def calibrate_grip_from_telemetry(
     longitudinal_g
         Array of longitudinal acceleration values (G).  Negative = braking.
     percentile
-        Percentile to use for extracting peak values (default 99.0).
+        Percentile to use for extracting peak values (default 90.0).
+        p90 better represents sustained cornering capability than p99,
+        which captures transient spikes from weight transfer and curb strikes.
     cross_axis_threshold
         Maximum allowed cross-axis G to consider a sample "pure" for that
         axis (default 0.2G).
@@ -168,6 +172,8 @@ def calibrate_grip_from_telemetry(
 def apply_calibration_to_params(
     base_params: VehicleParams,
     grip: CalibratedGrip,
+    *,
+    mu_cap: float | None = None,
 ) -> VehicleParams:
     """Merge calibrated grip with base VehicleParams, keeping the higher value.
 
@@ -176,10 +182,14 @@ def apply_calibration_to_params(
     This prevents the solver from underestimating a car's capability when the
     driver hasn't fully explored the grip limit.
 
+    When *mu_cap* is provided (typically from the tire compound category plus
+    a margin), the calibrated values are clamped to prevent unrealistic grip
+    inflation from transient G-spikes that exceed the tire's physical capability.
+
     Rules:
-    - max_lateral_g = max(base, grip.max_lateral_g)
-    - max_decel_g = max(base, grip.max_brake_g)
-    - max_accel_g = max(base, grip.max_accel_g)
+    - max_lateral_g = min(max(base, grip.max_lateral_g), mu_cap)
+    - max_decel_g = min(max(base, grip.max_brake_g), mu_cap)
+    - max_accel_g = min(max(base, grip.max_accel_g), mu_cap)
     - mu = max of the resolved lateral and brake values
     - Sets calibrated=True flag
     - Preserves equipment-derived top_speed, aero, drag coefficients
@@ -190,6 +200,10 @@ def apply_calibration_to_params(
         Base VehicleParams (from equipment or defaults).
     grip
         Calibrated grip extracted from telemetry data.
+    mu_cap
+        Maximum allowed grip coefficient.  When set (e.g., from the tire
+        compound category), prevents calibration from exceeding the tire's
+        physical capability envelope.
 
     Returns
     -------
@@ -199,6 +213,11 @@ def apply_calibration_to_params(
     lat_g = max(base_params.max_lateral_g, grip.max_lateral_g)
     brake_g = max(base_params.max_decel_g, grip.max_brake_g)
     accel_g = max(base_params.max_accel_g, grip.max_accel_g)
+
+    if mu_cap is not None:
+        lat_g = min(lat_g, mu_cap)
+        brake_g = min(brake_g, mu_cap)
+        accel_g = min(accel_g, mu_cap)
     return VehicleParams(
         mu=max(lat_g, brake_g),
         max_accel_g=accel_g,
@@ -222,7 +241,7 @@ def calibrate_per_corner_grip(
     distance_m: np.ndarray,
     corners: list[Corner],
     *,
-    percentile: float = 99.0,
+    percentile: float = 90.0,
     min_points: int = 10,
 ) -> dict[int, float]:
     """Extract per-corner effective mu from observed lateral G.
@@ -244,7 +263,7 @@ def calibrate_per_corner_grip(
     corners
         List of detected corners with entry/exit distances.
     percentile
-        Percentile to extract from |lateral_g| in each zone (default 99.0).
+        Percentile to extract from |lateral_g| in each zone (default 90.0).
     min_points
         Minimum data points in a corner zone to include it.
         Corners with fewer points are excluded from the result.
