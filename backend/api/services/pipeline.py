@@ -236,7 +236,13 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
     corner_line_profiles = []
     if reference_centerline is not None and gps_traces and corners:
         try:
-            corner_line_profiles = analyze_corner_lines(gps_traces, reference_centerline, corners)
+            corner_line_profiles = analyze_corner_lines(
+                gps_traces,
+                reference_centerline,
+                corners,
+                resampled_laps=processed.resampled_laps,
+                coaching_laps=coaching_laps,
+            )
             logger.info(
                 "Corner line profiles: %d corners analysed for %s",
                 len(corner_line_profiles),
@@ -660,7 +666,7 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
                         "brake_g=%.3f accel_g=%.3f confidence=%s",
                         session_id,
                         calibration_laps,
-                        grip.max_lateral_g,
+                        vehicle_params.mu,
                         grip.max_lateral_g,
                         grip.max_brake_g,
                         grip.max_accel_g,
@@ -790,7 +796,7 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
                         "brake_g=%.3f accel_g=%.3f confidence=%s",
                         session_id,
                         calibration_laps,
-                        grip.max_lateral_g,
+                        vehicle_params.mu,
                         grip.max_lateral_g,
                         grip.max_brake_g,
                         grip.max_accel_g,

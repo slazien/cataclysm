@@ -52,7 +52,11 @@ from backend.api.services.db_session_store import (
     restore_weather_from_snapshot,
     store_session_db,
 )
-from backend.api.services.pipeline import process_upload, trigger_lidar_prefetch
+from backend.api.services.pipeline import (
+    invalidate_physics_cache,
+    process_upload,
+    trigger_lidar_prefetch,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -684,6 +688,8 @@ async def delete_all_sessions(
     # Clear in-memory stores
     for sid in sids:
         session_store.delete_session(sid)
+        equipment_store.delete_session_equipment(sid)
+        invalidate_physics_cache(sid)
         _reports.pop(sid, None)
         _contexts.pop(sid, None)
 
@@ -700,8 +706,10 @@ async def delete_session(
     db_deleted = await delete_session_db(db, session_id, current_user.user_id)
     if not db_deleted:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
-    # Also remove from in-memory store and clear coaching cache
+    # Also remove from in-memory store and clear coaching/equipment/physics cache
     session_store.delete_session(session_id)
+    equipment_store.delete_session_equipment(session_id)
+    invalidate_physics_cache(session_id)
     await clear_coaching_data(session_id)
     return {"message": f"Session {session_id} deleted"}
 

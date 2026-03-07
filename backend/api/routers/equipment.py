@@ -636,8 +636,13 @@ async def set_session_equipment(
 async def get_session_equipment(
     session_id: str,
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SessionEquipmentResponse:
     """Get the effective equipment assignment for a session."""
+    sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
+    if sd is None:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
     se = equipment_store.get_session_equipment(session_id)
     if se is None:
         raise HTTPException(

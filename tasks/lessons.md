@@ -439,15 +439,17 @@ return useQuery({
 
 **Error signature**: Backend logs show TWO optimal-comparison computations for the same session on page load — one with `profile_id=None` and one with the actual profile ID.
 
-## Cache Invalidation Must Cover ALL CRUD Mutation Endpoints ([2026-03-06])
+## Cache/Store Cleanup Must Cover ALL Lifecycle Endpoints ([2026-03-06])
 
-**Pattern**: When adding cache invalidation to a set of CRUD endpoints, enumerate ALL mutation operations (create, update, delete) and add invalidation to each. Don't stop at the obvious ones (update) — delete is equally important and easy to forget.
+**Pattern**: When an entity has dependent subsystems (caches, stores, side data), ALL lifecycle operations (create, update, delete, bulk-delete) must clean up ALL dependent subsystems. Enumerate both axes: (1) all mutation endpoints, and (2) all subsystems that hold entity-scoped data.
 
-**Why**: Added `invalidate_profile_cache()` to `update_profile()` but missed `delete_profile()`. Code reviewer caught it. A deleted profile would leave stale cached physics results for up to 30 minutes. The fix was a one-liner but the bug was a correctness gap.
+**Why**: Two instances found:
+1. `delete_profile()` missing `invalidate_profile_cache()` — stale physics cache for 30 min.
+2. `delete_session()` and `delete_all_sessions()` missing `equipment_store.delete_session_equipment()` AND `invalidate_physics_cache()` — orphaned equipment data on disk + stale cache entries for deleted sessions.
 
-**Verification**: After adding cache invalidation, grep for ALL endpoints that mutate the cached entity: `grep -n "def.*profile\|def.*equipment" backend/api/routers/equipment.py` and verify each mutation endpoint has the corresponding invalidation call.
+**Verification**: After adding any new subsystem that stores per-entity data, grep for ALL delete/mutation endpoints of that entity and add cleanup. Also: when reviewing a delete endpoint, check if ALL subsystems are cleaned up.
 
-**Anti-pattern**: "I added invalidation to update, that covers it." No — delete, create (if it replaces), and any bulk operations also need invalidation.
+**Anti-pattern**: "I added cleanup to the PUT, that covers it." No — delete (single + bulk), create-that-replaces, and any bulk operations also need cleanup for ALL dependent subsystems.
 
 ## Nullish Coalescing (`??`) Does Not Catch Zero — Use `||` for Numeric Fallbacks ([2026-03-07])
 
