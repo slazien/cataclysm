@@ -14,7 +14,7 @@ const COMPOUND_LABELS: Record<string, string> = {
 };
 
 export function EquipmentProfileList() {
-  const { data: profilesData, isLoading } = useEquipmentProfiles();
+  const { data: profilesData, isPending } = useEquipmentProfiles();
   const deleteMutation = useDeleteProfile();
   const updateMutation = useUpdateProfile();
   const [modalOpen, setModalOpen] = useState(false);
@@ -77,7 +77,7 @@ export function EquipmentProfileList() {
         Equipment Profiles
       </legend>
 
-      {isLoading ? (
+      {isPending ? (
         <div className="space-y-2 animate-pulse">
           {[1, 2].map((i) => (
             <div key={i} className="h-14 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-elevated)]" />
