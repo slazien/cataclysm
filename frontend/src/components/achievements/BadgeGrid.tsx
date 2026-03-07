@@ -126,7 +126,7 @@ function CategorySection({
         </span>
       </div>
       <m.div
-        className="grid grid-cols-3 gap-3"
+        className="grid grid-cols-2 gap-3 sm:grid-cols-3"
         initial="initial"
         animate="animate"
         variants={{ animate: { transition: motionTokens.stagger } }}
@@ -168,11 +168,13 @@ export function BadgeGrid({ open, onClose }: BadgeGridProps) {
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      tabIndex={-1}
+      onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex w-[min(90vw,520px)] max-h-[85vh] flex-col rounded-2xl bg-[var(--bg-surface)] shadow-2xl">
+      <div role="dialog" aria-modal="true" aria-label="Achievements" className="flex w-[min(90vw,520px)] max-h-[85vh] flex-col rounded-2xl bg-[var(--bg-surface)] shadow-2xl">
         {/* Sticky header — stays visible when scrolling */}
         <div className="flex items-start justify-between px-6 pt-6 pb-2">
           <div className="flex-1">

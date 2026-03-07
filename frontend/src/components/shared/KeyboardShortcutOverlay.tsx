@@ -35,7 +35,7 @@ export function KeyboardShortcutOverlay() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="mx-4 w-full max-w-sm rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-6 shadow-2xl">
+      <div role="dialog" aria-modal="true" aria-label="Keyboard Shortcuts" className="mx-4 w-full max-w-sm rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-6 shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-[var(--text-primary)]">Keyboard Shortcuts</h2>
           <button type="button" onClick={() => setVisible(false)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">

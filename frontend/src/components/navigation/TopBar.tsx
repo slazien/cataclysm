@@ -220,7 +220,7 @@ export function TopBar() {
             onClick={toggleSessionDrawer}
             className="flex items-center gap-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
           >
-            <span className="max-w-[120px] truncate font-medium sm:max-w-none">{session?.track_name ?? 'Loading...'}</span>
+            <span className="max-w-[160px] truncate font-medium sm:max-w-none">{session?.track_name ?? 'Loading...'}</span>
             {session?.session_score != null && (
               <span
                 className={cn(

@@ -49,6 +49,9 @@ export function SettingsPanel() {
 
       {/* Panel */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Settings"
         className={cn(
           'fixed right-0 top-0 z-50 flex h-full w-80 max-w-[calc(100vw-2rem)] flex-col overflow-hidden bg-[var(--bg-surface)] shadow-xl transition-transform duration-200 ease-out',
           open ? 'translate-x-0' : 'translate-x-full',

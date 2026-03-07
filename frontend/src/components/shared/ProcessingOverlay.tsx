@@ -77,7 +77,7 @@ export function ProcessingOverlay() {
   if (uploadState === 'error') {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-        <div className="w-full max-w-xs rounded-xl border border-red-500/30 bg-[var(--bg-surface)] p-6 text-center shadow-2xl">
+        <div role="alertdialog" aria-modal="true" aria-label="Upload error" className="w-full max-w-xs rounded-xl border border-red-500/30 bg-[var(--bg-surface)] p-6 text-center shadow-2xl">
           <p className="text-sm font-medium text-red-400">Upload failed</p>
           <p className="mt-1 text-xs text-[var(--text-secondary)]">
             Please check your CSV format and try again
@@ -89,7 +89,7 @@ export function ProcessingOverlay() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-xs rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-6 shadow-2xl">
+      <div role="dialog" aria-modal="true" aria-label="Processing session" className="w-full max-w-xs rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-6 shadow-2xl">
         <div className="mb-4 flex flex-col items-center gap-2">
           <CircularProgress size={48} strokeWidth={3.5} progress={displayProgress} />
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">

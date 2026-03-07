@@ -49,6 +49,7 @@ export function UploadPromptDialog() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
+          onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
         >
           {/* Backdrop */}
           <div
@@ -58,6 +59,9 @@ export function UploadPromptDialog() {
 
           {/* Dialog */}
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Upload a session"
             className="relative w-full max-w-sm rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-6 shadow-xl"
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}

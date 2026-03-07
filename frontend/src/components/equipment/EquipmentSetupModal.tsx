@@ -266,10 +266,11 @@ export function EquipmentSetupModal({
         <div className="flex flex-col gap-5">
           {/* Profile Name */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
+            <label htmlFor="eq-profile-name" className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
               Profile Name
             </label>
             <input
+              id="eq-profile-name"
               type="text"
               value={profileName}
               onChange={(e) => setProfileName(e.target.value)}
@@ -510,11 +511,12 @@ export function EquipmentSetupModal({
               {/* Tire size combobox */}
               <div className="grid grid-cols-2 gap-3">
                 <div ref={tireSizeRef} className="relative">
-                  <label className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
+                  <label htmlFor="eq-tire-size" className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">
                     Size
                   </label>
                   <div className="relative">
                     <input
+                      id="eq-tire-size"
                       type="text"
                       value={tireSize}
                       onChange={(e) => setTireSize(e.target.value)}
