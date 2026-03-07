@@ -144,9 +144,13 @@ export function PriorityCardsSection({ priorities, isNovice, cornerGrades, optim
           // Use corner_opportunities regardless of is_valid — consistent
           // with OptimalGapChart and CornerSpeedGapPanel which show
           // per-corner data even when aggregate comparison is invalid.
+          // Use live time cost from physics when positive; fall back to
+          // coaching report value when the model returns 0 (driver faster
+          // than model — capped from negative).  `||` intentionally treats
+          // 0 as falsy so the fallback fires.
           const liveTimeCost = optimalComparison?.corner_opportunities?.find(
             (o) => o.corner_number === p.corner,
-          )?.time_cost_s;
+          )?.time_cost_s || undefined;
           return (
             <PriorityCard
               key={p.corner}

@@ -28,6 +28,15 @@ vi.mock('@/components/shared/MarkdownText', () => ({
   MarkdownText: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
 }));
 
+vi.mock('@/lib/gradeUtils', () => ({
+  worstGrade: (grades: string[]) => grades.sort().pop() ?? 'C',
+}));
+
+vi.mock('@/lib/textUtils', () => ({
+  extractActionTitle: (text: string) => text,
+  formatCoachingText: (text: string) => text,
+}));
+
 vi.mock('lucide-react', () => ({
   ArrowRight: ({ className }: { className?: string }) => (
     <svg data-testid="arrow-right" className={className} />
