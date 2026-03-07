@@ -83,8 +83,11 @@ export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
                   <m.tr
                     variants={rowVariants}
                     transition={motionTokens.gradeChip}
+                    tabIndex={0}
+                    role="button"
                     onClick={() => handleCornerClick(g.corner)}
-                    className="cursor-pointer border-b border-[var(--cata-border)] transition-colors last:border-0 hover:bg-[var(--bg-elevated)]"
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCornerClick(g.corner); } }}
+                    className="cursor-pointer border-b border-[var(--cata-border)] transition-colors last:border-0 hover:bg-[var(--bg-elevated)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--cata-accent)]"
                   >
                     <td className="px-2 py-1.5 font-medium text-[var(--text-primary)] lg:px-3 lg:py-2">
                       <span className="flex items-center gap-1">
