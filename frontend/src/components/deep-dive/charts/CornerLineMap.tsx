@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as d3 from 'd3';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
 import { useLineAnalysis, useCorners } from '@/hooks/useAnalysis';
@@ -11,11 +11,13 @@ import type { Corner, LapSpatialTrace, CornerLineProfile } from '@/lib/types';
 
 const MPS_TO_MPH = 2.23694;
 const SPACING_M = 0.7; // distance-domain resampling spacing
+const TRACK_HALF_WIDTH_M = 5.5; // estimated half-width for boundary drawing
+
+const EXAG_MIN = 1;
+const EXAG_MAX = 8;
+const EXAG_STEP = 0.5;
 
 const MARGINS = { top: 8, right: 8, bottom: 8, left: 8 };
-
-/** Plasma-inspired colorblind-safe speed scale (purple -> pink -> orange -> yellow) */
-const speedColorScale = d3.scaleSequential(d3.interpolatePlasma);
 
 interface CornerZone {
   startIdx: number;
@@ -33,25 +35,92 @@ function getCornerZone(corner: Corner, padBefore: number, padAfter: number, maxI
   };
 }
 
+/**
+ * Compute the unit-length normal (perpendicular) to the reference line at each point.
+ * Normal points "left" of the travel direction (consistent sign convention).
+ */
+function computeReferenceNormals(
+  refE: number[],
+  refN: number[],
+  startIdx: number,
+  endIdx: number,
+): { ne: number[]; nn: number[] } {
+  const ne: number[] = new Array(refE.length).fill(0);
+  const nn: number[] = new Array(refN.length).fill(0);
+
+  for (let i = startIdx; i <= endIdx && i < refE.length; i++) {
+    // Forward difference tangent (use central difference when possible)
+    let de: number, dn: number;
+    if (i === 0 || i === startIdx) {
+      de = refE[Math.min(i + 1, refE.length - 1)] - refE[i];
+      dn = refN[Math.min(i + 1, refN.length - 1)] - refN[i];
+    } else if (i >= refE.length - 1 || i >= endIdx) {
+      de = refE[i] - refE[i - 1];
+      dn = refN[i] - refN[i - 1];
+    } else {
+      de = refE[i + 1] - refE[i - 1];
+      dn = refN[i + 1] - refN[i - 1];
+    }
+    const len = Math.sqrt(de * de + dn * dn) || 1;
+    // Normal = rotate tangent 90° CCW: (-dn, de) / len
+    ne[i] = -dn / len;
+    nn[i] = de / len;
+  }
+  return { ne, nn };
+}
+
+/**
+ * Compute signed lateral offset of a trace point from the reference line.
+ * Positive = left of reference (in normal direction), negative = right.
+ */
+function computeLateralOffset(
+  traceE: number, traceN: number,
+  refE: number, refN: number,
+  normalE: number, normalN: number,
+): number {
+  const de = traceE - refE;
+  const dn = traceN - refN;
+  return de * normalE + dn * normalN; // dot product with normal
+}
+
+/**
+ * Apply lateral exaggeration: project point along the reference normal
+ * by (exag - 1) × original_offset.
+ */
+function exaggeratePoint(
+  traceE: number, traceN: number,
+  refE: number, refN: number,
+  normalE: number, normalN: number,
+  exag: number,
+): { e: number; n: number } {
+  if (exag === 1) return { e: traceE, n: traceN };
+  const offset = computeLateralOffset(traceE, traceN, refE, refN, normalE, normalN);
+  const extra = offset * (exag - 1);
+  return {
+    e: traceE + extra * normalE,
+    n: traceN + extra * normalN,
+  };
+}
+
 function drawSpeedColoredLine(
   ctx: CanvasRenderingContext2D,
-  e: number[],
-  n: number[],
+  eCoords: number[],
+  nCoords: number[],
   speed: number[],
-  zone: CornerZone,
+  startIdx: number,
+  endIdx: number,
   xScale: d3.ScaleLinear<number, number>,
   yScale: d3.ScaleLinear<number, number>,
   colorScale: d3.ScaleSequential<string>,
   lineWidth: number,
 ) {
-  const { startIdx, endIdx } = zone;
-  for (let i = startIdx + 1; i <= endIdx && i < e.length; i++) {
+  for (let i = startIdx + 1; i <= endIdx && i < eCoords.length; i++) {
     if (i >= speed.length) break;
     ctx.strokeStyle = colorScale(speed[i]);
     ctx.lineWidth = lineWidth;
     ctx.beginPath();
-    ctx.moveTo(xScale(e[i - 1]), yScale(n[i - 1]));
-    ctx.lineTo(xScale(e[i]), yScale(n[i]));
+    ctx.moveTo(xScale(eCoords[i - 1]), yScale(nCoords[i - 1]));
+    ctx.lineTo(xScale(eCoords[i]), yScale(nCoords[i]));
     ctx.stroke();
   }
 }
@@ -101,6 +170,7 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
   const { data: lineData } = useLineAnalysis(sessionId);
   const { data: corners } = useCorners(sessionId);
   const { convertSpeed, speedUnit } = useUnits();
+  const [exaggeration, setExaggeration] = useState(1);
 
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx } =
     useCanvasChart(MARGINS);
@@ -114,19 +184,23 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
     [lineData, cornerNumber],
   );
 
-  // Compute corner zone, scales, and data slices
+  // Compute corner zone, reference normals, exaggerated traces, and bounds
   const renderData = useMemo(() => {
     if (!lineData?.available || !corner || !lineData.lap_traces.length) return null;
 
     const maxIdx = lineData.distance_m.length - 1;
-    const zone = getCornerZone(corner, 30, 50, maxIdx);
+    const zone = getCornerZone(corner, 15, 25, maxIdx);
     if (zone.endIdx <= zone.startIdx) return null;
+
+    // Compute reference normals for exaggeration
+    const normals = computeReferenceNormals(
+      lineData.reference_e, lineData.reference_n, zone.startIdx, zone.endIdx,
+    );
 
     // Collect all traces to render (selected laps + best lap)
     const bestLapNum = profile?.best_lap_number ?? null;
     const tracesToRender: { trace: LapSpatialTrace; isBest: boolean; isSelected: boolean }[] = [];
 
-    // Best lap trace (if available and not already in selected)
     if (bestLapNum !== null) {
       const bestTrace = lineData.lap_traces.find((t) => t.lap_number === bestLapNum);
       if (bestTrace) {
@@ -134,9 +208,8 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
       }
     }
 
-    // Selected lap traces
     for (const lapNum of selectedLaps) {
-      if (lapNum === bestLapNum) continue; // Already added as best
+      if (lapNum === bestLapNum) continue;
       const trace = lineData.lap_traces.find((t) => t.lap_number === lapNum);
       if (trace) {
         tracesToRender.push({ trace, isBest: false, isSelected: true });
@@ -145,46 +218,82 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
 
     if (tracesToRender.length === 0) return null;
 
-    // Compute bounds from all traces in the zone
+    // Pre-compute exaggerated coordinates for each trace
+    const exaggeratedTraces = tracesToRender.map(({ trace, isBest, isSelected }) => {
+      const exE: number[] = [];
+      const exN: number[] = [];
+      for (let i = zone.startIdx; i <= zone.endIdx && i < trace.e.length; i++) {
+        if (i < lineData.reference_e.length) {
+          const p = exaggeratePoint(
+            trace.e[i], trace.n[i],
+            lineData.reference_e[i], lineData.reference_n[i],
+            normals.ne[i], normals.nn[i],
+            exaggeration,
+          );
+          exE.push(p.e);
+          exN.push(p.n);
+        }
+      }
+      return { trace, isBest, isSelected, exE, exN };
+    });
+
+    // Track edge coordinates (reference ± half-width, also exaggerated)
+    const leftEdgeE: number[] = [];
+    const leftEdgeN: number[] = [];
+    const rightEdgeE: number[] = [];
+    const rightEdgeN: number[] = [];
+    for (let i = zone.startIdx; i <= zone.endIdx && i < lineData.reference_e.length; i++) {
+      const hw = TRACK_HALF_WIDTH_M * exaggeration;
+      leftEdgeE.push(lineData.reference_e[i] + normals.ne[i] * hw);
+      leftEdgeN.push(lineData.reference_n[i] + normals.nn[i] * hw);
+      rightEdgeE.push(lineData.reference_e[i] - normals.ne[i] * hw);
+      rightEdgeN.push(lineData.reference_n[i] - normals.nn[i] * hw);
+    }
+
+    // Compute bounds from all exaggerated traces + track edges
     let minE = Infinity, maxE = -Infinity, minN = Infinity, maxN = -Infinity;
     let minSpeed = Infinity, maxSpeed = -Infinity;
 
-    for (const { trace } of tracesToRender) {
-      for (let i = zone.startIdx; i <= zone.endIdx && i < trace.e.length; i++) {
-        minE = Math.min(minE, trace.e[i]);
-        maxE = Math.max(maxE, trace.e[i]);
-        minN = Math.min(minN, trace.n[i]);
-        maxN = Math.max(maxN, trace.n[i]);
-        if (i < trace.speed_mps.length) {
-          minSpeed = Math.min(minSpeed, trace.speed_mps[i]);
-          maxSpeed = Math.max(maxSpeed, trace.speed_mps[i]);
+    for (const { exE, exN, trace } of exaggeratedTraces) {
+      for (let j = 0; j < exE.length; j++) {
+        minE = Math.min(minE, exE[j]);
+        maxE = Math.max(maxE, exE[j]);
+        minN = Math.min(minN, exN[j]);
+        maxN = Math.max(maxN, exN[j]);
+        const si = zone.startIdx + j;
+        if (si < trace.speed_mps.length) {
+          minSpeed = Math.min(minSpeed, trace.speed_mps[si]);
+          maxSpeed = Math.max(maxSpeed, trace.speed_mps[si]);
         }
       }
     }
 
-    // Also include reference line in bounds
-    for (let i = zone.startIdx; i <= zone.endIdx && i < lineData.reference_e.length; i++) {
-      minE = Math.min(minE, lineData.reference_e[i]);
-      maxE = Math.max(maxE, lineData.reference_e[i]);
-      minN = Math.min(minN, lineData.reference_n[i]);
-      maxN = Math.max(maxN, lineData.reference_n[i]);
+    // Include track edges in bounds
+    for (let j = 0; j < leftEdgeE.length; j++) {
+      minE = Math.min(minE, leftEdgeE[j], rightEdgeE[j]);
+      maxE = Math.max(maxE, leftEdgeE[j], rightEdgeE[j]);
+      minN = Math.min(minN, leftEdgeN[j], rightEdgeN[j]);
+      maxN = Math.max(maxN, leftEdgeN[j], rightEdgeN[j]);
     }
 
     if (!isFinite(minE) || !isFinite(minSpeed)) return null;
 
-    // Add padding (20% of range or minimum 5m)
+    // Add padding (15% of range or minimum 3m)
     const rangeE = maxE - minE || 10;
     const rangeN = maxN - minN || 10;
-    const padE = Math.max(rangeE * 0.2, 5);
-    const padN = Math.max(rangeN * 0.2, 5);
+    const padE = Math.max(rangeE * 0.15, 3);
+    const padN = Math.max(rangeN * 0.15, 3);
 
     return {
       zone,
-      tracesToRender,
+      normals,
+      exaggeratedTraces,
+      leftEdge: { e: leftEdgeE, n: leftEdgeN },
+      rightEdge: { e: rightEdgeE, n: rightEdgeN },
       bounds: { minE: minE - padE, maxE: maxE + padE, minN: minN - padN, maxN: maxN + padN },
       speedRange: { min: minSpeed, max: maxSpeed },
     };
-  }, [lineData, corner, profile, selectedLaps]);
+  }, [lineData, corner, profile, selectedLaps, exaggeration]);
 
   // Build D3 scales maintaining 1:1 aspect ratio
   const { xScale, yScale } = useMemo(() => {
@@ -200,7 +309,6 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
     const dataH = bounds.maxN - bounds.minN;
     const { innerWidth, innerHeight } = dimensions;
 
-    // Maintain 1:1 aspect ratio (ENU meters)
     const scaleX = innerWidth / dataW;
     const scaleY = innerHeight / dataH;
     const scale = Math.min(scaleX, scaleY);
@@ -216,7 +324,7 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
         .range([MARGINS.left + offsetX, MARGINS.left + offsetX + usedW]),
       yScale: d3.scaleLinear()
         .domain([bounds.minN, bounds.maxN])
-        .range([MARGINS.top + offsetY + usedH, MARGINS.top + offsetY]), // Y inverted: north = up
+        .range([MARGINS.top + offsetY + usedH, MARGINS.top + offsetY]),
     };
   }, [renderData, dimensions.innerWidth, dimensions.innerHeight]);
 
@@ -228,15 +336,44 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
     const { width, height } = dimensions;
     ctx.clearRect(0, 0, width, height);
 
-    const { zone, tracesToRender, speedRange } = renderData;
+    const { zone, exaggeratedTraces, leftEdge, rightEdge, speedRange } = renderData;
 
-    // Configure speed color scale
     const localColorScale = d3.scaleSequential(d3.interpolatePlasma)
       .domain([speedRange.min, speedRange.max]);
 
-    // Draw reference centerline (dashed gray)
+    // Draw track surface (filled polygon: left edge forward, right edge backward)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+    ctx.beginPath();
+    for (let j = 0; j < leftEdge.e.length; j++) {
+      const x = xScale(leftEdge.e[j]);
+      const y = yScale(leftEdge.n[j]);
+      if (j === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    for (let j = rightEdge.e.length - 1; j >= 0; j--) {
+      ctx.lineTo(xScale(rightEdge.e[j]), yScale(rightEdge.n[j]));
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw track edges
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([]);
+    for (const edge of [leftEdge, rightEdge]) {
+      ctx.beginPath();
+      for (let j = 0; j < edge.e.length; j++) {
+        const x = xScale(edge.e[j]);
+        const y = yScale(edge.n[j]);
+        if (j === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    // Draw reference centerline (dashed)
     if (lineData?.reference_e && lineData.reference_n) {
-      ctx.strokeStyle = colors.text.muted;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
       ctx.lineWidth = 1;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
@@ -251,55 +388,66 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
     }
 
     // Draw lap traces: best first (behind), then selected (on top)
-    const sorted = [...tracesToRender].sort((a, b) => {
-      if (a.isBest && !b.isBest) return -1; // best drawn first (behind)
+    const sorted = [...exaggeratedTraces].sort((a, b) => {
+      if (a.isBest && !b.isBest) return -1;
       if (!a.isBest && b.isBest) return 1;
       return 0;
     });
 
-    for (const { trace, isBest } of sorted) {
+    for (const { trace, isBest, exE, exN } of sorted) {
+      // Speed array needs to be sliced to match the zone
+      const speedSlice: number[] = [];
+      for (let i = zone.startIdx; i <= zone.endIdx && i < trace.speed_mps.length; i++) {
+        speedSlice.push(trace.speed_mps[i]);
+      }
       drawSpeedColoredLine(
-        ctx, trace.e, trace.n, trace.speed_mps,
-        zone, xScale, yScale, localColorScale,
+        ctx, exE, exN, speedSlice,
+        0, exE.length - 1,
+        xScale, yScale, localColorScale,
         isBest && !sorted.every((s) => s.isBest) ? 2 : 3,
       );
     }
 
-    // Draw entry/apex/exit markers on the first selected (or best) trace
+    // Draw entry/apex/exit markers on the primary trace
     const primaryTrace = sorted.find((s) => s.isSelected && !s.isBest) ?? sorted[0];
     if (primaryTrace) {
-      const { trace } = primaryTrace;
-      const entryIdx = Math.max(zone.startIdx, Math.round(corner!.entry_distance_m / SPACING_M));
-      const apexIdx = zone.apexIdx;
-      const exitIdx = Math.min(zone.endIdx, Math.round(corner!.exit_distance_m / SPACING_M));
+      const entryDistIdx = Math.max(zone.startIdx, Math.round(corner!.entry_distance_m / SPACING_M));
+      const apexDistIdx = zone.apexIdx;
+      const exitDistIdx = Math.min(zone.endIdx, Math.round(corner!.exit_distance_m / SPACING_M));
 
-      if (entryIdx < trace.e.length) {
-        drawMarker(ctx, xScale(trace.e[entryIdx]), yScale(trace.n[entryIdx]), 'Entry', colors.text.secondary, 'triangle');
+      // Convert distance-domain indices to local array indices
+      const entryLocal = entryDistIdx - zone.startIdx;
+      const apexLocal = apexDistIdx - zone.startIdx;
+      const exitLocal = exitDistIdx - zone.startIdx;
+
+      if (entryLocal >= 0 && entryLocal < primaryTrace.exE.length) {
+        drawMarker(ctx, xScale(primaryTrace.exE[entryLocal]), yScale(primaryTrace.exN[entryLocal]), 'Entry', colors.text.secondary, 'triangle');
       }
-      if (apexIdx < trace.e.length) {
-        drawMarker(ctx, xScale(trace.e[apexIdx]), yScale(trace.n[apexIdx]), 'Apex', colors.motorsport.brake, 'diamond');
+      if (apexLocal >= 0 && apexLocal < primaryTrace.exE.length) {
+        drawMarker(ctx, xScale(primaryTrace.exE[apexLocal]), yScale(primaryTrace.exN[apexLocal]), 'Apex', colors.motorsport.brake, 'diamond');
       }
-      if (exitIdx < trace.e.length) {
-        drawMarker(ctx, xScale(trace.e[exitIdx]), yScale(trace.n[exitIdx]), 'Exit', colors.motorsport.throttle, 'circle');
+      if (exitLocal >= 0 && exitLocal < primaryTrace.exE.length) {
+        drawMarker(ctx, xScale(primaryTrace.exE[exitLocal]), yScale(primaryTrace.exN[exitLocal]), 'Exit', colors.motorsport.throttle, 'circle');
       }
     }
 
-    // Speed delta annotations at apex (if we have both best and selected)
+    // Speed delta annotation at apex
     const bestEntry = sorted.find((s) => s.isBest);
     const selEntry = sorted.find((s) => s.isSelected && !s.isBest);
     if (bestEntry && selEntry && corner) {
-      const ai = Math.min(zone.apexIdx, bestEntry.trace.speed_mps.length - 1, selEntry.trace.speed_mps.length - 1);
-      if (ai >= 0) {
-        const bestSpd = bestEntry.trace.speed_mps[ai];
-        const selSpd = selEntry.trace.speed_mps[ai];
+      const apexLocal = zone.apexIdx - zone.startIdx;
+      const bestSpeedIdx = Math.min(zone.apexIdx, bestEntry.trace.speed_mps.length - 1);
+      const selSpeedIdx = Math.min(zone.apexIdx, selEntry.trace.speed_mps.length - 1);
+      if (bestSpeedIdx >= 0 && selSpeedIdx >= 0) {
+        const bestSpd = bestEntry.trace.speed_mps[bestSpeedIdx];
+        const selSpd = selEntry.trace.speed_mps[selSpeedIdx];
         const deltaMps = bestSpd - selSpd;
         const deltaDisplay = convertSpeed(deltaMps * MPS_TO_MPH);
 
-        if (Math.abs(deltaDisplay) > 0.1) {
-          const apexX = xScale(bestEntry.trace.e[ai]);
-          const apexY = yScale(bestEntry.trace.n[ai]);
+        if (Math.abs(deltaDisplay) > 0.1 && apexLocal >= 0 && apexLocal < bestEntry.exE.length) {
+          const apexX = xScale(bestEntry.exE[apexLocal]);
+          const apexY = yScale(bestEntry.exN[apexLocal]);
 
-          // Background pill
           const label = `Best: ${deltaDisplay > 0 ? '+' : ''}${deltaDisplay.toFixed(1)} ${speedUnit}`;
           ctx.font = `bold 10px ${fonts.mono}`;
           const tw = ctx.measureText(label).width;
@@ -336,13 +484,12 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
     const legendY = dimensions.height - MARGINS.bottom - legendH - 4;
 
     for (let i = 0; i < legendH; i++) {
-      const t = 1 - i / legendH; // top = fast, bottom = slow
+      const t = 1 - i / legendH;
       const speed = speedRange.min + t * (speedRange.max - speedRange.min);
       ctx.fillStyle = localColorScale(speed);
       ctx.fillRect(legendX, legendY + i, legendW, 1);
     }
 
-    // Legend labels
     ctx.fillStyle = colors.text.secondary;
     ctx.font = `9px ${fonts.mono}`;
     ctx.textAlign = 'left';
@@ -357,34 +504,53 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     let ly = MARGINS.top + 2;
-    for (const { trace, isBest, isSelected } of sorted) {
-      const label = isBest
+    for (const { trace, isBest } of sorted) {
+      const lapLabel = isBest
         ? `L${trace.lap_number} (Best)`
         : `L${trace.lap_number}`;
       ctx.fillStyle = isBest ? colors.comparison.reference : colors.comparison.compare;
       ctx.fillRect(MARGINS.left + 4, ly + 2, 10, 2);
       ctx.fillStyle = colors.text.secondary;
-      ctx.fillText(label, MARGINS.left + 18, ly - 1);
+      ctx.fillText(lapLabel, MARGINS.left + 18, ly - 1);
       ly += 14;
     }
-  }, [renderData, lineData, xScale, yScale, dimensions, corner, convertSpeed, speedUnit]);
+  }, [renderData, lineData, xScale, yScale, dimensions, corner, convertSpeed, speedUnit, exaggeration]);
 
   // Don't render if no line data available
   if (!lineData?.available || !corner || !lineData.lap_traces?.length) return null;
   if (!renderData) return null;
 
   return (
-    <div ref={containerRef} className="relative h-[180px] w-full">
-      <canvas
-        ref={dataCanvasRef}
-        className="absolute inset-0"
-        style={{ width: '100%', height: '100%', zIndex: 1 }}
-      />
-      <canvas
-        ref={overlayCanvasRef}
-        className="absolute inset-0"
-        style={{ width: '100%', height: '100%', zIndex: 2 }}
-      />
+    <div className="flex flex-col">
+      <div ref={containerRef} className="relative h-[200px] w-full">
+        <canvas
+          ref={dataCanvasRef}
+          className="absolute inset-0"
+          style={{ width: '100%', height: '100%', zIndex: 1 }}
+        />
+        <canvas
+          ref={overlayCanvasRef}
+          className="absolute inset-0"
+          style={{ width: '100%', height: '100%', zIndex: 2 }}
+        />
+      </div>
+      {/* Lateral exaggeration slider */}
+      <div className="flex items-center justify-end gap-1.5 px-2 py-1">
+        <span className="text-[10px] text-[var(--text-secondary)]">
+          {exaggeration.toFixed(1)}×
+        </span>
+        <input
+          type="range"
+          min={EXAG_MIN}
+          max={EXAG_MAX}
+          step={EXAG_STEP}
+          value={exaggeration}
+          onChange={(e) => setExaggeration(Number(e.target.value))}
+          className="h-1 w-16 cursor-pointer accent-[var(--color-optimal)]"
+          title={`Lateral exaggeration: ${exaggeration.toFixed(1)}×`}
+        />
+        <span className="text-[10px] text-[var(--text-secondary)]">exag</span>
+      </div>
     </div>
   );
 }
