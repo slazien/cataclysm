@@ -160,3 +160,28 @@ class TestAMPDetection:
         match = detect_track(df)
         assert match is not None
         assert match.layout.name != "Atlanta Motorsports Park"
+
+    def test_track_without_center_coords_is_skipped(self) -> None:
+        """Track with center_lat=None or center_lon=None is skipped."""
+        from unittest.mock import patch
+
+        from cataclysm.track_db import TrackLayout
+
+        # Build a fake track without center coordinates
+        no_coord_track = TrackLayout(
+            name="No Coord Track",
+            corners=[],
+            center_lat=None,  # Missing center → should be skipped
+            center_lon=None,
+            country="US",
+            length_m=3000.0,
+        )
+        df = self._make_gps_df(lat=33.5302, lon=-86.6215)
+
+        with patch("cataclysm.track_match.get_all_tracks") as mock_get_all:
+            from cataclysm.track_db import get_all_tracks as real_get_all
+
+            mock_get_all.return_value = [no_coord_track] + list(real_get_all())
+            match = detect_track(df)
+        # Should still match Barber (the no_coord_track was skipped safely)
+        assert match is not None

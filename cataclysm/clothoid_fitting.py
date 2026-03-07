@@ -372,6 +372,11 @@ def _fit_segments(
             curvature[start:end] = kappa_seg
             continue
 
+        # Guard against zero-length segments (all-duplicate distances)
+        if s_local[-1] < 1e-12:
+            curvature[start:end] = 0.0
+            continue
+
         # Fit theta(s) = c0 + c1*s + c2*s^2 via least squares
         # This is a degree-2 polynomial fit
         coeffs = np.polyfit(s_local, theta_local, 2)

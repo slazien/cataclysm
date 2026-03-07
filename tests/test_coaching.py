@@ -2852,7 +2852,7 @@ class TestBuildTrackIntroductionCharacter:
         text = build_track_introduction(layout)
         assert "<character>" in text
         assert "Slow hairpin" in text
-        assert '<coaching_notes>' in text
+        assert "<coaching_notes>" in text
 
     def test_corner_without_character(self) -> None:
         layout = TrackLayout(

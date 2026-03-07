@@ -283,3 +283,51 @@ class TestBuildHistoryPromptSection:
         mem = _make_memory()
         text = build_history_prompt_section([mem], "Barber")
         assert "Reference this history" in text
+
+    def test_truncation_marker_appears_when_output_exceeds_budget(self) -> None:
+        """When output exceeds budget, truncation marker is added (line 215)."""
+        # Build a memory with very long weaknesses to force truncation
+        from datetime import datetime
+
+        from cataclysm.coaching import CoachingReport, CornerGrade
+        from cataclysm.coaching_memory import extract_memory_from_report
+
+        long_weakness = "A" * 1000  # 1000-char weakness string
+        # Build a report that produces a very long output
+        big_report = CoachingReport(
+            summary="Good session.",
+            priority_corners=[{"corner": i, "reason": "test"} for i in range(1, 6)],
+            corner_grades=[
+                CornerGrade(
+                    corner=i,
+                    braking="B",
+                    trail_braking="C",
+                    min_speed="B",
+                    throttle="B",
+                    notes=long_weakness,
+                )
+                for i in range(1, 6)
+            ],
+            patterns=["Pattern: " + "X" * 200] * 10,
+            primary_focus=long_weakness,
+            drills=["Drill: " + "Y" * 200] * 10,
+        )
+
+        memories = []
+        for i in range(_MAX_HISTORY_SESSIONS):
+            mem = extract_memory_from_report(
+                report=big_report,
+                session_id=f"s{i}",
+                track_name="Barber",
+                session_date=datetime(2026, 1, i + 1),
+                best_lap_s=90.0 + i,
+                top3_avg_s=91.0 + i,
+            )
+            # Force very long weaknesses for older sessions
+            mem.key_weaknesses.extend([long_weakness] * 5)
+            memories.append(mem)
+
+        text = build_history_prompt_section(memories, "Barber")
+        # Output should be truncated and contain the truncation marker
+        assert "[History truncated]" in text
+        assert len(text) <= _HISTORY_TOKEN_BUDGET_CHARS + len("\n[History truncated]") + 10
