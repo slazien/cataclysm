@@ -28,6 +28,7 @@ RUN adduser --disabled-password --gecos "" appuser && \
     mkdir -p /app/data && chown -R appuser:appuser /app
 USER appuser
 
+ENV TRACK_REF_DIR=/app/data/track_reference
 EXPOSE 8000
 COPY alembic.ini .
 CMD ["sh", "-c", "alembic upgrade head && uvicorn backend.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --timeout-keep-alive 300"]

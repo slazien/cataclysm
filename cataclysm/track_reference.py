@@ -28,7 +28,15 @@ from cataclysm.track_db import TrackLayout
 logger = logging.getLogger(__name__)
 
 # Where canonical references are stored on disk.
-_DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "track_reference"
+# In Docker the cataclysm package is pip-installed under site-packages, which is
+# read-only.  The Dockerfile creates /app/data with write permissions, so prefer
+# that when available via the TRACK_REF_DIR env-var.
+_DATA_DIR = Path(
+    os.environ.get(
+        "TRACK_REF_DIR",
+        str(Path(__file__).resolve().parent.parent / "data" / "track_reference"),
+    )
+)
 
 # If track lengths differ by more than this fraction, log a warning.
 LENGTH_MISMATCH_WARN_THRESHOLD = 0.05
