@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
+import { useAnimationFrame } from '@/hooks/useAnimationFrame';
 import { useLineAnalysis, useCorners } from '@/hooks/useAnalysis';
 import { useUnits } from '@/hooks/useUnits';
 import { useAnalysisStore } from '@/stores';
@@ -18,6 +19,9 @@ const EXAG_MAX = 8;
 const EXAG_STEP = 0.5;
 
 const MARGINS = { top: 8, right: 8, bottom: 8, left: 8 };
+
+// Time-interval dots: one dot every N seconds
+const TIME_DOT_INTERVAL_S = 0.25;
 
 interface CornerZone {
   startIdx: number;
@@ -49,7 +53,6 @@ function computeReferenceNormals(
   const nn: number[] = new Array(refN.length).fill(0);
 
   for (let i = startIdx; i <= endIdx && i < refE.length; i++) {
-    // Forward difference tangent (use central difference when possible)
     let de: number, dn: number;
     if (i === 0 || i === startIdx) {
       de = refE[Math.min(i + 1, refE.length - 1)] - refE[i];
@@ -62,17 +65,12 @@ function computeReferenceNormals(
       dn = refN[i + 1] - refN[i - 1];
     }
     const len = Math.sqrt(de * de + dn * dn) || 1;
-    // Normal = rotate tangent 90° CCW: (-dn, de) / len
     ne[i] = -dn / len;
     nn[i] = de / len;
   }
   return { ne, nn };
 }
 
-/**
- * Compute signed lateral offset of a trace point from the reference line.
- * Positive = left of reference (in normal direction), negative = right.
- */
 function computeLateralOffset(
   traceE: number, traceN: number,
   refE: number, refN: number,
@@ -80,13 +78,9 @@ function computeLateralOffset(
 ): number {
   const de = traceE - refE;
   const dn = traceN - refN;
-  return de * normalE + dn * normalN; // dot product with normal
+  return de * normalE + dn * normalN;
 }
 
-/**
- * Apply lateral exaggeration: project point along the reference normal
- * by (exag - 1) × original_offset.
- */
 function exaggeratePoint(
   traceE: number, traceN: number,
   refE: number, refN: number,
@@ -100,6 +94,54 @@ function exaggeratePoint(
     e: traceE + extra * normalE,
     n: traceN + extra * normalN,
   };
+}
+
+/**
+ * Rotate coordinates so entry-to-exit direction points upward (north).
+ */
+function rotateCornerAligned(
+  eArr: number[], nArr: number[],
+  entryE: number, entryN: number,
+  exitE: number, exitN: number,
+): { e: number[]; n: number[] } {
+  const travelAngle = Math.atan2(exitN - entryN, exitE - entryE);
+  const rotation = Math.PI / 2 - travelAngle;
+  const cosR = Math.cos(rotation);
+  const sinR = Math.sin(rotation);
+  const cx = (entryE + exitE) / 2;
+  const cy = (entryN + exitN) / 2;
+
+  const re: number[] = new Array(eArr.length);
+  const rn: number[] = new Array(nArr.length);
+  for (let i = 0; i < eArr.length; i++) {
+    const de = eArr[i] - cx;
+    const dn = nArr[i] - cy;
+    re[i] = cosR * de - sinR * dn + cx;
+    rn[i] = sinR * de + cosR * dn + cy;
+  }
+  return { e: re, n: rn };
+}
+
+/**
+ * Compute cumulative time from speed (speed_mps) and spacing, returning
+ * indices where equal-time markers should be placed.
+ */
+function computeTimeDotIndices(speedMps: number[], startIdx: number, endIdx: number): number[] {
+  const indices: number[] = [];
+  let cumulativeTime = 0;
+  let nextDotTime = TIME_DOT_INTERVAL_S;
+
+  for (let i = startIdx + 1; i <= endIdx && i < speedMps.length; i++) {
+    const avgSpeed = (speedMps[i] + speedMps[i - 1]) / 2;
+    if (avgSpeed > 0.1) {
+      cumulativeTime += SPACING_M / avgSpeed;
+    }
+    if (cumulativeTime >= nextDotTime) {
+      indices.push(i - startIdx);
+      nextDotTime += TIME_DOT_INTERVAL_S;
+    }
+  }
+  return indices;
 }
 
 function drawSpeedColoredLine(
@@ -152,7 +194,6 @@ function drawMarker(
   }
   ctx.fill();
 
-  // Label
   ctx.fillStyle = colors.text.secondary;
   ctx.font = `9px ${fonts.mono}`;
   ctx.textAlign = 'center';
@@ -171,20 +212,32 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
   const { data: corners } = useCorners(sessionId);
   const { convertSpeed, speedUnit } = useUnits();
   const [exaggeration, setExaggeration] = useState(1);
+  const [rotateAligned, setRotateAligned] = useState(false);
+  const [showTimeDots, setShowTimeDots] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const animationRef = useRef<{ startTime: number; duration: number } | null>(null);
+  const animationProgressRef = useRef(0);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx } =
+  const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx, makeTouchProps } =
     useCanvasChart(MARGINS);
 
-  // Find the corner object
+  // Refs for RAF-based overlay (avoid stale closures)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const renderDataRef = useRef<any>(null);
+  const xScaleRef = useRef(null as d3.ScaleLinear<number, number> | null);
+  const yScaleRef = useRef(null as d3.ScaleLinear<number, number> | null);
+  const dimsRef = useRef(dimensions);
+  dimsRef.current = dimensions;
+
   const corner = useMemo(() => corners?.find((c) => c.number === cornerNumber), [corners, cornerNumber]);
 
-  // Find corner line profile (has best lap info)
   const profile: CornerLineProfile | undefined = useMemo(
     () => lineData?.corner_profiles.find((p) => p.corner_number === cornerNumber),
     [lineData, cornerNumber],
   );
 
-  // Compute corner zone, reference normals, exaggerated traces, and bounds
+  // Compute render data with optional rotation
   const renderData = useMemo(() => {
     if (!lineData?.available || !corner || !lineData.lap_traces.length) return null;
 
@@ -192,12 +245,10 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
     const zone = getCornerZone(corner, 15, 25, maxIdx);
     if (zone.endIdx <= zone.startIdx) return null;
 
-    // Compute reference normals for exaggeration
     const normals = computeReferenceNormals(
       lineData.reference_e, lineData.reference_n, zone.startIdx, zone.endIdx,
     );
 
-    // Collect all traces to render (selected laps + best lap)
     const bestLapNum = profile?.best_lap_number ?? null;
     const tracesToRender: { trace: LapSpatialTrace; isBest: boolean; isSelected: boolean }[] = [];
 
@@ -218,10 +269,16 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
 
     if (tracesToRender.length === 0) return null;
 
-    // Pre-compute exaggerated coordinates for each trace
+    // Rotation reference points (from reference line at entry/exit)
+    const entryRefE = lineData.reference_e[zone.startIdx];
+    const entryRefN = lineData.reference_n[zone.startIdx];
+    const exitRefE = lineData.reference_e[zone.endIdx];
+    const exitRefN = lineData.reference_n[zone.endIdx];
+
+    // Pre-compute exaggerated (and optionally rotated) coordinates
     const exaggeratedTraces = tracesToRender.map(({ trace, isBest, isSelected }) => {
-      const exE: number[] = [];
-      const exN: number[] = [];
+      const rawE: number[] = [];
+      const rawN: number[] = [];
       for (let i = zone.startIdx; i <= zone.endIdx && i < trace.e.length; i++) {
         if (i < lineData.reference_e.length) {
           const p = exaggeratePoint(
@@ -230,27 +287,48 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
             normals.ne[i], normals.nn[i],
             exaggeration,
           );
-          exE.push(p.e);
-          exN.push(p.n);
+          rawE.push(p.e);
+          rawN.push(p.n);
         }
       }
-      return { trace, isBest, isSelected, exE, exN };
+
+      let exE = rawE;
+      let exN = rawN;
+      if (rotateAligned) {
+        const rotated = rotateCornerAligned(rawE, rawN, entryRefE, entryRefN, exitRefE, exitRefN);
+        exE = rotated.e;
+        exN = rotated.n;
+      }
+
+      // Compute time-dot indices
+      const timeDotIndices = computeTimeDotIndices(trace.speed_mps, zone.startIdx, zone.endIdx);
+
+      return { trace, isBest, isSelected, exE, exN, timeDotIndices };
     });
 
-    // Track edge coordinates (reference ± half-width, also exaggerated)
-    const leftEdgeE: number[] = [];
-    const leftEdgeN: number[] = [];
-    const rightEdgeE: number[] = [];
-    const rightEdgeN: number[] = [];
+    // Track edges
+    const leftEdgeRawE: number[] = [];
+    const leftEdgeRawN: number[] = [];
+    const rightEdgeRawE: number[] = [];
+    const rightEdgeRawN: number[] = [];
     for (let i = zone.startIdx; i <= zone.endIdx && i < lineData.reference_e.length; i++) {
       const hw = TRACK_HALF_WIDTH_M * exaggeration;
-      leftEdgeE.push(lineData.reference_e[i] + normals.ne[i] * hw);
-      leftEdgeN.push(lineData.reference_n[i] + normals.nn[i] * hw);
-      rightEdgeE.push(lineData.reference_e[i] - normals.ne[i] * hw);
-      rightEdgeN.push(lineData.reference_n[i] - normals.nn[i] * hw);
+      leftEdgeRawE.push(lineData.reference_e[i] + normals.ne[i] * hw);
+      leftEdgeRawN.push(lineData.reference_n[i] + normals.nn[i] * hw);
+      rightEdgeRawE.push(lineData.reference_e[i] - normals.ne[i] * hw);
+      rightEdgeRawN.push(lineData.reference_n[i] - normals.nn[i] * hw);
     }
 
-    // Compute bounds from all exaggerated traces + track edges
+    let leftEdge = { e: leftEdgeRawE, n: leftEdgeRawN };
+    let rightEdge = { e: rightEdgeRawE, n: rightEdgeRawN };
+    if (rotateAligned) {
+      const lRot = rotateCornerAligned(leftEdgeRawE, leftEdgeRawN, entryRefE, entryRefN, exitRefE, exitRefN);
+      leftEdge = { e: lRot.e, n: lRot.n };
+      const rRot = rotateCornerAligned(rightEdgeRawE, rightEdgeRawN, entryRefE, entryRefN, exitRefE, exitRefN);
+      rightEdge = { e: rRot.e, n: rRot.n };
+    }
+
+    // Bounds
     let minE = Infinity, maxE = -Infinity, minN = Infinity, maxN = -Infinity;
     let minSpeed = Infinity, maxSpeed = -Infinity;
 
@@ -268,17 +346,15 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
       }
     }
 
-    // Include track edges in bounds
-    for (let j = 0; j < leftEdgeE.length; j++) {
-      minE = Math.min(minE, leftEdgeE[j], rightEdgeE[j]);
-      maxE = Math.max(maxE, leftEdgeE[j], rightEdgeE[j]);
-      minN = Math.min(minN, leftEdgeN[j], rightEdgeN[j]);
-      maxN = Math.max(maxN, leftEdgeN[j], rightEdgeN[j]);
+    for (let j = 0; j < leftEdge.e.length; j++) {
+      minE = Math.min(minE, leftEdge.e[j], rightEdge.e[j]);
+      maxE = Math.max(maxE, leftEdge.e[j], rightEdge.e[j]);
+      minN = Math.min(minN, leftEdge.n[j], rightEdge.n[j]);
+      maxN = Math.max(maxN, leftEdge.n[j], rightEdge.n[j]);
     }
 
     if (!isFinite(minE) || !isFinite(minSpeed)) return null;
 
-    // Add padding (15% of range or minimum 3m)
     const rangeE = maxE - minE || 10;
     const rangeN = maxN - minN || 10;
     const padE = Math.max(rangeE * 0.15, 3);
@@ -288,12 +364,15 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
       zone,
       normals,
       exaggeratedTraces,
-      leftEdge: { e: leftEdgeE, n: leftEdgeN },
-      rightEdge: { e: rightEdgeE, n: rightEdgeN },
+      leftEdge,
+      rightEdge,
       bounds: { minE: minE - padE, maxE: maxE + padE, minN: minN - padN, maxN: maxN + padN },
       speedRange: { min: minSpeed, max: maxSpeed },
     };
-  }, [lineData, corner, profile, selectedLaps, exaggeration]);
+  }, [lineData, corner, profile, selectedLaps, exaggeration, rotateAligned]);
+
+  // Keep refs current
+  renderDataRef.current = renderData;
 
   // Build D3 scales maintaining 1:1 aspect ratio
   const { xScale, yScale } = useMemo(() => {
@@ -328,7 +407,10 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
     };
   }, [renderData, dimensions.innerWidth, dimensions.innerHeight]);
 
-  // Draw
+  xScaleRef.current = xScale;
+  yScaleRef.current = yScale;
+
+  // Main data canvas draw
   useEffect(() => {
     const ctx = getDataCtx();
     if (!ctx || !renderData || dimensions.innerWidth <= 0) return;
@@ -341,7 +423,7 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
     const localColorScale = d3.scaleSequential(d3.interpolatePlasma)
       .domain([speedRange.min, speedRange.max]);
 
-    // Draw track surface (filled polygon: left edge forward, right edge backward)
+    // Track surface fill
     ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
     ctx.beginPath();
     for (let j = 0; j < leftEdge.e.length; j++) {
@@ -356,7 +438,7 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
     ctx.closePath();
     ctx.fill();
 
-    // Draw track edges
+    // Track edges
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
     ctx.lineWidth = 1.5;
     ctx.setLineDash([]);
@@ -371,19 +453,45 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
       ctx.stroke();
     }
 
-    // Draw reference centerline (dashed)
+    // Reference centerline (dashed)
     if (lineData?.reference_e && lineData.reference_n) {
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
       ctx.lineWidth = 1;
       ctx.setLineDash([3, 3]);
-      ctx.beginPath();
-      for (let i = zone.startIdx; i <= zone.endIdx && i < lineData.reference_e.length; i++) {
-        const x = xScale(lineData.reference_e[i]);
-        const y = yScale(lineData.reference_n[i]);
-        if (i === zone.startIdx) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
+
+      // Need to apply same rotation to reference if rotateAligned
+      let refE = lineData.reference_e;
+      let refN = lineData.reference_n;
+      if (rotateAligned) {
+        const entryRefE = lineData.reference_e[zone.startIdx];
+        const entryRefN = lineData.reference_n[zone.startIdx];
+        const exitRefE = lineData.reference_e[zone.endIdx];
+        const exitRefN = lineData.reference_n[zone.endIdx];
+        const sliceE: number[] = [];
+        const sliceN: number[] = [];
+        for (let i = zone.startIdx; i <= zone.endIdx && i < lineData.reference_e.length; i++) {
+          sliceE.push(lineData.reference_e[i]);
+          sliceN.push(lineData.reference_n[i]);
+        }
+        const rot = rotateCornerAligned(sliceE, sliceN, entryRefE, entryRefN, exitRefE, exitRefN);
+        ctx.beginPath();
+        for (let j = 0; j < rot.e.length; j++) {
+          const x = xScale(rot.e[j]);
+          const y = yScale(rot.n[j]);
+          if (j === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        for (let i = zone.startIdx; i <= zone.endIdx && i < refE.length; i++) {
+          const x = xScale(refE[i]);
+          const y = yScale(refN[i]);
+          if (i === zone.startIdx) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
       }
-      ctx.stroke();
       ctx.setLineDash([]);
     }
 
@@ -395,7 +503,6 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
     });
 
     for (const { trace, isBest, exE, exN } of sorted) {
-      // Speed array needs to be sliced to match the zone
       const speedSlice: number[] = [];
       for (let i = zone.startIdx; i <= zone.endIdx && i < trace.speed_mps.length; i++) {
         speedSlice.push(trace.speed_mps[i]);
@@ -408,14 +515,28 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
       );
     }
 
-    // Draw entry/apex/exit markers on the primary trace
+    // Time-interval dots
+    if (showTimeDots) {
+      for (const { exE, exN, timeDotIndices, isBest } of sorted) {
+        const dotColor = isBest ? colors.comparison.reference : colors.comparison.compare;
+        ctx.fillStyle = dotColor;
+        for (const idx of timeDotIndices) {
+          if (idx < exE.length) {
+            ctx.beginPath();
+            ctx.arc(xScale(exE[idx]), yScale(exN[idx]), 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+    }
+
+    // Entry/apex/exit markers
     const primaryTrace = sorted.find((s) => s.isSelected && !s.isBest) ?? sorted[0];
     if (primaryTrace) {
       const entryDistIdx = Math.max(zone.startIdx, Math.round(corner!.entry_distance_m / SPACING_M));
       const apexDistIdx = zone.apexIdx;
       const exitDistIdx = Math.min(zone.endIdx, Math.round(corner!.exit_distance_m / SPACING_M));
 
-      // Convert distance-domain indices to local array indices
       const entryLocal = entryDistIdx - zone.startIdx;
       const apexLocal = apexDistIdx - zone.startIdx;
       const exitLocal = exitDistIdx - zone.startIdx;
@@ -514,14 +635,205 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
       ctx.fillText(lapLabel, MARGINS.left + 18, ly - 1);
       ly += 14;
     }
-  }, [renderData, lineData, xScale, yScale, dimensions, corner, convertSpeed, speedUnit, exaggeration]);
+  }, [renderData, lineData, xScale, yScale, dimensions, corner, convertSpeed, speedUnit, exaggeration, showTimeDots, rotateAligned]);
+
+  // --- Overlay: cursor sync + hover tooltip + animated replay ---
+
+  // Convert mouse position to nearest distance index on the primary trace
+  const findNearestPoint = useCallback(
+    (clientX: number, clientY: number): { distanceIdx: number; traceIdx: number; localIdx: number } | null => {
+      const rd = renderDataRef.current;
+      const xs = xScaleRef.current;
+      const ys = yScaleRef.current;
+      if (!rd || !xs || !ys) return null;
+
+      const canvas = overlayCanvasRef.current;
+      if (!canvas) return null;
+      const rect = canvas.getBoundingClientRect();
+      const mx = clientX - rect.left;
+      const my = clientY - rect.top;
+
+      // Scale for HiDPI
+      const dpr = window.devicePixelRatio || 1;
+      const canvasX = mx * dpr;
+      const canvasY = my * dpr;
+
+      let bestDist = Infinity;
+      let bestResult: { distanceIdx: number; traceIdx: number; localIdx: number } | null = null;
+
+      for (let ti = 0; ti < rd.exaggeratedTraces.length; ti++) {
+        const { exE, exN } = rd.exaggeratedTraces[ti];
+        for (let j = 0; j < exE.length; j++) {
+          const px = xs(exE[j]) * dpr;
+          const py = ys(exN[j]) * dpr;
+          const d = (canvasX - px) ** 2 + (canvasY - py) ** 2;
+          if (d < bestDist) {
+            bestDist = d;
+            bestResult = { distanceIdx: rd.zone.startIdx + j, traceIdx: ti, localIdx: j };
+          }
+        }
+      }
+
+      // Only match if within 20px (canvas coords)
+      if (bestDist > (20 * dpr) ** 2) return null;
+      return bestResult;
+    },
+    [],
+  );
+
+  const handleOverlayMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const result = findNearestPoint(e.clientX, e.clientY);
+      if (result) {
+        // Write cursor distance to store for sync with other charts
+        const distance = result.distanceIdx * SPACING_M;
+        useAnalysisStore.getState().setCursorDistance(distance);
+      }
+    },
+    [findNearestPoint],
+  );
+
+  const handleOverlayMouseLeave = useCallback(() => {
+    useAnalysisStore.getState().setCursorDistance(null);
+  }, []);
+
+  // Overlay RAF loop: draw cursor position dot + hover tooltip
+  useAnimationFrame(() => {
+    const ctx = getOverlayCtx();
+    if (!ctx) return;
+    const dims = dimsRef.current;
+    ctx.clearRect(0, 0, dims.width, dims.height);
+
+    const rd = renderDataRef.current;
+    const xs = xScaleRef.current;
+    const ys = yScaleRef.current;
+    if (!rd || !xs || !ys) return;
+
+    // Animated replay
+    if (isAnimating && animationRef.current) {
+      const elapsed = (performance.now() - animationRef.current.startTime) / 1000;
+      const progress = Math.min(elapsed / animationRef.current.duration, 1);
+      animationProgressRef.current = progress;
+
+      for (const { exE, exN, isBest } of rd.exaggeratedTraces) {
+        const idx = Math.floor(progress * (exE.length - 1));
+        if (idx >= 0 && idx < exE.length) {
+          const x = xs(exE[idx]);
+          const y = ys(exN[idx]);
+
+          // Glow effect
+          ctx.beginPath();
+          ctx.arc(x, y, 8, 0, Math.PI * 2);
+          ctx.fillStyle = isBest
+            ? 'rgba(59, 130, 246, 0.3)' // blue glow
+            : 'rgba(249, 115, 22, 0.3)'; // orange glow
+          ctx.fill();
+
+          // Solid dot
+          ctx.beginPath();
+          ctx.arc(x, y, 4, 0, Math.PI * 2);
+          ctx.fillStyle = isBest ? colors.comparison.reference : colors.comparison.compare;
+          ctx.fill();
+        }
+      }
+
+      if (progress >= 1) {
+        setIsAnimating(false);
+        animationRef.current = null;
+      }
+      return;
+    }
+
+    // Cursor sync from store
+    const cursorDist = useAnalysisStore.getState().cursorDistance;
+    if (cursorDist === null) return;
+
+    const cursorIdx = Math.round(cursorDist / SPACING_M);
+    if (cursorIdx < rd.zone.startIdx || cursorIdx > rd.zone.endIdx) return;
+
+    const localIdx = cursorIdx - rd.zone.startIdx;
+
+    for (const { trace, exE, exN, isBest } of rd.exaggeratedTraces) {
+      if (localIdx >= 0 && localIdx < exE.length) {
+        const x = xs(exE[localIdx]);
+        const y = ys(exN[localIdx]);
+
+        // Cursor dot
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = isBest ? colors.comparison.reference : colors.comparison.compare;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Speed tooltip
+        const speedIdx = Math.min(cursorIdx, trace.speed_mps.length - 1);
+        if (speedIdx >= 0) {
+          const speedMph = trace.speed_mps[speedIdx] * MPS_TO_MPH;
+          const displaySpeed = convertSpeed(speedMph);
+          const tooltipLabel = `${displaySpeed.toFixed(1)} ${speedUnit}`;
+
+          ctx.font = `bold 9px ${fonts.mono}`;
+          const tw = ctx.measureText(tooltipLabel).width;
+          const tx = Math.min(x + 10, dims.width - tw - 12);
+          const ty = Math.max(y - 20, 12);
+
+          ctx.fillStyle = 'rgba(10, 12, 16, 0.9)';
+          const pad = 3;
+          ctx.fillRect(tx - pad, ty - 8, tw + pad * 2, 14);
+          ctx.fillStyle = isBest ? colors.comparison.reference : colors.comparison.compare;
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(tooltipLabel, tx, ty - 1);
+        }
+      }
+    }
+  });
+
+  // Start animated replay
+  const startReplay = useCallback(() => {
+    if (!renderData) return;
+    // Estimate duration from corner length and average speed
+    const zone = renderData.zone;
+    const numPoints = zone.endIdx - zone.startIdx;
+    const distanceM = numPoints * SPACING_M;
+    // ~3 seconds for a typical corner
+    const duration = Math.max(2, Math.min(5, distanceM / 30));
+    animationRef.current = { startTime: performance.now(), duration };
+    animationProgressRef.current = 0;
+    setIsAnimating(true);
+  }, [renderData]);
+
+  // Fullscreen toggle
+  const toggleFullscreen = useCallback(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      el.requestFullscreen().catch(() => {});
+    }
+  }, []);
+
+  // Export as image
+  const exportImage = useCallback(() => {
+    const canvas = dataCanvasRef.current;
+    if (!canvas) return;
+    const link = document.createElement('a');
+    link.download = `corner-${cornerNumber}-line-map.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }, [cornerNumber]);
 
   // Don't render if no line data available
   if (!lineData?.available || !corner || !lineData.lap_traces?.length) return null;
   if (!renderData) return null;
 
+  const touchProps = makeTouchProps(handleOverlayMouseMove, handleOverlayMouseLeave);
+
   return (
-    <div className="flex flex-col">
+    <div ref={wrapperRef} className="flex flex-col">
       <div ref={containerRef} className="relative h-[200px] w-full">
         <canvas
           ref={dataCanvasRef}
@@ -531,25 +843,94 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
         <canvas
           ref={overlayCanvasRef}
           className="absolute inset-0"
-          style={{ width: '100%', height: '100%', zIndex: 2 }}
+          style={{ width: '100%', height: '100%', zIndex: 2, cursor: 'crosshair' }}
+          onMouseMove={handleOverlayMouseMove}
+          onMouseLeave={handleOverlayMouseLeave}
+          {...touchProps}
         />
       </div>
-      {/* Lateral exaggeration slider */}
-      <div className="flex items-center justify-end gap-1.5 px-2 py-1">
-        <span className="text-[10px] text-[var(--text-secondary)]">
-          {exaggeration.toFixed(1)}×
-        </span>
-        <input
-          type="range"
-          min={EXAG_MIN}
-          max={EXAG_MAX}
-          step={EXAG_STEP}
-          value={exaggeration}
-          onChange={(e) => setExaggeration(Number(e.target.value))}
-          className="h-1 w-16 cursor-pointer accent-[var(--color-optimal)]"
-          title={`Lateral exaggeration: ${exaggeration.toFixed(1)}×`}
-        />
-        <span className="text-[10px] text-[var(--text-secondary)]">exag</span>
+      {/* Controls row */}
+      <div className="flex items-center justify-between gap-1.5 px-2 py-1">
+        {/* Left: feature toggles */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setRotateAligned((v) => !v)}
+            className={`rounded px-1.5 py-0.5 text-[10px] transition-colors ${
+              rotateAligned
+                ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)]'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            }`}
+            title="Rotate corner so travel direction points upward"
+          >
+            <svg className="inline-block h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5m0 0l-4 4m4-4l4 4" />
+            </svg>
+          </button>
+          <button
+            onClick={() => setShowTimeDots((v) => !v)}
+            className={`rounded px-1.5 py-0.5 text-[10px] transition-colors ${
+              showTimeDots
+                ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)]'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            }`}
+            title="Show equal-time interval dots (0.25s)"
+          >
+            <svg className="inline-block h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <circle cx="6" cy="12" r="2" />
+              <circle cx="12" cy="12" r="2" />
+              <circle cx="18" cy="12" r="2" />
+            </svg>
+          </button>
+          <button
+            onClick={startReplay}
+            disabled={isAnimating}
+            className={`rounded px-1.5 py-0.5 text-[10px] transition-colors ${
+              isAnimating
+                ? 'text-[var(--text-muted)]'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            }`}
+            title="Animate replay through corner"
+          >
+            <svg className="inline-block h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </button>
+          <button
+            onClick={toggleFullscreen}
+            className="rounded px-1.5 py-0.5 text-[10px] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+            title="Toggle fullscreen"
+          >
+            <svg className="inline-block h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
+            </svg>
+          </button>
+          <button
+            onClick={exportImage}
+            className="rounded px-1.5 py-0.5 text-[10px] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+            title="Export as PNG"
+          >
+            <svg className="inline-block h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </button>
+        </div>
+        {/* Right: exaggeration slider */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-[var(--text-secondary)]">
+            {exaggeration.toFixed(1)}×
+          </span>
+          <input
+            type="range"
+            min={EXAG_MIN}
+            max={EXAG_MAX}
+            step={EXAG_STEP}
+            value={exaggeration}
+            onChange={(e) => setExaggeration(Number(e.target.value))}
+            className="h-1 w-16 cursor-pointer accent-[var(--color-optimal)]"
+            aria-label={`Lateral exaggeration: ${exaggeration.toFixed(1)}×`}
+          />
+          <span className="text-[10px] text-[var(--text-secondary)]">exag</span>
+        </div>
       </div>
     </div>
   );
