@@ -324,9 +324,9 @@ export function CornerSpeedGapPanel({ sessionId, selectedCorner, onDrillDown }: 
             Per-corner time cost from speed deficit
           </p>
         </div>
-        {!isInvalidComparison && totalGapS > 0 && (
+        {totalGapS > 0 && (
           <span className="whitespace-nowrap rounded-full bg-[var(--color-brake)]/10 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-[var(--color-brake)]">
-            {totalGapS.toFixed(1)}s total
+            {isInvalidComparison ? '~' : ''}{totalGapS.toFixed(1)}s total
           </span>
         )}
       </div>
@@ -334,7 +334,9 @@ export function CornerSpeedGapPanel({ sessionId, selectedCorner, onDrillDown }: 
       {isInvalidComparison && opportunities.length > 0 && (
         <div className="mb-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-1.5">
           <p className="text-[11px] text-amber-400">
-            Estimates are approximate — overall gap is negative, individual corners may still be useful
+            {comparison && comparison.total_gap_s <= 0
+              ? 'Estimates are approximate — overall gap is negative, individual corners may still be useful'
+              : 'Some per-corner estimates are approximate — the model is slower than your actual speed at a few corners'}
           </p>
         </div>
       )}

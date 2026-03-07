@@ -157,16 +157,18 @@ export function OptimalGapChart({ sessionId }: OptimalGapChartProps) {
             Per-corner speed gap vs physics-optimal profile — biggest opportunities first
           </p>
         </div>
-        {!isInvalidComparison && totalGapS !== null && totalGapS > 0 && (
+        {totalGapS !== null && totalGapS > 0 && (
           <span className="whitespace-nowrap rounded-full bg-[var(--color-throttle)]/10 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-[var(--color-throttle)]">
-            {totalGapS.toFixed(1)}s potential
+            {isInvalidComparison ? '~' : ''}{totalGapS.toFixed(1)}s potential
           </span>
         )}
       </div>
       {isInvalidComparison && opportunities.length > 0 && (
         <div className="mb-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-1.5">
           <p className="text-[11px] text-amber-400">
-            Physics model estimates are approximate — overall gap is negative, individual corners may still be directionally useful
+            {comparison && comparison.total_gap_s <= 0
+              ? 'Physics model estimates are approximate — overall gap is negative, individual corners may still be directionally useful'
+              : 'Some per-corner estimates are approximate — the model is slower than your actual speed at a few corners'}
           </p>
         </div>
       )}
