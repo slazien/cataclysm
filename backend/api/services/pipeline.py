@@ -609,10 +609,13 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
     """
     session_id = session_data.session_id
 
-    # Capture profile_id now, before entering the thread pool.  This prevents
-    # a TOCTOU race where the user switches equipment while _compute() is
-    # running — we must cache under the profile that was *used* for computation.
+    # Capture profile_id and vehicle params now, before entering the thread
+    # pool.  This prevents a TOCTOU race where the user switches equipment
+    # while _compute() is running — we must compute AND cache under the
+    # profile that was current at request time.
     profile_id = _current_profile_id(session_id)
+    vehicle_params = resolve_vehicle_params(session_id)
+    has_meaningful_grip = _has_meaningful_grip(session_id)
 
     cached = _get_physics_cached(session_id, "profile", profile_id)
     if cached is not None:
@@ -628,15 +631,13 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
         # Use canonical track reference if available, else per-session curvature
         curvature_result, resolved_alt = _resolve_curvature_and_elevation(session_data, lidar_alt)
 
-        # Equipment-aware vehicle params
-        vehicle_params = resolve_vehicle_params(session_id)
-
         # Auto-calibrate from independent session telemetry, excluding the lap
         # currently being evaluated so the benchmark stays externally anchored.
         # Skip grip calibration when equipment provides meaningful grip data.
         # Fall back to calibration when mu is the uncalibrated default.
+        nonlocal vehicle_params
         grip = None
-        if not _has_meaningful_grip(session_id):
+        if not has_meaningful_grip:
             calibration_data = _collect_independent_calibration_telemetry(
                 session_data,
                 target_lap=processed.best_lap,
@@ -691,10 +692,6 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
             vertical_curvature=vert_curvature,
         )
 
-        # Look up equipment profile ID for the response metadata
-        se = equipment_store.get_session_equipment(session_id)
-        profile_id = se.profile_id if se is not None else None
-
         return {
             "distance_m": optimal.distance_m.tolist(),
             "optimal_speed_mph": (optimal.optimal_speed_mps * MPS_TO_MPH).tolist(),
@@ -726,10 +723,13 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
     """
     session_id = session_data.session_id
 
-    # Capture profile_id now, before entering the thread pool.  This prevents
-    # a TOCTOU race where the user switches equipment while _compute() is
-    # running — we must cache under the profile that was *used* for computation.
+    # Capture profile_id, vehicle params, and grip flag now, before entering
+    # the thread pool.  This prevents a TOCTOU race where the user switches
+    # equipment while _compute() is running — we must compute AND cache under
+    # the profile that was current at request time.
     profile_id = _current_profile_id(session_id)
+    vehicle_params = resolve_vehicle_params(session_id)
+    has_meaningful_grip = _has_meaningful_grip(session_id)
 
     cached = _get_physics_cached(session_id, "comparison", profile_id)
     if cached is not None:
@@ -739,22 +739,21 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
     lidar_alt = await _try_lidar_elevation(session_data)
 
     def _compute() -> dict[str, object]:
+        nonlocal vehicle_params
         processed = session_data.processed
         best_lap_df = processed.resampled_laps[processed.best_lap]
         corners = session_data.corners
+        has_equipment = vehicle_params is not None
 
         # Use canonical track reference if available, else per-session curvature
         curvature_result, resolved_alt = _resolve_curvature_and_elevation(session_data, lidar_alt)
-        vehicle_params = resolve_vehicle_params(session_id)
-        has_equipment = vehicle_params is not None
 
-        se = equipment_store.get_session_equipment(session_id)
         logger.info(
             "Optimal comparison [params] sid=%s has_equipment=%s profile_id=%s "
             "mu=%.3f lat_g=%.3f decel_g=%.3f accel_g=%.3f mass=%.0f power=%.0f",
             session_id,
             has_equipment,
-            se.profile_id if se else None,
+            profile_id,
             vehicle_params.mu if vehicle_params else 0,
             vehicle_params.max_lateral_g if vehicle_params else 0,
             vehicle_params.max_decel_g if vehicle_params else 0,
@@ -768,7 +767,7 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
         # Skip grip calibration when equipment provides meaningful grip data.
         # Fall back to calibration when mu is the uncalibrated default.
         grip = None
-        if not _has_meaningful_grip(session_id):
+        if not has_meaningful_grip:
             calibration_data = _collect_independent_calibration_telemetry(
                 session_data,
                 target_lap=processed.best_lap,
