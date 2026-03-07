@@ -39,6 +39,8 @@ function gapColor(ratio: number): string {
 interface CornerSpeedGapPanelProps {
   sessionId: string;
   selectedCorner: number | null;
+  /** Called when user clicks the drill-down CTA to navigate to Corner Focus tab. */
+  onDrillDown?: (corner: number) => void;
 }
 
 /** Row in the overview bar chart. */
@@ -117,10 +119,12 @@ function CornerFocusView({
   opp,
   convertSpeed,
   speedUnit,
+  onDrillDown,
 }: {
   opp: CornerOpportunity;
   convertSpeed: (mph: number) => number;
   speedUnit: string;
+  onDrillDown?: (corner: number) => void;
 }) {
   const yourSpeed = convertSpeed(opp.actual_min_speed_mph);
   const optimalSpeed = convertSpeed(opp.optimal_min_speed_mph);
@@ -227,11 +231,24 @@ function CornerFocusView({
           )}
         </p>
       </div>
+
+      {/* Drill-down CTA */}
+      {onDrillDown && (
+        <button
+          onClick={() => onDrillDown(opp.corner_number)}
+          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-[var(--cata-accent)]/10 py-2 text-xs font-medium text-[var(--cata-accent)] transition-colors hover:bg-[var(--cata-accent)]/20"
+        >
+          Explore Turn {opp.corner_number} in detail
+          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+          </svg>
+        </button>
+      )}
     </motion.div>
   );
 }
 
-export function CornerSpeedGapPanel({ sessionId, selectedCorner }: CornerSpeedGapPanelProps) {
+export function CornerSpeedGapPanel({ sessionId, selectedCorner, onDrillDown }: CornerSpeedGapPanelProps) {
   const { data: comparison, isLoading } = useOptimalComparison(sessionId);
   const { convertSpeed, speedUnit } = useUnits();
   const selectCorner = useAnalysisStore((s) => s.selectCorner);
@@ -331,6 +348,7 @@ export function CornerSpeedGapPanel({ sessionId, selectedCorner }: CornerSpeedGa
               opp={focusedOpp}
               convertSpeed={convertSpeed}
               speedUnit={speedUnit}
+              onDrillDown={onDrillDown}
             />
           ) : (
             <motion.div

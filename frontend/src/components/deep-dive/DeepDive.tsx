@@ -78,8 +78,8 @@ export function DeepDive() {
               }
             }}
           >
-            <TabsTrigger value="speed">Speed</TabsTrigger>
-            <TabsTrigger value="corner">Corner</TabsTrigger>
+            <TabsTrigger value="speed">Lap Trace</TabsTrigger>
+            <TabsTrigger value="corner">Corner Focus</TabsTrigger>
             {showSectors && <TabsTrigger value="sectors">Sectors</TabsTrigger>}
             {showCustom && <TabsTrigger value="custom">Custom</TabsTrigger>}
             {showReplay && <TabsTrigger value="replay">Replay</TabsTrigger>}

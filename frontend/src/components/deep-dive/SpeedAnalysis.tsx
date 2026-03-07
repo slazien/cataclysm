@@ -13,8 +13,9 @@ import { SpeedTrace } from './charts/SpeedTrace';
 import { DeltaT } from './charts/DeltaT';
 import { BrakeThrottle } from './charts/BrakeThrottle';
 import { TrackMapContainer } from './charts/TrackMapContainer';
-import { CornerQuickCard } from './CornerQuickCard';
+import { CornerSpeedGapPanel } from './CornerSpeedGapPanel';
 import { ComparisonLegend } from './ComparisonLegend';
+import { parseCornerNumber } from '@/lib/cornerUtils';
 import { GGDiagramChart } from './GGDiagramChart';
 import { LateralOffsetChart } from './charts/LateralOffsetChart';
 
@@ -22,6 +23,8 @@ export function SpeedAnalysis() {
   const sessionId = useSessionStore((s) => s.activeSessionId);
   const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
   const selectedCorner = useAnalysisStore((s) => s.selectedCorner);
+  const selectCorner = useAnalysisStore((s) => s.selectCorner);
+  const setMode = useAnalysisStore((s) => s.setMode);
   const showLegend = selectedLaps.length === 2;
 
   const { data: report } = useCoachingReport(sessionId);
@@ -157,7 +160,7 @@ export function SpeedAnalysis() {
         )}
       </div>
 
-      {/* Right column -- 35% on desktop, full width on mobile -- track map + corner quick card */}
+      {/* Right column -- 35% on desktop, full width on mobile -- track map + speed gap panel */}
       <div className="flex w-full min-h-0 flex-col gap-3 lg:w-[35%] lg:sticky lg:top-0 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
         {/* Track Map -- fixed height so it never resizes when card content changes */}
         <div className="h-[250px] shrink-0 lg:h-[400px]">
@@ -166,10 +169,17 @@ export function SpeedAnalysis() {
           </ChartErrorBoundary>
         </div>
 
-        {/* Corner Quick Card -- fills remaining space, scrolls internally if needed */}
+        {/* Corner Speed Gap Panel — ranked time costs with drill-down CTA */}
         <div className="min-h-0 flex-1">
-          <ChartErrorBoundary name="Corner Quick Card">
-            <CornerQuickCard sessionId={sessionId} />
+          <ChartErrorBoundary name="Corner Speed Gap">
+            <CornerSpeedGapPanel
+              sessionId={sessionId}
+              selectedCorner={selectedCorner ? parseCornerNumber(selectedCorner) : null}
+              onDrillDown={(corner) => {
+                selectCorner(`T${corner}`);
+                setMode('corner');
+              }}
+            />
           </ChartErrorBoundary>
         </div>
       </div>
