@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from cataclysm.constants import MPS_TO_MPH
 from cataclysm.corners import Corner
 from cataclysm.gps_line import GPSTrace, ReferenceCenterline, compute_lateral_offsets
 
@@ -20,6 +21,7 @@ if TYPE_CHECKING:
 
 MIN_LAPS_FOR_BEST_CORNER = 3  # Need at least 3 laps for meaningful best-corner analysis
 EXIT_SPEED_AVG_SAMPLES = 5  # Average this many samples around exit point (~200ms at 25Hz)
+LATERAL_OFFSET_SPACING_M = 0.7  # Distance-domain resampling spacing (meters per sample)
 
 
 @dataclass
@@ -290,7 +292,7 @@ def identify_best_corner_laps(
     Type A corners: rank by exit speed (descending).
     Type B/C corners: rank by segment time (ascending).
     """
-    spacing = 0.7  # Same as used in analyze_corner_lines
+    spacing = LATERAL_OFFSET_SPACING_M
 
     for profile in profiles:
         metrics = per_lap_metrics.get(profile.corner_number, [])
@@ -362,7 +364,7 @@ def analyze_corner_lines(
         all_offsets.append(offsets[:min_len])
 
     # Map distance to index (assuming uniform 0.7m spacing)
-    spacing = 0.7
+    spacing = LATERAL_OFFSET_SPACING_M
     profiles: list[CornerLineProfile] = []
 
     for corner in corners:
@@ -454,9 +456,6 @@ def format_line_analysis_for_prompt(profiles: list[CornerLineProfile]) -> str:
     return "\n".join(lines)
 
 
-MPS_TO_MPH = 2.23694
-
-
 def format_best_corner_for_prompt(profiles: list[CornerLineProfile]) -> str:
     """Format best-corner execution data as XML for the coaching prompt.
 
@@ -493,7 +492,7 @@ def format_best_corner_for_prompt(profiles: list[CornerLineProfile]) -> str:
             f' median="{p.median_segment_time_s:.2f}s"'
             f' delta="{delta_time:+.2f}s"/>'
         )
-        if p.best_d_entry is not None:
+        if p.best_d_entry is not None and p.best_d_apex is not None and p.best_d_exit is not None:
             lines.append(
                 f'    <best_line d_entry="{p.best_d_entry:+.1f}m"'
                 f' d_apex="{p.best_d_apex:+.1f}m"'

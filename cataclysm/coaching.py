@@ -838,7 +838,7 @@ def _build_coaching_prompt(
             "because a fast lap can mask a poor corner.\n"
         )
     if line_analysis_section:
-        line_instruction = (
+        line_instruction += (
             "\nWhen LINE ANALYSIS data is present, integrate it with speed/brake analysis. "
             "A corner with good brake data but an early apex error costs time on the exit — "
             "report these together as one issue, not two separate observations.\n"
