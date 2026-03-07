@@ -234,12 +234,28 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info("Cleaned up %d expired anonymous session(s) at startup", n_cleaned)
 
     # Auto-generate coaching reports for sessions that don't have one yet
+    from backend.api.db.database import async_session_factory as _asf
+    from backend.api.db.models import User as UserModel
     from backend.api.routers.coaching import trigger_auto_coaching
+
+    # Build user_id → skill_level lookup so we generate the right report
+    user_skill: dict[str, str] = {}
+    try:
+        async with _asf() as _db:
+            from sqlalchemy import select as _sa_select
+
+            _valid = ("novice", "intermediate", "advanced")
+            for u in (await _db.execute(_sa_select(UserModel))).scalars():
+                lvl = u.skill_level if u.skill_level in _valid else "intermediate"
+                user_skill[u.id] = lvl
+    except Exception:
+        logger.warning("Failed to load user skill levels", exc_info=True)
 
     all_sessions = list_sessions()
     for sd in all_sessions:
         if not sd.is_anonymous:
-            await trigger_auto_coaching(sd.session_id, sd)
+            lvl = user_skill.get(sd.user_id or "", "intermediate")
+            await trigger_auto_coaching(sd.session_id, sd, skill_level=lvl)
     if all_sessions:
         logger.info("Checked %d session(s) for missing coaching reports", len(all_sessions))
 
