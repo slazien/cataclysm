@@ -1,9 +1,9 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getCoachingReport, generateCoachingReport, getIdealLap } from "@/lib/api";
+import { getCoachingReport, generateCoachingReport } from "@/lib/api";
 import { useUiStore } from "@/stores";
-import type { CoachingReport, IdealLapData } from "@/lib/types";
+import type { CoachingReport } from "@/lib/types";
 
 export function useCoachingReport(sessionId: string | null) {
   const skillLevel = useUiStore((s) => s.skillLevel);
@@ -43,11 +43,3 @@ export function useGenerateReport() {
   });
 }
 
-export function useIdealLap(sessionId: string | null) {
-  return useQuery<IdealLapData>({
-    queryKey: ["ideal-lap", sessionId],
-    queryFn: () => getIdealLap(sessionId!),
-    enabled: !!sessionId,
-    retry: false,
-  });
-}

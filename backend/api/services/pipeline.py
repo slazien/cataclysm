@@ -81,8 +81,14 @@ def _current_profile_id(session_id: str) -> str | None:
     return se.profile_id if se is not None else None
 
 
-def _get_physics_cached(session_id: str, key_suffix: str) -> dict[str, object] | None:
-    cache_key = (f"{session_id}:{key_suffix}", _current_profile_id(session_id))
+def _get_physics_cached(
+    session_id: str,
+    key_suffix: str,
+    profile_id: str | None = None,
+) -> dict[str, object] | None:
+    if profile_id is None:
+        profile_id = _current_profile_id(session_id)
+    cache_key = (f"{session_id}:{key_suffix}", profile_id)
     entry = _physics_cache.get(cache_key)
     if entry and (time.time() - entry[1]) < PHYSICS_CACHE_TTL_S:
         logger.debug("Physics cache HIT for %s", cache_key)
@@ -90,8 +96,15 @@ def _get_physics_cached(session_id: str, key_suffix: str) -> dict[str, object] |
     return None
 
 
-def _set_physics_cached(session_id: str, key_suffix: str, result: dict[str, object]) -> None:
-    cache_key = (f"{session_id}:{key_suffix}", _current_profile_id(session_id))
+def _set_physics_cached(
+    session_id: str,
+    key_suffix: str,
+    result: dict[str, object],
+    profile_id: str | None = None,
+) -> None:
+    if profile_id is None:
+        profile_id = _current_profile_id(session_id)
+    cache_key = (f"{session_id}:{key_suffix}", profile_id)
     _physics_cache[cache_key] = (result, time.time())
     # LRU eviction: drop oldest entry when cache exceeds max size
     if len(_physics_cache) > PHYSICS_CACHE_MAX_ENTRIES:
@@ -596,7 +609,12 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
     """
     session_id = session_data.session_id
 
-    cached = _get_physics_cached(session_id, "profile")
+    # Capture profile_id now, before entering the thread pool.  This prevents
+    # a TOCTOU race where the user switches equipment while _compute() is
+    # running — we must cache under the profile that was *used* for computation.
+    profile_id = _current_profile_id(session_id)
+
+    cached = _get_physics_cached(session_id, "profile", profile_id)
     if cached is not None:
         return cached
 
@@ -696,7 +714,7 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
         }
 
     result = await asyncio.to_thread(_compute)
-    _set_physics_cached(session_id, "profile", result)
+    _set_physics_cached(session_id, "profile", result, profile_id)
     return result
 
 
@@ -708,7 +726,12 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
     """
     session_id = session_data.session_id
 
-    cached = _get_physics_cached(session_id, "comparison")
+    # Capture profile_id now, before entering the thread pool.  This prevents
+    # a TOCTOU race where the user switches equipment while _compute() is
+    # running — we must cache under the profile that was *used* for computation.
+    profile_id = _current_profile_id(session_id)
+
+    cached = _get_physics_cached(session_id, "comparison", profile_id)
     if cached is not None:
         return cached
 
@@ -833,5 +856,5 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
         }
 
     result = await asyncio.to_thread(_compute)
-    _set_physics_cached(session_id, "comparison", result)
+    _set_physics_cached(session_id, "comparison", result, profile_id)
     return result

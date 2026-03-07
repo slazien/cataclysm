@@ -3,6 +3,7 @@
 import { useQuery, useQueries, keepPreviousData } from "@tanstack/react-query";
 import { getCorners, getAllLapCorners, getConsistency, getGains, getGrip, getDelta, getLapData, getGPSQuality, getMiniSectors, getDegradation, getOptimalComparison, getGGDiagram, getLineAnalysis } from "@/lib/api";
 import type { Corner, SessionConsistency, DeltaData, LapData, GPSQualityReport, MiniSectorData, DegradationData, OptimalComparisonData, GGDiagramData, LineAnalysisData } from "@/lib/types";
+import { useSessionEquipment } from "./useEquipment";
 
 // Telemetry data is immutable per session — never refetch once cached.
 const IMMUTABLE = { staleTime: Infinity } as const;
@@ -118,11 +119,18 @@ export function useDegradation(sessionId: string | null) {
 }
 
 export function useOptimalComparison(sessionId: string | null) {
+  // Include the equipment profile_id in the query key so that switching
+  // equipment automatically creates a separate cache entry — no manual
+  // invalidation needed and no TOCTOU race with stale data.
+  const { data: equipment } = useSessionEquipment(sessionId);
+  const profileId = equipment?.profile_id ?? null;
+
   return useQuery<OptimalComparisonData>({
-    queryKey: ["optimal-comparison", sessionId],
+    queryKey: ["optimal-comparison", sessionId, profileId],
     queryFn: () => getOptimalComparison(sessionId!),
     enabled: !!sessionId,
-    ...IMMUTABLE,
+    placeholderData: keepPreviousData,
+    staleTime: Infinity,
   });
 }
 

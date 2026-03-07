@@ -15,26 +15,15 @@ import type {
 } from "@/lib/types";
 
 /**
- * Query keys whose backend computation depends on vehicle/tire params.
- * Must be invalidated whenever equipment assignment or profile data changes.
+ * Invalidate all optimal-comparison queries whose backend computation
+ * depends on vehicle/tire params.  Only needed when a profile's *content*
+ * changes (edit/delete) — equipment *switches* are handled by including
+ * profileId in the React Query key (see useOptimalComparison).
  */
-const PHYSICS_DEPENDENT_KEYS = [
-  "optimal-comparison",
-  "ideal-lap",
-] as const;
-
 function invalidatePhysicsQueries(
   queryClient: ReturnType<typeof useQueryClient>,
-  sessionId?: string,
 ) {
-  for (const key of PHYSICS_DEPENDENT_KEYS) {
-    const queryKey = sessionId ? [key, sessionId] : [key];
-    // invalidateQueries marks stale and triggers a background refetch while
-    // keeping the previous value visible.  This avoids a flash of stale
-    // fallback data (the equipment-independent ideal lap) during the
-    // transition.  invalidateQueries overrides staleTime: Infinity.
-    queryClient.invalidateQueries({ queryKey });
-  }
+  queryClient.invalidateQueries({ queryKey: ["optimal-comparison"] });
 }
 
 // --- Equipment Profiles ---
@@ -120,7 +109,9 @@ export function useAssignEquipment() {
       ),
     onSuccess: (data, variables) => {
       // Write the PUT response directly into the cache — instant UI update,
-      // no extra GET round-trip.
+      // no extra GET round-trip.  This also updates the profileId in
+      // useSessionEquipment, which changes the useOptimalComparison query
+      // key, automatically triggering a fresh physics fetch.
       queryClient.setQueryData(
         ["session-equipment", variables.sessionId],
         data,
@@ -129,7 +120,6 @@ export function useAssignEquipment() {
         queryKey: ["session", variables.sessionId],
       });
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
-      invalidatePhysicsQueries(queryClient, variables.sessionId);
     },
   });
 }
