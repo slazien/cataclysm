@@ -29,10 +29,12 @@ export function AssignEquipmentButton({ sessionId }: AssignEquipmentButtonProps)
   const profiles = profilesData?.items ?? [];
 
   function handleAssign(profileId: string) {
-    assignMutation.mutate(
-      { sessionId, body: { profile_id: profileId } },
-      { onSuccess: () => setDropdownOpen(false) },
-    );
+    if (assignMutation.isPending) return;
+    setDropdownOpen(false);
+    assignMutation.mutate({
+      sessionId,
+      body: { profile_id: profileId },
+    });
   }
 
   function handleManageProfiles() {
@@ -156,7 +158,8 @@ function EquipmentDropdown({
             <button
               type="button"
               onClick={() => onSelect(profile.id)}
-              className="flex flex-1 items-center justify-between text-left"
+              disabled={profile.id === currentProfileId}
+              className="flex flex-1 items-center justify-between text-left disabled:opacity-50"
             >
               <div>
                 <p className="flex items-center gap-1 text-sm text-[var(--text-primary)]">

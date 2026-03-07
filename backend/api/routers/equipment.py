@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import uuid
 from datetime import UTC
 from typing import Annotated
@@ -41,6 +43,24 @@ from backend.api.services import equipment_store, session_store
 from backend.api.services.pipeline import invalidate_physics_cache, invalidate_profile_cache
 
 router = APIRouter()
+_logger = logging.getLogger(__name__)
+
+# Track fire-and-forget DB tasks to prevent GC collection
+_bg_tasks: set[asyncio.Task[None]] = set()
+
+
+def _fire_and_forget(coro: object) -> None:
+    """Schedule a coroutine as a background task with error logging."""
+    task: asyncio.Task[None] = asyncio.create_task(coro)  # type: ignore[arg-type]
+    _bg_tasks.add(task)
+    task.add_done_callback(_bg_tasks.discard)
+    task.add_done_callback(
+        lambda t: (
+            _logger.warning("Background DB write failed: %s", t.exception())
+            if not t.cancelled() and t.exception()
+            else None
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -591,7 +611,9 @@ async def set_session_equipment(
     )
     equipment_store.store_session_equipment(se)
     invalidate_physics_cache(session_id)
-    await equipment_store.db_persist_session_equipment(se)
+    # Fire-and-forget: in-memory store is authoritative, DB is crash recovery.
+    # Don't block the HTTP response for the Postgres round-trip.
+    _fire_and_forget(equipment_store.db_persist_session_equipment(se))
 
     return SessionEquipmentResponse(
         session_id=session_id,

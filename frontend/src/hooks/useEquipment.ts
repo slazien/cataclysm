@@ -118,10 +118,13 @@ export function useAssignEquipment() {
           body: JSON.stringify(body),
         },
       ),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["session-equipment", variables.sessionId],
-      });
+    onSuccess: (data, variables) => {
+      // Write the PUT response directly into the cache — instant UI update,
+      // no extra GET round-trip.
+      queryClient.setQueryData(
+        ["session-equipment", variables.sessionId],
+        data,
+      );
       queryClient.invalidateQueries({
         queryKey: ["session", variables.sessionId],
       });
