@@ -23,16 +23,17 @@ const PHYSICS_DEPENDENT_KEYS = [
   "ideal-lap",
 ] as const;
 
-function invalidatePhysicsQueries(
+function resetPhysicsQueries(
   queryClient: ReturnType<typeof useQueryClient>,
   sessionId?: string,
 ) {
   for (const key of PHYSICS_DEPENDENT_KEYS) {
     const queryKey = sessionId ? [key, sessionId] : [key];
-    // Force refetch even for staleTime: Infinity queries.
-    // invalidateQueries with refetchType:'all' marks the query stale
-    // and triggers a background refetch for active observers.
-    queryClient.invalidateQueries({ queryKey, refetchType: "all" });
+    // resetQueries clears cached data immediately (components show loading
+    // skeletons) and triggers a fresh fetch for active observers.  This is
+    // more reliable than invalidateQueries for staleTime: Infinity queries,
+    // which can leave stale data visible during the background refetch.
+    queryClient.resetQueries({ queryKey });
   }
 }
 
@@ -75,7 +76,7 @@ export function useDeleteProfile() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipment-profiles"] });
       // Deleted profile may have been assigned to sessions
-      invalidatePhysicsQueries(queryClient);
+      resetPhysicsQueries(queryClient);
     },
   });
 }
@@ -125,7 +126,7 @@ export function useAssignEquipment() {
         queryKey: ["session", variables.sessionId],
       });
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
-      invalidatePhysicsQueries(queryClient, variables.sessionId);
+      resetPhysicsQueries(queryClient, variables.sessionId);
     },
   });
 }
@@ -155,7 +156,7 @@ export function useUpdateProfile() {
       // for any session using this profile — invalidate all session details
       queryClient.invalidateQueries({ queryKey: ["session"] });
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
-      invalidatePhysicsQueries(queryClient);
+      resetPhysicsQueries(queryClient);
     },
   });
 }
