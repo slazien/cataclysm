@@ -36,7 +36,7 @@ def average_lap_coordinates(
     ----------
     laps:
         Mapping of lap number to DataFrame.  Each DataFrame must contain
-        ``latitude``, ``longitude``, and ``lap_distance_m`` columns.
+        ``lat``, ``lon``, and ``lap_distance_m`` columns.
     step_m:
         Uniform distance spacing for the output grid (metres).
 
@@ -63,13 +63,13 @@ def average_lap_coordinates(
     # a common origin, GPS noise on each lap's start point would shift the
     # entire coordinate system, defeating the purpose of averaging.
     lap_dfs = list(laps.values())
-    ref_lat = float(lap_dfs[0]["latitude"].iloc[0])
-    ref_lon = float(lap_dfs[0]["longitude"].iloc[0])
+    ref_lat = float(lap_dfs[0]["lat"].iloc[0])
+    ref_lon = float(lap_dfs[0]["lon"].iloc[0])
 
     lap_xy: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []
     for lap_df in lap_dfs:
-        lat = lap_df["latitude"].to_numpy(dtype=np.float64)
-        lon = lap_df["longitude"].to_numpy(dtype=np.float64)
+        lat = lap_df["lat"].to_numpy(dtype=np.float64)
+        lon = lap_df["lon"].to_numpy(dtype=np.float64)
 
         # Project using the shared reference origin
         mean_lat_rad = np.radians(np.mean(lat))
@@ -131,7 +131,7 @@ def compute_averaged_curvature(
     ----------
     laps:
         Mapping of lap number to DataFrame.  Each DataFrame must have
-        ``latitude``, ``longitude``, and ``lap_distance_m`` columns.
+        ``lat``, ``lon``, and ``lap_distance_m`` columns.
     step_m:
         Distance-domain sample spacing (metres).
     smoothing:

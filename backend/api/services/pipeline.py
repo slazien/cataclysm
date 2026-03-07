@@ -21,7 +21,7 @@ from cataclysm.consistency import compute_session_consistency
 from cataclysm.constants import MPS_TO_MPH
 from cataclysm.corner_line import analyze_corner_lines
 from cataclysm.corners import Corner, detect_corners, extract_corner_kpis_for_lap
-from cataclysm.curvature import compute_curvature
+from cataclysm.curvature import CurvatureResult, compute_curvature
 from cataclysm.elevation import compute_corner_elevation, enrich_corners_with_elevation
 from cataclysm.elevation_profile import compute_gradient_array, compute_vertical_curvature
 from cataclysm.engine import LapSummary, ProcessedSession, find_anomalous_laps, process_session
@@ -46,8 +46,13 @@ from cataclysm.grip_calibration import (
 )
 from cataclysm.optimal_comparison import compare_with_optimal
 from cataclysm.parser import ParsedSession, parse_racechrono_csv
-from cataclysm.track_db import locate_official_corners
+from cataclysm.track_db import TrackLayout, locate_official_corners
 from cataclysm.track_match import detect_track_or_lookup
+from cataclysm.track_reference import (
+    align_reference_to_session,
+    get_track_reference,
+    maybe_update_track_reference,
+)
 from cataclysm.trends import SessionSnapshot, build_session_snapshot
 from cataclysm.velocity_profile import (
     VehicleParams,
@@ -277,6 +282,20 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
         gps_quality_grade=gps_quality.grade if gps_quality else "A",
     )
 
+    # 10. Eagerly build/update canonical track reference for future sessions
+    if layout is not None and coaching_laps:
+        try:
+            quality_score = gps_quality.overall_score if gps_quality else 50.0
+            maybe_update_track_reference(
+                layout,
+                processed,
+                coaching_laps,
+                snap.session_id,
+                quality_score,
+            )
+        except Exception:
+            logger.warning("Failed to update track reference for %s", filename, exc_info=True)
+
     return SessionData(
         session_id=snap.session_id,
         snapshot=snap,
@@ -293,6 +312,7 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
         gps_traces=gps_traces,
         reference_centerline=reference_centerline,
         corner_line_profiles=corner_line_profiles,
+        layout=layout,
     )
 
 
@@ -530,6 +550,40 @@ def _collect_independent_calibration_telemetry(
     return np.concatenate(lat_segments), np.concatenate(lon_segments), used_laps
 
 
+def _resolve_curvature_and_elevation(
+    session_data: SessionData,
+    lidar_alt: np.ndarray | None,
+    layout: TrackLayout | None,
+) -> tuple[CurvatureResult, np.ndarray | None]:
+    """Use canonical track reference if available, else per-session curvature.
+
+    Returns (CurvatureResult, elevation_array_or_None).
+    """
+    processed = session_data.processed
+    best_lap_df = processed.resampled_laps[processed.best_lap]
+
+    # Try canonical track reference first
+    if layout is not None:
+        ref = get_track_reference(layout)
+        if ref is not None:
+            session_dist = best_lap_df["lap_distance_m"].to_numpy()
+            aligned_curv, aligned_elev = align_reference_to_session(ref, session_dist)
+            logger.info(
+                "Using canonical track reference for %s (built from %d laps, quality=%.1f)",
+                ref.track_slug,
+                ref.n_laps_averaged,
+                ref.gps_quality_score,
+            )
+            # Prefer canonical elevation, but fall back to LIDAR/GPS if not in reference
+            if aligned_elev is not None:
+                return aligned_curv, aligned_elev
+            return aligned_curv, lidar_alt
+
+    # Fallback: per-session curvature from best lap GPS
+    curvature_result = compute_curvature(best_lap_df, savgol_window=15)
+    return curvature_result, lidar_alt
+
+
 async def get_optimal_profile_data(session_data: SessionData) -> dict[str, object]:
     """Compute the physics-optimal velocity profile for a session.
 
@@ -553,9 +607,10 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
         processed = session_data.processed
         best_lap_df = processed.resampled_laps[processed.best_lap]
 
-        # Derive curvature from GPS — Savitzky-Golay post-smoothing removes
-        # GPS jitter oscillations (15 pts ≈ 10.5m at 0.7m spacing)
-        curvature_result = compute_curvature(best_lap_df, savgol_window=15)
+        # Use canonical track reference if available, else per-session curvature
+        curvature_result, resolved_alt = _resolve_curvature_and_elevation(
+            session_data, lidar_alt, session_data.layout
+        )
 
         # Equipment-aware vehicle params
         vehicle_params = resolve_vehicle_params(session_id)
@@ -590,10 +645,10 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
         mu_array = None
 
         # Compute elevation gradient and vertical curvature for the solver
-        # Prefer LIDAR altitude, fall back to GPS
+        # Prefer resolved altitude (canonical/LIDAR), fall back to GPS
         gradient_sin = None
         vert_curvature = None
-        alt = lidar_alt  # from async fetch above
+        alt = resolved_alt
         if alt is None and "altitude_m" in best_lap_df.columns:
             alt = best_lap_df["altitude_m"].to_numpy()
         if alt is not None and not np.all(np.isnan(alt)):
@@ -604,7 +659,7 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
                 "Elevation data [profile] sid=%s: source=%s gradient_range=[%.4f, %.4f] "
                 "vert_curv_range=[%.5f, %.5f]",
                 session_id,
-                "lidar" if lidar_alt is not None else "gps",
+                "canonical/lidar" if resolved_alt is not None else "gps",
                 float(np.min(gradient_sin)),
                 float(np.max(gradient_sin)),
                 float(np.min(vert_curvature)),
@@ -667,8 +722,10 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
         best_lap_df = processed.resampled_laps[processed.best_lap]
         corners = session_data.corners
 
-        # Build the optimal profile — Savitzky-Golay smoothing on curvature
-        curvature_result = compute_curvature(best_lap_df, savgol_window=15)
+        # Use canonical track reference if available, else per-session curvature
+        curvature_result, resolved_alt = _resolve_curvature_and_elevation(
+            session_data, lidar_alt, session_data.layout
+        )
         vehicle_params = resolve_vehicle_params(session_id)
         has_equipment = vehicle_params is not None
 
@@ -718,10 +775,10 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
         mu_array = None
 
         # Compute elevation gradient and vertical curvature for the solver
-        # Prefer LIDAR altitude, fall back to GPS
+        # Prefer resolved altitude (canonical/LIDAR), fall back to GPS
         gradient_sin = None
         vert_curvature = None
-        alt = lidar_alt  # from async fetch above
+        alt = resolved_alt
         if alt is None and "altitude_m" in best_lap_df.columns:
             alt = best_lap_df["altitude_m"].to_numpy()
         if alt is not None and not np.all(np.isnan(alt)):
@@ -732,7 +789,7 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
                 "Elevation data [comparison] sid=%s: source=%s gradient_range=[%.4f, %.4f] "
                 "vert_curv_range=[%.5f, %.5f]",
                 session_id,
-                "lidar" if lidar_alt is not None else "gps",
+                "canonical/lidar" if resolved_alt is not None else "gps",
                 float(np.min(gradient_sin)),
                 float(np.max(gradient_sin)),
                 float(np.min(vert_curvature)),

@@ -26,6 +26,7 @@ from cataclysm.gps_quality import GPSQualityReport
 from cataclysm.grip import GripEstimate
 from cataclysm.lap_tags import LapTagStore
 from cataclysm.parser import ParsedSession
+from cataclysm.track_db import TrackLayout
 from cataclysm.trends import SessionSnapshot
 
 logger = logging.getLogger(__name__)
@@ -57,6 +58,8 @@ class SessionData:
     gps_traces: list[GPSTrace] = field(default_factory=list)
     reference_centerline: ReferenceCenterline | None = None
     corner_line_profiles: list[CornerLineProfile] = field(default_factory=list)
+    # Track layout detected during processing (None for unknown tracks)
+    layout: TrackLayout | None = None
     # Raw CSV bytes retained for anonymous sessions so they can be persisted on claim
     csv_bytes: bytes | None = field(default=None, repr=False)
 

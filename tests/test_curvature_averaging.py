@@ -47,8 +47,8 @@ def _circle_lap_df(
 
     return pd.DataFrame(
         {
-            "latitude": lat,
-            "longitude": lon,
+            "lat": lat,
+            "lon": lon,
             "lap_distance_m": distance,
         }
     )
@@ -62,8 +62,8 @@ def _reference_xy_on_grid(
 
     Returns (distance_grid, x_interp, y_interp).
     """
-    lat = df["latitude"].to_numpy(dtype=np.float64)
-    lon = df["longitude"].to_numpy(dtype=np.float64)
+    lat = df["lat"].to_numpy(dtype=np.float64)
+    lon = df["lon"].to_numpy(dtype=np.float64)
     dist = df["lap_distance_m"].to_numpy(dtype=np.float64)
     x, y = _latlon_to_local_xy(lat, lon)
     grid = np.arange(0.0, dist[-1], step_m)
@@ -76,8 +76,8 @@ def _xy_from_latlon_with_ref(
     ref_lon: float,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Convert lat/lon to XY using a specific reference origin."""
-    lat = df["latitude"].to_numpy(dtype=np.float64)
-    lon = df["longitude"].to_numpy(dtype=np.float64)
+    lat = df["lat"].to_numpy(dtype=np.float64)
+    lon = df["lon"].to_numpy(dtype=np.float64)
     mean_lat_rad = np.radians(np.mean(lat))
     x = (lon - ref_lon) * np.cos(mean_lat_rad) * 111320.0
     y = (lat - ref_lat) * 111320.0
@@ -129,8 +129,8 @@ class TestAverageLapCoordinates:
         # Clean reference track — use the same reference origin as the
         # implementation will (first lap's first point)
         clean_df = _circle_lap_df(radius_m=radius, n=500, fraction=0.8, noise_m=0.0)
-        ref_lat = float(laps[0]["latitude"].iloc[0])
-        ref_lon = float(laps[0]["longitude"].iloc[0])
+        ref_lat = float(laps[0]["lat"].iloc[0])
+        ref_lon = float(laps[0]["lon"].iloc[0])
         ref_x, ref_y = _xy_from_latlon_with_ref(clean_df, ref_lat, ref_lon)
         ref_dist = clean_df["lap_distance_m"].to_numpy()
         ref_grid = np.arange(0.0, ref_dist[-1], step_m)
@@ -274,3 +274,28 @@ class TestComputeAveragedCurvature:
         assert len(result.x_smooth) == n
         assert len(result.y_smooth) == n
         np.testing.assert_array_equal(result.abs_curvature, np.abs(result.curvature))
+
+
+class TestAverageLapCoordinatesShortTrack:
+    """Cover line 91: linspace fallback when distance_grid < MIN_SAMPLES."""
+
+    def test_very_short_lap_uses_linspace_fallback(self) -> None:
+        """When the common distance is very short (< MIN_SAMPLES * step_m),
+        the code falls back to np.linspace to ensure MIN_SAMPLES points (line 91)."""
+        from cataclysm.curvature_averaging import MIN_SAMPLES
+
+        step_m = 0.7
+        # Need common_max < MIN_SAMPLES * step_m to trigger linspace fallback
+        # MIN_SAMPLES = 20, so common_max < 14.0 m
+        # Build a lap of just 8 m arc length
+        radius = 20.0
+        n = 15
+        fraction = 8.0 / (2 * np.pi * radius)  # ~8 m arc
+        df = _circle_lap_df(radius_m=radius, n=n, fraction=fraction)
+
+        dist, avg_x, avg_y = average_lap_coordinates({0: df, 1: df}, step_m=step_m)
+
+        # Should have exactly MIN_SAMPLES points due to linspace fallback
+        assert len(dist) == MIN_SAMPLES
+        assert len(avg_x) == MIN_SAMPLES
+        assert len(avg_y) == MIN_SAMPLES
