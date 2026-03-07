@@ -536,3 +536,19 @@ if (isPending) return <Skeleton />;  // Renders in SSR HTML correctly
 
 **Why**: Backend overall shows 96% but services layer is 100%. The ~4% gap is entirely async router bodies. Don't chase these lines with more tests — they're already tested. Test synchronous helpers directly and call async functions with patched dependencies instead of routing through ASGI client when possible.
 
+## New FastAPI Dependencies Must Be Added to Test Conftest Overrides ([2026-03-07])
+
+**Pattern**: When creating a new FastAPI `Depends()` function (e.g., `get_user_or_anon`), you MUST add it to `conftest.py` `_mock_auth` fixture's `app.dependency_overrides` dict AND the cleanup `pop()` calls. Tests will fail with 401/403 or ownership mismatches if the new dependency isn't overridden.
+
+**Why**: Added `get_user_or_anon` to 20+ endpoints but forgot the conftest override. Test `test_get_corners` failed because the sentinel anonymous user (`user_id="anon"`) couldn't access sessions owned by `test-user-123`. The fix was one line in conftest: `app.dependency_overrides[get_user_or_anon] = lambda: _TEST_USER`.
+
+**Error signature**: Tests that previously passed start returning 401/403 or "session not found" after switching endpoints to a new auth dependency.
+
+## Use build_synthetic_csv() for Staging QA When Real CSVs Fail ([2026-03-07])
+
+**Pattern**: When Playwright QA on staging is blocked because a real CSV lacks lap detection (empty `lap_number` columns, no track reference data on staging), generate a synthetic CSV using `build_synthetic_csv()` from `backend/tests/conftest.py` and `curl` upload it to the staging backend.
+
+**Why**: The sample RaceChrono CSV had empty `lap_number` columns and needed track reference data for lap detection. Staging backend didn't have this data, so upload returned `session_ids: []`. Using `build_synthetic_csv(n_laps=5, points_per_lap=300)` generates a CSV with pre-assigned lap numbers that always works.
+
+**Command**: `python -c "from backend.tests.conftest import build_synthetic_csv; open('/tmp/test.csv','wb').write(build_synthetic_csv(n_laps=5))"` then `curl -X POST .../upload -F "files=@/tmp/test.csv"`
+
