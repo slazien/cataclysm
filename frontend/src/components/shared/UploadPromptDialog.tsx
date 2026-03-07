@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Upload, X } from 'lucide-react';
 import { useUiStore } from '@/stores/uiStore';
@@ -11,6 +11,15 @@ import { Button } from '@/components/ui/button';
 export function UploadPromptDialog() {
   const open = useUiStore((s) => s.uploadPromptOpen);
   const setOpen = useUiStore((s) => s.setUploadPromptOpen);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, setOpen]);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const uploadMutation = useUploadSessions();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,7 +58,6 @@ export function UploadPromptDialog() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
-          onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
         >
           {/* Backdrop */}
           <div

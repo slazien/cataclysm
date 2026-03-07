@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { motion as m } from 'motion/react';
 import {
   X, Trophy, Flame, Target, Zap, Wind, MapPin, Repeat, Lock, Award,
@@ -147,6 +147,15 @@ interface BadgeGridProps {
 export function BadgeGrid({ open, onClose }: BadgeGridProps) {
   const { data, isLoading, isError, refetch } = useAchievements(open);
 
+  useEffect(() => {
+    if (!open) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, onClose]);
+
   const grouped = useMemo(() => {
     if (!data?.achievements) return [];
     const map = new Map<string, Achievement[]>();
@@ -168,8 +177,6 @@ export function BadgeGrid({ open, onClose }: BadgeGridProps) {
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm"
-      tabIndex={-1}
-      onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
