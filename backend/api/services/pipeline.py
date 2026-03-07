@@ -156,6 +156,13 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
     in_out: set[int] = {all_laps[0], all_laps[-1]} if len(all_laps) >= 2 else set()
     coaching_laps = [n for n in all_laps if n not in anomalous and n not in in_out]
 
+    # If the overall best lap was excluded as in/out, include it — a fast
+    # first/last lap is clearly not a warm-up or cooldown.
+    best = processed.best_lap
+    if best not in anomalous and best not in coaching_laps:
+        coaching_laps.append(best)
+        coaching_laps.sort()
+
     # 3b. Assess GPS quality
     gps_quality: GPSQualityReport | None = None
     try:

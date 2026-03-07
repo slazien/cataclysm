@@ -158,7 +158,9 @@ def _is_valid_pace_reference(best_lap_time_s: float, optimal_time_s: float | Non
         return False
     if not math.isfinite(optimal_time_s) or optimal_time_s <= 0:
         return False
-    return optimal_time_s <= best_lap_time_s + 1e-3
+    # Tolerance of 0.5s: speed-distance integration can drift ~100-200ms
+    # from directly-measured lap time due to resampling artifacts.
+    return optimal_time_s <= best_lap_time_s + 0.5
 
 
 async def _compute_ideal_lap_time(sd: session_store.SessionData) -> float | None:
