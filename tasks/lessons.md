@@ -465,6 +465,24 @@ const timeCost = liveValue || undefined;  // then: timeCost ?? fallbackValue
 
 **Error signature**: A badge/label shows a "no data" state despite having a valid fallback value. The intermediate value is `0`, not `null`.
 
+## React Query `isLoading` Is False During SSR — Use `isPending` ([2026-03-07])
+
+**Pattern**: In React Query v5, `isLoading = isPending && isFetching`. During SSR, no fetch runs (`isFetching = false`), so `isLoading` is always `false` — even when the query has no data. Use `isPending` instead of `isLoading` for any loading state that must render correctly in SSR HTML (loading skeletons, placeholder cards).
+
+```typescript
+// WRONG — isLoading is false during SSR, shows "no data" in server HTML
+const { data, isLoading } = useQuery({ queryKey: ['x'], queryFn: fetchX });
+if (isLoading) return <Skeleton />;  // Never renders during SSR!
+
+// CORRECT — isPending is true when no data exists, regardless of fetch status
+const { data, isPending } = useQuery({ queryKey: ['x'], queryFn: fetchX });
+if (isPending) return <Skeleton />;  // Renders in SSR HTML correctly
+```
+
+**Why**: `EquipmentProfileList` used `isLoading` for its loading skeleton. During SSR, `isLoading` was false, so the component rendered "No equipment profiles yet" in the server HTML. Users saw this flash before client hydration fired the query and loaded profiles. Same issue affected the Optimal Target metric card.
+
+**Error signature**: Component shows "no data" state briefly on first page load, then data appears after ~500ms. The "no data" text is visible in View Source (SSR HTML). Hard refresh doesn't help because the SSR HTML always has it.
+
 ## Browser-First Debugging for Frontend Issues ([2026-03-07])
 
 **Pattern**: For ANY frontend bug involving data display, state, or timing: open the browser FIRST, check network requests and console, reproduce the issue visually. Only read code AFTER you've observed the actual behavior. Never hypothesize from code alone.
