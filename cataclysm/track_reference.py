@@ -185,10 +185,20 @@ def build_track_reference(
 
     track_length_m = float(curvature_result.distance_m[-1])
 
+    # Align LIDAR elevation to the curvature distance grid if lengths differ.
+    # lidar_alt comes from best_lap_df (M points), while curvature_result may
+    # have N points from the averaged distance grid. Interpolate to match.
+    aligned_elev = lidar_alt
+    if lidar_alt is not None and len(lidar_alt) != len(curvature_result.distance_m):
+        best_dist = best_lap_df["lap_distance_m"].to_numpy()
+        best_norm = best_dist / best_dist[-1]
+        curv_norm = curvature_result.distance_m / curvature_result.distance_m[-1]
+        aligned_elev = np.interp(curv_norm, best_norm, lidar_alt)
+
     ref = TrackReference(
         track_slug=slug,
         curvature_result=curvature_result,
-        elevation_m=lidar_alt,
+        elevation_m=aligned_elev,
         reference_lats=best_lap_df["lat"].to_numpy(dtype=np.float64),
         reference_lons=best_lap_df["lon"].to_numpy(dtype=np.float64),
         gps_quality_score=gps_quality_score,
@@ -266,7 +276,11 @@ def align_reference_to_session(
 
     # Interpolate curvature arrays
     curvature = np.interp(session_norm_clamped, ref_norm, ref.curvature_result.curvature)
-    heading = np.interp(session_norm_clamped, ref_norm, ref.curvature_result.heading_rad)
+    # Unwrap heading before interpolation to avoid errors at ±π boundary,
+    # then re-wrap to [-π, π] after.
+    unwrapped = np.unwrap(ref.curvature_result.heading_rad)
+    heading_interp = np.interp(session_norm_clamped, ref_norm, unwrapped)
+    heading = (heading_interp + np.pi) % (2 * np.pi) - np.pi
     x_smooth = np.interp(session_norm_clamped, ref_norm, ref.curvature_result.x_smooth)
     y_smooth = np.interp(session_norm_clamped, ref_norm, ref.curvature_result.y_smooth)
 

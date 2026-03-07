@@ -46,7 +46,7 @@ from cataclysm.grip_calibration import (
 )
 from cataclysm.optimal_comparison import compare_with_optimal
 from cataclysm.parser import ParsedSession, parse_racechrono_csv
-from cataclysm.track_db import TrackLayout, locate_official_corners
+from cataclysm.track_db import locate_official_corners
 from cataclysm.track_match import detect_track_or_lookup
 from cataclysm.track_reference import (
     align_reference_to_session,
@@ -553,7 +553,6 @@ def _collect_independent_calibration_telemetry(
 def _resolve_curvature_and_elevation(
     session_data: SessionData,
     lidar_alt: np.ndarray | None,
-    layout: TrackLayout | None,
 ) -> tuple[CurvatureResult, np.ndarray | None]:
     """Use canonical track reference if available, else per-session curvature.
 
@@ -563,6 +562,7 @@ def _resolve_curvature_and_elevation(
     best_lap_df = processed.resampled_laps[processed.best_lap]
 
     # Try canonical track reference first
+    layout = session_data.layout
     if layout is not None:
         ref = get_track_reference(layout)
         if ref is not None:
@@ -608,9 +608,7 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
         best_lap_df = processed.resampled_laps[processed.best_lap]
 
         # Use canonical track reference if available, else per-session curvature
-        curvature_result, resolved_alt = _resolve_curvature_and_elevation(
-            session_data, lidar_alt, session_data.layout
-        )
+        curvature_result, resolved_alt = _resolve_curvature_and_elevation(session_data, lidar_alt)
 
         # Equipment-aware vehicle params
         vehicle_params = resolve_vehicle_params(session_id)
@@ -723,9 +721,7 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
         corners = session_data.corners
 
         # Use canonical track reference if available, else per-session curvature
-        curvature_result, resolved_alt = _resolve_curvature_and_elevation(
-            session_data, lidar_alt, session_data.layout
-        )
+        curvature_result, resolved_alt = _resolve_curvature_and_elevation(session_data, lidar_alt)
         vehicle_params = resolve_vehicle_params(session_id)
         has_equipment = vehicle_params is not None
 

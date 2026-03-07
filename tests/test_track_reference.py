@@ -175,12 +175,18 @@ class TestBuildAndLoadReference:
                 lidar_alt=lidar,
             )
             assert ref.elevation_m is not None
-            np.testing.assert_allclose(ref.elevation_m, lidar, atol=1e-6)
+            # LIDAR is interpolated onto the curvature distance grid,
+            # so length matches curvature, not the original LIDAR array.
+            assert len(ref.elevation_m) == len(ref.curvature_result.distance_m)
+            # Interpolated values should span the same range as the original.
+            np.testing.assert_allclose(ref.elevation_m[0], 200.0, atol=0.1)
+            np.testing.assert_allclose(ref.elevation_m[-1], 210.0, atol=0.1)
 
             loaded = get_track_reference(layout)
             assert loaded is not None
             assert loaded.elevation_m is not None
-            np.testing.assert_allclose(loaded.elevation_m, lidar, atol=1e-6)
+            assert len(loaded.elevation_m) == len(loaded.curvature_result.distance_m)
+            np.testing.assert_allclose(loaded.elevation_m, ref.elevation_m, atol=1e-6)
 
     def test_no_reference_returns_none(self, tmp_path: Path) -> None:
         """get_track_reference returns None when no .npz exists."""
