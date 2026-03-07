@@ -464,24 +464,26 @@ def _format_corner_analysis(
 
         # Min speed
         ms = ca.stats_min_speed
-        lines.append(f"  Min speed: best={ms.best:.1f} mean={ms.mean:.1f} std={ms.std:.1f} mph")
+        lines.append(
+            f"  Min speed: best={ms.best:.1f} mph, mean={ms.mean:.1f} mph, std={ms.std:.1f} mph"
+        )
 
         # Brake point
         if ca.stats_brake_point is not None:
             bp = ca.stats_brake_point
             brake_ref = _resolve_brake_ref(bp.best, landmarks)
-            lines.append(f"  Brake pt: {brake_ref} (best), spread \u00b1{bp.std:.1f}m")
+            lines.append(f"  Brake pt: {brake_ref} (best), spread \u00b1{bp.std:.1f} meters")
 
         # Peak brake g
         if ca.stats_peak_brake_g is not None:
             pg = ca.stats_peak_brake_g
-            lines.append(f"  Peak brake: best={pg.best:.2f} mean={pg.mean:.2f}G")
+            lines.append(f"  Peak brake: best={pg.best:.2f} G, mean={pg.mean:.2f} G")
 
         # Throttle commit
         if ca.stats_throttle_commit is not None:
             tc = ca.stats_throttle_commit
             throttle_ref = _resolve_throttle_ref(tc.best, landmarks)
-            lines.append(f"  Throttle: {throttle_ref} (best), spread \u00b1{tc.std:.1f}m")
+            lines.append(f"  Throttle: {throttle_ref} (best), spread \u00b1{tc.std:.1f} meters")
 
         # Apex distribution
         apex_parts = [
@@ -1002,6 +1004,8 @@ Min speed Z because..., Throttle W because..." — this restates the grades. The
 fields already contain A-F letters; the notes must add coaching VALUE beyond them.
 - NEVER use raw statistics: "std=1.1 mph", "±6.8m", "r=-0.63", "commit std=0.3m"
 - NEVER echo grading thresholds (e.g. "within 1 mph of target", "peak G averages 0.25G")
+- NEVER combine or invent units. Valid units: mph, G, meters, seconds. \
+Never write "mphG", "mph/G", or similar.
 - DO tell the driver what to DO differently or what's WORKING
 - DO embed one concrete data point naturally: lap numbers, speed values, distances
 - DO connect cause to effect: "late brake → wider exit → earlier throttle → 0.3s gain"
