@@ -72,14 +72,14 @@ export function TopBar() {
         </div>
       )}
       {/* Row 1: Main navigation */}
-      <div className="flex h-12 items-center bg-[var(--bg-surface)] px-4">
+      <div className="relative flex h-12 items-center bg-[var(--bg-surface)] px-4">
         {/* Left: Logo */}
         <div className="flex items-center gap-2">
           <span className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--text-primary)]">Cataclysm</span>
         </div>
 
         {/* Center: View tabs */}
-        <div className="ml-auto mr-auto hidden items-center gap-1 lg:flex">
+        <div className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 lg:flex">
           {VIEW_TABS.map((tab) => (
             <button
               key={tab.value}
@@ -107,7 +107,7 @@ export function TopBar() {
         </div>
 
         {/* Right: Action buttons */}
-        <div className="flex items-center gap-1">
+        <div className="ml-auto flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon-sm"
