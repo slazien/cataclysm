@@ -16,6 +16,8 @@ interface MetricsGridProps {
   physicsOptimalLapTime?: number;
   /** True while the optimal target is being recomputed for new equipment. */
   isOptimalRefreshing?: boolean;
+  /** True while the initial optimal comparison query is in flight. */
+  isOptimalLoading?: boolean;
 }
 
 function formatTime(seconds: number): string {
@@ -24,7 +26,7 @@ function formatTime(seconds: number): string {
   return `${min}:${sec.padStart(6, '0')}`;
 }
 
-export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced, physicsOptimalLapTime, isOptimalRefreshing }: MetricsGridProps) {
+export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced, physicsOptimalLapTime, isOptimalRefreshing, isOptimalLoading }: MetricsGridProps) {
   const bestLap = session?.best_lap_time_s;
   const top3Avg = session?.top3_avg_time_s;
   const optimalLap = physicsOptimalLapTime;
@@ -48,13 +50,13 @@ export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced, 
           highlight="pb"
           helpKey="metric.best-lap"
         />
-        {optimalLap != null && (
+        {(optimalLap != null || isOptimalLoading) && (
           <MetricCard
             label="Optimal Target"
-            value={formatTime(optimalLap)}
+            value={optimalLap != null ? formatTime(optimalLap) : '\u2014'}
             subtitle={optimalDelta != null ? `${optimalDelta.toFixed(3)}s potential` : undefined}
             helpKey="metric.optimal-lap"
-            className={cn(isOptimalRefreshing && 'animate-pulse')}
+            className={cn((isOptimalRefreshing || isOptimalLoading) && 'animate-pulse')}
           />
         )}
         {!isNovice && (

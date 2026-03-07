@@ -14,7 +14,7 @@ const COMPOUND_LABELS: Record<string, string> = {
 };
 
 export function EquipmentProfileList() {
-  const { data: profilesData } = useEquipmentProfiles();
+  const { data: profilesData, isLoading } = useEquipmentProfiles();
   const deleteMutation = useDeleteProfile();
   const updateMutation = useUpdateProfile();
   const [modalOpen, setModalOpen] = useState(false);
@@ -77,7 +77,13 @@ export function EquipmentProfileList() {
         Equipment Profiles
       </legend>
 
-      {profiles.length === 0 ? (
+      {isLoading ? (
+        <div className="space-y-2 animate-pulse">
+          {[1, 2].map((i) => (
+            <div key={i} className="h-14 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-elevated)]" />
+          ))}
+        </div>
+      ) : profiles.length === 0 ? (
         <p className="py-4 text-center text-sm text-[var(--text-muted)]">
           No equipment profiles yet
         </p>

@@ -114,7 +114,7 @@ export function SessionReport() {
   const { report, isSkillMismatch, isGenerating, regenRemaining, regenMax, regenerate } = useAutoReport(activeSessionId);
   const { data: consistency } = useConsistency(activeSessionId);
   const { data: gpsQuality } = useGPSQuality(activeSessionId);
-  const { data: optimalComparison, isPlaceholderData: isOptimalStale } = useOptimalComparison(activeSessionId);
+  const { data: optimalComparison, isPlaceholderData: isOptimalStale, isLoading: isOptimalLoading } = useOptimalComparison(activeSessionId);
   const { data: recentAchievementsData } = useRecentAchievements(!!activeSessionId);
   const { isNovice, isAdvanced, showFeature } = useSkillLevel();
   const skillLevel = useUiStore((s) => s.skillLevel);
@@ -192,6 +192,7 @@ export function SessionReport() {
                 : undefined
             }
             isOptimalRefreshing={isOptimalStale}
+            isOptimalLoading={isOptimalLoading}
           />
         </div>
 
