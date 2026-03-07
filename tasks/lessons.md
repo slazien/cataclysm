@@ -500,3 +500,11 @@ if (isPending) return <Skeleton />;  // Renders in SSR HTML correctly
 
 **Anti-pattern**: Reading PriorityCardsSection.tsx → SessionReport.tsx → useAnalysis.ts → api.ts → Providers.tsx → forming a theory → THEN opening the browser. Instead: browser → observe → targeted code reading → fix.
 
+## Merge Feature Branch Into Staging BEFORE Promoting to Main ([2026-03-07])
+
+**Pattern**: When asked to push staging to prod while working on a feature branch with uncommitted-to-staging commits, always merge the feature branch into staging FIRST, then merge staging into main. Never checkout main directly — it reverts uncommitted work and forces stash/restore gymnastics.
+
+**Correct sequence**: `git checkout staging && git merge feature-branch && git push origin staging` → `git checkout main && git merge staging --ff-only && git push origin main`
+
+**Why**: Checking out main first reverts the working tree to main's state, requiring stash and multi-step recovery. The feature branch commits aren't on staging yet, so promoting staging to main without merging first loses the feature work.
+
