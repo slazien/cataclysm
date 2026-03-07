@@ -1,5 +1,29 @@
 # Lessons Learned
 
+## ⛔ NEVER Push to Main — Not Even Hotfixes (2026-03-07)
+
+**Pattern**: NEVER push to `main` directly. Always fix on `staging`, verify, then wait for the user to explicitly say "push to main" or "merge staging into prod." Asking "should I push to main?" and getting "yes" is leading the witness — the user must initiate it.
+
+**Why**: User corrected me harshly. Even when prod is crash-looping, the fix goes to staging first. "Fix prod" ≠ "push to main." CLAUDE.md is unambiguous: "NEVER push to `main` unless the user explicitly says to deploy to prod."
+
+**Error signature**: Any thought pattern like "prod is broken, I should push directly to main to fix it fast."
+
+## Verify Both Sides of API Changes Before Merging (2026-03-07)
+
+**Pattern**: When changing a function's call site (adding new kwargs), always verify the function definition also has those parameters on the TARGET branch. Never assume companion changes from a feature branch are present.
+
+**Why**: `pipeline.py` on `main` was updated to pass `resampled_laps` and `coaching_laps` to `analyze_corner_lines()`, but the function in `corner_line.py` still only accepted 3 args. This caused a production crash loop (`TypeError: unexpected keyword argument`) that prevented all session loading.
+
+**Error signature**: `TypeError: func() got an unexpected keyword argument 'X'` after a partial merge.
+
+## Docker pip-install Changes __file__ Resolution (2026-03-07)
+
+**Pattern**: Never use `Path(__file__).parent.parent / "data"` for writable data dirs in packages that get pip-installed. In Docker, `__file__` resolves to `site-packages/` which is read-only. Use an env var with a fallback.
+
+**Why**: `track_reference.py` used `Path(__file__).parent.parent / "data" / "track_reference"` which worked locally but resolved to `/usr/local/lib/python3.12/site-packages/data/track_reference` in Docker — read-only, causing `PermissionError` on every upload.
+
+**Error signature**: `PermissionError: [Errno 13] Permission denied: '/usr/local/lib/python3.12/site-packages/data'`
+
 ## ⛔ QA Frontend Changes BEFORE Merging — #1 PRIORITY RULE
 - **When**: After implementing ANY frontend changes, BEFORE merging to main
 - **Rule**: Use Playwright MCP to visually verify every affected tab/component BEFORE merging to main. The mandatory sequence is:
