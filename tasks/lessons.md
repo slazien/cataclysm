@@ -449,3 +449,34 @@ return useQuery({
 
 **Anti-pattern**: "I added invalidation to update, that covers it." No — delete, create (if it replaces), and any bulk operations also need invalidation.
 
+## Nullish Coalescing (`??`) Does Not Catch Zero — Use `||` for Numeric Fallbacks ([2026-03-07])
+
+**Pattern**: When a numeric value of `0` should trigger a fallback (e.g., physics returns 0 meaning "no useful estimate"), use `||` instead of `??`. `??` only catches `null`/`undefined`, so `0 ?? fallback` returns `0`.
+
+```typescript
+// WRONG — 0 passes through, formatBadge(0) shows "Estimate unavailable"
+const timeCost = liveValue ?? fallbackValue;
+
+// CORRECT — 0 is falsy, triggers fallback to coaching report value
+const timeCost = liveValue || undefined;  // then: timeCost ?? fallbackValue
+```
+
+**Why**: Removing the `is_valid` gate on `corner_opportunities` exposed this: physics caps negative `time_cost_s` at 0 when the model is slower than the driver. `0 ?? p.time_cost_s` = `0`, and `formatPriorityBadge(0)` = "Estimate unavailable". Two corners (T5, T9) regressed from showing "Up to 0.2s" to "Estimate unavailable" after the fix.
+
+**Error signature**: A badge/label shows a "no data" state despite having a valid fallback value. The intermediate value is `0`, not `null`.
+
+## Browser-First Debugging for Frontend Issues ([2026-03-07])
+
+**Pattern**: For ANY frontend bug involving data display, state, or timing: open the browser FIRST, check network requests and console, reproduce the issue visually. Only read code AFTER you've observed the actual behavior. Never hypothesize from code alone.
+
+**Methodology**:
+1. Navigate to the page in the browser
+2. Check Network tab — did the API calls succeed? What data was returned?
+3. Check Console — any errors or warnings?
+4. Reproduce the issue — click, switch, interact
+5. THEN read the code with specific hypotheses informed by what you observed
+
+**Why**: User explicitly corrected this approach: "always use the browser for such debugging instead of hypothesizing based on just looking at the code." Reading 5+ files and forming theories without browser evidence wastes time and often leads to wrong hypotheses. The browser tells you what's ACTUALLY happening vs what you THINK should happen.
+
+**Anti-pattern**: Reading PriorityCardsSection.tsx → SessionReport.tsx → useAnalysis.ts → api.ts → Providers.tsx → forming a theory → THEN opening the browser. Instead: browser → observe → targeted code reading → fix.
+
