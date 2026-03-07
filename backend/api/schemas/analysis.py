@@ -261,6 +261,17 @@ class CornerLineProfileSchema(BaseModel):
     severity: str  # minor, moderate, major
     consistency_tier: str  # expert, consistent, developing, novice
     allen_berg_type: str  # A, B, C
+    straight_after_m: float = 0.0
+    priority_rank: int = 0
+    best_lap_number: int | None = None
+    best_exit_speed_mps: float | None = None
+    best_segment_time_s: float | None = None
+    best_ranking_method: str | None = None
+    best_d_entry: float | None = None
+    best_d_apex: float | None = None
+    best_d_exit: float | None = None
+    median_segment_time_s: float | None = None
+    median_exit_speed_mps: float | None = None
 
 
 class LateralOffsetTraceSchema(BaseModel):

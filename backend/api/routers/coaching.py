@@ -342,6 +342,7 @@ async def _run_generation(
                         weather=weather,
                         corners_gained=corners_gained,
                         flow_laps=flow_laps,
+                        line_profiles=sd.corner_line_profiles,
                         track_layout=layout,
                     )
                     # Treat JSON parse failures as retryable errors

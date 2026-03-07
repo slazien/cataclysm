@@ -829,6 +829,17 @@ export interface CornerLineProfile {
   severity: string;
   consistency_tier: string;
   allen_berg_type: string;
+  straight_after_m: number;
+  priority_rank: number;
+  best_lap_number?: number | null;
+  best_exit_speed_mps?: number | null;
+  best_segment_time_s?: number | null;
+  best_ranking_method?: string | null;
+  best_d_entry?: number | null;
+  best_d_apex?: number | null;
+  best_d_exit?: number | null;
+  median_segment_time_s?: number | null;
+  median_exit_speed_mps?: number | null;
 }
 
 export interface LateralOffsetTrace {
