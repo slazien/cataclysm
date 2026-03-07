@@ -395,6 +395,35 @@ class TestKnownRadiusAccuracy:
 # ---------------------------------------------------------------------------
 
 
+class TestSavgolWindowClampToTraceLength:
+    """Cover line 192: win adjusted when win >= len(curvature)."""
+
+    def test_even_length_trace_with_large_savgol_window(self) -> None:
+        """When savgol_window >= trace length and trace has even length,
+        win should be decremented by 1 (line 192 even branch)."""
+        # Build a trace with exactly 10 points (even length)
+        radius = 100.0
+        n = 10  # even
+        df = _circle_lap_df(radius_m=radius, n=n, fraction=0.2)
+
+        # Use a savgol_window much larger than the trace (20 > 10)
+        # This triggers: win >= len(curvature) → win = len(curvature) - 1 (since even → subtract 1)
+        result = compute_curvature(df, step_m=0.7, smoothing=0.1, savgol_window=20)
+
+        # Should not crash and produce valid output of same length as input
+        assert len(result.curvature) == n
+
+    def test_odd_length_trace_with_large_savgol_window(self) -> None:
+        """When savgol_window >= trace length and trace has odd length,
+        win should stay at len(curvature) (line 192 odd branch)."""
+        n = 11  # odd
+        df = _circle_lap_df(radius_m=100.0, n=n, fraction=0.2)
+
+        result = compute_curvature(df, step_m=0.7, smoothing=0.1, savgol_window=20)
+
+        assert len(result.curvature) == n
+
+
 class TestComputeCurvatureFromHeading:
     def test_constant_heading_zero_curvature(self) -> None:
         """Constant heading should produce zero curvature."""

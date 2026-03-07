@@ -342,6 +342,15 @@ class TestComputeVerticalCurvature:
 
         np.testing.assert_array_equal(kv, 0.0)
 
+    def test_smooth_window_even_pts_incremented(self) -> None:
+        """When smooth_window_m / step_m is even, window_pts is incremented by 1 (line 70)."""
+        from cataclysm.elevation_profile import _smooth_array
+
+        # 10m / 2.0m = 5 → odd → no increment. Use 8m / 2.0m = 4 → even → incremented to 5
+        arr = np.linspace(0.0, 100.0, 50)
+        result = _smooth_array(arr, step_m=2.0, smooth_window_m=8.0)
+        assert len(result) == len(arr)
+
     def test_barber_like_compression(self) -> None:
         """Simulate a Barber T9-like compression: 20m drop over 200m, then flat.
 
@@ -371,3 +380,20 @@ class TestComputeVerticalCurvature:
         assert transition_kv > 0.0, (
             f"Expected positive κ_v at compression transition, got {transition_kv}"
         )
+
+
+class TestSmoothArrayEvenWindowAdjusted:
+    """Cover line 70: window_pts made odd when even."""
+
+    def test_even_window_forced_to_odd(self) -> None:
+        """smooth_window_m / step_m = 4.0 (even) → window_pts incremented to 5 (line 70)."""
+        from cataclysm.elevation_profile import _smooth_array
+
+        # step_m=2.0, smooth_window_m=8.0 → window_pts=4 (even) → incremented to 5
+        n = 20
+        arr = np.linspace(0.0, 10.0, n)
+        result = _smooth_array(arr, step_m=2.0, smooth_window_m=8.0)
+        assert result.shape == arr.shape
+        # Smoothed array should have lower variation than a random array
+        # At minimum: no error, correct length
+        assert len(result) == n

@@ -337,6 +337,68 @@ describe('useUnits', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // formatLength
+  // ---------------------------------------------------------------------------
+  describe('formatLength', () => {
+    it('formats >= 1000m as km in metric mode', () => {
+      useUiStore.setState({ unitPreference: 'metric' });
+      const { result } = renderHook(() => useUnits());
+      expect(result.current.formatLength(2500)).toBe('2.50 km');
+    });
+
+    it('formats < 1000m as rounded meters in metric mode', () => {
+      useUiStore.setState({ unitPreference: 'metric' });
+      const { result } = renderHook(() => useUnits());
+      expect(result.current.formatLength(750)).toBe('750 m');
+    });
+
+    it('formats >= 0.1 mi as miles in imperial mode', () => {
+      useUiStore.setState({ unitPreference: 'imperial' });
+      const { result } = renderHook(() => useUnits());
+      // 500m = 0.3107 mi
+      expect(result.current.formatLength(500)).toBe('0.31 mi');
+    });
+
+    it('formats < 0.1 mi as feet in imperial mode', () => {
+      useUiStore.setState({ unitPreference: 'imperial' });
+      const { result } = renderHook(() => useUnits());
+      // 10m = 32.8084 ft, < 0.1 mi
+      expect(result.current.formatLength(10)).toBe('33 ft');
+    });
+
+    it('respects custom decimals for km', () => {
+      useUiStore.setState({ unitPreference: 'metric' });
+      const { result } = renderHook(() => useUnits());
+      expect(result.current.formatLength(3500, 1)).toBe('3.5 km');
+    });
+
+    it('respects custom decimals for miles', () => {
+      useUiStore.setState({ unitPreference: 'imperial' });
+      const { result } = renderHook(() => useUnits());
+      // 2000m = 1.24274 mi
+      expect(result.current.formatLength(2000, 1)).toBe('1.2 mi');
+    });
+
+    it('formats exactly 1000m in metric', () => {
+      useUiStore.setState({ unitPreference: 'metric' });
+      const { result } = renderHook(() => useUnits());
+      expect(result.current.formatLength(1000)).toBe('1.00 km');
+    });
+
+    it('handles zero distance in metric', () => {
+      useUiStore.setState({ unitPreference: 'metric' });
+      const { result } = renderHook(() => useUnits());
+      expect(result.current.formatLength(0)).toBe('0 m');
+    });
+
+    it('handles zero distance in imperial', () => {
+      useUiStore.setState({ unitPreference: 'imperial' });
+      const { result } = renderHook(() => useUnits());
+      expect(result.current.formatLength(0)).toBe('0 ft');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // Memoization — callbacks must not change when isMetric is unchanged
   // ---------------------------------------------------------------------------
   describe('memoization', () => {

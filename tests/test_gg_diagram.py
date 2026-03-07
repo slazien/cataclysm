@@ -456,6 +456,20 @@ class TestComputeGGDiagramOverall:
         # 2 NaN rows removed -> 8 points
         assert len(result.points) == 8
 
+    def test_all_nan_values_returns_empty(self) -> None:
+        """All-NaN values should trigger the post-filter empty guard (line 255)."""
+        # Non-empty DataFrame but ALL values are NaN → after valid_mask filter, n==0
+        n = 5
+        lat_g = np.full(n, np.nan)
+        lon_g = np.full(n, np.nan)
+        df = _make_lap_df(lat_g, lon_g)
+
+        result = compute_gg_diagram(df)
+
+        assert len(result.points) == 0
+        assert result.overall_utilization_pct == 0.0
+        assert result.observed_max_g == 0.0
+
     def test_observed_max_g_correct(self) -> None:
         """Observed max G should be the max sqrt(lat^2 + lon^2)."""
         lat_g = np.array([0.0, 0.6, 0.0, -0.6])

@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { GradeChip } from '../GradeChip';
 
 // GradeChip uses motion/react for entrance animation — replace with plain elements
@@ -20,6 +20,29 @@ vi.mock('@/lib/design-tokens', () => ({
     lap: ['#58a6ff'],
     comparison: { reference: '#58a6ff', compare: '#f97316' },
   },
+}));
+
+// Mock the tooltip UI primitives — Radix portals don't work in jsdom
+vi.mock('@/components/ui/tooltip', () => ({
+  TooltipProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  TooltipTrigger: ({
+    children,
+    asChild,
+    ...rest
+  }: {
+    children: React.ReactNode;
+    asChild?: boolean;
+  }) => <>{children}</>,
+  TooltipContent: ({
+    children,
+    ...rest
+  }: {
+    children: React.ReactNode;
+    side?: string;
+    sideOffset?: number;
+    className?: string;
+  }) => <div data-testid="tooltip-content">{children}</div>,
 }));
 
 describe('GradeChip', () => {
@@ -122,6 +145,39 @@ describe('GradeChip', () => {
       const { container } = render(<GradeChip grade="B" className="my-custom-class" />);
       const chip = container.firstChild as HTMLElement;
       expect(chip.className).toContain('my-custom-class');
+    });
+  });
+
+  describe('reason tooltip', () => {
+    it('does not render a tooltip button when no reason is provided', () => {
+      render(<GradeChip grade="A" />);
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    });
+
+    it('renders a tooltip button when reason is provided', () => {
+      render(<GradeChip grade="B" reason="Good trail braking" />);
+      const button = screen.getByRole('button');
+      expect(button).toBeInTheDocument();
+      expect(button.className).toContain('cursor-help');
+    });
+
+    it('renders the reason text in the tooltip content', () => {
+      render(<GradeChip grade="C" reason="Needs more throttle commitment" />);
+      expect(screen.getByText('Needs more throttle commitment')).toBeInTheDocument();
+    });
+
+    it('still displays the grade letter when reason is present', () => {
+      render(<GradeChip grade="D" reason="Braking too early" />);
+      expect(screen.getByText(/^D/)).toBeInTheDocument();
+    });
+
+    it('button click calls stopPropagation', () => {
+      render(<GradeChip grade="F" reason="Late apex" />);
+      const button = screen.getByRole('button');
+      const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+      const stopSpy = vi.spyOn(event, 'stopPropagation');
+      button.dispatchEvent(event);
+      expect(stopSpy).toHaveBeenCalled();
     });
   });
 });

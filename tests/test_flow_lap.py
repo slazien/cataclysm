@@ -175,3 +175,64 @@ class TestDetectFlowLaps:
         # All laps identical → all should score similarly high
         scores = list(result.scores.values())
         assert max(scores) - min(scores) < 0.15
+
+
+class TestScoreBalanceEdges:
+    """Target line 82: _score_balance returns 0.5 when no gaps collected."""
+
+    def test_all_zero_best_speeds_returns_half(self) -> None:
+        """When all best_corner_speeds are 0, no gaps are collected → return 0.5 (line 82)."""
+        from cataclysm.flow_lap import _score_balance
+
+        lap_speeds = [30.0, 25.0, 40.0]
+        best_speeds = [0.0, 0.0, 0.0]  # all zero → best_speed > 0 check fails
+        result = _score_balance(lap_speeds, best_speeds)
+        assert result == 0.5
+
+
+class TestDetectFlowLapsOutOfBoundLap:
+    """Target line 160: lap_num < 1 or > len(lap_times) → continue."""
+
+    def test_out_of_bound_lap_key_skipped(self) -> None:
+        """per_lap_corner_speeds with a lap_num > len(lap_times) is skipped (line 160)."""
+        from cataclysm.flow_lap import detect_flow_laps
+
+        lap_times = [90.0, 89.0, 88.0, 87.0, 86.0]
+        # lap 10 is out of bounds (> 5 laps)
+        per_lap = {
+            1: [50.0, 60.0],
+            2: [49.0, 58.0],
+            3: [48.0, 57.0],
+            4: [47.0, 56.0],
+            5: [46.0, 55.0],
+            10: [30.0, 40.0],  # out of bounds → skipped
+        }
+        best = [46.0, 55.0]
+        result = detect_flow_laps(lap_times, per_lap, best)
+        # Should complete without error; lap 10 is silently skipped
+        assert result is not None
+        assert 10 not in result.scores
+
+
+class TestFlowLapWeightsCheck:
+    """Cover line 32: FLOW_LAP_WEIGHTS must sum to 1.0."""
+
+    def test_weights_sum_to_one(self) -> None:
+        """Verify FLOW_LAP_WEIGHTS sums to 1.0 (line 32 guard passed at import)."""
+        from cataclysm.flow_lap import FLOW_LAP_WEIGHTS
+
+        assert abs(sum(FLOW_LAP_WEIGHTS.values()) - 1.0) < 1e-9
+
+
+class TestScoreBalanceAllZeroBestSpeeds:
+    """Cover line 82: _score_balance returns 0.5 when all best_speeds are 0."""
+
+    def test_all_best_speeds_zero_returns_half(self) -> None:
+        """All best_speeds are 0 → no gap appended → gaps is empty → return 0.5 (line 82)."""
+        result = _score_balance([10.0, 20.0], [0.0, 0.0])
+        assert result == 0.5
+
+    def test_mismatched_lengths_returns_half(self) -> None:
+        """Mismatched length inputs return 0.5 early (line 75)."""
+        result = _score_balance([10.0, 20.0], [10.0])
+        assert result == 0.5

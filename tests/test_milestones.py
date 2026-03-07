@@ -11,6 +11,8 @@ from cataclysm.flow_lap import FlowLapResult
 from cataclysm.milestones import (
     Milestone,
     MilestoneType,
+    _check_corner_improvements,
+    _check_technique_unlock,
     detect_milestones,
     format_milestones_for_prompt,
 )
@@ -184,3 +186,19 @@ class TestFormatMilestones:
         ]
         text = format_milestones_for_prompt(milestones)
         assert text.count("<milestone type=") == 5
+
+
+class TestCheckHelperEmptyHistory:
+    """Target lines 94 and 129: helper functions with empty history return []."""
+
+    def test_check_corner_improvements_empty_history_returns_empty(self) -> None:
+        """_check_corner_improvements with empty history returns [] (line 94)."""
+        current = _make_memory()
+        result = _check_corner_improvements(current, [])
+        assert result == []
+
+    def test_check_technique_unlock_empty_history_returns_empty(self) -> None:
+        """_check_technique_unlock with empty history returns [] (line 129)."""
+        current = _make_memory()
+        result = _check_technique_unlock(current, [])
+        assert result == []

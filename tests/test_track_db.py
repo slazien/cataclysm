@@ -689,6 +689,24 @@ class TestGetKeyCorners:
         gaps = {c.number: gap for c, gap in result}
         assert 3 in gaps  # T3 should be a key corner (500m wrap)
 
+    def test_all_surrounding_corners_flat_returns_full_track_length(self) -> None:
+        """When all other corners are flat, gap falls back to full track length (line 827)."""
+        # One real corner + two flat-out corners — after the real corner, only flat ones remain
+        layout = TrackLayout(
+            name="FlatTrack",
+            corners=[
+                OfficialCorner(1, "T1 Real", 0.10),  # This is the key corner
+                OfficialCorner(2, "T2 Flat", 0.50, character="flat"),
+                OfficialCorner(3, "T3 Flat", 0.80, character="flat"),
+            ],
+            length_m=2000.0,
+        )
+        result = get_key_corners(layout)
+        # T1 has gap = full track_len because T2 and T3 are both flat
+        gaps = {c.number: gap for c, gap in result}
+        assert 1 in gaps
+        assert gaps[1] == pytest.approx(2000.0)
+
     def test_hairpin_ranks_above_kink_with_longer_straight(self) -> None:
         """A hairpin onto a moderate straight should outrank a kink onto a long straight."""
         layout = TrackLayout(

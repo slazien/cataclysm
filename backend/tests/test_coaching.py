@@ -122,9 +122,11 @@ async def test_generate_report(client: AsyncClient) -> None:
     assert data["summary"] is not None
     assert "consistency" in data["summary"].lower() or "session" in data["summary"].lower()
     assert len(data["priority_corners"]) == 2
-    assert data["priority_corners"][0]["corner"] == 3
+    corner_nums = {pc["corner"] for pc in data["priority_corners"]}
+    assert corner_nums == {3, 5}
     assert len(data["corner_grades"]) == 2
-    assert data["corner_grades"][0]["braking"] == "A"
+    grade_ratings = {g["braking"] for g in data["corner_grades"]}
+    assert "A" in grade_ratings
     assert len(data["patterns"]) == 2
     assert len(data["drills"]) == 2
 

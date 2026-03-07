@@ -10,6 +10,7 @@ describe('analysisStore', () => {
       selectedCorner: null,
       deepDiveMode: 'speed',
       zoomRange: null,
+      hoveredBrakeLap: null,
     });
   });
 
@@ -141,6 +142,29 @@ describe('analysisStore', () => {
     });
   });
 
+  describe('setHoveredBrakeLap', () => {
+    it('sets a hovered brake lap', () => {
+      useAnalysisStore.getState().setHoveredBrakeLap({ lapNumber: 3, brakePointM: 450.5 });
+      const state = useAnalysisStore.getState();
+      expect(state.hoveredBrakeLap).toEqual({ lapNumber: 3, brakePointM: 450.5 });
+    });
+
+    it('clears hovered brake lap with null', () => {
+      useAnalysisStore.getState().setHoveredBrakeLap({ lapNumber: 1, brakePointM: 100 });
+      useAnalysisStore.getState().setHoveredBrakeLap(null);
+      expect(useAnalysisStore.getState().hoveredBrakeLap).toBeNull();
+    });
+
+    it('replaces previous hovered brake lap', () => {
+      useAnalysisStore.getState().setHoveredBrakeLap({ lapNumber: 1, brakePointM: 100 });
+      useAnalysisStore.getState().setHoveredBrakeLap({ lapNumber: 5, brakePointM: 300 });
+      expect(useAnalysisStore.getState().hoveredBrakeLap).toEqual({
+        lapNumber: 5,
+        brakePointM: 300,
+      });
+    });
+  });
+
   describe('state independence', () => {
     it('setting one field does not affect others', () => {
       useAnalysisStore.getState().selectLaps([1, 2]);
@@ -152,6 +176,23 @@ describe('analysisStore', () => {
       expect(state.selectedCorner).toBeNull();
       expect(state.deepDiveMode).toBe('speed');
       expect(state.zoomRange).toBeNull();
+    });
+
+    it('hoveredBrakeLap is independent from other state', () => {
+      useAnalysisStore.getState().setHoveredBrakeLap({ lapNumber: 2, brakePointM: 200 });
+      useAnalysisStore.getState().selectLaps([1, 3]);
+
+      const state = useAnalysisStore.getState();
+      expect(state.hoveredBrakeLap).toEqual({ lapNumber: 2, brakePointM: 200 });
+      expect(state.selectedLaps).toEqual([1, 3]);
+    });
+  });
+
+  describe('reset includes hoveredBrakeLap', () => {
+    it('resets hoveredBrakeLap to null', () => {
+      useAnalysisStore.getState().setHoveredBrakeLap({ lapNumber: 1, brakePointM: 100 });
+      useAnalysisStore.getState().reset();
+      expect(useAnalysisStore.getState().hoveredBrakeLap).toBeNull();
     });
   });
 });

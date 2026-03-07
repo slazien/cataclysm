@@ -500,11 +500,15 @@ if (isPending) return <Skeleton />;  // Renders in SSR HTML correctly
 
 **Anti-pattern**: Reading PriorityCardsSection.tsx → SessionReport.tsx → useAnalysis.ts → api.ts → Providers.tsx → forming a theory → THEN opening the browser. Instead: browser → observe → targeted code reading → fix.
 
-## Merge Feature Branch Into Staging BEFORE Promoting to Main ([2026-03-07])
+## Avoid Order-Dependent Assertions in Tests ([2026-03-07])
 
-**Pattern**: When asked to push staging to prod while working on a feature branch with uncommitted-to-staging commits, always merge the feature branch into staging FIRST, then merge staging into main. Never checkout main directly — it reverts uncommitted work and forces stash/restore gymnastics.
+**Pattern**: When asserting on collections (lists of corners, priority items, etc.), use set-based or `any()`-based assertions instead of asserting on specific indices. Serialization/deserialization, dict ordering, and sorting can change element order.
 
-**Correct sequence**: `git checkout staging && git merge feature-branch && git push origin staging` → `git checkout main && git merge staging --ff-only && git push origin main`
+**Why**: `test_generate_report` broke with `assert data["priority_corners"][0]["corner"] == 3` because the coaching store returned corners in a different order than the mock's input order. Fixed by asserting `{pc["corner"] for pc in data["priority_corners"]} == {3, 5}`.
 
-**Why**: Checking out main first reverts the working tree to main's state, requiring stash and multi-step recovery. The feature branch commits aren't on staging yet, so promoting staging to main without merging first loses the feature work.
+## Coverage.py + Python 3.12 Async Router Artifact ([2026-03-07])
+
+**Pattern**: When running `--cov` on FastAPI routers with Python 3.12, expect artificially low coverage on async endpoint bodies. coverage.py 7.x uses `sys.monitoring` (PEP 669) which doesn't correctly attribute execution inside async coroutines — the `def` line is covered but body lines aren't, even when test assertions prove they ran.
+
+**Why**: Backend overall shows 96% but services layer is 100%. The ~4% gap is entirely async router bodies. Don't chase these lines with more tests — they're already tested. Test synchronous helpers directly and call async functions with patched dependencies instead of routing through ASGI client when possible.
 

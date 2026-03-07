@@ -264,6 +264,57 @@ class TestComputeCornerOpportunities:
 
         assert result == []
 
+    def test_single_point_optimal_uses_fallback_step(self) -> None:
+        """Optimal profile with single point uses fallback step_m=0.7 (line 181)."""
+        # Build optimal with only 1 point (len < 2 → step_m = 0.7 fallback)
+        single_point_optimal = OptimalProfile(
+            distance_m=np.array([200.0]),
+            optimal_speed_mps=np.array([40.0]),
+            curvature=np.array([0.0]),
+            max_cornering_speed_mps=np.array([40.0]),
+            optimal_brake_points=[],
+            optimal_throttle_points=[],
+            lap_time_s=5.0,
+            vehicle_params=VehicleParams(
+                mu=1.0, max_accel_g=0.5, max_decel_g=1.0, max_lateral_g=1.0
+            ),
+        )
+        lap_df = _make_lap_df(speed=35.0)
+        corner = _make_corner(entry=190.0, exit_d=210.0, apex=200.0, min_speed=25.0)
+        result = compute_corner_opportunities([corner], lap_df, single_point_optimal)
+        # Should not raise; may or may not find an opportunity
+        assert isinstance(result, list)
+
+    def test_corner_outside_optimal_range_skipped(self) -> None:
+        """Corner outside optimal distance range is skipped (line 191 continue)."""
+        optimal = _make_optimal_profile(n=100, step_m=0.7, speed=40.0)
+        # optimal goes from 0 to ~69.3m; place corner at 500m (far outside)
+        lap_df = _make_lap_df(speed=35.0)
+        corner = _make_corner(entry=500.0, exit_d=600.0, apex=550.0, min_speed=25.0)
+        result = compute_corner_opportunities([corner], lap_df, optimal)
+        assert result == []
+
+    def test_brake_gap_is_none_when_no_optimal_brake_point(self) -> None:
+        """When _find_optimal_brake_for_corner returns None, brake_gap=None (line 211)."""
+        # Optimal profile with no brake points at all
+        no_brake_optimal = OptimalProfile(
+            distance_m=np.arange(1000) * 0.7,
+            optimal_speed_mps=np.full(1000, 40.0),
+            curvature=np.zeros(1000),
+            max_cornering_speed_mps=np.full(1000, 40.0),
+            optimal_brake_points=[],  # empty → _find_optimal_brake_for_corner returns None
+            optimal_throttle_points=[],
+            lap_time_s=17.5,
+            vehicle_params=VehicleParams(
+                mu=1.0, max_accel_g=0.5, max_decel_g=1.0, max_lateral_g=1.0
+            ),
+        )
+        lap_df = _make_lap_df(speed=35.0)
+        corner = _make_corner(entry=200.0, exit_d=350.0, apex=275.0, min_speed=25.0, brake_m=190.0)
+        result = compute_corner_opportunities([corner], lap_df, no_brake_optimal)
+        assert len(result) == 1
+        assert result[0].brake_gap_m is None
+
     def test_brake_gap_positive_when_driver_brakes_later(self) -> None:
         """Driver braking closer to corner (later) than optimal → positive gap."""
         optimal = _make_optimal_profile(speed=40.0)
@@ -444,3 +495,43 @@ class TestSanityGuard:
 
         assert result.is_valid is False
         assert "aggregate_optimal_slower_than_actual" in result.invalid_reasons
+
+
+class TestComputeCornerOpportunitiesEdges:
+    """Cover lines 181, 191, 211 in compute_corner_opportunities."""
+
+    def test_single_point_optimal_profile_uses_default_step(self) -> None:
+        """optimal.distance_m with < 2 points → step_m = 0.7 (line 181)."""
+        optimal = OptimalProfile(
+            distance_m=np.array([50.0]),  # only 1 point → len < 2 → step_m = 0.7
+            optimal_speed_mps=np.array([30.0]),
+            curvature=np.array([0.0]),
+            max_cornering_speed_mps=np.array([30.0]),
+            optimal_brake_points=[],
+            optimal_throttle_points=[],
+            lap_time_s=10.0,
+            vehicle_params=VehicleParams(
+                mu=1.0, max_accel_g=0.5, max_decel_g=1.0, max_lateral_g=1.0
+            ),
+        )
+        lap_df = _make_lap_df()
+        corner = _make_corner(entry=40.0, exit_d=60.0, min_speed=25.0, brake_m=35.0)
+        result = compute_corner_opportunities([corner], lap_df, optimal)
+        assert isinstance(result, list)
+
+    def test_corner_outside_optimal_distance_skipped(self) -> None:
+        """Corner range doesn't overlap optimal distance → opt_mask all False → skip (line 191)."""
+        optimal = _make_optimal_profile(n=100, step_m=0.7)  # distance 0..~69m
+        lap_df = _make_lap_df(n=100)
+        far_corner = _make_corner(entry=500.0, exit_d=600.0, min_speed=25.0, brake_m=490.0)
+        result = compute_corner_opportunities([far_corner], lap_df, optimal)
+        assert result == []
+
+    def test_corner_with_no_brake_point_has_none_brake_gap(self) -> None:
+        """Corner without brake_point_m → brake_gap = None (line 211)."""
+        optimal = _make_optimal_profile(n=1000)
+        lap_df = _make_lap_df(n=1000)
+        corner = _make_corner(entry=100.0, exit_d=200.0, min_speed=30.0, brake_m=None)
+        result = compute_corner_opportunities([corner], lap_df, optimal)
+        if result:
+            assert result[0].brake_gap_m is None
