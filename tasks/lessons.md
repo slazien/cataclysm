@@ -500,6 +500,38 @@ if (isPending) return <Skeleton />;  // Renders in SSR HTML correctly
 
 **Anti-pattern**: Reading PriorityCardsSection.tsx → SessionReport.tsx → useAnalysis.ts → api.ts → Providers.tsx → forming a theory → THEN opening the browser. Instead: browser → observe → targeted code reading → fix.
 
+## Incremental String Building: Use `+=` Not `=` When Accumulating Sections ([2026-03-07])
+
+**Pattern**: When building up a multi-section string (like a prompt or report) across multiple conditional blocks, always use `+=` to append. Using `=` silently overwrites everything previously accumulated in that variable.
+
+```python
+# GOOD — accumulates both sections
+instruction = ""
+if best_corner_data:
+    instruction += "<best_corner>...</best_corner>\n"
+if line_analysis_data:
+    instruction += "<line_analysis>...</line_analysis>\n"
+
+# BAD — second block silently overwrites the first
+instruction = ""
+if best_corner_data:
+    instruction += "<best_corner>...</best_corner>\n"
+if line_analysis_data:
+    instruction = "<line_analysis>...</line_analysis>\n"  # Oops, = not +=
+```
+
+**Why**: In `coaching.py`, `line_instruction = "..."` on line 841 used `=` instead of `+=`, silently overwriting the best-corner instruction added on line 833. The feature appeared to work (line analysis showed up) but best-corner data was lost. Code reviewer caught this — it would have been invisible in testing because both features worked individually.
+
+**Error signature**: A multi-section prompt/report shows some sections but not others, despite all data being present. No error raised. The missing section was added first but overwritten by a later section.
+
+## Check `cataclysm/constants.py` Before Defining New Constants ([2026-03-07])
+
+**Pattern**: Before defining any conversion factor, threshold, or domain constant in a module, check `cataclysm/constants.py` first. The project has a central constants module — duplicating values creates drift risk.
+
+**Why**: Defined `MPS_TO_MPH = 2.23694` locally in `corner_line.py` when `cataclysm.constants` already exports the same value. Code reviewer flagged it. If the central value ever changed (e.g., for higher precision), the local copy would silently diverge.
+
+**Verification**: `grep -rn "CONSTANT_NAME" cataclysm/constants.py` before any `UPPER_SNAKE = number` definition.
+
 ## Merge Feature Branch Into Staging BEFORE Promoting to Main ([2026-03-07])
 
 **Pattern**: When asked to push staging to prod while working on a feature branch with uncommitted-to-staging commits, always merge the feature branch into staging FIRST, then merge staging into main. Never checkout main directly — it reverts uncommitted work and forces stash/restore gymnastics.
