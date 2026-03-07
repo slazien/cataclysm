@@ -307,8 +307,18 @@ export function CornerLineMap({ sessionId, cornerNumber }: CornerLineMapProps) {
           const py = Math.max(apexY - 16, MARGINS.top + 14);
 
           ctx.fillStyle = 'rgba(10, 12, 16, 0.85)';
+          const rx = px - 4, ry = py - 10, rw = tw + 8, rh = 16, rr = 3;
           ctx.beginPath();
-          ctx.roundRect(px - 4, py - 10, tw + 8, 16, 3);
+          ctx.moveTo(rx + rr, ry);
+          ctx.lineTo(rx + rw - rr, ry);
+          ctx.quadraticCurveTo(rx + rw, ry, rx + rw, ry + rr);
+          ctx.lineTo(rx + rw, ry + rh - rr);
+          ctx.quadraticCurveTo(rx + rw, ry + rh, rx + rw - rr, ry + rh);
+          ctx.lineTo(rx + rr, ry + rh);
+          ctx.quadraticCurveTo(rx, ry + rh, rx, ry + rh - rr);
+          ctx.lineTo(rx, ry + rr);
+          ctx.quadraticCurveTo(rx, ry, rx + rr, ry);
+          ctx.closePath();
           ctx.fill();
 
           ctx.fillStyle = deltaMps > 0 ? colors.motorsport.throttle : colors.motorsport.brake;
