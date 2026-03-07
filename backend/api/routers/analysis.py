@@ -6,6 +6,7 @@ import asyncio
 from typing import Annotated, Any
 
 from cataclysm.constants import MPS_TO_MPH
+from cataclysm.corner_line import CornerLineProfile
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -670,23 +671,34 @@ async def get_line_analysis(
         lap_set = set(laps)
         traces = [t for t in traces if t.lap_number in lap_set]
 
+    def _profile_to_schema(p: CornerLineProfile) -> CornerLineProfileSchema:
+        return CornerLineProfileSchema(
+            corner_number=p.corner_number,
+            n_laps=p.n_laps,
+            d_entry_median=round(p.d_entry_median, 2),
+            d_apex_median=round(p.d_apex_median, 2),
+            d_exit_median=round(p.d_exit_median, 2),
+            apex_fraction_median=round(p.apex_fraction_median, 3),
+            d_apex_sd=round(p.d_apex_sd, 3),
+            line_error_type=p.line_error_type,
+            severity=p.severity,
+            consistency_tier=p.consistency_tier,
+            allen_berg_type=p.allen_berg_type,
+            straight_after_m=round(p.straight_after_m, 1),
+            priority_rank=p.priority_rank,
+            best_lap_number=p.best_lap_number,
+            best_exit_speed_mps=p.best_exit_speed_mps,
+            best_segment_time_s=p.best_segment_time_s,
+            best_ranking_method=p.best_ranking_method,
+            best_d_entry=p.best_d_entry,
+            best_d_apex=p.best_d_apex,
+            best_d_exit=p.best_d_exit,
+            median_segment_time_s=p.median_segment_time_s,
+            median_exit_speed_mps=p.median_exit_speed_mps,
+        )
+
     if not traces:
-        corner_profiles = [
-            CornerLineProfileSchema(
-                corner_number=p.corner_number,
-                n_laps=p.n_laps,
-                d_entry_median=round(p.d_entry_median, 2),
-                d_apex_median=round(p.d_apex_median, 2),
-                d_exit_median=round(p.d_exit_median, 2),
-                apex_fraction_median=round(p.apex_fraction_median, 3),
-                d_apex_sd=round(p.d_apex_sd, 3),
-                line_error_type=p.line_error_type,
-                severity=p.severity,
-                consistency_tier=p.consistency_tier,
-                allen_berg_type=p.allen_berg_type,
-            )
-            for p in sd.corner_line_profiles
-        ]
+        corner_profiles = [_profile_to_schema(p) for p in sd.corner_line_profiles]
         return LineAnalysisResponse(
             session_id=session_id,
             available=True,
@@ -719,22 +731,7 @@ async def get_line_analysis(
     # Distance grid from shortest trace
     distance_m = traces[0].distance_m[:min_len].tolist() if traces else []
 
-    corner_profiles = [
-        CornerLineProfileSchema(
-            corner_number=p.corner_number,
-            n_laps=p.n_laps,
-            d_entry_median=round(p.d_entry_median, 2),
-            d_apex_median=round(p.d_apex_median, 2),
-            d_exit_median=round(p.d_exit_median, 2),
-            apex_fraction_median=round(p.apex_fraction_median, 3),
-            d_apex_sd=round(p.d_apex_sd, 3),
-            line_error_type=p.line_error_type,
-            severity=p.severity,
-            consistency_tier=p.consistency_tier,
-            allen_berg_type=p.allen_berg_type,
-        )
-        for p in sd.corner_line_profiles
-    ]
+    corner_profiles = [_profile_to_schema(p) for p in sd.corner_line_profiles]
 
     return LineAnalysisResponse(
         session_id=session_id,

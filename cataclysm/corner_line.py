@@ -8,11 +8,31 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from cataclysm.corners import Corner
 from cataclysm.gps_line import GPSTrace, ReferenceCenterline, compute_lateral_offsets
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+MIN_LAPS_FOR_BEST_CORNER = 3  # Need at least 3 laps for meaningful best-corner analysis
+EXIT_SPEED_AVG_SAMPLES = 5  # Average this many samples around exit point (~200ms at 25Hz)
+
+
+@dataclass
+class PerLapCornerMetrics:
+    """Performance metrics for a single corner on a single lap."""
+
+    corner_number: int
+    lap_number: int
+    segment_time_s: float
+    exit_speed_mps: float
+    entry_speed_mps: float
+    min_speed_mps: float
+
 
 LINE_ERROR_THRESHOLDS = {
     "early_apex_fraction": 0.40,  # Apex in first 40% of corner = early
@@ -47,6 +67,17 @@ class CornerLineProfile:
     allen_berg_type: str  # "A" (before straight), "B" (after straight), "C" (linking)
     straight_after_m: float = 0.0  # Distance from exit to next corner entry
     priority_rank: int = 0  # 1 = most important corner on track
+
+    # Best-corner fields (populated when resampled_laps are available)
+    best_lap_number: int | None = None
+    best_exit_speed_mps: float | None = None
+    best_segment_time_s: float | None = None
+    best_ranking_method: str | None = None  # "exit_speed" or "segment_time"
+    best_d_entry: float | None = None
+    best_d_apex: float | None = None
+    best_d_exit: float | None = None
+    median_segment_time_s: float | None = None
+    median_exit_speed_mps: float | None = None
 
 
 @dataclass
@@ -185,10 +216,133 @@ def _assign_priority_ranks(profiles: list[CornerLineProfile]) -> None:
         profiles[idx].priority_rank = rank
 
 
+def compute_per_lap_corner_metrics(
+    resampled_laps: dict[int, pd.DataFrame],
+    corners: list[Corner],
+    coaching_laps: list[int],
+) -> dict[int, list[PerLapCornerMetrics]]:
+    """Compute segment time, exit/entry/min speed for each corner on each lap.
+
+    Returns dict keyed by corner number -> list of per-lap metrics.
+    Uses 5-sample averaging at exit point to reduce GPS Doppler noise.
+    """
+    result: dict[int, list[PerLapCornerMetrics]] = {}
+    half_win = EXIT_SPEED_AVG_SAMPLES // 2
+
+    for corner in corners:
+        metrics: list[PerLapCornerMetrics] = []
+        for lap_num in coaching_laps:
+            if lap_num not in resampled_laps:
+                continue
+            lap_df = resampled_laps[lap_num]
+            dist = lap_df["lap_distance_m"].to_numpy()
+            time = lap_df["lap_time_s"].to_numpy()
+            speed = lap_df["speed_mps"].to_numpy()
+
+            # Skip if corner exit exceeds lap distance range
+            if corner.exit_distance_m > dist[-1] or corner.entry_distance_m < dist[0]:
+                continue
+
+            # Segment time via interpolation (same pattern as gains.py)
+            entry_time = float(np.interp(corner.entry_distance_m, dist, time))
+            exit_time = float(np.interp(corner.exit_distance_m, dist, time))
+            seg_time = max(0.0, exit_time - entry_time)
+
+            # Exit speed: average over a small window to reduce noise
+            exit_idx = int(np.searchsorted(dist, corner.exit_distance_m))
+            exit_idx = min(exit_idx, len(speed) - 1)
+            lo = max(0, exit_idx - half_win)
+            hi = min(len(speed), exit_idx + half_win + 1)
+            exit_speed = float(np.mean(speed[lo:hi]))
+
+            # Entry speed (single interp is fine — less critical)
+            entry_speed = float(np.interp(corner.entry_distance_m, dist, speed))
+
+            # Min speed through corner zone
+            entry_idx = int(np.searchsorted(dist, corner.entry_distance_m))
+            entry_idx = min(entry_idx, len(speed) - 1)
+            zone = speed[entry_idx : exit_idx + 1]
+            min_speed = float(np.min(zone)) if len(zone) > 0 else entry_speed
+
+            metrics.append(
+                PerLapCornerMetrics(
+                    corner_number=corner.number,
+                    lap_number=lap_num,
+                    segment_time_s=round(seg_time, 4),
+                    exit_speed_mps=round(exit_speed, 3),
+                    entry_speed_mps=round(entry_speed, 3),
+                    min_speed_mps=round(min_speed, 3),
+                )
+            )
+        result[corner.number] = metrics
+
+    return result
+
+
+def identify_best_corner_laps(
+    per_lap_metrics: dict[int, list[PerLapCornerMetrics]],
+    profiles: list[CornerLineProfile],
+    corners: list[Corner],
+    lap_offsets: dict[int, np.ndarray],
+) -> None:
+    """Identify the best lap for each corner and update profiles in-place.
+
+    Type A corners: rank by exit speed (descending).
+    Type B/C corners: rank by segment time (ascending).
+    """
+    spacing = 0.7  # Same as used in analyze_corner_lines
+
+    for profile in profiles:
+        metrics = per_lap_metrics.get(profile.corner_number, [])
+        if len(metrics) < MIN_LAPS_FOR_BEST_CORNER:
+            continue
+
+        corner = next((c for c in corners if c.number == profile.corner_number), None)
+        if corner is None:
+            continue
+
+        # Choose ranking method based on Allen Berg type
+        if profile.allen_berg_type == "A":
+            best = max(metrics, key=lambda m: m.exit_speed_mps)
+            method = "exit_speed"
+        else:
+            best = min(metrics, key=lambda m: m.segment_time_s)
+            method = "segment_time"
+
+        profile.best_lap_number = best.lap_number
+        profile.best_exit_speed_mps = best.exit_speed_mps
+        profile.best_segment_time_s = best.segment_time_s
+        profile.best_ranking_method = method
+
+        # Median values across all laps
+        profile.median_segment_time_s = round(
+            float(np.median([m.segment_time_s for m in metrics])), 4
+        )
+        profile.median_exit_speed_mps = round(
+            float(np.median([m.exit_speed_mps for m in metrics])), 3
+        )
+
+        # Extract best lap's lateral offsets at entry/apex/exit
+        best_offsets = lap_offsets.get(best.lap_number)
+        if best_offsets is not None:
+            c_start = int(corner.entry_distance_m / spacing)
+            c_end = int(corner.exit_distance_m / spacing)
+            c_apex = int(corner.apex_distance_m / spacing)
+            max_idx = len(best_offsets) - 1
+            c_start = max(0, min(c_start, max_idx))
+            c_end = max(c_start, min(c_end, max_idx))
+            c_apex = max(c_start, min(c_apex, c_end))
+            profile.best_d_entry = round(float(best_offsets[c_start]), 2)
+            profile.best_d_apex = round(float(best_offsets[c_apex]), 2)
+            profile.best_d_exit = round(float(best_offsets[c_end]), 2)
+
+
 def analyze_corner_lines(
     traces: list[GPSTrace],
     ref: ReferenceCenterline,
     corners: list[Corner],
+    resampled_laps: dict[int, pd.DataFrame] | None = None,
+    coaching_laps: list[int] | None = None,
 ) -> list[CornerLineProfile]:
     """Analyze driving line for all corners across all laps.
 
@@ -267,6 +421,13 @@ def analyze_corner_lines(
         )
 
     _assign_priority_ranks(profiles)
+
+    # Enrich with per-corner best lap data (reuses already-computed offsets)
+    if resampled_laps is not None and coaching_laps is not None:
+        per_lap = compute_per_lap_corner_metrics(resampled_laps, corners, coaching_laps)
+        lap_offsets = {traces[i].lap_number: all_offsets[i] for i in range(len(traces))}
+        identify_best_corner_laps(per_lap, profiles, corners, lap_offsets)
+
     return profiles
 
 
@@ -290,6 +451,56 @@ def format_line_analysis_for_prompt(profiles: list[CornerLineProfile]) -> str:
         )
         lines.append("  </corner>")
     lines.append("</line_analysis>")
+    return "\n".join(lines)
+
+
+MPS_TO_MPH = 2.23694
+
+
+def format_best_corner_for_prompt(profiles: list[CornerLineProfile]) -> str:
+    """Format best-corner execution data as XML for the coaching prompt.
+
+    Only includes corners that have best-corner data populated.
+    Uses mph for consistency with the rest of the coaching prompt.
+    """
+    enriched = [p for p in profiles if p.best_lap_number is not None]
+    if not enriched:
+        return ""
+
+    lines = ["<best_corner_execution>"]
+    for p in enriched:
+        assert p.best_exit_speed_mps is not None  # noqa: S101
+        assert p.median_exit_speed_mps is not None  # noqa: S101
+        assert p.best_segment_time_s is not None  # noqa: S101
+        assert p.median_segment_time_s is not None  # noqa: S101
+
+        best_exit_mph = p.best_exit_speed_mps * MPS_TO_MPH
+        med_exit_mph = p.median_exit_speed_mps * MPS_TO_MPH
+        delta_exit_mph = best_exit_mph - med_exit_mph
+        delta_time = p.best_segment_time_s - p.median_segment_time_s
+
+        lines.append(
+            f'  <corner number="{p.corner_number}" type="{p.allen_berg_type}"'
+            f' best_lap="{p.best_lap_number}" ranked_by="{p.best_ranking_method}">'
+        )
+        lines.append(
+            f'    <exit_speed best="{best_exit_mph:.1f} mph"'
+            f' median="{med_exit_mph:.1f} mph"'
+            f' delta="{delta_exit_mph:+.1f} mph"/>'
+        )
+        lines.append(
+            f'    <segment_time best="{p.best_segment_time_s:.2f}s"'
+            f' median="{p.median_segment_time_s:.2f}s"'
+            f' delta="{delta_time:+.2f}s"/>'
+        )
+        if p.best_d_entry is not None:
+            lines.append(
+                f'    <best_line d_entry="{p.best_d_entry:+.1f}m"'
+                f' d_apex="{p.best_d_apex:+.1f}m"'
+                f' d_exit="{p.best_d_exit:+.1f}m"/>'
+            )
+        lines.append("  </corner>")
+    lines.append("</best_corner_execution>")
     return "\n".join(lines)
 
 

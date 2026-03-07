@@ -16,6 +16,7 @@ from cataclysm.constants import MPS_TO_MPH
 from cataclysm.corner_analysis import SessionCornerAnalysis
 from cataclysm.corner_line import (
     CornerLineProfile,
+    format_best_corner_for_prompt,
     format_line_analysis_for_prompt,
     format_session_line_summary_for_prompt,
     summarize_session_lines,
@@ -825,8 +826,17 @@ def _build_coaching_prompt(
         summarize_session_lines(line_profiles or [])
     )
     corner_priorities_section = _format_corner_priorities(line_profiles or [])
+    best_corner_section = format_best_corner_for_prompt(line_profiles or [])
 
     line_instruction = ""
+    if best_corner_section:
+        line_instruction += (
+            "\nWhen BEST CORNER EXECUTION data is present, reference the driver's own "
+            "best lap for each corner as proof they CAN do it. For example: 'On L7, you "
+            "carried 1.5 mph more exit speed through T5 by apexing later — replicate that "
+            "consistently.' The per-corner best is more credible than the best overall lap "
+            "because a fast lap can mask a poor corner.\n"
+        )
     if line_analysis_section:
         line_instruction = (
             "\nWhen LINE ANALYSIS data is present, integrate it with speed/brake analysis. "
@@ -892,6 +902,7 @@ Number of corners: {num_corners} (T1 through T{num_corners})
 {line_analysis_section}
 {session_line_summary}
 {corner_priorities_section}
+{best_corner_section}
 {track_intro_section}
 </session_data>
 
