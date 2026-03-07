@@ -361,6 +361,14 @@ queryFn: () => getOptimalComparison(sessionId!),  // doesn't use equipmentProfil
 
 **Anti-pattern**: "Since you don't have an equipment profile..." without first checking. Always verify: `ls data/equipment/profiles/` or grep for the user's profile before reasoning about their setup.
 
+## Update ALL Doc References When a Value Changes ([2026-03-06])
+
+**Pattern**: When a URL, branch name, or other value referenced in multiple files changes, immediately update ALL occurrences across CLAUDE.md, docs/*.md, and memory/*.md in a single batch. Don't wait to be reminded.
+
+**Why**: Changed staging frontend domain from `frontend-staging-b78c` to `cataclysm-staging` but only updated Railway env vars. User had to say "update your docs" before I updated the 3 doc files. Each doc file that references a URL/config value is a maintenance liability — update them all atomically.
+
+**Verification**: After changing any referenced value, run `grep -rn "old_value" CLAUDE.md docs/ tasks/` and the memory directory to find all occurrences.
+
 ## Cache Invalidation Must Cover ALL CRUD Mutation Endpoints ([2026-03-06])
 
 **Pattern**: When adding cache invalidation to a set of CRUD endpoints, enumerate ALL mutation operations (create, update, delete) and add invalidation to each. Don't stop at the obvious ones (update) — delete is equally important and easy to forget.

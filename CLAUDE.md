@@ -19,7 +19,7 @@ Before implementing changes, ask clarifying questions rather than writing long i
 7. **No Hedging** — NEVER say "ambitious" or hedge about scope. Implement everything requested.
 8. **Domain Research** — Before any feature involving domain knowledge (vehicle dynamics, G-force analysis, coaching methodology), WebSearch first. Research iteratively (broad → specific → authoritative: SAE papers, MoTeC docs, YourDataDriven, TrailBrake, Driver61). Cite sources. Never invent domain algorithms from coding intuition alone.
 9. **Task Tracking** — Write plan to `tasks/todo.md`, check in before implementing, mark items complete, capture lessons.
-10. **Commit Immediately** — Always commit and push after making changes. Do not wait to be asked.
+10. **Commit Immediately** — Always commit and push after making changes. Do not wait to be asked. Push to `staging` branch by default. NEVER push to `main` (production) unless the user explicitly says to deploy to prod.
 11. **Image Viewing** — Download locally (`curl -sL -o /tmp/filename.ext "URL"`), view with Read tool, then delete.
 
 ## Core Principles
@@ -52,7 +52,7 @@ All must pass before committing:
 2. **Mypy**: `dmypy run -- cataclysm/ backend/` (daemon mode, ~4s warm)
 3. **Tests**: `pytest tests/ backend/tests/ -v` (parallel via `-n auto`, skips `@pytest.mark.slow`). Every new module needs `tests/test_<module>.py`. Use synthetic data fixtures, mock external APIs.
 4. **Code review**: Dispatch `superpowers:code-reviewer` after implementation (mandatory).
-5. **Frontend QA**: If ANY frontend files changed, use Playwright MCP to visually verify every affected component BEFORE merging to main. **BLOCKING gate.** Wait for Railway deploy (~2-3 min) before QA — don't test stale code.
+5. **Frontend QA**: If ANY frontend files changed, use Playwright MCP to visually verify every affected component on staging BEFORE promoting to prod. **BLOCKING gate.** Wait for Railway deploy (~2-3 min) before QA — don't test stale code.
 
 **CRITICAL: Fix ALL errors, including pre-existing ones.** Zero errors means zero errors.
 
@@ -62,9 +62,10 @@ All must pass before committing:
 
 ## Deployment
 
-- **Railway** (PaaS): Auto-deploys from `main`. Dev branch: `nextjs-rewrite`.
+- **Railway** (PaaS): Two environments — **production** (branch `main`) and **staging** (branch `staging`).
 - **Hetzner VPS**: Auto-deploys from `main-hetzner` via GitHub Actions. Dev branch: `hetzner-migration`.
-- **Railway URLs**: Frontend `https://cataclysm.up.railway.app` | Backend `https://backend-production-4c97.up.railway.app`
+- **Production URLs**: Frontend `https://cataclysm.up.railway.app` | Backend `https://backend-production-4c97.up.railway.app`
+- **Staging URLs**: Frontend `https://cataclysm-staging.up.railway.app` | Backend `https://backend-staging-0dbd.up.railway.app`
 - When pushing to GitHub, confirm remote URL — personal repo is github.com, NOT github.intuit.com.
 - For full deployment guide: read `docs/deployment.md`.
 

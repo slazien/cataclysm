@@ -26,25 +26,36 @@ Public URLs:
   Backend:  https://backend-production-4c97.up.railway.app
 ```
 
+## Environments
+
+Railway has two environments, each with its own services and database:
+
+| Environment | Branch | Frontend URL | Backend URL |
+|-------------|--------|-------------|-------------|
+| **production** | `main` | `https://cataclysm.up.railway.app` | `https://backend-production-4c97.up.railway.app` |
+| **staging** | `staging` | `https://cataclysm-staging.up.railway.app` | `https://backend-staging-0dbd.up.railway.app` |
+
 ## Auto-Deployment
 
-Railway monitors the `main` branch. Pushing to `main` triggers automatic deployment of both backend and frontend services.
+Each environment auto-deploys from its linked branch. All development work goes to `staging` by default.
 
 **Deployment workflow**:
 ```bash
-# 1. Develop on nextjs-rewrite
-git checkout nextjs-rewrite
+# 1. Develop on staging → auto-deploys to staging environment
+git checkout staging
 # ... make changes ...
 git add <files> && git commit -m "Description"
-git push origin nextjs-rewrite
+git push origin staging
+# → Staging deploys automatically. QA on staging URLs.
 
-# 2. Merge to main for deployment
+# 2. When ready for production (explicit decision only)
 git checkout main
-git merge nextjs-rewrite
+git merge staging
 git push origin main
+# → Production deploys automatically.
 
 # 3. Switch back to dev
-git checkout nextjs-rewrite
+git checkout staging
 ```
 
 ## Environment Variables
