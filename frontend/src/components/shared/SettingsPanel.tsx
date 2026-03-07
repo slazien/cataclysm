@@ -66,10 +66,10 @@ export function SettingsPanel() {
           </button>
         </div>
 
-        {/* Content */}
+        {/* Content — only render when open so queries mount fresh & hit cache */}
         <div className="flex-1 overflow-x-hidden overflow-y-auto p-4">
           {/* Equipment Profiles — most important customization */}
-          <EquipmentProfileList />
+          {open && <EquipmentProfileList />}
 
           {/* Skill Level */}
           <fieldset className="mb-6 min-w-0">
