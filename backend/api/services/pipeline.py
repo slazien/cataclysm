@@ -67,6 +67,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 _physics_cache: dict[tuple[str, str | None], tuple[dict[str, object], float]] = {}
 PHYSICS_CACHE_TTL_S = 1800  # 30 minutes
+PHYSICS_CACHE_MAX_ENTRIES = 200  # ~100 sessions × 2 endpoints
 
 
 def _current_profile_id(session_id: str) -> str | None:
@@ -87,6 +88,10 @@ def _get_physics_cached(session_id: str, key_suffix: str) -> dict[str, object] |
 def _set_physics_cached(session_id: str, key_suffix: str, result: dict[str, object]) -> None:
     cache_key = (f"{session_id}:{key_suffix}", _current_profile_id(session_id))
     _physics_cache[cache_key] = (result, time.time())
+    # LRU eviction: drop oldest entry when cache exceeds max size
+    if len(_physics_cache) > PHYSICS_CACHE_MAX_ENTRIES:
+        oldest_key = min(_physics_cache, key=lambda k: _physics_cache[k][1])
+        del _physics_cache[oldest_key]
 
 
 def invalidate_physics_cache(session_id: str) -> None:
