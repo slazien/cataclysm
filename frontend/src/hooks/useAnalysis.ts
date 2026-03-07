@@ -122,13 +122,18 @@ export function useOptimalComparison(sessionId: string | null) {
   // Include the equipment profile_id in the query key so that switching
   // equipment automatically creates a separate cache entry — no manual
   // invalidation needed and no TOCTOU race with stale data.
-  const { data: equipment } = useSessionEquipment(sessionId);
+  //
+  // Wait for the equipment query to settle before fetching.  Without this,
+  // profileId is null while equipment is loading, which fires a redundant
+  // computation with default vehicle params that gets thrown away once the
+  // real profileId arrives.
+  const { data: equipment, isFetched: equipmentSettled } = useSessionEquipment(sessionId);
   const profileId = equipment?.profile_id ?? null;
 
   return useQuery<OptimalComparisonData>({
     queryKey: ["optimal-comparison", sessionId, profileId],
     queryFn: () => getOptimalComparison(sessionId!, profileId),
-    enabled: !!sessionId,
+    enabled: !!sessionId && equipmentSettled,
     placeholderData: keepPreviousData,
     staleTime: Infinity,
   });
