@@ -281,9 +281,14 @@ export async function getDegradation(sessionId: string) {
 
 // --- Optimal Comparison API ---
 
-export async function getOptimalComparison(sessionId: string) {
+export async function getOptimalComparison(sessionId: string, profileId?: string | null) {
+  // profileId is appended as a query param so the browser HTTP cache
+  // treats each equipment profile as a distinct URL.  Without this,
+  // Cache-Control: max-age=60 causes the browser to serve the stale
+  // response from the previous profile on equipment switch.
+  const url = `/api/sessions/${sessionId}/optimal-comparison`;
   return fetchApi<OptimalComparisonData>(
-    `/api/sessions/${sessionId}/optimal-comparison`,
+    profileId ? `${url}?_eq=${profileId}` : url,
   );
 }
 

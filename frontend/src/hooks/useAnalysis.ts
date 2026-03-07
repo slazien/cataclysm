@@ -127,7 +127,7 @@ export function useOptimalComparison(sessionId: string | null) {
 
   return useQuery<OptimalComparisonData>({
     queryKey: ["optimal-comparison", sessionId, profileId],
-    queryFn: () => getOptimalComparison(sessionId!),
+    queryFn: () => getOptimalComparison(sessionId!, profileId),
     enabled: !!sessionId,
     placeholderData: keepPreviousData,
     staleTime: Infinity,
