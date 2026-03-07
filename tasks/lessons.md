@@ -218,6 +218,14 @@ assert not is_generating(session_id, "intermediate")
 
 **Error signature**: `git diff --stat` shows changes after a subagent reports "done". Or the next subagent can't find symbols/imports from the previous task.
 
+## np.savez_compressed Appends .npz to Non-.npz Paths ([2026-03-06])
+
+**Pattern**: When using `np.savez_compressed(path, ...)`, the path MUST already end with `.npz` — otherwise numpy silently appends `.npz`, creating a file at a different path than expected. If you then `os.replace(path, target)`, you rename the empty original file, not the actual `.npz` file numpy wrote.
+
+**Why**: Used `.npz.tmp` suffix for atomic writes. numpy created `.npz.tmp.npz` (the real file) while the original `.npz.tmp` remained empty. `os.replace` then renamed the empty file, producing a corrupt 0-byte reference. Fix: use `.tmp.npz` suffix so numpy sees it already ends with `.npz` and doesn't append.
+
+**Error signature**: `EOFError` or empty/corrupt `.npz` files after `np.load()`. Or `os.replace` succeeds but the target file is 0 bytes.
+
 ## Verify Plan Column Names Against Actual Code ([2026-03-05])
 
 **Pattern**: Before dispatching subagents from an implementation plan, spot-check that column names, variable names, and API field names in the plan match the actual codebase. Plans written from memory may use plausible-but-wrong names.
