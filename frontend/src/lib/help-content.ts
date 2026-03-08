@@ -43,7 +43,7 @@ export const helpContent: Record<string, string> = {
   'metric.grip-utilization':
     "How much of your tire's total grip envelope you're using — combining braking, cornering, and acceleration forces. 100% means you're at the physical limit everywhere. Gaps show where grip is left unused, usually the highest-opportunity areas.",
   'chart.corner-speed-overlay':
-    'Speed traces through a single corner across multiple laps, aligned by distance. Shows how consistently you drive each corner.',
+    'Speed traces through a single corner across multiple laps, aligned by distance. Shows how consistently you drive each corner. The strip at the bottom shows brake (red) and throttle (green) G-forces from the best lap through this corner.',
   'chart.brake-consistency':
     'Brake pressure traces overlaid for the same corner across laps. Consistent braking = consistent corner entry.',
   'chart.speed-gap':
