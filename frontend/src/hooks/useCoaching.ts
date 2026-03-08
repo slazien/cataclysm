@@ -11,13 +11,15 @@ export function useCoachingReport(sessionId: string | null) {
     queryKey: ["coaching-report", sessionId, skillLevel],
     queryFn: () => getCoachingReport(sessionId!, skillLevel),
     enabled: !!sessionId,
-    retry: false,
+    retry: 1,
     refetchOnWindowFocus: false,
     staleTime: 5 * 60 * 1000, // 5 min — avoid repeated 404s when no report exists
     // Poll every 2s while the report is still generating
     refetchInterval: (query) => {
-      const data = query.state.data;
-      if (data && data.status === "generating") return 2000;
+      const { data, status } = query.state;
+      if (data?.status === "generating") return 2000;
+      // Keep polling on errors — transient failures shouldn't kill the loop
+      if (status === "error") return 3000;
       return false;
     },
   });
