@@ -17,6 +17,8 @@ interface LapTimesBarProps {
 }
 
 const MARGINS = { top: 32, right: 16, bottom: 36, left: 56 };
+const MARGINS_MOBILE = { top: 20, right: 8, bottom: 28, left: 40 };
+const getLapTimesMargins = (isMobile: boolean) => (isMobile ? MARGINS_MOBILE : MARGINS);
 const CHART_HEIGHT = 220;
 const BAR_PADDING = 0.25;
 
@@ -28,7 +30,7 @@ function getBarColor(lap: LapSummary, bestTime: number): string {
 
 export function LapTimesBar({ sessionId }: LapTimesBarProps) {
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx } =
-    useCanvasChart(MARGINS);
+    useCanvasChart(getLapTimesMargins);
   const { data: laps, isLoading } = useSessionLaps(sessionId);
   const { data: report } = useCoachingReport(sessionId);
   const { data: consistency } = useConsistency(sessionId);
@@ -263,11 +265,11 @@ export function LapTimesBar({ sessionId }: LapTimesBarProps) {
     const handleMouseMove = (e: MouseEvent) => {
       const rect = overlay.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
-      if (mouseX < MARGINS.left || mouseX > MARGINS.left + dimensions.innerWidth) {
+      if (mouseX < dimensions.margins.left || mouseX > dimensions.margins.left + dimensions.innerWidth) {
         setHoveredIdx(null);
         return;
       }
-      const idx = Math.floor((mouseX - MARGINS.left) / barTotalWidth);
+      const idx = Math.floor((mouseX - dimensions.margins.left) / barTotalWidth);
       if (idx >= 0 && idx < sortedLaps.length) {
         setHoveredIdx(idx);
       } else {
@@ -300,14 +302,14 @@ export function LapTimesBar({ sessionId }: LapTimesBarProps) {
     const barTotalWidth = dimensions.innerWidth / sortedLaps.length;
     const barWidth = barTotalWidth * (1 - BAR_PADDING);
     const barGap = barTotalWidth * BAR_PADDING;
-    const barX = MARGINS.left + hoveredIdx * barTotalWidth + barGap / 2;
+    const barX = dimensions.margins.left + hoveredIdx * barTotalWidth + barGap / 2;
     const barCenterX = barX + barWidth / 2;
 
     // Highlight bar outline
     const yMin = Math.min(...sortedLaps.map((l) => l.lap_time_s)) - 2;
     const yMax = Math.max(...sortedLaps.map((l) => l.lap_time_s)) + 1;
     const yScale = (value: number) =>
-      MARGINS.top + ((yMax - value) / (yMax - yMin)) * dimensions.innerHeight;
+      dimensions.margins.top + ((yMax - value) / (yMax - yMin)) * dimensions.innerHeight;
 
     const barY = yScale(lap.lap_time_s);
     const barH = yScale(yMin) - barY;
@@ -329,10 +331,10 @@ export function LapTimesBar({ sessionId }: LapTimesBarProps) {
     const tooltipWidth = maxTextWidth + 16;
     const tooltipHeight = lines.length * lineHeight + 8;
     const tooltipX =
-      barCenterX + tooltipWidth + 8 > MARGINS.left + dimensions.innerWidth
+      barCenterX + tooltipWidth + 8 > dimensions.margins.left + dimensions.innerWidth
         ? barCenterX - tooltipWidth - 8
         : barCenterX + 8;
-    const tooltipY = MARGINS.top + 4;
+    const tooltipY = dimensions.margins.top + 4;
 
     // Tooltip background
     ctx.fillStyle = 'rgba(10, 12, 16, 0.92)';

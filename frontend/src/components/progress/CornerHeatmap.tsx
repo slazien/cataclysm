@@ -19,6 +19,8 @@ interface CornerHeatmapProps {
 }
 
 const MARGINS = { top: 20, right: 20, bottom: 44, left: 64 };
+const MARGINS_MOBILE = { top: 16, right: 8, bottom: 36, left: 48 };
+const getProgressMargins = (isMobile: boolean) => (isMobile ? MARGINS_MOBILE : MARGINS);
 
 function interpolateColor(t: number, metric: HeatmapMetric): string {
   // t is 0..1 where 0 = worst, 1 = best
@@ -53,7 +55,7 @@ export function CornerHeatmap({
   const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
 
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, makeTouchProps } =
-    useCanvasChart(MARGINS);
+    useCanvasChart(getProgressMargins);
 
   // Select the data based on metric
   const data = useMemo(() => {
@@ -121,8 +123,8 @@ export function CornerHeatmap({
 
       for (let col = 0; col < nSessions; col++) {
         const val = col < values.length ? values[col] : null;
-        const x = MARGINS.left + col * cellWidth;
-        const y = MARGINS.top + row * cellHeight;
+        const x = dimensions.margins.left + col * cellWidth;
+        const y = dimensions.margins.top + row * cellHeight;
 
         if (val == null) {
           ctx.fillStyle = colors.bg.surface;
@@ -148,8 +150,8 @@ export function CornerHeatmap({
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     for (let row = 0; row < nCorners; row++) {
-      const y = MARGINS.top + row * cellHeight + cellHeight / 2;
-      ctx.fillText(`T${cornerKeys[row]}`, MARGINS.left - 6, y);
+      const y = dimensions.margins.top + row * cellHeight + cellHeight / 2;
+      ctx.fillText(`T${cornerKeys[row]}`, dimensions.margins.left - 6, y);
     }
 
     // Column labels (session dates)
@@ -159,23 +161,23 @@ export function CornerHeatmap({
     const maxLabels = Math.floor(dimensions.innerWidth / 50);
     const step = Math.max(1, Math.ceil(nSessions / maxLabels));
     for (let col = 0; col < nSessions; col += step) {
-      const x = MARGINS.left + col * cellWidth + cellWidth / 2;
+      const x = dimensions.margins.left + col * cellWidth + cellWidth / 2;
       ctx.fillStyle = colors.axis;
       const dateLabel = parseSessionDate(sessions[col].session_date).toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
       });
-      ctx.fillText(dateLabel, x, MARGINS.top + dimensions.innerHeight + 4);
+      ctx.fillText(dateLabel, x, dimensions.margins.top + dimensions.innerHeight + 4);
     }
 
     // Axis labels
     ctx.fillStyle = colors.text.secondary;
     ctx.font = `11px ${fonts.sans}`;
     ctx.textAlign = 'center';
-    ctx.fillText('Session', MARGINS.left + dimensions.innerWidth / 2, MARGINS.top + dimensions.innerHeight + 22);
+    ctx.fillText('Session', dimensions.margins.left + dimensions.innerWidth / 2, dimensions.margins.top + dimensions.innerHeight + 22);
 
     ctx.save();
-    ctx.translate(14, MARGINS.top + dimensions.innerHeight / 2);
+    ctx.translate(14, dimensions.margins.top + dimensions.innerHeight / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = 'center';
     ctx.fillText('Corner', 0, 0);
@@ -191,8 +193,8 @@ export function CornerHeatmap({
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
 
-      const col = Math.floor((mouseX - MARGINS.left) / cellGeomRef.current.cellWidth);
-      const row = Math.floor((mouseY - MARGINS.top) / cellGeomRef.current.cellHeight);
+      const col = Math.floor((mouseX - dimensions.margins.left) / cellGeomRef.current.cellWidth);
+      const row = Math.floor((mouseY - dimensions.margins.top) / cellGeomRef.current.cellHeight);
 
       if (col < 0 || col >= nSessions || row < 0 || row >= nCorners) {
         setTooltip(null);
@@ -237,7 +239,7 @@ export function CornerHeatmap({
       if (!canvas || nCorners === 0) return;
       const rect = canvas.getBoundingClientRect();
       const mouseY = e.clientY - rect.top;
-      const row = Math.floor((mouseY - MARGINS.top) / cellGeomRef.current.cellHeight);
+      const row = Math.floor((mouseY - dimensions.margins.top) / cellGeomRef.current.cellHeight);
       if (row < 0 || row >= nCorners) return;
 
       const cornerNumber = cornerKeys[row];

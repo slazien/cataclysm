@@ -35,10 +35,12 @@ interface ConsistencyTrendProps {
 }
 
 const MARGINS = { top: 20, right: 20, bottom: 44, left: 64 };
+const MARGINS_MOBILE = { top: 16, right: 8, bottom: 36, left: 48 };
+const getProgressMargins = (isMobile: boolean) => (isMobile ? MARGINS_MOBILE : MARGINS);
 
 export function ConsistencyTrend({ sessions, consistencyTrend, pbIndices, className }: ConsistencyTrendProps) {
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx } =
-    useCanvasChart(MARGINS);
+    useCanvasChart(getProgressMargins);
 
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
@@ -46,8 +48,8 @@ export function ConsistencyTrend({ sessions, consistencyTrend, pbIndices, classN
     const n = sessions.length;
     if (n === 0 || dimensions.innerWidth <= 0) {
       return {
-        xScale: d3.scaleLinear().domain([0, 1]).range([MARGINS.left, MARGINS.left + 1]),
-        yScale: d3.scaleLinear().domain([0, 100]).range([MARGINS.top + 1, MARGINS.top]),
+        xScale: d3.scaleLinear().domain([0, 1]).range([dimensions.margins.left, dimensions.margins.left + 1]),
+        yScale: d3.scaleLinear().domain([0, 100]).range([dimensions.margins.top + 1, dimensions.margins.top]),
       };
     }
 
@@ -55,11 +57,11 @@ export function ConsistencyTrend({ sessions, consistencyTrend, pbIndices, classN
       xScale: d3
         .scaleLinear()
         .domain([0, n - 1])
-        .range([MARGINS.left, MARGINS.left + dimensions.innerWidth]),
+        .range([dimensions.margins.left, dimensions.margins.left + dimensions.innerWidth]),
       yScale: d3
         .scaleLinear()
         .domain([0, 100])
-        .range([MARGINS.top + dimensions.innerHeight, MARGINS.top]),
+        .range([dimensions.margins.top + dimensions.innerHeight, dimensions.margins.top]),
     };
   }, [sessions.length, dimensions.innerWidth, dimensions.innerHeight]);
 
@@ -86,8 +88,8 @@ export function ConsistencyTrend({ sessions, consistencyTrend, pbIndices, classN
 
     // Fill area under line with gradient
     if (consistencyTrend.length > 1) {
-      const chartBottom = MARGINS.top + dimensions.innerHeight;
-      const gradient = ctx.createLinearGradient(0, MARGINS.top, 0, chartBottom);
+      const chartBottom = dimensions.margins.top + dimensions.innerHeight;
+      const gradient = ctx.createLinearGradient(0, dimensions.margins.top, 0, chartBottom);
       gradient.addColorStop(0, 'rgba(59, 130, 246, 0.15)');
       gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
       ctx.fillStyle = gradient;
@@ -147,7 +149,7 @@ export function ConsistencyTrend({ sessions, consistencyTrend, pbIndices, classN
         ctx.restore();
       }
       // Legend entry
-      drawPbLegendEntry(ctx, MARGINS.left + 8, MARGINS.top + 8);
+      drawPbLegendEntry(ctx, dimensions.margins.left + 8, dimensions.margins.top + 8);
     }
   }, [sessions, consistencyTrend, pbIndices, xScale, yScale, dimensions, getDataCtx]);
 
@@ -159,7 +161,7 @@ export function ConsistencyTrend({ sessions, consistencyTrend, pbIndices, classN
     const handleMouseMove = (e: MouseEvent) => {
       const rect = overlay.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
-      if (mouseX < MARGINS.left || mouseX > MARGINS.left + dimensions.innerWidth) {
+      if (mouseX < dimensions.margins.left || mouseX > dimensions.margins.left + dimensions.innerWidth) {
         setHoveredIdx(null);
         return;
       }
@@ -193,8 +195,8 @@ export function ConsistencyTrend({ sessions, consistencyTrend, pbIndices, classN
     ctx.strokeStyle = colors.cursor;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(x, MARGINS.top);
-    ctx.lineTo(x, MARGINS.top + dimensions.innerHeight);
+    ctx.moveTo(x, dimensions.margins.top);
+    ctx.lineTo(x, dimensions.margins.top + dimensions.innerHeight);
     ctx.stroke();
 
     // Tooltip
@@ -208,8 +210,8 @@ export function ConsistencyTrend({ sessions, consistencyTrend, pbIndices, classN
     const isPb = pbIndices?.has(hoveredIdx) ?? false;
     const label = isPb ? `Score: ${val.toFixed(1)}  ◆ PB` : `Score: ${val.toFixed(1)}`;
     const textWidth = ctx.measureText(label).width;
-    const tooltipX = x + textWidth + 20 > MARGINS.left + dimensions.innerWidth ? x - textWidth - 16 : x + 8;
-    const tooltipY = MARGINS.top + 4;
+    const tooltipX = x + textWidth + 20 > dimensions.margins.left + dimensions.innerWidth ? x - textWidth - 16 : x + 8;
+    const tooltipY = dimensions.margins.top + 4;
 
     // Tooltip card with rounded corners and subtle border
     const tw = textWidth + 12;

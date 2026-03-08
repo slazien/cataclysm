@@ -55,7 +55,7 @@ export function AssignEquipmentButton({ sessionId }: AssignEquipmentButtonProps)
         <button
           type="button"
           onClick={() => setDropdownOpen((v) => !v)}
-          className="flex items-center gap-1.5 rounded-md border border-[var(--cata-border)] bg-[var(--bg-surface)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--text-muted)]/40 hover:bg-[var(--bg-elevated)]"
+          className="flex min-h-[44px] items-center gap-1.5 rounded-md border border-[var(--cata-border)] bg-[var(--bg-surface)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--text-muted)]/40 hover:bg-[var(--bg-elevated)] sm:min-h-0"
         >
           <Settings2 className="h-3 w-3" />
           <span className="max-w-[120px] truncate">
@@ -95,7 +95,7 @@ export function AssignEquipmentButton({ sessionId }: AssignEquipmentButtonProps)
             toggleSettingsPanel();
           }
         }}
-        className="flex items-center gap-1.5 rounded-md border border-dashed border-[var(--cata-border)] bg-[var(--bg-surface)] px-2.5 py-1 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--text-secondary)] hover:text-[var(--text-secondary)]"
+        className="flex min-h-[44px] items-center gap-1.5 rounded-md border border-dashed border-[var(--cata-border)] bg-[var(--bg-surface)] px-2.5 py-1 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--text-secondary)] hover:text-[var(--text-secondary)] sm:min-h-0"
       >
         <Settings2 className="h-3 w-3" />
         Equipment

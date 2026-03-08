@@ -9,7 +9,8 @@ import { useAnalysisStore } from '@/stores';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { colors, fonts } from '@/lib/design-tokens';
 import { parseCornerNumber } from '@/lib/cornerUtils';
-import { CHART_MARGINS as MARGINS } from './chartHelpers';
+import { getChartMargins } from './chartHelpers';
+import type { ChartMargins } from '@/hooks/useCanvasChart';
 import { useUnits } from '@/hooks/useUnits';
 import { InfoTooltip } from '@/components/shared/InfoTooltip';
 import type { Corner } from '@/lib/types';
@@ -25,7 +26,7 @@ function drawGrid(
   yScale: d3.ScaleLinear<number, number>,
   innerWidth: number,
   innerHeight: number,
-  margins: typeof MARGINS,
+  margins: ChartMargins,
 ) {
   const yTicks = yScale.ticks(5);
   ctx.strokeStyle = colors.grid;
@@ -46,7 +47,7 @@ function drawLabels(
   yScale: d3.ScaleLinear<number, number>,
   innerWidth: number,
   innerHeight: number,
-  margins: typeof MARGINS,
+  margins: ChartMargins,
   speedLabel: string,
   distLabel: string,
   convertDist: (m: number) => number,
@@ -107,7 +108,7 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
   const { data: lapDataArr, isLoading } = useMultiLapData(sessionId, cleanLapNumbers);
 
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx } =
-    useCanvasChart(MARGINS);
+    useCanvasChart(getChartMargins);
 
   // Resolve corner data
   const cornerNumber = selectedCorner ? parseCornerNumber(selectedCorner) : null;
@@ -142,12 +143,12 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
     const totalHeight = dimensions.innerHeight;
     const gH = Math.round(totalHeight * G_STRIP_RATIO);
     const speedH = totalHeight - gH;
-    const gTop = MARGINS.top + speedH;
+    const gTop = dimensions.margins.top + speedH;
 
     if (!corner || lapDataArr.length === 0 || dimensions.innerWidth <= 0) {
       return {
-        xScale: d3.scaleLinear().domain([0, 1]).range([MARGINS.left, MARGINS.left + 1]),
-        yScale: d3.scaleLinear().domain([0, 1]).range([MARGINS.top + 1, MARGINS.top]),
+        xScale: d3.scaleLinear().domain([0, 1]).range([dimensions.margins.left, dimensions.margins.left + 1]),
+        yScale: d3.scaleLinear().domain([0, 1]).range([dimensions.margins.top + 1, dimensions.margins.top]),
         gScale: d3.scaleLinear().domain([-1, 1]).range([gTop + gH, gTop]),
         speedAreaHeight: speedH,
         gStripTop: gTop,
@@ -191,11 +192,11 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
       xScale: d3
         .scaleLinear()
         .domain([xMin, xMax])
-        .range([MARGINS.left, MARGINS.left + dimensions.innerWidth]),
+        .range([dimensions.margins.left, dimensions.margins.left + dimensions.innerWidth]),
       yScale: d3
         .scaleLinear()
         .domain([Math.max(0, minSpeed - speedPad), maxSpeed + speedPad])
-        .range([MARGINS.top + speedH, MARGINS.top]),
+        .range([dimensions.margins.top + speedH, dimensions.margins.top]),
       gScale: d3
         .scaleLinear()
         .domain([-gBound, gBound])
@@ -204,7 +205,7 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
       gStripTop: gTop,
       gStripHeight: gH,
     };
-  }, [corner, lapDataArr, dimensions.innerWidth, dimensions.innerHeight, convertSpeed]);
+  }, [corner, lapDataArr, dimensions.innerWidth, dimensions.innerHeight, dimensions.margins, convertSpeed]);
 
   // Draw
   useEffect(() => {
@@ -215,7 +216,7 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
     ctx.clearRect(0, 0, width, height);
 
     // --- 1. Grid lines (behind data) ---
-    drawGrid(ctx, xScale, yScale, dimensions.innerWidth, speedAreaHeight, MARGINS);
+    drawGrid(ctx, xScale, yScale, dimensions.innerWidth, speedAreaHeight, dimensions.margins);
 
     // Corner zone shading
     const entryX = xScale(corner.entry_distance_m);
@@ -223,7 +224,7 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
     const exitX = xScale(corner.exit_distance_m);
 
     ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
-    ctx.fillRect(entryX, MARGINS.top, exitX - entryX, dimensions.innerHeight);
+    ctx.fillRect(entryX, dimensions.margins.top, exitX - entryX, dimensions.innerHeight);
 
     // Vertical markers: entry, apex, exit
     const markers = [
@@ -236,8 +237,8 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
       ctx.lineWidth = 1;
       ctx.setLineDash([4, 4]);
       ctx.beginPath();
-      ctx.moveTo(m.x, MARGINS.top);
-      ctx.lineTo(m.x, MARGINS.top + dimensions.innerHeight);
+      ctx.moveTo(m.x, dimensions.margins.top);
+      ctx.lineTo(m.x, dimensions.margins.top + dimensions.innerHeight);
       ctx.stroke();
       ctx.setLineDash([]);
     }
@@ -344,8 +345,8 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
     ctx.strokeStyle = colors.grid;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(MARGINS.left, gStripTop);
-    ctx.lineTo(MARGINS.left + dimensions.innerWidth, gStripTop);
+    ctx.moveTo(dimensions.margins.left, gStripTop);
+    ctx.lineTo(dimensions.margins.left + dimensions.innerWidth, gStripTop);
     ctx.stroke();
 
     // Draw brake/throttle fill for the best lap (or first available)
@@ -357,7 +358,7 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
       // Clip to the strip area
       ctx.save();
       ctx.beginPath();
-      ctx.rect(MARGINS.left, gStripTop, dimensions.innerWidth, gStripHeight);
+      ctx.rect(dimensions.margins.left, gStripTop, dimensions.innerWidth, gStripHeight);
       ctx.clip();
 
       // Fill segments colored by sign of longitudinal_g
@@ -386,8 +387,8 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
       ctx.lineWidth = 0.5;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
-      ctx.moveTo(MARGINS.left, zeroY);
-      ctx.lineTo(MARGINS.left + dimensions.innerWidth, zeroY);
+      ctx.moveTo(dimensions.margins.left, zeroY);
+      ctx.lineTo(dimensions.margins.left + dimensions.innerWidth, zeroY);
       ctx.stroke();
       ctx.setLineDash([]);
 
@@ -398,7 +399,7 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
       ctx.font = `9px ${fonts.sans}`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      ctx.fillText('Long. G', MARGINS.left + 4, gStripTop + 3);
+      ctx.fillText('Long. G', dimensions.margins.left + 4, gStripTop + 3);
     }
 
     // --- 4. Axis tick labels and axis labels (on top) ---
@@ -410,12 +411,12 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
       ctx.font = `9px ${fonts.sans}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
-      ctx.fillText(m.label, m.x, MARGINS.top - 2);
+      ctx.fillText(m.label, m.x, dimensions.margins.top - 2);
     }
 
     // --- 5. Legend ---
-    const legendY = MARGINS.top + 8;
-    const legendX = MARGINS.left + 8;
+    const legendY = dimensions.margins.top + 8;
+    const legendX = dimensions.margins.left + 8;
     let legendRow = 0;
     ctx.font = `10px ${fonts.sans}`;
     ctx.textAlign = 'left';
@@ -511,22 +512,22 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
     // Brake points are often before the corner entry zone, so clamp to the
     // visible chart area but still draw the line at the edge with an arrow.
     const bpXRaw = xScale(hoveredBrakeLap.brakePointM);
-    const chartLeft = MARGINS.left;
-    const chartRight = MARGINS.left + dimensions.innerWidth;
+    const chartLeft = dimensions.margins.left;
+    const chartRight = dimensions.margins.left + dimensions.innerWidth;
     const bpX = Math.max(chartLeft, Math.min(chartRight, bpXRaw));
     const isOffChart = bpXRaw < chartLeft;
 
     ctx.save();
     ctx.beginPath();
-    ctx.rect(chartLeft, MARGINS.top, dimensions.innerWidth, dimensions.innerHeight);
+    ctx.rect(chartLeft, dimensions.margins.top, dimensions.innerWidth, dimensions.innerHeight);
     ctx.clip();
 
     ctx.strokeStyle = colors.motorsport.brake;
     ctx.lineWidth = 1.5;
     ctx.setLineDash([6, 3]);
     ctx.beginPath();
-    ctx.moveTo(bpX, MARGINS.top);
-    ctx.lineTo(bpX, MARGINS.top + dimensions.innerHeight);
+    ctx.moveTo(bpX, dimensions.margins.top);
+    ctx.lineTo(bpX, dimensions.margins.top + dimensions.innerHeight);
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.restore();
@@ -537,7 +538,7 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
     ctx.textAlign = isOffChart ? 'left' : 'center';
     ctx.textBaseline = 'bottom';
     const bpLabel = `${isOffChart ? '\u25C0 ' : ''}BP L${hoveredBrakeLap.lapNumber}`;
-    ctx.fillText(bpLabel, bpX + (isOffChart ? 2 : 0), MARGINS.top - 2);
+    ctx.fillText(bpLabel, bpX + (isOffChart ? 2 : 0), dimensions.margins.top - 2);
   }, [hoveredBrakeLap, lapDataArr, corner, xScale, yScale, dimensions, getOverlayCtx, convertSpeed]);
 
   if (!selectedCorner || cornerNumber === null) {

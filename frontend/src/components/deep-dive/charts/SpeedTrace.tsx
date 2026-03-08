@@ -9,7 +9,8 @@ import { useMultiLapData, useCorners } from '@/hooks/useAnalysis';
 import { useAnalysisStore } from '@/stores';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { colors, fonts } from '@/lib/design-tokens';
-import { CHART_MARGINS as MARGINS, drawCornerZones } from './chartHelpers';
+import { getChartMargins, drawCornerZones } from './chartHelpers';
+import type { ChartMargins } from '@/hooks/useCanvasChart';
 import { useUnits } from '@/hooks/useUnits';
 
 interface SpeedTraceProps {
@@ -22,7 +23,7 @@ function drawAxes(
   yScale: d3.ScaleLinear<number, number>,
   innerWidth: number,
   innerHeight: number,
-  margins: typeof MARGINS,
+  margins: ChartMargins,
   speedLabel: string,
   distLabel: string,
   convertDist: (m: number) => number,
@@ -81,14 +82,15 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
   const { data: corners } = useCorners(sessionId);
 
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx, makeTouchProps } =
-    useCanvasChart(MARGINS);
+    useCanvasChart(getChartMargins);
 
   // Build scales
   const { xScale, yScale } = useMemo(() => {
+    const m = dimensions.margins;
     if (lapDataArr.length === 0 || dimensions.innerWidth <= 0) {
       return {
-        xScale: d3.scaleLinear().domain([0, 1]).range([MARGINS.left, MARGINS.left + 1]),
-        yScale: d3.scaleLinear().domain([0, 1]).range([MARGINS.top + 1, MARGINS.top]),
+        xScale: d3.scaleLinear().domain([0, 1]).range([m.left, m.left + 1]),
+        yScale: d3.scaleLinear().domain([0, 1]).range([m.top + 1, m.top]),
       };
     }
 
@@ -107,13 +109,13 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
       xScale: d3
         .scaleLinear()
         .domain([0, maxDist])
-        .range([MARGINS.left, MARGINS.left + dimensions.innerWidth]),
+        .range([m.left, m.left + dimensions.innerWidth]),
       yScale: d3
         .scaleLinear()
         .domain([0, displayMaxSpeed * 1.05])
-        .range([MARGINS.top + dimensions.innerHeight, MARGINS.top]),
+        .range([m.top + dimensions.innerHeight, m.top]),
     };
-  }, [lapDataArr, dimensions.innerWidth, dimensions.innerHeight, convertSpeed]);
+  }, [lapDataArr, dimensions.innerWidth, dimensions.innerHeight, dimensions.margins, convertSpeed]);
 
   // Stable refs for RAF callback and mouse events (avoids stale closures)
   const xScaleRef = useRef(xScale);
@@ -131,7 +133,7 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
 
     // Corner zones
     if (corners) {
-      drawCornerZones(ctx, corners, xScale, MARGINS.top, dimensions.innerHeight);
+      drawCornerZones(ctx, corners, xScale, dimensions.margins.top, dimensions.innerHeight);
     }
 
     // Speed lines per lap — role-based colors when comparing 2 laps
@@ -153,7 +155,7 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
     }
 
     // Axes
-    drawAxes(ctx, xScale, yScale, dimensions.innerWidth, dimensions.innerHeight, MARGINS, `Speed (${speedUnit})`, `Distance (${distanceUnit})`, convertDistance);
+    drawAxes(ctx, xScale, yScale, dimensions.innerWidth, dimensions.innerHeight, dimensions.margins, `Speed (${speedUnit})`, `Distance (${distanceUnit})`, convertDistance);
   }, [lapDataArr, corners, xScale, yScale, dimensions, convertSpeed, convertDistance, speedUnit, distanceUnit]);
 
   // Mouse handlers as React event props — avoids stale listener bug when
@@ -185,19 +187,20 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
     if (cursorDist === null) return;
 
     const x = xScaleRef.current(cursorDist);
-    if (x < MARGINS.left || x > MARGINS.left + dims.innerWidth) return;
+    const dm = dims.margins;
+    if (x < dm.left || x > dm.left + dims.innerWidth) return;
 
     // Vertical cursor line
     ctx.strokeStyle = colors.cursor;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(x, MARGINS.top);
-    ctx.lineTo(x, MARGINS.top + dims.innerHeight);
+    ctx.moveTo(x, dm.top);
+    ctx.lineTo(x, dm.top + dims.innerHeight);
     ctx.stroke();
 
     // Tooltip: show speed values at cursor
     if (lapDataArr.length > 0) {
-      const tooltipY = MARGINS.top + 8;
+      const tooltipY = dm.top + 8;
       ctx.font = `11px ${fonts.mono}`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
@@ -213,7 +216,7 @@ export function SpeedTrace({ sessionId }: SpeedTraceProps) {
         const label = `L${lap.lap_number}: ${speed.toFixed(1)} ${speedUnit}`;
 
         const textWidth = ctx.measureText(label).width;
-        const rightEdge = MARGINS.left + dims.innerWidth;
+        const rightEdge = dm.left + dims.innerWidth;
         const tooltipX = x + textWidth + 20 > rightEdge ? x - textWidth - 16 : x + 10;
 
         ctx.fillStyle = 'rgba(10, 12, 16, 0.85)';

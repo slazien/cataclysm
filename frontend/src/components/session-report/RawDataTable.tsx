@@ -78,14 +78,17 @@ export function RawDataTable() {
           Export CSV
         </Button>
       </div>
-      <div className="overflow-x-auto">
+      <div className="scroll-fade-right overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--cata-border)]">
-              {columns.map((col) => (
+              {columns.map((col, i) => (
                 <th
                   key={col.key}
-                  className="cursor-pointer px-3 py-2 text-left text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-secondary)]"
+                  className={cn(
+                    'cursor-pointer px-3 py-2 text-left text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-secondary)]',
+                    i === 0 && 'sticky left-0 z-10 bg-[var(--bg-surface)]',
+                  )}
                   onClick={() => toggleSort(col.key)}
                 >
                   <span className="inline-flex items-center gap-1">
@@ -102,7 +105,7 @@ export function RawDataTable() {
           <tbody>
             {sortedLaps.map((lap) => (
               <tr key={lap.lap_number} className="border-b border-[var(--cata-border)]/50 hover:bg-[var(--bg-elevated)]">
-                <td className="px-3 py-1.5 text-[var(--text-primary)]">L{lap.lap_number}</td>
+                <td className="sticky left-0 z-10 bg-[var(--bg-surface)] px-3 py-1.5 text-[var(--text-primary)]">L{lap.lap_number}</td>
                 <td className="px-3 py-1.5 font-mono text-[var(--text-primary)]">{formatLapTime(lap.lap_time_s)}</td>
                 <td className="px-3 py-1.5 text-[var(--text-secondary)]">{formatSpeed(lap.max_speed_mps * MPS_TO_MPH)}</td>
                 <td className="px-3 py-1.5 text-[var(--text-secondary)]">{formatDistance(lap.lap_distance_m)}</td>

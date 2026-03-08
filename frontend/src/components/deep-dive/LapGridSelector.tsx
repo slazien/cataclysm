@@ -106,7 +106,7 @@ export function LapGridSelector() {
       <PopoverContent
         align="end"
         sideOffset={6}
-        className="w-auto min-w-[260px] max-w-[360px] border-[var(--cata-border)] bg-[var(--bg-surface)] p-3"
+        className="w-[calc(100vw-2rem)] border-[var(--cata-border)] bg-[var(--bg-surface)] p-3 sm:w-auto sm:min-w-[260px] sm:max-w-[360px]"
       >
         <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
           Select up to 2 laps
@@ -137,7 +137,7 @@ export function LapGridSelector() {
                 whileHover={{ scale: 1.06 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                 className={cn(
-                  'relative flex flex-col items-center justify-center rounded-md px-1 py-1.5 text-center transition-[color,border-color,background-color]',
+                  'relative flex flex-col items-center justify-center rounded-md px-1 py-2 text-center transition-[color,border-color,background-color] min-h-[44px]',
                   'cursor-pointer select-none',
                   dimmed && !isSelected && 'opacity-50',
                 )}

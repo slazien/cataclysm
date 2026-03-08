@@ -219,3 +219,18 @@ body {
   animation: pulse-glow 1.5s ease-in-out 2;
   border-radius: var(--radius);
 }
+
+/* --- Safe area utilities for notched phones --- */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* --- Scroll fade indicator (right edge) --- */
+.scroll-fade-right {
+  mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+}

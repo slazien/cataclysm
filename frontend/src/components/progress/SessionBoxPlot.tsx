@@ -13,6 +13,8 @@ interface SessionBoxPlotProps {
 }
 
 const MARGINS = { top: 20, right: 20, bottom: 44, left: 64 };
+const MARGINS_MOBILE = { top: 16, right: 8, bottom: 36, left: 48 };
+const getProgressMargins = (isMobile: boolean) => (isMobile ? MARGINS_MOBILE : MARGINS);
 
 interface BoxStats {
   min: number;
@@ -37,7 +39,7 @@ function computeBoxStats(values: number[]): BoxStats | null {
 
 export function SessionBoxPlot({ sessions, className }: SessionBoxPlotProps) {
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx } =
-    useCanvasChart(MARGINS);
+    useCanvasChart(getProgressMargins);
 
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
@@ -53,8 +55,8 @@ export function SessionBoxPlot({ sessions, className }: SessionBoxPlotProps) {
   const { xScale, yScale, boxWidth } = useMemo(() => {
     if (n === 0 || dimensions.innerWidth <= 0) {
       return {
-        xScale: d3.scaleLinear().domain([0, 1]).range([MARGINS.left, MARGINS.left + 1]),
-        yScale: d3.scaleLinear().domain([0, 1]).range([MARGINS.top + 1, MARGINS.top]),
+        xScale: d3.scaleLinear().domain([0, 1]).range([dimensions.margins.left, dimensions.margins.left + 1]),
+        yScale: d3.scaleLinear().domain([0, 1]).range([dimensions.margins.top + 1, dimensions.margins.top]),
         boxWidth: 0,
       };
     }
@@ -75,11 +77,11 @@ export function SessionBoxPlot({ sessions, className }: SessionBoxPlotProps) {
       xScale: d3
         .scaleLinear()
         .domain([-0.5, n - 0.5])
-        .range([MARGINS.left, MARGINS.left + dimensions.innerWidth]),
+        .range([dimensions.margins.left, dimensions.margins.left + dimensions.innerWidth]),
       yScale: d3
         .scaleLinear()
         .domain([maxVal + padding, minVal - padding])
-        .range([MARGINS.top, MARGINS.top + dimensions.innerHeight]),
+        .range([dimensions.margins.top, dimensions.margins.top + dimensions.innerHeight]),
       boxWidth: bw,
     };
   }, [n, boxData, dimensions.innerWidth, dimensions.innerHeight]);
@@ -104,13 +106,13 @@ export function SessionBoxPlot({ sessions, className }: SessionBoxPlotProps) {
       ctx.lineWidth = 0.5;
       ctx.setLineDash([4, 4]);
       ctx.beginPath();
-      ctx.moveTo(MARGINS.left, y);
-      ctx.lineTo(MARGINS.left + dimensions.innerWidth, y);
+      ctx.moveTo(dimensions.margins.left, y);
+      ctx.lineTo(dimensions.margins.left + dimensions.innerWidth, y);
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.fillStyle = colors.axis;
       ctx.font = `10px ${fonts.mono}`;
-      ctx.fillText(formatTimeShort(tick), MARGINS.left - 6, y);
+      ctx.fillText(formatTimeShort(tick), dimensions.margins.left - 6, y);
     }
 
     // X-axis labels — thin labels so they don't overlap on narrow screens
@@ -126,7 +128,7 @@ export function SessionBoxPlot({ sessions, className }: SessionBoxPlotProps) {
         month: 'short',
         day: 'numeric',
       });
-      ctx.fillText(dateLabel, x, MARGINS.top + dimensions.innerHeight + 6);
+      ctx.fillText(dateLabel, x, dimensions.margins.top + dimensions.innerHeight + 6);
     }
 
     // Axis labels
@@ -135,12 +137,12 @@ export function SessionBoxPlot({ sessions, className }: SessionBoxPlotProps) {
     ctx.textAlign = 'center';
     ctx.fillText(
       'Session',
-      MARGINS.left + dimensions.innerWidth / 2,
-      MARGINS.top + dimensions.innerHeight + 28,
+      dimensions.margins.left + dimensions.innerWidth / 2,
+      dimensions.margins.top + dimensions.innerHeight + 28,
     );
 
     ctx.save();
-    ctx.translate(14, MARGINS.top + dimensions.innerHeight / 2);
+    ctx.translate(14, dimensions.margins.top + dimensions.innerHeight / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = 'center';
     ctx.fillText('Lap Time', 0, 0);
@@ -209,7 +211,7 @@ export function SessionBoxPlot({ sessions, className }: SessionBoxPlotProps) {
     const handleMouseMove = (e: MouseEvent) => {
       const rect = overlay.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
-      if (mouseX < MARGINS.left || mouseX > MARGINS.left + dimensions.innerWidth) {
+      if (mouseX < dimensions.margins.left || mouseX > dimensions.margins.left + dimensions.innerWidth) {
         setHoveredIdx(null);
         return;
       }
@@ -247,8 +249,8 @@ export function SessionBoxPlot({ sessions, className }: SessionBoxPlotProps) {
     ctx.strokeStyle = colors.cursor;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(x, MARGINS.top);
-    ctx.lineTo(x, MARGINS.top + dimensions.innerHeight);
+    ctx.moveTo(x, dimensions.margins.top);
+    ctx.lineTo(x, dimensions.margins.top + dimensions.innerHeight);
     ctx.stroke();
 
     // Tooltip
@@ -268,10 +270,10 @@ export function SessionBoxPlot({ sessions, className }: SessionBoxPlotProps) {
     const tooltipWidth = 130;
     const tooltipHeight = lines.length * lineHeight + 8;
     const tooltipX =
-      x + tooltipWidth + 16 > MARGINS.left + dimensions.innerWidth
+      x + tooltipWidth + 16 > dimensions.margins.left + dimensions.innerWidth
         ? x - tooltipWidth - 8
         : x + 8;
-    const tooltipY = MARGINS.top + 4;
+    const tooltipY = dimensions.margins.top + 4;
 
     // Tooltip card with rounded corners and subtle border
     ctx.fillStyle = 'rgba(10, 12, 16, 0.92)';

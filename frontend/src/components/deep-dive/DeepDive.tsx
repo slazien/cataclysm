@@ -68,9 +68,9 @@ export function DeepDive() {
   return (
     <div className="flex h-full flex-col">
       {/* Segmented control: Speed | Corner | Custom */}
-      <div className="flex items-center gap-2 border-b border-[var(--cata-border)] px-4 py-2">
+      <div className="overflow-x-auto border-b border-[var(--cata-border)] px-4 py-2">
         <Tabs value={mode} onValueChange={(v) => setMode(v as DeepDiveMode)} activationMode="manual">
-          <TabsList
+          <TabsList className="whitespace-nowrap"
             onKeyDown={(e) => {
               // Prevent Radix roving-focus from intercepting arrow keys used for corner cycling
               if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {

@@ -10,7 +10,8 @@ import { useUnits } from '@/hooks/useUnits';
 import { useAnalysisStore } from '@/stores';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { colors, fonts } from '@/lib/design-tokens';
-import { CHART_MARGINS as MARGINS, drawCornerZones } from './chartHelpers';
+import { getChartMargins, drawCornerZones } from './chartHelpers';
+import type { ChartMargins } from '@/hooks/useCanvasChart';
 
 interface LateralOffsetChartProps {
   sessionId: string;
@@ -22,7 +23,7 @@ function drawAxes(
   yScale: d3.ScaleLinear<number, number>,
   innerWidth: number,
   innerHeight: number,
-  margins: typeof MARGINS,
+  margins: ChartMargins,
   distLabel: string,
   convertDist: (m: number) => number,
   distUnit: string,
@@ -78,14 +79,14 @@ export function LateralOffsetChart({ sessionId }: LateralOffsetChartProps) {
   const { convertDistance, distanceUnit } = useUnits();
 
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx, makeTouchProps } =
-    useCanvasChart(MARGINS);
+    useCanvasChart(getChartMargins);
 
   // Build scales
   const { xScale, yScale } = useMemo(() => {
     if (!lineData?.available || lineData.traces.length === 0 || dimensions.innerWidth <= 0) {
       return {
-        xScale: d3.scaleLinear().domain([0, 1]).range([MARGINS.left, MARGINS.left + 1]),
-        yScale: d3.scaleLinear().domain([-1, 1]).range([MARGINS.top + 1, MARGINS.top]),
+        xScale: d3.scaleLinear().domain([0, 1]).range([dimensions.margins.left, dimensions.margins.left + 1]),
+        yScale: d3.scaleLinear().domain([-1, 1]).range([dimensions.margins.top + 1, dimensions.margins.top]),
       };
     }
 
@@ -103,13 +104,13 @@ export function LateralOffsetChart({ sessionId }: LateralOffsetChartProps) {
       xScale: d3
         .scaleLinear()
         .domain([0, maxDist])
-        .range([MARGINS.left, MARGINS.left + dimensions.innerWidth]),
+        .range([dimensions.margins.left, dimensions.margins.left + dimensions.innerWidth]),
       yScale: d3
         .scaleLinear()
         .domain([-yPad, yPad])
-        .range([MARGINS.top + dimensions.innerHeight, MARGINS.top]),
+        .range([dimensions.margins.top + dimensions.innerHeight, dimensions.margins.top]),
     };
-  }, [lineData, dimensions.innerWidth, dimensions.innerHeight]);
+  }, [lineData, dimensions.innerWidth, dimensions.innerHeight, dimensions.margins]);
 
   // Stable refs for RAF
   const xScaleRef = useRef(xScale);
@@ -127,7 +128,7 @@ export function LateralOffsetChart({ sessionId }: LateralOffsetChartProps) {
 
     // Corner zones
     if (corners) {
-      drawCornerZones(ctx, corners, xScale, MARGINS.top, dimensions.innerHeight);
+      drawCornerZones(ctx, corners, xScale, dimensions.margins.top, dimensions.innerHeight);
     }
 
     // Zero-line (reference = driving on the reference line)
@@ -136,8 +137,8 @@ export function LateralOffsetChart({ sessionId }: LateralOffsetChartProps) {
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
-    ctx.moveTo(MARGINS.left, zeroY);
-    ctx.lineTo(MARGINS.left + dimensions.innerWidth, zeroY);
+    ctx.moveTo(dimensions.margins.left, zeroY);
+    ctx.lineTo(dimensions.margins.left + dimensions.innerWidth, zeroY);
     ctx.stroke();
     ctx.setLineDash([]);
 
@@ -194,20 +195,21 @@ export function LateralOffsetChart({ sessionId }: LateralOffsetChartProps) {
     if (cursorDist === null) return;
 
     const x = xScaleRef.current(cursorDist);
-    if (x < MARGINS.left || x > MARGINS.left + dims.innerWidth) return;
+    const dm = dims.margins;
+    if (x < dm.left || x > dm.left + dims.innerWidth) return;
 
     // Vertical cursor line
     ctx.strokeStyle = colors.cursor;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(x, MARGINS.top);
-    ctx.lineTo(x, MARGINS.top + dims.innerHeight);
+    ctx.moveTo(x, dm.top);
+    ctx.lineTo(x, dm.top + dims.innerHeight);
     ctx.stroke();
 
     // Tooltip: show offset values at cursor
     const traces = lineData.traces;
     if (traces.length > 0) {
-      const tooltipY = MARGINS.top + 8;
+      const tooltipY = dm.top + 8;
       ctx.font = `11px ${fonts.mono}`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
@@ -227,7 +229,7 @@ export function LateralOffsetChart({ sessionId }: LateralOffsetChartProps) {
         const label = `L${trace.lap_number}: ${sign}${convertDistance(offset).toFixed(2)}${distanceUnit}`;
 
         const textWidth = ctx.measureText(label).width;
-        const rightEdge = MARGINS.left + dims.innerWidth;
+        const rightEdge = dm.left + dims.innerWidth;
         const tooltipX = x + textWidth + 20 > rightEdge ? x - textWidth - 16 : x + 10;
 
         ctx.fillStyle = 'rgba(10, 12, 16, 0.85)';

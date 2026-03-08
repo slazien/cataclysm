@@ -50,7 +50,7 @@ export function MetricCard({
       animate="animate"
       transition={motionTokens.cardEntrance}
       className={cn(
-        'overflow-hidden rounded-lg border px-3 py-2 transition-colors',
+        'overflow-hidden rounded-lg border px-2.5 py-2 sm:px-3 transition-colors',
         highlightStyles[highlight],
         className,
       )}

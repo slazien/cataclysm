@@ -64,7 +64,7 @@ export function SettingsPanel() {
           <button
             type="button"
             onClick={toggle}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+            className="flex h-11 w-11 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] sm:h-7 sm:w-7"
           >
             <X className="h-4 w-4" />
           </button>
@@ -85,7 +85,7 @@ export function SettingsPanel() {
                 <label
                   key={level.value}
                   className={cn(
-                    'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 transition-colors',
+                    'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-3 transition-colors sm:py-2',
                     skillLevel === level.value
                       ? 'border-[var(--cata-accent)] bg-[var(--cata-accent)]/10'
                       : 'border-[var(--cata-border)] hover:border-[var(--text-muted)]',
@@ -135,7 +135,7 @@ export function SettingsPanel() {
                 <label
                   key={option.value}
                   className={cn(
-                    'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 transition-colors',
+                    'flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-3 transition-colors sm:py-2',
                     unitPreference === option.value
                       ? 'border-[var(--cata-accent)] bg-[var(--cata-accent)]/10'
                       : 'border-[var(--cata-border)] hover:border-[var(--text-muted)]',

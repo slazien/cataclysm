@@ -139,7 +139,7 @@ export function PriorityCardsSection({ priorities, isNovice, cornerGrades, optim
   return (
     <div>
       <h3 className="mb-3 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Priority Improvements</h3>
-      <div className="grid gap-3 lg:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         {priorities.slice(0, 3).map((p) => {
           // Use corner_opportunities regardless of is_valid — consistent
           // with OptimalGapChart and CornerSpeedGapPanel which show

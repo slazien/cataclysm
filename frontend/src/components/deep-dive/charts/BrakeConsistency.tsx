@@ -9,7 +9,8 @@ import { useAnalysisStore } from '@/stores';
 import { colors, fonts } from '@/lib/design-tokens';
 import { parseCornerNumber } from '@/lib/cornerUtils';
 import { InfoTooltip } from '@/components/shared/InfoTooltip';
-import { CHART_MARGINS as MARGINS } from './chartHelpers';
+import { getChartMargins } from './chartHelpers';
+import type { ChartMargins } from '@/hooks/useCanvasChart';
 
 interface BrakeConsistencyProps {
   sessionId: string;
@@ -25,7 +26,7 @@ function drawGrid(
   ctx: CanvasRenderingContext2D,
   yScale: d3.ScaleLinear<number, number>,
   innerWidth: number,
-  margins: typeof MARGINS,
+  margins: ChartMargins,
 ) {
   const yTicks = yScale.ticks(5);
   ctx.strokeStyle = colors.grid;
@@ -46,7 +47,7 @@ function drawLabels(
   yScale: d3.ScaleLinear<number, number>,
   innerWidth: number,
   innerHeight: number,
-  margins: typeof MARGINS,
+  margins: ChartMargins,
   convertDist: (m: number) => number,
   distUnit: string,
 ) {
@@ -91,7 +92,7 @@ export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
   const { convertDistance, distanceUnit } = useUnits();
 
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx, makeTouchProps } =
-    useCanvasChart(MARGINS);
+    useCanvasChart(getChartMargins);
 
   const cornerNumber = selectedCorner ? parseCornerNumber(selectedCorner) : null;
 
@@ -125,8 +126,8 @@ export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
   const { xScale, yScale } = useMemo(() => {
     if (brakePoints.length === 0 || dimensions.innerWidth <= 0) {
       return {
-        xScale: d3.scaleLinear().domain([0, 1]).range([MARGINS.left, MARGINS.left + 1]),
-        yScale: d3.scaleLinear().domain([0, 1]).range([MARGINS.top + 1, MARGINS.top]),
+        xScale: d3.scaleLinear().domain([0, 1]).range([dimensions.margins.left, dimensions.margins.left + 1]),
+        yScale: d3.scaleLinear().domain([0, 1]).range([dimensions.margins.top + 1, dimensions.margins.top]),
       };
     }
 
@@ -142,13 +143,13 @@ export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
       xScale: d3
         .scaleLinear()
         .domain([minLap - 0.5, maxLap + 0.5])
-        .range([MARGINS.left, MARGINS.left + dimensions.innerWidth]),
+        .range([dimensions.margins.left, dimensions.margins.left + dimensions.innerWidth]),
       yScale: d3
         .scaleLinear()
         .domain([minBp - bpPad, maxBp + bpPad])
-        .range([MARGINS.top + dimensions.innerHeight, MARGINS.top]),
+        .range([dimensions.margins.top + dimensions.innerHeight, dimensions.margins.top]),
     };
-  }, [brakePoints, dimensions.innerWidth, dimensions.innerHeight]);
+  }, [brakePoints, dimensions.innerWidth, dimensions.innerHeight, dimensions.margins]);
 
   // Draw
   useEffect(() => {
@@ -168,7 +169,7 @@ export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
       const bandBottom = yScale(mean - stdDev);
       ctx.fillStyle = 'rgba(168, 85, 247, 0.08)'; // purple-ish to match PB color
       ctx.fillRect(
-        MARGINS.left,
+        dimensions.margins.left,
         bandTop,
         dimensions.innerWidth,
         bandBottom - bandTop,
@@ -181,8 +182,8 @@ export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
     ctx.lineWidth = 1.5;
     ctx.setLineDash([6, 4]);
     ctx.beginPath();
-    ctx.moveTo(MARGINS.left, meanY);
-    ctx.lineTo(MARGINS.left + dimensions.innerWidth, meanY);
+    ctx.moveTo(dimensions.margins.left, meanY);
+    ctx.lineTo(dimensions.margins.left + dimensions.innerWidth, meanY);
     ctx.stroke();
     ctx.setLineDash([]);
 
@@ -191,7 +192,7 @@ export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
     ctx.font = `10px ${fonts.mono}`;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(`avg: ${convertDistance(mean).toFixed(0)}${distanceUnit}`, MARGINS.left + dimensions.innerWidth - 4, meanY - 3);
+    ctx.fillText(`avg: ${convertDistance(mean).toFixed(0)}${distanceUnit}`, dimensions.margins.left + dimensions.innerWidth - 4, meanY - 3);
 
     // Dots
     for (let i = 0; i < brakePoints.length; i++) {
@@ -229,8 +230,8 @@ export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
       ctx.textBaseline = 'top';
       ctx.fillText(
         `std dev: ${convertDistance(stdDev).toFixed(1)}${distanceUnit}`,
-        MARGINS.left + 4,
-        MARGINS.top + 4,
+        dimensions.margins.left + 4,
+        dimensions.margins.top + 4,
       );
     }
   }, [brakePoints, mean, stdDev, xScale, yScale, dimensions, getDataCtx, convertDistance, distanceUnit]);
@@ -277,7 +278,7 @@ export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
         ctx.font = `11px ${fonts.mono}`;
         const tw = ctx.measureText(label).width;
         const tx = Math.min(hx + 12, dimensions.width - tw - 8);
-        const ty = Math.max(hy - 24, MARGINS.top);
+        const ty = Math.max(hy - 24, dimensions.margins.top);
         ctx.fillRect(tx - 4, ty - 2, tw + 8, 18);
         ctx.fillStyle = colors.text.primary;
         ctx.textAlign = 'left';

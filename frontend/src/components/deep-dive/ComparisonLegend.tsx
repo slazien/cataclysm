@@ -25,7 +25,7 @@ export function ComparisonLegend() {
   const totalDelta = delta?.total_delta_s;
 
   return (
-    <div className="flex items-center gap-4 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] px-4 py-2 text-xs">
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] px-3 py-2 text-xs sm:gap-4 sm:px-4">
       {/* Reference lap */}
       <div className="flex items-center gap-1.5">
         <span

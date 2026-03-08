@@ -1,8 +1,13 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Providers } from '@/components/Providers';
 import { NetworkStatus } from '@/components/shared/NetworkStatus';
 import { TestUserSwitcher } from '@/components/dev/TestUserSwitcher';
 import './globals.css';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+};
 
 export const metadata: Metadata = {
   title: 'Cataclysm — AI Track Coaching',

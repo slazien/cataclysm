@@ -127,7 +127,7 @@ export function SessionDrawer() {
     <Sheet open={open} onOpenChange={(v) => { toggleDrawer(); if (!v) setConfirmDelete(false); }}>
       <SheetContent
         side="left"
-        className="w-[380px] bg-[var(--bg-surface)] sm:max-w-[380px]"
+        className="w-full bg-[var(--bg-surface)] sm:w-[380px] sm:max-w-[380px]"
       >
         <SheetHeader>
           <SheetTitle className="text-[var(--text-primary)]">Sessions</SheetTitle>

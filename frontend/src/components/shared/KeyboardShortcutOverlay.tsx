@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 
 const SHORTCUTS = [
   { key: '1', description: 'Session Report' },
@@ -16,8 +17,9 @@ const SHORTCUTS = [
 
 export function KeyboardShortcutOverlay() {
   const { showFeature } = useSkillLevel();
+  const isMobile = useIsMobile();
   const [visible, setVisible] = useState(false);
-  const isEnabled = showFeature('keyboard_overlay');
+  const isEnabled = showFeature('keyboard_overlay') && !isMobile;
 
   useEffect(() => {
     if (!isEnabled) return;

@@ -41,9 +41,9 @@ export function LapPillBar() {
   }
 
   return (
-    <ScrollArea className="max-w-[50vw]">
+    <ScrollArea className="max-w-[50vw] touch-pan-x">
       <motion.div
-        className="flex items-center gap-1.5 px-1 py-1"
+        className="flex items-center gap-1.5 px-1 py-1.5"
         initial="initial"
         animate="animate"
         variants={staggerContainer}

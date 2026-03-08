@@ -9,7 +9,7 @@ import { useMultiLapData, useCorners } from '@/hooks/useAnalysis';
 import { useAnalysisStore } from '@/stores';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { colors, fonts } from '@/lib/design-tokens';
-import { CHART_MARGINS as MARGINS, drawCornerZones } from './chartHelpers';
+import { getChartMargins, drawCornerZones } from './chartHelpers';
 import { useUnits } from '@/hooks/useUnits';
 
 interface BrakeThrottleProps {
@@ -24,13 +24,13 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
   const { data: corners } = useCorners(sessionId);
 
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx, makeTouchProps } =
-    useCanvasChart(MARGINS);
+    useCanvasChart(getChartMargins);
 
   const { xScale, yScale } = useMemo(() => {
     if (lapDataArr.length === 0 || dimensions.innerWidth <= 0) {
       return {
-        xScale: d3.scaleLinear().domain([0, 1]).range([MARGINS.left, MARGINS.left + 1]),
-        yScale: d3.scaleLinear().domain([-1, 1]).range([MARGINS.top + 1, MARGINS.top]),
+        xScale: d3.scaleLinear().domain([0, 1]).range([dimensions.margins.left, dimensions.margins.left + 1]),
+        yScale: d3.scaleLinear().domain([-1, 1]).range([dimensions.margins.top + 1, dimensions.margins.top]),
       };
     }
 
@@ -53,13 +53,13 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
       xScale: d3
         .scaleLinear()
         .domain([0, maxDist])
-        .range([MARGINS.left, MARGINS.left + dimensions.innerWidth]),
+        .range([dimensions.margins.left, dimensions.margins.left + dimensions.innerWidth]),
       yScale: d3
         .scaleLinear()
         .domain([-bound, bound])
-        .range([MARGINS.top + dimensions.innerHeight, MARGINS.top]),
+        .range([dimensions.margins.top + dimensions.innerHeight, dimensions.margins.top]),
     };
-  }, [lapDataArr, dimensions.innerWidth, dimensions.innerHeight]);
+  }, [lapDataArr, dimensions.innerWidth, dimensions.innerHeight, dimensions.margins]);
 
   const xScaleRef = useRef(xScale);
   xScaleRef.current = xScale;
@@ -76,7 +76,7 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
 
     // Corner zones
     if (corners) {
-      drawCornerZones(ctx, corners, xScale, MARGINS.top, dimensions.innerHeight);
+      drawCornerZones(ctx, corners, xScale, dimensions.margins.top, dimensions.innerHeight);
     }
 
     const zeroY = yScale(0);
@@ -131,8 +131,8 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
-    ctx.moveTo(MARGINS.left, zeroY);
-    ctx.lineTo(MARGINS.left + dimensions.innerWidth, zeroY);
+    ctx.moveTo(dimensions.margins.left, zeroY);
+    ctx.lineTo(dimensions.margins.left + dimensions.innerWidth, zeroY);
     ctx.stroke();
     ctx.setLineDash([]);
 
@@ -146,11 +146,11 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
       ctx.strokeStyle = colors.grid;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(MARGINS.left, y);
-      ctx.lineTo(MARGINS.left + dimensions.innerWidth, y);
+      ctx.moveTo(dimensions.margins.left, y);
+      ctx.lineTo(dimensions.margins.left + dimensions.innerWidth, y);
       ctx.stroke();
       ctx.fillStyle = colors.axis;
-      ctx.fillText(tick.toFixed(1), MARGINS.left - 6, y);
+      ctx.fillText(tick.toFixed(1), dimensions.margins.left - 6, y);
     }
 
     // X-axis ticks
@@ -159,7 +159,7 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
     ctx.textBaseline = 'top';
     for (const tick of xTicks) {
       ctx.fillStyle = colors.axis;
-      ctx.fillText(`${Math.round(convertDistance(tick))}`, xScale(tick), MARGINS.top + dimensions.innerHeight + 6);
+      ctx.fillText(`${Math.round(convertDistance(tick))}`, xScale(tick), dimensions.margins.top + dimensions.innerHeight + 6);
     }
 
     // Axis labels
@@ -168,12 +168,12 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
     ctx.textAlign = 'center';
     ctx.fillText(
       `Distance (${distanceUnit})`,
-      MARGINS.left + dimensions.innerWidth / 2,
-      MARGINS.top + dimensions.innerHeight + 24,
+      dimensions.margins.left + dimensions.innerWidth / 2,
+      dimensions.margins.top + dimensions.innerHeight + 24,
     );
 
     ctx.save();
-    ctx.translate(14, MARGINS.top + dimensions.innerHeight / 2);
+    ctx.translate(14, dimensions.margins.top + dimensions.innerHeight / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = 'center';
     ctx.fillText('Long. G', 0, 0);
@@ -207,14 +207,15 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
     if (cursorDist === null) return;
 
     const x = xScaleRef.current(cursorDist);
-    if (x < MARGINS.left || x > MARGINS.left + dims.innerWidth) return;
+    const dm = dims.margins;
+    if (x < dm.left || x > dm.left + dims.innerWidth) return;
 
     // Vertical cursor line
     ctx.strokeStyle = colors.cursor;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(x, MARGINS.top);
-    ctx.lineTo(x, MARGINS.top + dims.innerHeight);
+    ctx.moveTo(x, dm.top);
+    ctx.lineTo(x, dm.top + dims.innerHeight);
     ctx.stroke();
 
     // Tooltip: g-values
@@ -222,7 +223,7 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
       ctx.font = `11px ${fonts.mono}`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      const tooltipY = MARGINS.top + 8;
+      const tooltipY = dm.top + 8;
 
       for (let li = 0; li < lapDataArr.length; li++) {
         const lap = lapDataArr[li];
@@ -236,7 +237,7 @@ export function BrakeThrottle({ sessionId }: BrakeThrottleProps) {
         const label = `L${lap.lap_number}: ${gVal >= 0 ? '+' : ''}${gVal.toFixed(2)}g`;
 
         const textWidth = ctx.measureText(label).width;
-        const rightEdge = MARGINS.left + dims.innerWidth;
+        const rightEdge = dm.left + dims.innerWidth;
         const tooltipX = x + textWidth + 20 > rightEdge ? x - textWidth - 16 : x + 10;
 
         ctx.fillStyle = 'rgba(10, 12, 16, 0.85)';

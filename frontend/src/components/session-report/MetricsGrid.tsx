@@ -39,7 +39,7 @@ export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced, 
     <div>
       <h3 className="mb-3 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Session Metrics</h3>
       <m.div
-        className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+        className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4"
         initial="initial"
         animate="animate"
         variants={{ animate: { transition: motionTokens.stagger } }}

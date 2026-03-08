@@ -2,6 +2,11 @@ import type * as d3 from 'd3';
 import type { Corner } from '@/lib/types';
 
 export const CHART_MARGINS = { top: 28, right: 16, bottom: 40, left: 56 };
+export const CHART_MARGINS_MOBILE = { top: 20, right: 8, bottom: 32, left: 40 };
+
+export function getChartMargins(isMobile: boolean) {
+  return isMobile ? CHART_MARGINS_MOBILE : CHART_MARGINS;
+}
 
 /** Draw semi-transparent corner zone rectangles on a canvas context. */
 export function drawCornerZones(

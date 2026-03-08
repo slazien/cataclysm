@@ -9,7 +9,7 @@ import { useDelta } from '@/hooks/useAnalysis';
 import { useAnalysisStore } from '@/stores';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { colors, fonts } from '@/lib/design-tokens';
-import { CHART_MARGINS as MARGINS } from './chartHelpers';
+import { getChartMargins } from './chartHelpers';
 import { useUnits } from '@/hooks/useUnits';
 
 interface DeltaTProps {
@@ -26,13 +26,14 @@ export function DeltaT({ sessionId }: DeltaTProps) {
   const { data: delta, isLoading } = useDelta(sessionId, refLap, compLap);
 
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx, makeTouchProps } =
-    useCanvasChart(MARGINS);
+    useCanvasChart(getChartMargins);
 
   const { xScale, yScale } = useMemo(() => {
+    const m = dimensions.margins;
     if (!delta || delta.distance_m.length === 0 || dimensions.innerWidth <= 0) {
       return {
-        xScale: d3.scaleLinear().domain([0, 1]).range([MARGINS.left, MARGINS.left + 1]),
-        yScale: d3.scaleLinear().domain([-1, 1]).range([MARGINS.top + 1, MARGINS.top]),
+        xScale: d3.scaleLinear().domain([0, 1]).range([m.left, m.left + 1]),
+        yScale: d3.scaleLinear().domain([-1, 1]).range([m.top + 1, m.top]),
       };
     }
 
@@ -45,13 +46,13 @@ export function DeltaT({ sessionId }: DeltaTProps) {
       xScale: d3
         .scaleLinear()
         .domain([0, maxDist])
-        .range([MARGINS.left, MARGINS.left + dimensions.innerWidth]),
+        .range([m.left, m.left + dimensions.innerWidth]),
       yScale: d3
         .scaleLinear()
         .domain([-bound, bound])
-        .range([MARGINS.top + dimensions.innerHeight, MARGINS.top]),
+        .range([m.top + dimensions.innerHeight, m.top]),
     };
-  }, [delta, dimensions.innerWidth, dimensions.innerHeight]);
+  }, [delta, dimensions.innerWidth, dimensions.innerHeight, dimensions.margins]);
 
   const xScaleRef = useRef(xScale);
   xScaleRef.current = xScale;
@@ -112,8 +113,8 @@ export function DeltaT({ sessionId }: DeltaTProps) {
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
-    ctx.moveTo(MARGINS.left, zeroY);
-    ctx.lineTo(MARGINS.left + dimensions.innerWidth, zeroY);
+    ctx.moveTo(dimensions.margins.left, zeroY);
+    ctx.lineTo(dimensions.margins.left + dimensions.innerWidth, zeroY);
     ctx.stroke();
     ctx.setLineDash([]);
 
@@ -127,11 +128,11 @@ export function DeltaT({ sessionId }: DeltaTProps) {
       ctx.strokeStyle = colors.grid;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(MARGINS.left, y);
-      ctx.lineTo(MARGINS.left + dimensions.innerWidth, y);
+      ctx.moveTo(dimensions.margins.left, y);
+      ctx.lineTo(dimensions.margins.left + dimensions.innerWidth, y);
       ctx.stroke();
       ctx.fillStyle = colors.axis;
-      ctx.fillText(tick.toFixed(2), MARGINS.left - 6, y);
+      ctx.fillText(tick.toFixed(2), dimensions.margins.left - 6, y);
     }
 
     // X-axis ticks
@@ -140,7 +141,7 @@ export function DeltaT({ sessionId }: DeltaTProps) {
     ctx.textBaseline = 'top';
     for (const tick of xTicks) {
       ctx.fillStyle = colors.axis;
-      ctx.fillText(`${Math.round(convertDistance(tick))}`, xScale(tick), MARGINS.top + dimensions.innerHeight + 6);
+      ctx.fillText(`${Math.round(convertDistance(tick))}`, xScale(tick), dimensions.margins.top + dimensions.innerHeight + 6);
     }
 
     // Axis labels
@@ -149,12 +150,12 @@ export function DeltaT({ sessionId }: DeltaTProps) {
     ctx.textAlign = 'center';
     ctx.fillText(
       `Distance (${distanceUnit})`,
-      MARGINS.left + dimensions.innerWidth / 2,
-      MARGINS.top + dimensions.innerHeight + 24,
+      dimensions.margins.left + dimensions.innerWidth / 2,
+      dimensions.margins.top + dimensions.innerHeight + 24,
     );
 
     ctx.save();
-    ctx.translate(14, MARGINS.top + dimensions.innerHeight / 2);
+    ctx.translate(14, dimensions.margins.top + dimensions.innerHeight / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = 'center';
     ctx.fillText('Delta (s) \u2014 ref vs compare', 0, 0);
@@ -168,7 +169,7 @@ export function DeltaT({ sessionId }: DeltaTProps) {
       ctx.textBaseline = 'top';
       ctx.fillStyle =
         delta.total_delta_s > 0 ? colors.motorsport.brake : colors.motorsport.throttle;
-      ctx.fillText(totalStr, MARGINS.left + dimensions.innerWidth - 4, MARGINS.top + 4);
+      ctx.fillText(totalStr, dimensions.margins.left + dimensions.innerWidth - 4, dimensions.margins.top + 4);
     }
   }, [delta, xScale, yScale, dimensions, convertDistance, distanceUnit]);
 
@@ -199,14 +200,15 @@ export function DeltaT({ sessionId }: DeltaTProps) {
     if (cursorDist === null || !delta) return;
 
     const x = xScaleRef.current(cursorDist);
-    if (x < MARGINS.left || x > MARGINS.left + dims.innerWidth) return;
+    const dm = dims.margins;
+    if (x < dm.left || x > dm.left + dims.innerWidth) return;
 
     // Vertical cursor line
     ctx.strokeStyle = colors.cursor;
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(x, MARGINS.top);
-    ctx.lineTo(x, MARGINS.top + dims.innerHeight);
+    ctx.moveTo(x, dm.top);
+    ctx.lineTo(x, dm.top + dims.innerHeight);
     ctx.stroke();
 
     // Tooltip with delta value
@@ -216,9 +218,9 @@ export function DeltaT({ sessionId }: DeltaTProps) {
     const label = `${dVal >= 0 ? '+' : ''}${dVal.toFixed(3)}s`;
 
     ctx.font = `11px ${fonts.mono}`;
-    const tooltipY = MARGINS.top + 8;
+    const tooltipY = dm.top + 8;
     const textWidth = ctx.measureText(label).width;
-    const rightEdge = MARGINS.left + dims.innerWidth;
+    const rightEdge = dm.left + dims.innerWidth;
     const tooltipX = x + textWidth + 20 > rightEdge ? x - textWidth - 16 : x + 10;
     ctx.fillStyle = 'rgba(10, 12, 16, 0.85)';
     ctx.fillRect(tooltipX - 2, tooltipY - 2, textWidth + 8, 16);

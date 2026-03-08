@@ -19,6 +19,8 @@ interface LapTimeTrendProps {
 }
 
 const MARGINS = { top: 20, right: 20, bottom: 44, left: 64 };
+const MARGINS_MOBILE = { top: 16, right: 8, bottom: 36, left: 48 };
+const getProgressMargins = (isMobile: boolean) => (isMobile ? MARGINS_MOBILE : MARGINS);
 
 function drawLine(
   ctx: CanvasRenderingContext2D,
@@ -150,7 +152,7 @@ export function LapTimeTrend({
   className,
 }: LapTimeTrendProps) {
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx } =
-    useCanvasChart(MARGINS);
+    useCanvasChart(getProgressMargins);
 
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
@@ -168,8 +170,8 @@ export function LapTimeTrend({
     const n = sessions.length;
     if (n === 0 || dimensions.innerWidth <= 0) {
       return {
-        xScale: d3.scaleLinear().domain([0, 1]).range([MARGINS.left, MARGINS.left + 1]),
-        yScale: d3.scaleLinear().domain([0, 1]).range([MARGINS.top + 1, MARGINS.top]),
+        xScale: d3.scaleLinear().domain([0, 1]).range([dimensions.margins.left, dimensions.margins.left + 1]),
+        yScale: d3.scaleLinear().domain([0, 1]).range([dimensions.margins.top + 1, dimensions.margins.top]),
       };
     }
 
@@ -184,13 +186,13 @@ export function LapTimeTrend({
       xScale: d3
         .scaleLinear()
         .domain([0, n - 1])
-        .range([MARGINS.left, MARGINS.left + dimensions.innerWidth]),
+        .range([dimensions.margins.left, dimensions.margins.left + dimensions.innerWidth]),
       yScale: d3
         .scaleLinear()
         .domain([maxVal + padding, minVal - padding])
-        .range([MARGINS.top, MARGINS.top + dimensions.innerHeight]),
+        .range([dimensions.margins.top, dimensions.margins.top + dimensions.innerHeight]),
     };
-  }, [sessions.length, bestLapTrend, top3AvgTrend, theoreticalTrend, rollingAvg, dimensions.innerWidth, dimensions.innerHeight]);
+  }, [sessions.length, bestLapTrend, top3AvgTrend, theoreticalTrend, rollingAvg, dimensions.innerWidth, dimensions.innerHeight, dimensions.margins]);
 
   const xScaleRef = useRef(xScale);
   xScaleRef.current = xScale;
@@ -215,7 +217,7 @@ export function LapTimeTrend({
       yTickCount: 6,
     });
     // Area fills (drawn first so they sit behind lines)
-    const chartBottom = MARGINS.top + dimensions.innerHeight;
+    const chartBottom = dimensions.margins.top + dimensions.innerHeight;
     drawAreaFill(ctx, xScale, yScale, bestLapTrend, colors.motorsport.optimal, chartBottom);
     drawAreaFill(ctx, xScale, yScale, top3AvgTrend, colors.motorsport.neutral, chartBottom);
 
@@ -236,8 +238,8 @@ export function LapTimeTrend({
     }
 
     // Legend
-    const legendX = MARGINS.left + 8;
-    const legendY = MARGINS.top + 8;
+    const legendX = dimensions.margins.left + 8;
+    const legendY = dimensions.margins.top + 8;
     ctx.font = `10px ${fonts.sans}`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
@@ -291,7 +293,7 @@ export function LapTimeTrend({
     const handleMouseMove = (e: MouseEvent) => {
       const rect = overlay.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
-      if (mouseX < MARGINS.left || mouseX > MARGINS.left + dimensions.innerWidth) {
+      if (mouseX < dimensions.margins.left || mouseX > dimensions.margins.left + dimensions.innerWidth) {
         setHoveredIdx(null);
         return;
       }
@@ -328,8 +330,8 @@ export function LapTimeTrend({
     ctx.strokeStyle = colors.cursor;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(x, MARGINS.top);
-    ctx.lineTo(x, MARGINS.top + dimensions.innerHeight);
+    ctx.moveTo(x, dimensions.margins.top);
+    ctx.lineTo(x, dimensions.margins.top + dimensions.innerHeight);
     ctx.stroke();
 
     // Tooltip
@@ -346,8 +348,8 @@ export function LapTimeTrend({
     const lineHeight = 16;
     const tooltipWidth = 140;
     const tooltipHeight = lines.length * lineHeight + 8;
-    const tooltipX = x + tooltipWidth + 16 > MARGINS.left + dimensions.innerWidth ? x - tooltipWidth - 8 : x + 8;
-    const tooltipY = MARGINS.top + 4;
+    const tooltipX = x + tooltipWidth + 16 > dimensions.margins.left + dimensions.innerWidth ? x - tooltipWidth - 8 : x + 8;
+    const tooltipY = dimensions.margins.top + 4;
 
     drawTooltipCard(ctx, tooltipX, tooltipY, tooltipWidth, tooltipHeight);
 

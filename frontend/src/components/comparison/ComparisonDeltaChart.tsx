@@ -7,6 +7,8 @@ import { useUnits } from '@/hooks/useUnits';
 import { colors, fonts } from '@/lib/design-tokens';
 
 const MARGINS = { top: 16, right: 16, bottom: 36, left: 56 };
+const MARGINS_MOBILE = { top: 12, right: 8, bottom: 28, left: 40 };
+const getCompMargins = (isMobile: boolean) => (isMobile ? MARGINS_MOBILE : MARGINS);
 
 interface ComparisonDeltaChartProps {
   cornerNumber: number;
@@ -21,13 +23,13 @@ export function ComparisonDeltaChart({
 }: ComparisonDeltaChartProps) {
   const { convertDistance, distanceUnit } = useUnits();
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx } =
-    useCanvasChart(MARGINS);
+    useCanvasChart(getCompMargins);
 
   const { xScale, yScale } = useMemo(() => {
     if (distanceM.length === 0 || dimensions.innerWidth <= 0) {
       return {
-        xScale: d3.scaleLinear().domain([0, 1]).range([MARGINS.left, MARGINS.left + 1]),
-        yScale: d3.scaleLinear().domain([-1, 1]).range([MARGINS.top + 1, MARGINS.top]),
+        xScale: d3.scaleLinear().domain([0, 1]).range([dimensions.margins.left, dimensions.margins.left + 1]),
+        yScale: d3.scaleLinear().domain([-1, 1]).range([dimensions.margins.top + 1, dimensions.margins.top]),
       };
     }
 
@@ -40,11 +42,11 @@ export function ComparisonDeltaChart({
       xScale: d3
         .scaleLinear()
         .domain([minDist, maxDist])
-        .range([MARGINS.left, MARGINS.left + dimensions.innerWidth]),
+        .range([dimensions.margins.left, dimensions.margins.left + dimensions.innerWidth]),
       yScale: d3
         .scaleLinear()
         .domain([-bound, bound])
-        .range([MARGINS.top + dimensions.innerHeight, MARGINS.top]),
+        .range([dimensions.margins.top + dimensions.innerHeight, dimensions.margins.top]),
     };
   }, [distanceM, deltaTimeS, dimensions.innerWidth, dimensions.innerHeight]);
 
@@ -97,8 +99,8 @@ export function ComparisonDeltaChart({
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
-    ctx.moveTo(MARGINS.left, zeroY);
-    ctx.lineTo(MARGINS.left + dimensions.innerWidth, zeroY);
+    ctx.moveTo(dimensions.margins.left, zeroY);
+    ctx.lineTo(dimensions.margins.left + dimensions.innerWidth, zeroY);
     ctx.stroke();
     ctx.setLineDash([]);
 
@@ -112,11 +114,11 @@ export function ComparisonDeltaChart({
       ctx.strokeStyle = colors.grid;
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(MARGINS.left, y);
-      ctx.lineTo(MARGINS.left + dimensions.innerWidth, y);
+      ctx.moveTo(dimensions.margins.left, y);
+      ctx.lineTo(dimensions.margins.left + dimensions.innerWidth, y);
       ctx.stroke();
       ctx.fillStyle = colors.axis;
-      ctx.fillText(tick.toFixed(3), MARGINS.left - 6, y);
+      ctx.fillText(tick.toFixed(3), dimensions.margins.left - 6, y);
     }
 
     // X-axis ticks
@@ -125,7 +127,7 @@ export function ComparisonDeltaChart({
     ctx.textBaseline = 'top';
     for (const tick of xTicks) {
       ctx.fillStyle = colors.axis;
-      ctx.fillText(`${Math.round(convertDistance(tick))}`, xScale(tick), MARGINS.top + dimensions.innerHeight + 6);
+      ctx.fillText(`${Math.round(convertDistance(tick))}`, xScale(tick), dimensions.margins.top + dimensions.innerHeight + 6);
     }
 
     // Axis labels
@@ -134,12 +136,12 @@ export function ComparisonDeltaChart({
     ctx.textAlign = 'center';
     ctx.fillText(
       `Distance (${distanceUnit})`,
-      MARGINS.left + dimensions.innerWidth / 2,
-      MARGINS.top + dimensions.innerHeight + 24,
+      dimensions.margins.left + dimensions.innerWidth / 2,
+      dimensions.margins.top + dimensions.innerHeight + 24,
     );
 
     ctx.save();
-    ctx.translate(14, MARGINS.top + dimensions.innerHeight / 2);
+    ctx.translate(14, dimensions.margins.top + dimensions.innerHeight / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = 'center';
     ctx.fillText('Delta (s)', 0, 0);
@@ -150,7 +152,7 @@ export function ComparisonDeltaChart({
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.fillStyle = colors.text.primary;
-    ctx.fillText(`Turn ${cornerNumber}`, MARGINS.left + 4, MARGINS.top + 4);
+    ctx.fillText(`Turn ${cornerNumber}`, dimensions.margins.left + 4, dimensions.margins.top + 4);
   }, [cornerNumber, distanceM, deltaTimeS, xScale, yScale, dimensions, getDataCtx, convertDistance, distanceUnit]);
 
   return (

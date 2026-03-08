@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { useIsMobile } from './useMediaQuery';
 
 export interface ChartMargins {
   top: number;
@@ -20,6 +21,8 @@ export interface ChartDimensions {
 
 const DEFAULT_MARGINS: ChartMargins = { top: 20, right: 20, bottom: 40, left: 60 };
 
+export type MarginsFactory = (isMobile: boolean) => ChartMargins;
+
 /**
  * Hook that manages a dual-canvas chart setup:
  * - dataCanvas: static data layer (speed traces, fills, etc.)
@@ -29,7 +32,12 @@ const DEFAULT_MARGINS: ChartMargins = { top: 20, right: 20, bottom: 40, left: 60
  * whenever the container element mounts — even if conditional rendering
  * delays the mount (e.g. components with early-return guards).
  */
-export function useCanvasChart(margins: ChartMargins = DEFAULT_MARGINS) {
+export function useCanvasChart(marginsProp: ChartMargins | MarginsFactory = DEFAULT_MARGINS) {
+  const isMobile = useIsMobile();
+  const margins = useMemo(
+    () => (typeof marginsProp === 'function' ? marginsProp(isMobile) : marginsProp),
+    [marginsProp, isMobile],
+  );
   const dataCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const observerRef = useRef<ResizeObserver | null>(null);

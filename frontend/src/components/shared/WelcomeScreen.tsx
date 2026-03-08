@@ -1,10 +1,11 @@
 'use client';
 
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Upload, ChevronDown, Target, Check, BookOpen, TrendingDown, MessageSquare } from 'lucide-react';
 import { useSessionStore, useUiStore } from '@/stores';
 import { useUploadSessions } from '@/hooks/useSession';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -45,16 +46,8 @@ export function WelcomeScreen() {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [instructionsOpen, setInstructionsOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
   const [showSuccess, setShowSuccess] = useState(false);
-
-  useEffect(() => {
-    const mql = window.matchMedia('(max-width: 1023px)');
-    setIsMobile(mql.matches);
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
-  }, []);
 
   const handleFiles = useCallback(
     (files: File[]) => {

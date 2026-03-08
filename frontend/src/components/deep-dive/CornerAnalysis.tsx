@@ -122,7 +122,7 @@ export function CornerAnalysis() {
               height so variable-length AI advice text doesn't cause layout shift */}
           <div className="flex min-h-0 flex-col gap-3 lg:flex-1 lg:grid lg:grid-cols-[60%_1fr] lg:grid-rows-[1fr]">
             {/* Track Map */}
-            <div className="h-[14rem] overflow-hidden lg:h-auto lg:max-h-none">
+            <div className="h-[10rem] overflow-hidden sm:h-[14rem] lg:h-auto lg:max-h-none">
               <ChartErrorBoundary name="Track Map">
                 <TrackMapContainer sessionId={sessionId} />
               </ChartErrorBoundary>
@@ -138,13 +138,13 @@ export function CornerAnalysis() {
           {/* Bottom row: Corner Speed Overlay + Brake Consistency */}
           <div className="grid min-h-0 grid-cols-1 gap-3 lg:flex-1 lg:grid-cols-2 lg:grid-rows-[1fr]">
             {/* Corner Speed Overlay */}
-            <div className="h-[16rem] overflow-hidden lg:h-auto">
+            <div className="h-[12rem] overflow-hidden sm:h-[16rem] lg:h-auto">
               <ChartErrorBoundary name="Corner Speed Overlay">
                 <CornerSpeedOverlay sessionId={sessionId} />
               </ChartErrorBoundary>
             </div>
             {/* Brake Consistency Chart */}
-            <div className="h-[16rem] overflow-hidden lg:h-auto">
+            <div className="h-[12rem] overflow-hidden sm:h-[16rem] lg:h-auto">
               <ChartErrorBoundary name="Brake Consistency">
                 <BrakeConsistency sessionId={sessionId} />
               </ChartErrorBoundary>

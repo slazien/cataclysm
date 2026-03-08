@@ -377,7 +377,7 @@ export function ProgressView() {
               </div>
               <div className="ml-auto min-w-0 text-right">
                 <p className="text-xs text-[var(--text-secondary)]">Improvement</p>
-                <p className="font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight text-[var(--color-throttle)]">
+                <p className="font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight text-[var(--color-throttle)] sm:text-3xl">
                   -{journeyMetrics.improvement.toFixed(1)}s
                 </p>
                 <p className="text-xs text-[var(--text-secondary)]">{trendData.sessions.length} sessions</p>
@@ -394,7 +394,7 @@ export function ProgressView() {
         {/* 4. Hero metrics row */}
         {heroMetrics && (
           <m.div
-            className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+            className="grid grid-cols-2 gap-3 md:grid-cols-4"
             initial="initial"
             animate="animate"
             variants={{ animate: { transition: motionTokens.stagger } }}
@@ -508,7 +508,7 @@ export function ProgressView() {
               Lap Time Trend
               <InfoTooltip helpKey="chart.lap-time-trend" />
             </h3>
-            <div className="h-[260px]">
+            <div className="h-[200px] sm:h-[260px]">
               <ChartErrorBoundary name="Lap Time Trend">
                 <LapTimeTrend
                   sessions={trendData.sessions}
@@ -525,7 +525,7 @@ export function ProgressView() {
               Consistency Trend
               <InfoTooltip helpKey="chart.consistency-trend" />
             </h3>
-            <div className="h-[260px]">
+            <div className="h-[200px] sm:h-[260px]">
               <ChartErrorBoundary name="Consistency Trend">
                 <ConsistencyTrend
                   sessions={trendData.sessions}
@@ -549,7 +549,7 @@ export function ProgressView() {
                   Corner Heatmap
                   <InfoTooltip helpKey="chart.corner-heatmap" />
                 </h3>
-                <div className="h-[280px]">
+                <div className="h-[220px] sm:h-[280px]">
                   <ChartErrorBoundary name="Corner Heatmap">
                     <CornerHeatmap
                       sessions={trendData.sessions}
@@ -570,7 +570,7 @@ export function ProgressView() {
                   Session Lap Time Distribution
                   <InfoTooltip helpKey="chart.session-boxplot" />
                 </h3>
-                <div className="h-[280px]">
+                <div className="h-[220px] sm:h-[280px]">
                   <ChartErrorBoundary name="Session Box Plot">
                     <SessionBoxPlot sessions={trendData.sessions} />
                   </ChartErrorBoundary>

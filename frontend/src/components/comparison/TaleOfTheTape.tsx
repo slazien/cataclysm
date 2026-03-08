@@ -82,7 +82,7 @@ export function TaleOfTheTape({ sessionA, sessionB, aiSummary }: TaleOfTheTapePr
       {/* Header with driver names and VS */}
       <div className="mb-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
         <div className="text-right">
-          <p className="text-sm font-semibold text-[var(--text-primary)] font-[family-name:var(--font-display)]">
+          <p className="text-xs font-semibold text-[var(--text-primary)] font-[family-name:var(--font-display)] sm:text-sm">
             {sessionA.driverName || 'Driver A'}
           </p>
           <p className="text-xs text-[var(--text-secondary)]">{sessionA.trackName}</p>
@@ -93,7 +93,7 @@ export function TaleOfTheTape({ sessionA, sessionB, aiSummary }: TaleOfTheTapePr
           </span>
         </div>
         <div className="text-left">
-          <p className="text-sm font-semibold text-[var(--text-primary)] font-[family-name:var(--font-display)]">
+          <p className="text-xs font-semibold text-[var(--text-primary)] font-[family-name:var(--font-display)] sm:text-sm">
             {sessionB.driverName || 'Driver B'}
           </p>
           <p className="text-xs text-[var(--text-secondary)]">{sessionB.trackName}</p>
