@@ -1,12 +1,7 @@
 'use client';
 
 import { motion as m } from 'motion/react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { motion as motionTokens } from '@/lib/design-tokens';
 
@@ -72,25 +67,23 @@ export function GradeChip({ grade, reason, className }: GradeChipProps) {
   }
 
   return (
-    <TooltipProvider delayDuration={0}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            className="inline-flex cursor-help"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <ChipContent grade={grade} className={className} />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent
-          side="top"
-          sideOffset={6}
-          className="max-w-[220px] text-xs leading-relaxed"
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex cursor-help"
+          onClick={(e) => e.stopPropagation()}
         >
-          {reason}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+          <ChipContent grade={grade} className={className} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        sideOffset={6}
+        className="max-w-[220px] border-[var(--cata-border)] bg-[var(--bg-surface)] px-3 py-1.5 text-xs leading-relaxed text-[var(--text-primary)]"
+      >
+        {reason}
+      </PopoverContent>
+    </Popover>
   );
 }
