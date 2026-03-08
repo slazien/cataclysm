@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## Radix DropdownMenu Fails When Custom Overlays Coexist (2026-03-08)
+
+**Pattern**: Don't refactor hand-rolled dropdowns to Radix `DropdownMenu` when the app has custom overlay components (like `SettingsPanel`) with their own document-level `keydown`/`mousedown` listeners and fixed z-index overlays. Radix's `DismissableLayer` doesn't reliably dismiss when a separate `z-40` overlay + Escape handler is active. Hand-rolled `useEffect` with document-level `mousedown` (click-outside) and `keydown` (Escape) listeners works universally regardless of overlay hierarchy.
+
+**Why**: Attempted to refactor the TopBar user menu to Radix DropdownMenu for better accessibility. Menu rendered correctly with ARIA roles but Escape and click-outside dismissal failed when SettingsPanel was open (its overlay and Escape handler intercepted events before Radix's DismissableLayer). Wasted significant time debugging and had to revert. The hand-rolled approach with `e.stopPropagation()` on Escape prevents bubbling to SettingsPanel's handler.
+
+**Error signature**: Radix DropdownMenu opens correctly, shows proper ARIA roles (`menu`, `menuitem`), but pressing Escape or clicking outside doesn't close it when another panel/overlay is visible.
+
 ## Radix Tooltip Breaks on Mobile Touch — Use Popover Instead (2026-03-08)
 
 **Pattern**: Never use Radix `Tooltip` for info icons that must work on mobile. Tooltip is hover-only: on touch, `pointerdown` opens it and `blur`/`pointerleave` (~100ms later) closes it immediately. Use Radix `Popover` instead — it opens on click and stays open until the user taps outside or presses Escape.
