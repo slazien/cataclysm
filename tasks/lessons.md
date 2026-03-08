@@ -846,3 +846,27 @@ el.getBoundingClientRect().right > window.innerWidth
 **Why**: `get_current_user` got the Railway safety guard; `authenticate_websocket` (WebSocket path) was missed. A code reviewer caught it. Any WebSocket endpoint would have silently bypassed authentication on Railway with DEV_AUTH_BYPASS=true.
 
 **Error signature**: Code reviewer flags "authenticate_websocket missing Railway guard" — the HTTP and WebSocket auth paths diverge on a security-critical check.
+
+## Zone-Based Percentile Metrics Are Contaminated by Adjacent-Corner Ramps (2026-03-08)
+
+**Pattern**: Never use low percentiles (p5, p10) over a full corner zone [entry, exit] for speed metrics. Zones include acceleration/braking ramps from adjacent corners that are NOT curvature-limited. Use an apex-centred window (±30% of zone width, clamped to zone boundaries) with `np.min()` instead.
+
+**Why**: T10 at Barber showed optimal min speed = 77 mph (p5 of full zone), while the solver's apex speed was 91 mph and the driver's actual was 90 mph. 87% of zone points were acceleration-limited from T9's slow exit (45 mph), pulling p5 far below the curvature-limited minimum. Adjacent T11 showed 101 mph — a physically impossible 24 mph gap for adjacent esses corners. Apex-centred window fixed both: T10 → 91 mph, T11 → 93 mph, gap → 2 mph.
+
+**Error signature**: `optimal_min_speed` far below `actual_min_speed` for corners following tight sections, or implausible speed differences between adjacent same-type corners.
+
+## Canonical Data Must Have Length Validation Guards (2026-03-08)
+
+**Pattern**: Any function that writes to a canonical/shared data store (track reference, calibration cache, etc.) must validate the input's plausibility BEFORE overwriting. For track references: (1) absolute minimum floor (1000m), (2) ratio check vs expected DB length (±25%). Apply floor unconditionally first, then ratio check — never `if/elif` that skips the floor when DB length exists.
+
+**Why**: A 496m test-circuit session overwrote the canonical 3650m Barber track reference `.npz`. This silently corrupted ALL downstream physics for every future session at Barber — wrong curvature, wrong optimal speeds, wrong coaching. The corruption persisted across deploys because the `.npz` is committed to the repo.
+
+**Error signature**: Optimal lap times or corner speeds suddenly wrong for a track that previously worked. `track_reference/*.npz` file has implausibly short `track_length_m` in its metadata.
+
+## Always Clamp Windowed Metrics to Parent Zone Boundaries (2026-03-08)
+
+**Pattern**: When computing a metric over a sub-window (e.g., apex-centred window within a corner zone), ALWAYS clamp the window to the parent zone boundaries: `start = max(window_start, zone_entry)`, `end = min(window_end, zone_exit)`. Without clamping, the window bleeds into adjacent zones and picks up their data.
+
+**Why**: Initial apex-window fix used unclamped `apex ± half_window`. For corners near zone boundaries, the window extended into adjacent corner zones, causing T12 to drop 16 mph and T16 to drop 8.5 mph — contamination from neighboring corners' curvature data.
+
+**Error signature**: Metrics that get WORSE after applying a windowed approach, or metrics that change for corners that shouldn't be affected by the fix.
