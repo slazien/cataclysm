@@ -68,7 +68,7 @@ export function SpeedAnalysis() {
   }
 
   return (
-    <div className="flex min-h-0 flex-col gap-3 overflow-y-auto p-3">
+    <div className="flex min-h-0 flex-col gap-3 overflow-y-auto px-3 pt-3 pb-24 lg:pb-3">
       {showLegend && <ComparisonLegend />}
       <div className="flex min-h-0 flex-col gap-3 lg:flex-row">
       {/* Left column -- 65% on desktop, full width on mobile */}

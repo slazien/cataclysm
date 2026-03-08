@@ -232,7 +232,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
     : '';
 
   return (
-    <div className="flex h-full flex-col gap-3 overflow-y-auto rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
+    <div className="flex h-full flex-col gap-3 overflow-y-auto rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] px-4 pt-4 pb-20 lg:pb-4">
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1.5">

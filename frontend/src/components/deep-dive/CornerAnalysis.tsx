@@ -110,7 +110,7 @@ export function CornerAnalysis() {
 
       {viewMode === 'grid' ? (
         /* Grid view: all corners as report cards */
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto pb-24 lg:pb-0">
           <ChartErrorBoundary name="Corner Report Card Grid">
             <CornerReportCardGrid onSelectCorner={() => setViewMode('detail')} />
           </ChartErrorBoundary>
