@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useEffect, useRef } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { useOptimalComparison } from '@/hooks/useAnalysis';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
@@ -147,38 +147,12 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
 
   }, [opportunities, dimensions, getDataCtx, convertSpeed, speedUnit]);
 
-  // Click and hover interaction on bars
-  useEffect(() => {
-    if (!onCornerClick) return;
-    const canvas = dataCanvasRef.current;
-    if (!canvas) return;
-
-    const hitCorner = (e: MouseEvent): BarRegion | undefined => {
-      const rect = canvas.getBoundingClientRect();
-      const mouseY = e.clientY - rect.top;
-      return barRegionsRef.current.find((r) => mouseY >= r.y && mouseY <= r.y + r.height);
-    };
-
-    const handleClick = (e: MouseEvent) => {
-      const hit = hitCorner(e);
-      if (hit) onCornerClick(hit.cornerNumber);
-    };
-    const handleMouseMove = (e: MouseEvent) => {
-      canvas.style.cursor = hitCorner(e) ? 'pointer' : 'default';
-    };
-    const handleMouseLeave = () => {
-      canvas.style.cursor = 'default';
-    };
-
-    canvas.addEventListener('click', handleClick);
-    canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('mouseleave', handleMouseLeave);
-    return () => {
-      canvas.removeEventListener('click', handleClick);
-      canvas.removeEventListener('mousemove', handleMouseMove);
-      canvas.removeEventListener('mouseleave', handleMouseLeave);
-    };
-  }, [onCornerClick, dataCanvasRef]);
+  // Hit-test helper — reads bar regions at call time (ref is always current)
+  const getHitCorner = (e: React.MouseEvent<HTMLCanvasElement>): BarRegion | undefined => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseY = e.clientY - rect.top;
+    return barRegionsRef.current.find((r) => mouseY >= r.y && mouseY <= r.y + r.height);
+  };
 
   if (isLoading) {
     return <SkeletonCard height="h-40" />;
@@ -243,7 +217,13 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
           transition={{ duration: 0.5, ease: 'easeOut', delay: 0.2 }}
           className="absolute inset-0"
         >
-          <canvas ref={dataCanvasRef} className="absolute inset-0" />
+          <canvas
+            ref={dataCanvasRef}
+            className="absolute inset-0"
+            onClick={onCornerClick ? (e) => { const hit = getHitCorner(e); if (hit) onCornerClick(hit.cornerNumber); } : undefined}
+            onMouseMove={onCornerClick ? (e) => { e.currentTarget.style.cursor = getHitCorner(e) ? 'pointer' : 'default'; } : undefined}
+            onMouseLeave={onCornerClick ? (e) => { e.currentTarget.style.cursor = 'default'; } : undefined}
+          />
         </motion.div>
       </div>
       {onCornerClick && (
