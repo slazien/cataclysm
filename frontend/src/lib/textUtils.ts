@@ -1,4 +1,4 @@
-const SPEED_MARKER_RE = /\{\{speed:([\d.]+)\}\}/g;
+const SPEED_MARKER_RE = /\{\{speed:([\d.]+\+?)\}\}/g;
 const SPEED_RANGE_MARKER_RE = /\{\{speed:([\d.]+)-([\d.]+)\}\}/g;
 const TIME_MARKER_RE = /\{\{time:([\d.]+)\}\}/g;
 const SPEED_RANGE_LEGACY_RE = /(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)\s*mph/gi;
