@@ -1,5 +1,19 @@
 # Lessons Learned
 
+## Check Existing Fixed-Position Elements Before Placing New Ones (2026-03-08)
+
+**Pattern**: Before adding any `position: fixed` element, grep for ALL existing `fixed` elements in the codebase and map their positions. New fixed elements must not overlap existing ones at any breakpoint.
+
+**Why**: The "Add Sticky" button was placed at `fixed bottom-8 left-8` — the exact same position as the existing FloatingNotesButton. QA screenshots showed the composite result but the overlap was invisible because the new button rendered on top. User-facing bug shipped to staging.
+
+**Error signature**: Two `fixed` elements with identical positioning classes (`bottom-8 left-8`). Visual: one button completely hidden behind another.
+
+## QA Must Verify New UI Elements Don't Collide With Existing Layout (2026-03-08)
+
+**Pattern**: When QA-ing a new fixed/floating UI element, explicitly verify it doesn't overlap other fixed elements by checking at all breakpoints. Look for the ABSENCE of expected elements (e.g., if the Notes button should be visible but isn't, something is covering it).
+
+**Why**: Multiple QA screenshots were taken but the overlap was missed because only the new element's appearance was checked, not whether it obscured existing elements. The FloatingNotesButton was completely hidden behind the Add Sticky button.
+
 ## Removing FK Without Removing ORM Relationship Poisons All Models (2026-03-08)
 
 **Pattern**: When dropping a `ForeignKey` from a column, always also remove any `relationship()` that depended on it. SQLAlchemy mapper initialization is all-or-nothing — one invalid relationship makes every model's queries crash (`InvalidRequestError: One or more mappers failed to initialize`).

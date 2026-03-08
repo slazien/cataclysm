@@ -267,7 +267,7 @@ export function StickyManager() {
         className={
           isMobile
             ? 'fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] left-1/2 z-40 -translate-x-1/2'
-            : 'fixed bottom-8 left-8 z-40'
+            : 'fixed bottom-8 left-24 z-40'
         }
       >
         <motion.button
