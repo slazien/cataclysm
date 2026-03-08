@@ -127,18 +127,34 @@ const SECTIONS: Section[] = [
   },
 ];
 
+const HOW_IT_WORKS_SEEN_KEY = 'cataclysm-how-it-works-seen';
+
 export function HowItWorksModal() {
   const open = useUiStore((s) => s.howItWorksOpen);
   const toggle = useUiStore((s) => s.toggleHowItWorks);
 
+  // Auto-open once for first-time visitors
+  useEffect(() => {
+    if (!localStorage.getItem(HOW_IT_WORKS_SEEN_KEY)) {
+      toggle();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleClose = () => {
+    localStorage.setItem(HOW_IT_WORKS_SEEN_KEY, '1');
+    toggle();
+  };
+
   useEffect(() => {
     if (!open) return;
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') toggle();
+      if (e.key === 'Escape') handleClose();
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, toggle]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   if (!open) return null;
 
@@ -156,7 +172,7 @@ export function HowItWorksModal() {
           </h2>
           <button
             type="button"
-            onClick={toggle}
+            onClick={handleClose}
             aria-label="Close"
             className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
           >
