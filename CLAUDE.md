@@ -52,7 +52,9 @@ All must pass before committing:
 2. **Mypy**: `dmypy run -- cataclysm/ backend/` (daemon mode, ~4s warm)
 3. **Tests**: `pytest tests/ backend/tests/ -v` (parallel via `-n auto`, skips `@pytest.mark.slow`). Every new module needs `tests/test_<module>.py`. Use synthetic data fixtures, mock external APIs.
 4. **Code review**: Dispatch `superpowers:code-reviewer` after implementation (mandatory).
-5. **Frontend QA**: If ANY frontend files changed, use Playwright MCP to visually verify every affected component on staging BEFORE promoting to prod. **BLOCKING gate.** Wait for Railway deploy (~2-3 min) before QA — don't test stale code.
+5. **Frontend TypeScript**: Run `npx tsc --noEmit` from `frontend/` before every push. Local incremental cache hides missed symbol references that Railway's clean build catches. `vitest` alone is insufficient — it only typechecks imported files.
+6. **Frontend QA**: If ANY frontend files changed, use Playwright MCP to visually verify every affected component on staging BEFORE promoting to prod. **BLOCKING gate.** Wait for Railway deploy (~2-3 min) before QA — don't test stale code.
+7. **Railway deploy verification**: After every push, immediately call `list-deployments` to get the deployment ID, then `get-logs` with that ID to confirm success. `get-logs` without an ID returns the latest *successful* build — useless for debugging failures.
 
 **CRITICAL: Fix ALL errors, including pre-existing ones.** Zero errors means zero errors.
 

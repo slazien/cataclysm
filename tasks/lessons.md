@@ -552,3 +552,23 @@ if (isPending) return <Skeleton />;  // Renders in SSR HTML correctly
 
 **Command**: `python -c "from backend.tests.conftest import build_synthetic_csv; open('/tmp/test.csv','wb').write(build_synthetic_csv(n_laps=5))"` then `curl -X POST .../upload -F "files=@/tmp/test.csv"`
 
+
+## Bulk Refactor Leaves Stale Symbol References — Always Run `tsc --noEmit` (2026-03-08)
+
+**Pattern**: After any bulk rename/replace across many files (e.g., `MARGINS` → `dimensions.margins`), run `npx tsc --noEmit` from `frontend/` before committing. Local incremental TypeScript cache reuses compiled output for unchanged files, hiding missed references. Railway's clean build catches them — causing failed deploys.
+
+**Why**: Phase 2 chart margin refactor renamed `MARGINS` usages to `dimensions.margins` across 16 files, but 4 occurrences across 3 files were missed (`BrakeConsistency.tsx` ×2, `CornerSpeedOverlay.tsx`, `LateralOffsetChart.tsx`). Local build showed no errors (cache). Railway failed with `Cannot find name 'MARGINS'` on 3 consecutive deploys.
+
+**Error signature**: Railway build: `Type error: Cannot find name 'X'` in a file you thought you already updated. Local `next dev` / `vitest` shows no errors because incremental cache masked it.
+
+**Rule**: `npx tsc --noEmit` is **mandatory** before every frontend push — not optional. Tests alone are insufficient because they only typecheck files they import.
+
+## Railway `get-logs` Returns Latest Success, Not Latest Deployment (2026-03-08)
+
+**Pattern**: When a Railway deploy fails, `get-logs` without a `deploymentId` returns logs from the most recent **successful** deployment — which looks fine. To debug a failure:
+1. Call `list-deployments` first to get the failed deployment ID (status: FAILED)
+2. Call `get-logs` with `deploymentId: <that ID>`
+
+**Why**: After three failed deploys, checking `get-logs` without an ID returned a clean successful build log, making it look like everything was fine. User had to explicitly tell me to check the logs — I was looking at the wrong deployment.
+
+**Error signature**: `get-logs` output shows `✓ Compiled successfully` but Railway dashboard shows FAILED status. You're reading old logs.
