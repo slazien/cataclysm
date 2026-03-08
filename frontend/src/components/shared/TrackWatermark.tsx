@@ -108,7 +108,7 @@ export function TrackWatermark() {
           strokeWidth={1.5}
           strokeLinecap="round"
           strokeLinejoin="round"
-          opacity={0.035}
+          opacity={0.07}
         />
       </svg>
     </div>
