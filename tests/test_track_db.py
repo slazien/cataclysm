@@ -324,13 +324,13 @@ class TestAMPEnrichedData:
         assert c.direction == "left"
         assert "carousel" in c.name.lower() or "carousel" in (c.coaching_notes or "").lower()
 
-    def test_t5_blind_braking(self) -> None:
-        c = self._get_corner(5)
-        assert c.direction == "left"
+    def test_t6_blind_countdown_hairpin(self) -> None:
+        c = self._get_corner(6)
+        assert c.direction == "right"
         assert c.blind is True
 
-    def test_t11_compression(self) -> None:
-        c = self._get_corner(11)
+    def test_t10_compression(self) -> None:
+        c = self._get_corner(10)
         assert c.elevation_trend == "compression"
 
     def test_t14_eau_rouge(self) -> None:
@@ -535,6 +535,7 @@ class TestBarberEnrichedData:
     def test_elevation_range(self) -> None:
         """Barber min-to-max altitude range is ~24m (80 feet), not cumulative gain."""
         assert BARBER_MOTORSPORTS_PARK.elevation_range_m == pytest.approx(24.0)
+        assert BARBER_MOTORSPORTS_PARK.elevation_range_m is not None
         assert BARBER_MOTORSPORTS_PARK.elevation_range_m < 30.0
 
 

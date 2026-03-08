@@ -321,11 +321,11 @@ _AMP_LANDMARKS: list[Landmark] = [
     # --- T3-T4 Carousel complex ---
     Landmark("carousel apex curb", 591.0, LandmarkType.curbing, description="T4 apex"),
     Landmark("hilltop crest", 645.0, LandmarkType.natural, description="Highest point on track"),
-    # --- T5 Downhill Hairpin with brake boards ---
-    Landmark("T5 3 board", 910.0, LandmarkType.brake_board, description="300m to T5"),
-    Landmark("T5 2 board", 945.0, LandmarkType.brake_board, description="200m to T5"),
-    Landmark("T5 1 board", 981.0, LandmarkType.brake_board, description="100m to T5"),
-    Landmark("T5 gravel trap", 1067.0, LandmarkType.barrier, description="Runoff on outside"),
+    # --- T6 Countdown Hairpin with brake boards ---
+    Landmark("T6 3 board", 910.0, LandmarkType.brake_board, description="300m to T6"),
+    Landmark("T6 2 board", 945.0, LandmarkType.brake_board, description="200m to T6"),
+    Landmark("T6 1 board", 981.0, LandmarkType.brake_board, description="100m to T6"),
+    Landmark("T6 gravel trap", 1067.0, LandmarkType.barrier, description="Runoff on outside"),
     # --- Back straight ---
     Landmark("pit exit merge", 1214.0, LandmarkType.road, description="Pit merge on left"),
     # --- Bridge section ---
@@ -334,7 +334,7 @@ _AMP_LANDMARKS: list[Landmark] = [
     # --- T10-T11 ---
     Landmark("T10 brake board", 1796.0, LandmarkType.brake_board),
     Landmark("The Dip compression", 1889.0, LandmarkType.natural, description="Compression dip"),
-    # --- Eau Rouge complex ---
+    # --- Eau Rouge complex (T13-T15) ---
     Landmark("Eau Rouge entry curb", 2044.0, LandmarkType.curbing),
     Landmark("Eau Rouge crest", 2090.0, LandmarkType.natural, description="Crest of Eau Rouge"),
     # --- Final section ---
@@ -351,10 +351,12 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
     length_m=2935.0,
     elevation_range_m=30.0,
     corners=[
+        # --- Fractions verified against telemetry curvature peaks (2926m track) ---
+        # --- Directions from curvature sign: positive = LEFT, negative = RIGHT ---
         OfficialCorner(
             1,
             "Downhill Hairpin",
-            0.059,
+            0.058,
             direction="left",
             corner_type="hairpin",
             elevation_trend="downhill",
@@ -366,25 +368,25 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
         ),
         OfficialCorner(
             2,
-            "Blind Left",
-            0.180,
+            "Uphill Left",
+            0.139,
             character="lift",
             direction="left",
             corner_type="kink",
             elevation_trend="uphill",
             camber="positive",
             blind=True,
-            coaching_notes="Completely blind minor left. Brief lift at most. Trust the line.",
+            coaching_notes="Blind minor left, climbing. Brief lift at most. Trust the line.",
         ),
         OfficialCorner(
             3,
-            "Carousel Entry",
-            0.206,
-            direction="left",
+            "Uphill Right",
+            0.176,
+            direction="right",
             corner_type="sweeper",
             elevation_trend="uphill",
             camber="positive",
-            coaching_notes="Entry to the carousel complex. Braking while climbing — uphill helps.",
+            coaching_notes="Right-hand bend approaching the Carousel. Trail-brake into entry.",
         ),
         OfficialCorner(
             4,
@@ -401,9 +403,19 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
         ),
         OfficialCorner(
             5,
+            "Descent Right",
+            0.297,
+            character="lift",
+            direction="right",
+            corner_type="kink",
+            elevation_trend="downhill",
+            coaching_notes="Right-hand bend on the descent from the Carousel. Brief lift.",
+        ),
+        OfficialCorner(
+            6,
             "Countdown Hairpin",
-            0.353,
-            direction="left",
+            0.373,
+            direction="right",
             corner_type="hairpin",
             elevation_trend="downhill",
             camber="off-camber",
@@ -414,81 +426,65 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
             ),
         ),
         OfficialCorner(
-            6,
-            "Uphill Right Kink",
-            0.373,
-            character="lift",
+            7,
+            "Chicane Right",
+            0.448,
             direction="right",
             corner_type="kink",
-            elevation_trend="uphill",
-            camber="positive",
-            coaching_notes="Quick direction change exiting T5. Brief lift, not heavy braking.",
-        ),
-        OfficialCorner(
-            7,
-            "Chicane Left",
-            0.498,
-            direction="left",
-            corner_type="hairpin",
             elevation_trend="flat",
-            camber="positive",
             coaching_notes=(
-                "Left entry of the tight chicane. Set up wide for a quick "
-                "direction change into the right of T8."
+                "Right entry of the chicane. Set up wide for a quick "
+                "direction change into the left of T8."
             ),
         ),
         OfficialCorner(
             8,
-            "Chicane Right",
+            "Chicane Left",
             0.508,
-            direction="right",
-            corner_type="hairpin",
+            direction="left",
+            corner_type="sweeper",
             elevation_trend="flat",
-            camber="positive",
             coaching_notes=(
-                "Right exit of the chicane onto the back straight. "
+                "Left exit of the chicane onto the back straight. "
                 "Sacrifice T7 entry for T8 exit speed — biggest laptime opportunity."
             ),
         ),
         OfficialCorner(
             9,
-            "Downhill Left Sweeper",
-            0.559,
-            direction="left",
+            "Bridge Right",
+            0.554,
+            direction="right",
             corner_type="sweeper",
             elevation_trend="downhill",
-            camber="positive",
-            coaching_notes="Long sweeping left, downhill. Smooth steering — don't upset the car.",
+            coaching_notes="Right sweeper near the pedestrian bridge. Smooth and committed.",
         ),
         OfficialCorner(
             10,
-            "Hard Left Uphill",
-            0.610,
-            direction="left",
+            "The Dip",
+            0.608,
+            direction="right",
             corner_type="hairpin",
-            elevation_trend="uphill",
-            camber="positive",
+            elevation_trend="compression",
             coaching_notes=(
-                "Common section for early turn-in. Delay entry — uphill adds grip. "
-                "Positive camber rewards patience."
+                "Car compresses through the dip, giving extra grip. "
+                "Trust the grip — the compression rewards commitment."
             ),
         ),
         OfficialCorner(
             11,
-            "The Dip",
-            0.643,
-            direction="right",
+            "Dip Exit Left",
+            0.638,
+            direction="left",
             corner_type="sweeper",
-            elevation_trend="compression",
+            elevation_trend="uphill",
             coaching_notes=(
-                "Car compresses through the dip, giving extra grip. "
-                "Trust the grip and begin accelerating through the compression."
+                "Sharp left exiting the dip. Uphill adds grip. Begin accelerating through the exit."
             ),
         ),
         OfficialCorner(
             12,
             "Downhill Left Kink",
-            0.661,
+            0.650,
             character="lift",
             direction="left",
             corner_type="kink",
@@ -497,6 +493,16 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
         ),
         OfficialCorner(
             13,
+            "Eau Rouge Approach",
+            0.690,
+            character="flat",
+            direction="left",
+            corner_type="sweeper",
+            elevation_trend="downhill",
+            coaching_notes="Beginning of the Eau Rouge tribute. Flat out — do NOT lift.",
+        ),
+        OfficialCorner(
+            14,
             "Eau Rouge Entry",
             0.712,
             character="flat",
@@ -505,34 +511,22 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
             elevation_trend="uphill",
             camber="positive",
             coaching_notes=(
-                "Start of the Eau Rouge tribute. Flat out — do NOT lift. "
-                "Uphill entry, smooth steering through the esses."
-            ),
-        ),
-        OfficialCorner(
-            14,
-            "Eau Rouge Mid",
-            0.814,
-            character="flat",
-            direction="right",
-            corner_type="esses",
-            elevation_trend="flat",
-            camber="positive",
-            coaching_notes=(
-                "Long on-ramp style sweeper — continue accelerating. "
-                "Balance throttle through multiple direction changes."
+                "Main Eau Rouge sweep. Flat out — uphill entry, smooth steering through the esses."
             ),
         ),
         OfficialCorner(
             15,
-            "Eau Rouge Exit",
-            0.898,
+            "Eau Rouge Mid",
+            0.814,
             character="flat",
             direction="left",
             corner_type="esses",
             elevation_trend="flat",
             camber="positive",
-            coaching_notes="Exit of Eau Rouge complex. Stay flat, smooth transition to T16.",
+            coaching_notes=(
+                "Long on-ramp style sweeper — continue accelerating. "
+                "Balance throttle through the gentle left."
+            ),
         ),
         OfficialCorner(
             16,
