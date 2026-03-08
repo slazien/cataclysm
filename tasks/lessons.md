@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## User-ID Migration Must Be Idempotent and Consolidate All Duplicates (2026-03-08)
+
+**Pattern**: Any `ensure_user_exists`-style function that migrates data between user IDs must ALWAYS check for and consolidate ALL duplicate rows (same email, different IDs) — not just handle the "not found by ID" case. Early-return paths that skip consolidation create ping-pong where two auth sessions alternately migrate data back and forth.
+
+**Why**: `ensure_user_exists` had an early return when user was found by primary key, skipping the duplicate-email check. Two NextAuth sessions (mobile + desktop) with different `sub` claims for the same email kept migrating all sessions to whichever user ID called the endpoint, causing 404s on equipment switch and other session-scoped writes.
+
+**Error signature**: Backend logs showing `Synced N in-memory session(s) from user X → Y` followed by `Ownership mismatch for <session_id>: stored=Y requested=X` — the session was just migrated away from the requesting user.
+
 ## PostgreSQL ON CONFLICT Only Fires for Its Specified Constraint (2026-03-08)
 
 **Pattern**: When a table has multiple unique constraints, `INSERT ... ON CONFLICT ON CONSTRAINT X DO UPDATE` only handles violations of constraint X. If the row also violates a DIFFERENT unique constraint Y, PostgreSQL raises a normal `IntegrityError` — the ON CONFLICT handler does NOT fire for Y. Ensure the ON CONFLICT target matches the constraint that actually fires in the race condition.
@@ -43,6 +51,14 @@
 **Why**: The mapper registry is global. A broken relationship on `NoteDB` caused `select(User)`, `select(SessionFile)`, and every other query to fail. The entire backend became non-functional — sessions disappeared, equipment/skill level loads failed. Took production-impacting debugging to trace back to an orphaned `user: Mapped[User] = relationship()` on a column that no longer had a FK.
 
 **Error signature**: `sqlalchemy.exc.InvalidRequestError: One or more mappers failed to initialize - can't proceed with initialization of other mappers. Triggering mapper: 'Mapper[NoteDB(notes)]'`
+
+## Wrap Multi-Table FK Migrations in Per-Table Savepoints (2026-03-08)
+
+**Pattern**: When batch-migrating FK references across multiple tables (e.g., `UPDATE sessions SET user_id = :new WHERE user_id = :old`), wrap each table's UPDATE in its own `db.begin_nested()` savepoint. On unique constraint violation, catch the exception and DELETE the old rows instead. Never use a single try/except around the entire batch — one table's constraint failure aborts all remaining tables.
+
+**Why**: First attempt at `ensure_user_exists` consolidation wrapped all FK table UPDATEs in a single try/except. A unique constraint violation on `equipment_profiles` (old+new user both had a profile) would skip the remaining 10 tables entirely. The savepoint-per-table pattern ensures each table is handled independently: UPDATE if possible, DELETE (old user loses) if not.
+
+**Error signature**: `IntegrityError: duplicate key value violates unique constraint` during bulk FK migration, followed by sessions/data still pointing at the old user_id for tables that were never reached.
 
 ## Playwright `browser_evaluate` Requires `function` Parameter (2026-03-08)
 
