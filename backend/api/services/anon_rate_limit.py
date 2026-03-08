@@ -9,7 +9,7 @@ from collections import defaultdict
 logger = logging.getLogger(__name__)
 
 # Max anonymous sessions per IP per 24 hours
-MAX_ANON_PER_IP: int = 3
+MAX_ANON_PER_IP: int = 20
 # Global daily budget for anonymous reports
 MAX_ANON_GLOBAL_DAILY: int = 50
 # Window in seconds (24 hours)
