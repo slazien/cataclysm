@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { ChevronDown, Star } from 'lucide-react';
 import { useSessionStore, useAnalysisStore } from '@/stores';
@@ -82,6 +82,16 @@ export function LapGridSelector() {
       selectLaps([selectedLaps[1], lapNumber]);
     }
   }
+
+  // Close on Escape key (capture phase ensures it fires even if other layers exist)
+  useEffect(() => {
+    if (!open) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, [open]);
 
   if (cleanLaps.length === 0) return null;
 
