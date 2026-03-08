@@ -107,7 +107,7 @@ interface TooltipData {
 
 export function MiniSectorMap() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
-  const { data, isLoading } = useMiniSectors(activeSessionId, 20);
+  const { data, isLoading, isError } = useMiniSectors(activeSessionId, 20);
   const [selectedLap, setSelectedLap] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
 
@@ -136,10 +136,12 @@ export function MiniSectorMap() {
     );
   }
 
-  if (!data || data.sectors.length === 0) {
+  if (isError || !data || data.sectors.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-sm text-[var(--text-secondary)]">No mini-sector data available</p>
+      <div className="flex h-full items-center justify-center p-4">
+        <p className="text-center text-sm text-[var(--text-secondary)]">
+          {isError ? 'Mini-sector data unavailable for this session.' : 'No mini-sector data available'}
+        </p>
       </div>
     );
   }

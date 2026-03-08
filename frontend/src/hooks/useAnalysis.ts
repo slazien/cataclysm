@@ -105,6 +105,7 @@ export function useMiniSectors(
     queryKey: ["mini-sectors", sessionId, nSectors, lap],
     queryFn: () => getMiniSectors(sessionId!, nSectors, lap),
     enabled: !!sessionId,
+    retry: 1,
     ...IMMUTABLE,
   });
 }

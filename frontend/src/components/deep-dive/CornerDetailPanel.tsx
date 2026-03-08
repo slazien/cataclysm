@@ -234,23 +234,23 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
   return (
     <div className="flex h-full flex-col gap-3 overflow-y-auto rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
           <button
             onClick={() => cycleCorner('prev')}
-            className="flex h-10 w-10 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] sm:h-6 sm:w-6"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] sm:h-6 sm:w-6"
             aria-label="Previous corner"
           >
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h3 className="text-lg font-semibold text-[var(--text-primary)]">
+          <h3 className="whitespace-nowrap text-base font-semibold text-[var(--text-primary)] sm:text-lg">
             Turn {cornerNumber}
           </h3>
           <button
             onClick={() => cycleCorner('next')}
-            className="flex h-10 w-10 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] sm:h-6 sm:w-6"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] sm:h-6 sm:w-6"
             aria-label="Next corner"
           >
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -260,7 +260,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
           {overallGrade && <GradeChip grade={overallGrade} />}
           {optimalOpp && optimalOpp.time_cost_s !== 0 && (
             <span
-              className="text-sm font-medium tabular-nums"
+              className="whitespace-nowrap text-sm font-medium tabular-nums"
               style={{
                 color: optimalOpp.time_cost_s > 0
                   ? colors.motorsport.brake
@@ -273,11 +273,11 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-[var(--text-secondary)]">
+        <div className="flex shrink-0 items-center gap-1.5">
+          <span className="max-w-[100px] truncate text-xs text-[var(--text-secondary)] sm:max-w-none">
             {displayLap ? `L${displayLap}` : 'Best lap'}{apexLabel ? ` · ${apexLabel}` : ''}
           </span>
-          <kbd className="rounded border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-1 py-0.5 font-mono text-[10px] text-[var(--text-secondary)]">←→</kbd>
+          <kbd className="hidden rounded border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-1 py-0.5 font-mono text-[10px] text-[var(--text-secondary)] sm:inline-flex">←→</kbd>
         </div>
       </div>
 
