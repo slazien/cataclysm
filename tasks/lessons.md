@@ -762,3 +762,19 @@ el.getBoundingClientRect().right > window.innerWidth
 **Why**: Confused 2 legitimate backend failures with QA artifacts. The distinction: if the real authenticated user can access the data (confirmed in browser), the QA agent failure is an artifact. Document this expectation when writing QA agent prompts.
 
 **Error signature**: QA agent reports `500`/`404` on `/laps/{id}/data` or similar session-scoped endpoints, while the real user sees data fine in their browser.
+
+## Never FK user_id to users Table — OAuth Users May Not Have Rows (2026-03-08)
+
+**Pattern**: New tables with `user_id` must use plain `String` column, NOT `ForeignKey("users.id")`. Existing models (`CoachingReport`, `EquipmentProfileDB`, `PhysicsCacheEntry`) follow this convention. The `users` table is only populated by NextAuth's adapter — JWT-based OAuth users may never get a row there.
+
+**Why**: NoteDB was created with `ForeignKey("users.id", ondelete="CASCADE")`. First note creation on staging hit `asyncpg.exceptions.ForeignKeyViolationError: insert or update on table "notes" violates foreign key constraint "notes_user_id_fkey"`. Required emergency migration to drop the constraint.
+
+**Error signature**: `ForeignKeyViolationError: insert or update on table "notes" violates foreign key constraint "notes_user_id_fkey"` — Detail: Key (user_id)=(google-oauth2|...) is not present in table "users".
+
+## fetchApi Must Handle 204 No Content Before JSON Parsing (2026-03-08)
+
+**Pattern**: Any generic `fetchApi<T>()` wrapper that calls `res.json()` must early-return on `res.status === 204`. DELETE endpoints return 204 with an empty body — `res.json()` throws on empty input. Add: `if (res.status === 204) return undefined as T;` before the JSON parse line.
+
+**Why**: The notes DELETE endpoint returned 204 (FastAPI `status_code=204`). `fetchApi` called `res.json()` which threw, preventing `onSuccess` from firing, so the UI never removed the deleted note. The mutation appeared to silently fail.
+
+**Error signature**: `SyntaxError: Unexpected end of JSON input` when deleting a note (or any 204-returning endpoint).

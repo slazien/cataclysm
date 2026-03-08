@@ -20,6 +20,7 @@ Ask clarifying Qs before implementing. Concise, action-oriented.
 8. **Domain research** — Physics/coaching feature: WebSearch first (SAE, MoTeC, YourDataDriven, TrailBrake, Driver61). Never invent algorithms from coding intuition.
 9. **Task tracking** — Plan → `tasks/todo.md`, mark complete, capture lessons.
 10. **Commit immediately** — After every change. Push `staging`. NEVER push `main` unless user says "deploy to prod."
+12. **Temp branch lifecycle** — After merging `temp/<feature>` → staging, NEVER delete the temp branch. User must approve deletion manually (rollback safety).
 11. **Images** — `curl -sL -o /tmp/f.ext "URL"`, Read tool, delete.
 
 ## Core Principles
@@ -37,6 +38,7 @@ Arch → `docs/architecture.md` | Setup → `docs/developer-guide.md` | **Always
 - Python 3.11+, all fns typed (`mypy disallow_untyped_defs`), line len 100, rules: E F W I N UP B SIM
 - All files: `from __future__ import annotations`
 - Constants: UPPER_SNAKE_CASE · Structured data: dataclasses not dicts
+- DB `user_id` columns: plain `String`, NEVER `ForeignKey("users.id")` — OAuth/JWT users may lack rows in `users` table
 
 ## Quality Gates
 
