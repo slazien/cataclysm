@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 from dataclasses import dataclass
 from functools import lru_cache
@@ -95,8 +96,14 @@ def get_current_user(
 
     Returns 401 if no valid token, 503 if ``nextauth_secret`` is not configured.
     """
-    # QA bypass: skip all auth when DEV_AUTH_BYPASS=true
+    # QA bypass: skip all auth when DEV_AUTH_BYPASS=true.
+    # Safety guard: never allow this in Railway-deployed environments.
     if settings.dev_auth_bypass:
+        if os.environ.get("RAILWAY_ENVIRONMENT"):
+            raise HTTPException(
+                status_code=503,
+                detail="DEV_AUTH_BYPASS cannot be enabled in a Railway environment",
+            )
         user_id = x_test_user_id or settings.test_auth_user_id or "dev-user"
         test_users = {
             "test-alex": ("alex@test.cataclysm.dev", "Alex Racer"),
@@ -222,8 +229,11 @@ async def authenticate_websocket(websocket: WebSocket) -> AuthenticatedUser | No
     """
     settings = get_settings()
 
-    # QA bypass: skip all auth when DEV_AUTH_BYPASS=true
+    # QA bypass: skip all auth when DEV_AUTH_BYPASS=true.
+    # Safety guard: never allow this in Railway-deployed environments.
     if settings.dev_auth_bypass:
+        if os.environ.get("RAILWAY_ENVIRONMENT"):
+            return None  # Reject WS connections rather than raise (WS can't return 503)
         user_id = (
             websocket.headers.get("x-test-user-id") or settings.test_auth_user_id or "dev-user"
         )

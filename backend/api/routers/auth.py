@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
@@ -76,16 +76,18 @@ async def update_me(
             import logging
 
             from backend.api.routers.coaching import trigger_auto_coaching
+            from backend.api.schemas.coaching import SkillLevel
             from backend.api.services.session_store import list_sessions
 
             logger = logging.getLogger(__name__)
             sessions = [s for s in list_sessions() if s.user_id == current_user.user_id]
+            new_level = cast(SkillLevel, body.skill_level)
             for sd in sessions:
                 try:
                     await trigger_auto_coaching(
                         sd.session_id,
                         sd,
-                        skill_level=body.skill_level,
+                        skill_level=new_level,
                     )
                 except (ValueError, TypeError, KeyError):
                     logger.warning(

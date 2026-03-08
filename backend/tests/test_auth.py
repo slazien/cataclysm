@@ -290,7 +290,7 @@ class TestGetCurrentUser:
             anthropic_api_key="fake",
             dev_auth_bypass=True,
         )
-        with pytest.raises(RuntimeError, match="cannot be enabled"):
+        with pytest.raises(HTTPException) as exc_info:
             get_current_user(
                 authorization=None,
                 session_token=None,
@@ -298,6 +298,8 @@ class TestGetCurrentUser:
                 x_test_user_id=None,
                 settings=settings,
             )
+        assert exc_info.value.status_code == 503
+        assert "cannot be enabled" in exc_info.value.detail
 
     def test_dev_bypass_allowed_without_railway_environment(
         self, monkeypatch: pytest.MonkeyPatch

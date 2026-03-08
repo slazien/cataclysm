@@ -44,6 +44,7 @@ from cataclysm.grip import estimate_grip_limit
 from cataclysm.grip_calibration import (
     apply_calibration_to_params,
     calibrate_grip_from_telemetry,
+    calibrate_per_corner_grip,
 )
 from cataclysm.optimal_comparison import compare_with_optimal
 from cataclysm.parser import ParsedSession, parse_racechrono_csv
@@ -655,6 +656,75 @@ def _collect_independent_calibration_telemetry(
     return np.concatenate(lat_segments), np.concatenate(lon_segments), used_laps
 
 
+def _build_mu_array(
+    distance_m: np.ndarray,
+    corners: list[Corner],
+    per_corner_mu: dict[int, float],
+    global_mu: float,
+) -> np.ndarray:
+    """Build a per-point mu array from per-corner grip estimates.
+
+    For points inside a corner zone, uses ``max(global_mu, per_corner_mu)``
+    — the higher of the two estimates.  This allows per-corner calibration
+    to capture corners where the driver demonstrated grip above the global
+    average, without penalising corners where they were timid (which would
+    make the optimal profile more conservative, the wrong direction for a
+    coaching tool).
+
+    For points outside any corner zone, the global mu is used.
+    """
+    mu_arr = np.full(len(distance_m), global_mu, dtype=np.float64)
+    for corner in corners:
+        if corner.number not in per_corner_mu:
+            continue
+        corner_mu = max(global_mu, per_corner_mu[corner.number])
+        mask = (distance_m >= corner.entry_distance_m) & (distance_m <= corner.exit_distance_m)
+        mu_arr[mask] = corner_mu
+    return mu_arr
+
+
+def _collect_per_corner_mu(
+    session_data: SessionData,
+) -> dict[int, float]:
+    """Estimate per-corner grip from ALL coaching laps combined.
+
+    Concatenates lateral_g and distance_m from all coaching laps, then calls
+    calibrate_per_corner_grip on the combined data.  Using all laps gives a
+    robust multi-lap estimate: even laps where the driver was conservative in
+    one corner contribute near-limit data from other corners, and the p95
+    across the combined dataset captures what the car demonstrated it can do.
+
+    Returns an empty dict if telemetry columns are unavailable.
+    """
+    all_lat_g: list[np.ndarray] = []
+    all_dist_m: list[np.ndarray] = []
+
+    for lap_num in session_data.coaching_laps:
+        lap_df = session_data.processed.resampled_laps.get(lap_num)
+        if lap_df is None:
+            continue
+        if "lateral_g" not in lap_df.columns:
+            continue
+        lat_g = lap_df["lateral_g"].to_numpy()
+        dist = lap_df["lap_distance_m"].to_numpy()
+        finite = np.isfinite(lat_g)
+        lat_g = lat_g[finite]
+        dist = dist[finite]
+        if len(lat_g) == 0:
+            continue
+        all_lat_g.append(lat_g)
+        all_dist_m.append(dist)
+
+    if not all_lat_g:
+        return {}
+
+    return calibrate_per_corner_grip(
+        np.concatenate(all_lat_g),
+        np.concatenate(all_dist_m),
+        session_data.corners,
+    )
+
+
 def _resolve_curvature_and_elevation(
     session_data: SessionData,
     lidar_alt: np.ndarray | None,
@@ -805,7 +875,26 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
             lidar_alt,
         )
 
-        mu_array = None
+        # Build per-corner mu array using all coaching laps combined.
+        # Uses max(global_mu, per_corner_mu) so corners where the driver
+        # demonstrated above-average grip are predicted correctly without
+        # making timid corners more conservative.
+        mu_array: np.ndarray | None = None
+        if session_data.corners and calibrated_vp is not None:
+            per_corner_mu = _collect_per_corner_mu(session_data)
+            if per_corner_mu:
+                mu_array = _build_mu_array(
+                    curvature_result.distance_m,
+                    session_data.corners,
+                    per_corner_mu,
+                    calibrated_vp.mu,
+                )
+                logger.debug(
+                    "Per-corner mu array built for sid=%s: %d calibrated corners, global_mu=%.3f",
+                    session_id,
+                    len(per_corner_mu),
+                    calibrated_vp.mu,
+                )
 
         # Compute elevation gradient and vertical curvature for the solver
         # Prefer resolved altitude (canonical/LIDAR), fall back to GPS

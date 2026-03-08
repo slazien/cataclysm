@@ -512,7 +512,7 @@ class TestLifespan:
         ):
             await _run_lifespan()
 
-        mock_trigger.assert_called_once_with("sess-abc", fake_session)
+        mock_trigger.assert_called_once_with("sess-abc", fake_session, skill_level="intermediate")
 
     @pytest.mark.asyncio
     async def test_lifespan_shutdown_clears_session_store(self) -> None:

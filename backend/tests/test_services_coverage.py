@@ -237,8 +237,6 @@ class TestGetAnyCoachingReportDb:
             session_id="dbcr-sess",
             status="ready",
             skill_level="expert",
-            created_at="2026-01-01T00:00:00Z",
-            corners=[],
         )
 
         async with _test_session_factory() as db:
@@ -305,8 +303,6 @@ class TestDeleteCoachingReportForSkillDb:
             session_id="del-skill-sess",
             status="ready",
             skill_level="novice",
-            created_at="2026-01-01T00:00:00Z",
-            corners=[],
         )
 
         async with _test_session_factory() as db:
@@ -392,7 +388,7 @@ class TestVehicleSpecFromDict:
         """When year_range is a 2-element list, values are extracted (line 186)."""
         from backend.api.services.equipment_store import _vehicle_spec_from_dict  # noqa: PLC2701
 
-        d = {
+        d: dict[str, object] = {
             "make": "BMW",
             "model": "M2",
             "generation": "G87",
@@ -418,7 +414,7 @@ class TestVehicleSpecFromDict:
         """When year_range is None or a scalar, the fallback (2000, 2025) is used."""
         from backend.api.services.equipment_store import _vehicle_spec_from_dict  # noqa: PLC2701
 
-        d = {
+        d: dict[str, object] = {
             "make": "Toyota",
             "model": "GR86",
             "generation": "2022+",
@@ -445,7 +441,7 @@ class TestVehicleSpecFromDict:
         """A scalar year_range (wrong type) also falls back to default."""
         from backend.api.services.equipment_store import _vehicle_spec_from_dict  # noqa: PLC2701
 
-        d = {
+        d: dict[str, object] = {
             "make": "Mazda",
             "model": "MX-5",
             "generation": "ND2",

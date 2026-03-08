@@ -24,7 +24,13 @@ class TestCalibrateGripFromTelemetry:
     """Tests for calibrate_grip_from_telemetry()."""
 
     def test_calibrate_from_clean_data(self) -> None:
-        """Synthetic G-G data with known max values produces correct calibration."""
+        """Synthetic G-G data with known max values produces correct calibration.
+
+        The lateral filter now requires |lateral_g| >= 0.3 (min_lateral_g) to
+        exclude gentle-curve data that dilutes the distribution.  For uniform
+        data on [-1.2, 1.2], samples with |lat| >= 0.3 span [0.3, 1.2], so
+        p95 of that filtered distribution is ~1.155 (0.3 + 0.95 * 0.9 = 1.155).
+        """
         rng = np.random.default_rng(42)
         n = 2000
 
@@ -36,9 +42,9 @@ class TestCalibrateGripFromTelemetry:
         result = calibrate_grip_from_telemetry(lateral_g, longitudinal_g)
 
         assert result is not None
-        # 90th percentile of |uniform(-1.2, 1.2)| ~ 1.2 * 0.95 = ~1.14
-        assert result.max_lateral_g == pytest.approx(1.14, abs=0.1)
-        # 90th percentile of |ax| where ax < -0.2 and |ay| < 0.2
+        # p95 of |lat| in [0.3, 1.2] (after min_lateral_g filter) ≈ 1.155
+        assert result.max_lateral_g == pytest.approx(1.155, abs=0.1)
+        # 95th percentile of |ax| where ax < -0.2 and |ay| < 0.2
         assert result.max_brake_g > 0.5
         assert result.max_accel_g > 0.2
         assert result.confidence in ("high", "medium", "low")
@@ -115,7 +121,7 @@ class TestCalibrateGripFromTelemetry:
         result = calibrate_grip_from_telemetry(lateral_g, longitudinal_g)
         assert result is not None
 
-        # The 90th percentile should still be near 1.0, not 5.0
+        # The 95th percentile should still be near 1.0, not 5.0
         assert result.max_lateral_g < 1.5
         assert result.max_lateral_g > 0.8
 
@@ -255,8 +261,11 @@ class TestConfidenceLevels:
         lateral_g = np.zeros(n)
         longitudinal_g = np.zeros(n)
 
-        # Block 1: coasting — |lon_g| < 0.2 (feeds lateral filter)
-        lateral_g[:n_per_regime] = rng.uniform(-1.0, 1.0, size=n_per_regime)
+        # Block 1: coasting — |lon_g| < 0.2, |lat| >= 0.3 guaranteed so all
+        # points pass the min_lateral_g filter and contribute to point_count.
+        lateral_g[:n_per_regime] = rng.choice([-1, 1], size=n_per_regime) * rng.uniform(
+            0.3, 1.0, size=n_per_regime
+        )
         longitudinal_g[:n_per_regime] = rng.uniform(-0.1, 0.1, size=n_per_regime)
 
         # Block 2: straight-line braking — ax < -0.2, |ay| < 0.2
@@ -564,10 +573,10 @@ class TestCalibratePerCornerGrip:
         # Corner 1 should have higher mu than corner 2
         assert result[1] > result[2]
 
-        # Corner 1: 90th percentile of |lat_g| in [1.0, 1.3] → should be ~1.15+
+        # Corner 1: 95th percentile of |lat_g| in [1.0, 1.3] → should be ~1.28+
         assert result[1] > 0.9
 
-        # Corner 2: 90th percentile of |lat_g| in [0.4, 0.7] → should be ~0.61
+        # Corner 2: 95th percentile of |lat_g| in [0.4, 0.7] → should be ~0.685
         assert result[2] < 0.8
         assert result[2] > 0.3
 
