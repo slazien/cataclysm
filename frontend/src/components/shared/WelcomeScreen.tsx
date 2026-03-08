@@ -128,7 +128,7 @@ export function WelcomeScreen() {
           size="lg"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploadMutation.isPending}
-          className="w-full gap-2 bg-[var(--cata-accent)] text-base text-white hover:bg-[var(--cata-accent)]/90"
+          className="min-h-[44px] w-full gap-2 bg-[var(--cata-accent)] text-base text-white hover:bg-[var(--cata-accent)]/90"
         >
           <Upload className="h-5 w-5" />
           Upload CSV
@@ -336,7 +336,7 @@ export function WelcomeScreen() {
           <button
             type="button"
             onClick={toggleHowItWorks}
-            className="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+            className="inline-flex min-h-[44px] items-center gap-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
           >
             <BookOpen className="h-3.5 w-3.5" />
             How the analysis works
@@ -350,7 +350,7 @@ export function WelcomeScreen() {
           <button
             type="button"
             onClick={() => setInstructionsOpen((o) => !o)}
-            className="flex w-full items-center justify-between text-left"
+            className="flex min-h-[44px] w-full items-center justify-between text-left"
           >
             <span className="text-xs text-[var(--text-secondary)]">
               Works with <span className="font-medium text-[var(--text-primary)]">RaceChrono Pro</span>
