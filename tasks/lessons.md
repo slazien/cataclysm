@@ -786,3 +786,11 @@ el.getBoundingClientRect().right > window.innerWidth
 **Why**: The notes DELETE endpoint returned 204 (FastAPI `status_code=204`). `fetchApi` called `res.json()` which threw, preventing `onSuccess` from firing, so the UI never removed the deleted note. The mutation appeared to silently fail.
 
 **Error signature**: `SyntaxError: Unexpected end of JSON input` when deleting a note (or any 204-returning endpoint).
+
+## Apply Security Guards to ALL Parallel Auth Functions (2026-03-08)
+
+**Pattern**: When adding a guard inside an auth bypass block (`if settings.dev_auth_bypass:`), immediately grep for ALL other functions with the same bypass block and apply the same guard. In this codebase, `get_current_user` and `authenticate_websocket` both have `if settings.dev_auth_bypass:` branches — a guard added to one must be added to both.
+
+**Why**: `get_current_user` got the Railway safety guard; `authenticate_websocket` (WebSocket path) was missed. A code reviewer caught it. Any WebSocket endpoint would have silently bypassed authentication on Railway with DEV_AUTH_BYPASS=true.
+
+**Error signature**: Code reviewer flags "authenticate_websocket missing Railway guard" — the HTTP and WebSocket auth paths diverge on a security-critical check.
