@@ -16,6 +16,7 @@ import { ProcessingOverlay } from '@/components/shared/ProcessingOverlay';
 import { SettingsPanel } from '@/components/shared/SettingsPanel';
 import { ToastContainer } from '@/components/shared/ToastContainer';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useSessionPrefetch } from '@/hooks/useSessionPrefetch';
 import { KeyboardShortcutOverlay } from '@/components/shared/KeyboardShortcutOverlay';
 import { DisclaimerModal } from '@/components/shared/DisclaimerModal';
 import { HowItWorksModal } from '@/components/shared/HowItWorksModal';
@@ -31,6 +32,7 @@ export default function Home() {
   const { status: authStatus } = useAuthSession();
   const claimAttempted = useRef(false);
   useKeyboardShortcuts();
+  useSessionPrefetch(activeSessionId);
 
   // Claim anonymous session after OAuth sign-in
   useEffect(() => {
