@@ -630,3 +630,35 @@ export async function updateNote(noteId: string, body: NoteUpdate) {
 export async function deleteNote(noteId: string) {
   return fetchApi<void>(`/api/notes/${noteId}`, { method: "DELETE" });
 }
+
+// --- Stickies API ---
+
+import type {
+  StickyData,
+  StickyCreate,
+  StickyUpdate,
+  StickiesList,
+} from "./types";
+
+export async function listStickies(viewScope?: string) {
+  const qs = viewScope ? `?view_scope=${viewScope}` : "";
+  return fetchApi<StickiesList>(`/api/stickies${qs}`);
+}
+
+export async function createSticky(body: StickyCreate) {
+  return fetchApi<StickyData>("/api/stickies", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function updateSticky(stickyId: string, body: StickyUpdate) {
+  return fetchApi<StickyData>(`/api/stickies/${stickyId}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteSticky(stickyId: string) {
+  return fetchApi<void>(`/api/stickies/${stickyId}`, { method: "DELETE" });
+}

@@ -37,6 +37,7 @@ from backend.api.routers import (
     progress,
     sessions,
     sharing,
+    stickies,
     tracks,
     trends,
     wrapped,
@@ -304,6 +305,8 @@ _CACHE_RULES: list[tuple[str, str]] = [
     ("/api/leaderboards", "no-cache"),
     # Notes endpoints: mutable (CRUD)
     ("/api/notes", "no-cache"),
+    # Stickies endpoints: mutable (CRUD)
+    ("/api/stickies", "no-cache"),
     # Session list: mutable (changes on upload/delete)
     ("/api/sessions/upload", "no-cache"),
     # Analysis sub-routes: immutable once computed for a session
@@ -402,6 +405,7 @@ app.include_router(sharing.router, prefix="/api/sharing", tags=["sharing"])
 app.include_router(instructor.router, prefix="/api/instructor", tags=["instructor"])
 app.include_router(organizations.router, prefix="/api/orgs", tags=["organizations"])
 app.include_router(notes.router, prefix="/api/notes", tags=["notes"])
+app.include_router(stickies.router, prefix="/api/stickies", tags=["stickies"])
 app.include_router(progress.router, prefix="/api/progress", tags=["progress"])
 
 

@@ -430,6 +430,27 @@ class NoteDB(Base):
     )
 
 
+class StickyDB(Base):
+    """Placeable sticky note positioned anywhere in the app UI."""
+
+    __tablename__ = "stickies"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[str] = mapped_column(String, nullable=False)
+    pos_x: Mapped[float] = mapped_column(Float, nullable=False)
+    pos_y: Mapped[float] = mapped_column(Float, nullable=False)
+    content: Mapped[str] = mapped_column(Text, server_default="", nullable=False)
+    tone: Mapped[str] = mapped_column(String, server_default="amber", nullable=False)
+    collapsed: Mapped[bool] = mapped_column(Boolean, server_default="true", nullable=False)
+    view_scope: Mapped[str] = mapped_column(String, server_default="global", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (Index("ix_stickies_user", "user_id"),)
+
+
 class PhysicsCacheEntry(Base):
     """Persistent cache for physics computation results (optimal profile/comparison).
 

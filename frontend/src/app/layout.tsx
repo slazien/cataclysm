@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Providers } from '@/components/Providers';
 import { NetworkStatus } from '@/components/shared/NetworkStatus';
 import { TestUserSwitcher } from '@/components/dev/TestUserSwitcher';
+import { StickyManager } from '@/components/shared/stickies/StickyManager';
 import './globals.css';
 
 export const viewport: Viewport = {
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <NetworkStatus />
           {children}
+          <StickyManager />
           {process.env.NEXT_PUBLIC_TEST_AUTH === 'true' && <TestUserSwitcher />}
         </Providers>
       </body>

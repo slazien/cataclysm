@@ -908,3 +908,49 @@ export interface NotesList {
   items: Note[];
   total: number;
 }
+
+// --- Stickies ---
+
+export type StickyTone = "amber" | "sky" | "mint" | "rose" | "violet" | "peach";
+export type StickyViewScope =
+  | "report"
+  | "deep-dive"
+  | "progress"
+  | "debrief"
+  | "global";
+
+export interface StickyData {
+  id: string;
+  user_id: string;
+  pos_x: number;
+  pos_y: number;
+  content: string;
+  tone: StickyTone;
+  collapsed: boolean;
+  view_scope: StickyViewScope;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StickyCreate {
+  pos_x: number;
+  pos_y: number;
+  content?: string;
+  tone?: StickyTone;
+  collapsed?: boolean;
+  view_scope?: StickyViewScope;
+}
+
+export interface StickyUpdate {
+  pos_x?: number;
+  pos_y?: number;
+  content?: string;
+  tone?: StickyTone;
+  collapsed?: boolean;
+  view_scope?: StickyViewScope;
+}
+
+export interface StickiesList {
+  items: StickyData[];
+  total: number;
+}
