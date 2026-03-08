@@ -160,7 +160,7 @@ export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
     ctx.clearRect(0, 0, width, height);
 
     // --- 1. Grid lines (behind data) ---
-    drawGrid(ctx, yScale, dimensions.innerWidth, MARGINS);
+    drawGrid(ctx, yScale, dimensions.innerWidth, dimensions.margins);
 
     // --- 2. Data ---
     // Standard deviation band
