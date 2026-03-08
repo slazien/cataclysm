@@ -99,14 +99,14 @@ export function ReplayControls({
         <div className="flex items-center gap-2">
           <button
             onClick={reset}
-            className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+            className="flex h-11 w-11 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
             title="Reset"
           >
             <SkipBack size={16} />
           </button>
           <button
             onClick={togglePlay}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--cata-accent,#3b82f6)] text-white transition-transform hover:scale-105 active:scale-95"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--cata-accent,#3b82f6)] text-white transition-transform hover:scale-105 active:scale-95"
             title={isPlaying ? 'Pause' : 'Play'}
           >
             {isPlaying ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
@@ -129,7 +129,7 @@ export function ReplayControls({
               <button
                 key={s}
                 onClick={() => setSpeed(s)}
-                className={`rounded px-2 py-0.5 font-mono text-xs transition-colors ${
+                className={`flex min-h-[44px] items-center rounded px-2 font-mono text-xs transition-colors ${
                   playbackSpeed === s
                     ? 'bg-[var(--cata-accent,#3b82f6)] text-white'
                     : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]'
@@ -146,7 +146,7 @@ export function ReplayControls({
               {recording.isRecording ? (
                 <button
                   onClick={recording.onStopRecording}
-                  className="flex h-8 items-center gap-1.5 rounded-md bg-red-600/20 px-2.5 text-red-400 transition-colors hover:bg-red-600/30"
+                  className="flex min-h-[44px] items-center gap-1.5 rounded-md bg-red-600/20 px-2.5 text-red-400 transition-colors hover:bg-red-600/30"
                   title="Stop Recording"
                 >
                   <Square size={14} fill="currentColor" />
@@ -156,7 +156,7 @@ export function ReplayControls({
                 <a
                   href={recording.downloadUrl}
                   download={`lap-replay.${recording.fileExtension}`}
-                  className="flex h-8 items-center gap-1.5 rounded-md bg-green-600/20 px-2.5 text-green-400 transition-colors hover:bg-green-600/30"
+                  className="flex min-h-[44px] items-center gap-1.5 rounded-md bg-green-600/20 px-2.5 text-green-400 transition-colors hover:bg-green-600/30"
                   title="Download Recording"
                   onClick={recording.onClearRecording}
                 >
@@ -166,7 +166,7 @@ export function ReplayControls({
               ) : (
                 <button
                   onClick={recording.onStartRecording}
-                  className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+                  className="flex min-h-[44px] items-center gap-1.5 rounded-md px-2.5 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
                   title="Record Replay"
                 >
                   <Video size={14} />
