@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useSessionStore } from '@/stores';
-import { Check } from 'lucide-react';
+import { AlertTriangle, Check, RotateCcw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { CircularProgress } from './CircularProgress';
 
 const STEPS = [
@@ -54,9 +55,22 @@ function useServerProcessingAnimation(active: boolean, start: number) {
   return pct;
 }
 
+/** Scroll to the RaceChrono export instructions section on WelcomeScreen */
+function scrollToExportInstructions() {
+  const el = document.getElementById('racechrono-export-instructions');
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Briefly highlight the section
+    el.classList.add('ring-2', 'ring-[var(--cata-accent)]');
+    setTimeout(() => el.classList.remove('ring-2', 'ring-[var(--cata-accent)]'), 2000);
+  }
+}
+
 export function ProcessingOverlay() {
   const uploadState = useSessionStore((s) => s.uploadState);
   const uploadProgress = useSessionStore((s) => s.uploadProgress);
+  const uploadErrorMessage = useSessionStore((s) => s.uploadErrorMessage);
+  const resetUpload = useSessionStore((s) => s.resetUpload);
 
   // During 'processing' state, animate from wherever upload left off (60%) toward 95%
   const isProcessing = uploadState === 'processing';
@@ -75,13 +89,43 @@ export function ProcessingOverlay() {
 
   if (uploadState === 'idle') return null;
   if (uploadState === 'error') {
+    const errorMsg = uploadErrorMessage || 'Upload failed. Please check your CSV format and try again.';
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-        <div role="alertdialog" aria-modal="true" aria-label="Upload error" className="w-full max-w-xs rounded-xl border border-red-500/30 bg-[var(--bg-surface)] p-6 text-center shadow-2xl">
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-label="Upload error"
+          className="mx-4 w-full max-w-xs rounded-xl border border-red-500/30 bg-[var(--bg-surface)] p-6 text-center shadow-2xl"
+        >
+          <div className="mb-3 flex justify-center">
+            <AlertTriangle className="h-8 w-8 text-red-400" />
+          </div>
           <p className="text-sm font-medium text-red-400">Upload failed</p>
-          <p className="mt-1 text-xs text-[var(--text-secondary)]">
-            Please check your CSV format and try again
+          <p className="mt-1.5 text-xs leading-relaxed text-[var(--text-secondary)]">
+            {errorMsg}
           </p>
+          <div className="mt-4 flex flex-col gap-2">
+            <Button
+              size="sm"
+              onClick={resetUpload}
+              className="min-h-[44px] w-full gap-2 bg-[var(--cata-accent)] text-white hover:bg-[var(--cata-accent)]/90"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Try Again
+            </Button>
+            <button
+              type="button"
+              onClick={() => {
+                resetUpload();
+                // Small delay so overlay unmounts before scroll
+                requestAnimationFrame(() => scrollToExportInstructions());
+              }}
+              className="min-h-[44px] text-xs text-[var(--text-secondary)] underline underline-offset-2 transition-colors hover:text-[var(--text-primary)]"
+            >
+              Export instructions
+            </button>
+          </div>
         </div>
       </div>
     );

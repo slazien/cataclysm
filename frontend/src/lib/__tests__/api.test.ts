@@ -314,20 +314,49 @@ describe('uploadSessions', () => {
     xhrConfig = { status: 429, responseText: 'not json' };
     const file = new File(['data'], 'test.csv');
     await expect(uploadSessions([file])).rejects.toThrow(
-      'Rate limit exceeded. Sign in for unlimited access.',
+      'Upload limit reached. Try again later or sign in for unlimited uploads.',
+    );
+  });
+
+  it('rejects with bad format message on 400', async () => {
+    xhrConfig = { status: 400, responseText: JSON.stringify({ detail: '' }) };
+    const file = new File(['data'], 'test.csv');
+    await expect(uploadSessions([file])).rejects.toThrow(
+      "This file doesn't look like a RaceChrono v3 CSV. Need help exporting?",
+    );
+  });
+
+  it('rejects with bad format detail from response on 400', async () => {
+    xhrConfig = {
+      status: 400,
+      responseText: JSON.stringify({ detail: 'Missing GPS columns' }),
+    };
+    const file = new File(['data'], 'test.csv');
+    await expect(uploadSessions([file])).rejects.toThrow('Missing GPS columns');
+  });
+
+  it('rejects with file too large message on 413', async () => {
+    xhrConfig = { status: 413, responseText: '' };
+    const file = new File(['data'], 'test.csv');
+    await expect(uploadSessions([file])).rejects.toThrow(
+      'File too large. Try exporting fewer laps.',
     );
   });
 
   it('rejects with generic upload error for other non-2xx statuses', async () => {
     xhrConfig = { status: 500, responseText: '' };
     const file = new File(['data'], 'test.csv');
-    await expect(uploadSessions([file])).rejects.toThrow('Upload failed: 500');
+    await expect(uploadSessions([file])).rejects.toThrow(
+      'Upload failed. Please check your CSV format and try again.',
+    );
   });
 
   it('rejects with network error on onerror', async () => {
     xhrConfig = { status: 200, responseText: '', triggerError: true };
     const file = new File(['data'], 'test.csv');
-    await expect(uploadSessions([file])).rejects.toThrow('Upload network error');
+    await expect(uploadSessions([file])).rejects.toThrow(
+      'Upload interrupted — check your connection and try again.',
+    );
   });
 
   it('sends X-Test-User-Id header when testUserId is in localStorage', async () => {
@@ -363,7 +392,7 @@ describe('uploadSessions', () => {
     xhrConfig = { status: 429, responseText: JSON.stringify({ detail: '' }) };
     const file = new File(['data'], 'test.csv');
     await expect(uploadSessions([file])).rejects.toThrow(
-      'Rate limit exceeded. Sign in for unlimited access.',
+      'Upload limit reached. Try again later or sign in for unlimited uploads.',
     );
   });
 });

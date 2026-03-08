@@ -74,6 +74,7 @@ beforeEach(() => {
     sessions: [],
     uploadState: 'idle',
     uploadProgress: 0,
+    uploadErrorMessage: null,
   });
   useUiStore.setState({
     toasts: [],
@@ -228,8 +229,8 @@ describe('useUploadSessions', () => {
     expect(mockUploadSessions).toHaveBeenCalled();
   });
 
-  it('sets upload state to error on failure', async () => {
-    mockUploadSessions.mockRejectedValue(new Error('Upload failed'));
+  it('sets upload state to error on failure with specific message', async () => {
+    mockUploadSessions.mockRejectedValue(new Error('File too large. Try exporting fewer laps.'));
 
     const { result } = renderHook(() => useUploadSessions(), { wrapper: createWrapper() });
 
@@ -240,9 +241,11 @@ describe('useUploadSessions', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
 
-    // Store should have recorded error state (though it resets after 3s)
-    // We check the mutation itself failed
-    expect(result.current.error).toBeTruthy();
+    // Store should have recorded error state and message — no auto-dismiss
+    expect(useSessionStore.getState().uploadState).toBe('error');
+    expect(useSessionStore.getState().uploadErrorMessage).toBe(
+      'File too large. Try exporting fewer laps.',
+    );
   });
 
   it('shows achievement toasts when newly_unlocked is present', async () => {
@@ -451,7 +454,7 @@ describe('useUploadSessions', () => {
     }
   });
 
-  it('resets upload state after timeout on error', async () => {
+  it('does not auto-dismiss error state (user must click Try Again)', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       mockUploadSessions.mockRejectedValue(new Error('fail'));
@@ -467,13 +470,19 @@ describe('useUploadSessions', () => {
 
       // Error state should be set
       expect(useSessionStore.getState().uploadState).toBe('error');
+      expect(useSessionStore.getState().uploadErrorMessage).toBe('fail');
 
-      // Advance past the 3000ms auto-dismiss
+      // Advance well past any old timeout — error should persist
       await act(async () => {
-        vi.advanceTimersByTime(3100);
+        vi.advanceTimersByTime(10000);
       });
 
+      expect(useSessionStore.getState().uploadState).toBe('error');
+
+      // Manual reset (simulates "Try Again" button)
+      useSessionStore.getState().resetUpload();
       expect(useSessionStore.getState().uploadState).toBe('idle');
+      expect(useSessionStore.getState().uploadErrorMessage).toBeNull();
     } finally {
       vi.useRealTimers();
     }

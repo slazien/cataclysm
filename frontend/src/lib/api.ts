@@ -112,16 +112,26 @@ export async function uploadSessions(
       } else if (xhr.status === 429) {
         try {
           const resp = JSON.parse(xhr.responseText);
-          reject(new Error(resp.detail || "Rate limit exceeded. Sign in for unlimited access."));
+          reject(new Error(resp.detail || "Upload limit reached. Try again later or sign in for unlimited uploads."));
         } catch {
-          reject(new Error("Rate limit exceeded. Sign in for unlimited access."));
+          reject(new Error("Upload limit reached. Try again later or sign in for unlimited uploads."));
+        }
+      } else if (xhr.status === 413) {
+        reject(new Error("File too large. Try exporting fewer laps."));
+      } else if (xhr.status === 400) {
+        try {
+          const resp = JSON.parse(xhr.responseText);
+          reject(new Error(resp.detail || "This file doesn't look like a RaceChrono v3 CSV. Need help exporting?"));
+        } catch {
+          reject(new Error("This file doesn't look like a RaceChrono v3 CSV. Need help exporting?"));
         }
       } else {
-        reject(new Error(`Upload failed: ${xhr.status}`));
+        reject(new Error(`Upload failed. Please check your CSV format and try again.`));
       }
     };
 
-    xhr.onerror = () => reject(new Error("Upload network error"));
+    xhr.onerror = () => reject(new Error("Upload interrupted — check your connection and try again."));
+    xhr.ontimeout = () => reject(new Error("Upload interrupted — check your connection and try again."));
     xhr.send(formData);
   });
 }

@@ -35,6 +35,7 @@ describe('sessionStore', () => {
       sessions: [],
       uploadState: 'idle',
       uploadProgress: 0,
+      uploadErrorMessage: null,
     });
   });
 
@@ -46,6 +47,7 @@ describe('sessionStore', () => {
     expect(state.sessions).toEqual([]);
     expect(state.uploadState).toBe('idle');
     expect(state.uploadProgress).toBe(0);
+    expect(state.uploadErrorMessage).toBeNull();
   });
 
   // --- setActiveSession ---
@@ -221,6 +223,51 @@ describe('sessionStore', () => {
       const state = useSessionStore.getState();
       expect(state.uploadState).toBe('done');
       expect(state.uploadProgress).toBe(100);
+      expect(state.sessions).toEqual([SESSION_A]);
+      expect(state.activeSessionId).toBe('sess-aaa');
+    });
+  });
+
+  // --- setUploadErrorMessage ---
+
+  describe('setUploadErrorMessage', () => {
+    it('stores an error message', () => {
+      useSessionStore.getState().setUploadErrorMessage('File too large.');
+      expect(useSessionStore.getState().uploadErrorMessage).toBe('File too large.');
+    });
+
+    it('clears the error message with null', () => {
+      useSessionStore.getState().setUploadErrorMessage('some error');
+      useSessionStore.getState().setUploadErrorMessage(null);
+      expect(useSessionStore.getState().uploadErrorMessage).toBeNull();
+    });
+  });
+
+  // --- resetUpload ---
+
+  describe('resetUpload', () => {
+    it('resets upload state, progress, and error message to idle', () => {
+      useSessionStore.setState({
+        uploadState: 'error',
+        uploadProgress: 45,
+        uploadErrorMessage: 'Network error',
+      });
+      useSessionStore.getState().resetUpload();
+      const state = useSessionStore.getState();
+      expect(state.uploadState).toBe('idle');
+      expect(state.uploadProgress).toBe(0);
+      expect(state.uploadErrorMessage).toBeNull();
+    });
+
+    it('does not affect sessions or activeSessionId', () => {
+      useSessionStore.setState({
+        sessions: [SESSION_A],
+        activeSessionId: 'sess-aaa',
+        uploadState: 'error',
+        uploadErrorMessage: 'fail',
+      });
+      useSessionStore.getState().resetUpload();
+      const state = useSessionStore.getState();
       expect(state.sessions).toEqual([SESSION_A]);
       expect(state.activeSessionId).toBe('sess-aaa');
     });

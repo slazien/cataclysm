@@ -56,6 +56,17 @@ export function WelcomeScreen() {
     (files: File[]) => {
       if (files.length === 0) return;
       setError(null);
+
+      // Client-side CSV validation before triggering upload
+      for (const file of files) {
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+          setError(
+            `"${file.name}" is not a CSV file. Please export from RaceChrono as CSV v3.`,
+          );
+          return;
+        }
+      }
+
       uploadMutation.mutate(files, {
         onSuccess: (data) => {
           if (data.session_ids.length > 0) {
@@ -99,7 +110,8 @@ export function WelcomeScreen() {
       e.preventDefault();
       dragCounterRef.current = 0;
       setIsDragging(false);
-      const files = Array.from(e.dataTransfer.files).filter((f) => f.name.endsWith('.csv'));
+      // Pass all files — handleFiles validates CSV extension and shows error for non-CSV
+      const files = Array.from(e.dataTransfer.files);
       handleFiles(files);
     },
     [handleFiles],
@@ -365,8 +377,8 @@ export function WelcomeScreen() {
       </motion.div>
 
       {/* ── Setup instructions (demoted) ── */}
-      <div className="mt-8 w-full max-w-2xl px-6">
-        <div className="rounded-lg bg-[var(--bg-surface)] px-4 py-3">
+      <div id="racechrono-export-instructions" className="mt-8 w-full max-w-2xl px-6">
+        <div className="rounded-lg bg-[var(--bg-surface)] px-4 py-3 transition-shadow">
           <button
             type="button"
             onClick={() => setInstructionsOpen((o) => !o)}

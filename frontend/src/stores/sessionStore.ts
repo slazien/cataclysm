@@ -9,10 +9,15 @@ interface SessionState {
   uploadState: UploadState;
   /** 0-100 real progress: 0-60 = upload bytes, 60-95 = server processing, 100 = done */
   uploadProgress: number;
+  /** Human-readable error message shown in ProcessingOverlay error state */
+  uploadErrorMessage: string | null;
   setActiveSession: (id: string | null) => void;
   setSessions: (sessions: SessionSummary[]) => void;
   setUploadState: (state: UploadState) => void;
   setUploadProgress: (pct: number) => void;
+  setUploadErrorMessage: (msg: string | null) => void;
+  /** Reset upload state to idle so user can retry */
+  resetUpload: () => void;
 }
 
 export const useSessionStore = create<SessionState>()((set) => ({
@@ -20,8 +25,11 @@ export const useSessionStore = create<SessionState>()((set) => ({
   sessions: [],
   uploadState: 'idle',
   uploadProgress: 0,
+  uploadErrorMessage: null,
   setActiveSession: (id) => set({ activeSessionId: id }),
   setSessions: (sessions) => set({ sessions }),
   setUploadState: (state) => set({ uploadState: state }),
   setUploadProgress: (pct) => set({ uploadProgress: pct }),
+  setUploadErrorMessage: (msg) => set({ uploadErrorMessage: msg }),
+  resetUpload: () => set({ uploadState: 'idle', uploadProgress: 0, uploadErrorMessage: null }),
 }));

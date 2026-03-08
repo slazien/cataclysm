@@ -65,6 +65,7 @@ export function useUploadSessions() {
     mutationFn: (files: File[]) => {
       store().setUploadState('uploading');
       store().setUploadProgress(0);
+      store().setUploadErrorMessage(null);
       return uploadSessions(files, (fraction) => {
         // Upload bytes account for 0-60% of the progress bar.
         // XHR fires progress during upload; server processing happens after
@@ -77,13 +78,21 @@ export function useUploadSessions() {
       });
     },
     onSuccess: async (data) => {
+      // No sessions produced — file was parseable but had no valid laps
+      if (data.session_ids.length === 0) {
+        store().setUploadState('error');
+        store().setUploadProgress(0);
+        store().setUploadErrorMessage(
+          'No laps detected — was the session shorter than 1 lap? Make sure RaceChrono was recording.',
+        );
+        return;
+      }
+
       store().setUploadProgress(100);
       store().setUploadState('done');
       // Immediately activate the first uploaded session so the dashboard
       // appears right away instead of waiting for the sessions refetch.
-      if (data.session_ids.length > 0) {
-        store().setActiveSession(data.session_ids[0]);
-      }
+      store().setActiveSession(data.session_ids[0]);
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       // Brief pause to show 100% check, then auto-dismiss
       setTimeout(() => {
@@ -141,10 +150,13 @@ export function useUploadSessions() {
         addToast({ type: 'info', message: 'Session uploaded successfully' });
       }
     },
-    onError: () => {
+    onError: (error: Error) => {
       store().setUploadState('error');
       store().setUploadProgress(0);
-      setTimeout(() => store().setUploadState('idle'), 3000);
+      store().setUploadErrorMessage(
+        error.message || 'Upload failed. Please check your CSV format and try again.',
+      );
+      // No auto-dismiss — user clicks "Try Again" in ProcessingOverlay
     },
   });
 }
