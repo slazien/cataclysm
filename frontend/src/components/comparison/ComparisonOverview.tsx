@@ -47,7 +47,7 @@ export function ComparisonOverview({ data }: ComparisonOverviewProps) {
   const deltaAbs = Math.abs(data.delta_s);
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 lg:p-6">
+    <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-6 p-4 lg:p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

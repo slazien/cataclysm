@@ -57,7 +57,7 @@ export function SessionSelector({ currentSessionId }: SessionSelectorProps) {
 
   if (isLoading) {
     return (
-      <div className="mx-auto flex max-w-4xl flex-col items-center gap-4 p-8">
+      <div className="mx-auto flex w-full min-w-0 max-w-4xl flex-col items-center gap-4 p-8">
         <CircularProgress size={32} />
         <p className="text-sm text-[var(--text-secondary)]">Loading sessions...</p>
       </div>
@@ -65,7 +65,7 @@ export function SessionSelector({ currentSessionId }: SessionSelectorProps) {
   }
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-4 lg:p-6">
+    <div className="mx-auto flex w-full min-w-0 max-w-4xl flex-col gap-6 p-4 lg:p-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button

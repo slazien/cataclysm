@@ -105,7 +105,7 @@ export default function SharePage() {
   if (comparison) {
     return (
       <div className="min-h-screen bg-[var(--bg-primary)] pb-24">
-        <div className="mx-auto flex max-w-4xl flex-col gap-6 p-4 lg:p-8">
+        <div className="mx-auto flex w-full min-w-0 max-w-4xl flex-col gap-6 p-4 lg:p-8">
           <div className="text-center">
             <h1 className="text-2xl font-semibold text-[var(--text-primary)]">
               Comparison Results
@@ -130,7 +130,7 @@ export default function SharePage() {
   // Main share landing page - upload zone
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] pb-24">
-      <div className="mx-auto flex max-w-2xl flex-col items-center gap-8 p-4 pt-16 lg:p-8 lg:pt-24">
+      <div className="mx-auto flex w-full min-w-0 max-w-2xl flex-col items-center gap-8 p-4 pt-16 lg:p-8 lg:pt-24">
         {/* Header */}
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-[var(--text-primary)]">

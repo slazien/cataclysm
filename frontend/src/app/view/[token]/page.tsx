@@ -75,7 +75,7 @@ export default function PublicViewPage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] pb-24">
-      <div className="mx-auto flex max-w-2xl flex-col items-center gap-6 p-4 pt-8 lg:p-8 lg:pt-12">
+      <div className="mx-auto flex w-full min-w-0 max-w-2xl flex-col items-center gap-6 p-4 pt-8 lg:p-8 lg:pt-12">
         {/* Header */}
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-[var(--text-primary)]">{data.track_name}</h1>

@@ -164,7 +164,7 @@ export function SessionReport() {
   return (
     <>
     <ScrollArea className="h-full">
-      <div className="relative mx-auto flex max-w-5xl flex-col gap-6 p-4 lg:p-6">
+      <div className="relative mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-6 p-4 lg:p-6">
         <TrackWatermark />
 
         {/* ----------------------------------------------------------------- */}
