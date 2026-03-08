@@ -11,7 +11,7 @@ export function HeroTrackMapSection({ sessionId, bestLapNumber }: HeroTrackMapSe
   return (
     <div>
       <h3 className="mb-3 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Track Map</h3>
-      <div className="min-h-[400px] overflow-hidden rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)]">
+      <div className="min-h-[250px] overflow-hidden rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:min-h-[400px]">
         <HeroTrackMap sessionId={sessionId} bestLapNumber={bestLapNumber} />
       </div>
     </div>
