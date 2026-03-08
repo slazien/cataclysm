@@ -21,6 +21,13 @@ _BRAKE_SEARCH_BEFORE_M = 200.0
 # Floor speed (mps) to avoid division-by-zero in time computations
 _MIN_SPEED_MPS = 1.0
 
+# Apex-centred window for computing optimal min speed.  The full entry-to-exit
+# zone includes acceleration/braking ramps whose speeds reflect the preceding/
+# following corner, not the current one.  A ±30% window around the apex captures
+# the curvature-limited portion without ramp contamination.
+_APEX_WINDOW_FRACTION = 0.30  # fraction of zone width on each side of apex
+_MIN_APEX_WINDOW_M = 20.0  # absolute minimum half-window (metres)
+
 
 @dataclass
 class CornerOpportunity:
@@ -190,7 +197,22 @@ def compute_corner_opportunities(
         if not opt_mask.any():
             continue
         optimal_zone_speed = optimal.optimal_speed_mps[opt_mask]
-        optimal_min_speed = float(np.percentile(optimal_zone_speed, 5))
+
+        # Use an apex-centred window to avoid contamination from
+        # acceleration/braking ramps at zone edges.  For corners that
+        # immediately follow tight sections (e.g. T10 after T9 corkscrew),
+        # the zone entry includes a long forward-pass acceleration ramp
+        # whose speeds are well below the actual curvature-limited minimum.
+        zone_width = corner.exit_distance_m - corner.entry_distance_m
+        apex_half_window = max(zone_width * _APEX_WINDOW_FRACTION, _MIN_APEX_WINDOW_M)
+        apex_start = max(corner.apex_distance_m - apex_half_window, corner.entry_distance_m)
+        apex_end = min(corner.apex_distance_m + apex_half_window, corner.exit_distance_m)
+        apex_mask = (optimal.distance_m >= apex_start) & (optimal.distance_m <= apex_end)
+        if apex_mask.any():
+            optimal_min_speed = float(np.min(optimal.optimal_speed_mps[apex_mask]))
+        else:
+            # Fallback: full zone minimum
+            optimal_min_speed = float(np.min(optimal_zone_speed))
 
         # --- actual speed interpolated onto the optimal grid ---------------
         interp_actual = _interpolate_speed_at_distance(
