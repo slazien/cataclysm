@@ -451,6 +451,7 @@ async def _run_generation(
                 status="error",
                 summary="AI coaching is temporarily unavailable. Please retry in a few minutes.",
             ),
+            skill_level,
         )
     finally:
         started = get_generation_started_at(session_id, skill_level)

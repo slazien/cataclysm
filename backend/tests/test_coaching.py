@@ -1210,6 +1210,35 @@ async def test_run_generation_unmarks_generating_on_error(client: AsyncClient) -
     assert not is_generating(session_id, "intermediate")
 
 
+@pytest.mark.asyncio
+async def test_run_generation_error_stored_under_correct_skill_level(
+    client: AsyncClient,
+) -> None:
+    """Error report must be stored under the requested skill_level, not 'intermediate'."""
+    from backend.api.services.coaching_store import get_coaching_report
+
+    session_id = await _upload_session(client)
+
+    with patch(
+        "cataclysm.coaching.generate_coaching_report",
+        side_effect=RuntimeError("Claude API down"),
+    ):
+        await client.post(
+            f"/api/coaching/{session_id}/report",
+            json={"skill_level": "advanced"},
+        )
+        await _wait_for_generation(session_id, "advanced")
+
+    # Error report should be stored under "advanced"
+    advanced_report = await get_coaching_report(session_id, "advanced")
+    assert advanced_report is not None
+    assert advanced_report.status == "error"
+
+    # Should NOT be stored under "intermediate" (the old buggy default)
+    intermediate_report = await get_coaching_report(session_id, "intermediate")
+    assert intermediate_report is None
+
+
 # ---------------------------------------------------------------------------
 # _run_generation priority_corners with non-numeric corner values
 # ---------------------------------------------------------------------------
