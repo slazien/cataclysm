@@ -17,6 +17,7 @@ interface UiState {
   skillLevel: SkillLevel;
   sessionDrawerOpen: boolean;
   settingsPanelOpen: boolean;
+  howItWorksOpen: boolean;
   unitPreference: UnitPreference;
   toasts: Toast[];
   uploadPromptOpen: boolean;
@@ -24,6 +25,7 @@ interface UiState {
   setSkillLevel: (level: SkillLevel) => void;
   toggleSessionDrawer: () => void;
   toggleSettingsPanel: () => void;
+  toggleHowItWorks: () => void;
   setUnitPreference: (pref: UnitPreference) => void;
   addToast: (toast: Omit<Toast, 'id'>) => void;
   removeToast: (id: string) => void;
@@ -39,6 +41,7 @@ export const useUiStore = create<UiState>()(
   skillLevel: 'intermediate',
   sessionDrawerOpen: false,
   settingsPanelOpen: false,
+  howItWorksOpen: false,
   unitPreference: 'imperial',
   toasts: [],
   uploadPromptOpen: false,
@@ -46,6 +49,7 @@ export const useUiStore = create<UiState>()(
   setSkillLevel: (level) => set({ skillLevel: level }),
   toggleSessionDrawer: () => set((s) => ({ sessionDrawerOpen: !s.sessionDrawerOpen })),
   toggleSettingsPanel: () => set((s) => ({ settingsPanelOpen: !s.settingsPanelOpen })),
+  toggleHowItWorks: () => set((s) => ({ howItWorksOpen: !s.howItWorksOpen })),
   setUnitPreference: (pref) => set({ unitPreference: pref }),
   addToast: (toast) => {
     const id = `toast-${Date.now()}-${++toastCounter}`;

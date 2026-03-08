@@ -2,8 +2,8 @@
 
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Upload, ChevronDown, Sparkles, Target, ClipboardCheck, Check } from 'lucide-react';
-import { useSessionStore } from '@/stores';
+import { Upload, ChevronDown, Sparkles, Target, ClipboardCheck, Check, BookOpen } from 'lucide-react';
+import { useSessionStore, useUiStore } from '@/stores';
 import { useUploadSessions } from '@/hooks/useSession';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -39,6 +39,7 @@ const SAMPLE_GRADES = [
 export function WelcomeScreen() {
   const uploadMutation = useUploadSessions();
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
+  const toggleHowItWorks = useUiStore((s) => s.toggleHowItWorks);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -307,6 +308,18 @@ export function WelcomeScreen() {
           ))}
         </div>
       </motion.div>
+
+      {/* How it works link */}
+      <div className="mt-4 text-center">
+        <button
+          type="button"
+          onClick={toggleHowItWorks}
+          className="inline-flex items-center gap-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+        >
+          <BookOpen className="h-3.5 w-3.5" />
+          How the analysis works
+        </button>
+      </div>
 
       {/* Supported formats + collapsible instructions */}
       <div className="mt-8 w-full max-w-2xl px-6">

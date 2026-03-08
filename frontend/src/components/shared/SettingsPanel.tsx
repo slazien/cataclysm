@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, BookOpen } from 'lucide-react';
 import { useUiStore } from '@/stores';
 import { cn } from '@/lib/utils';
 import { EquipmentProfileList } from '@/components/equipment/EquipmentProfileList';
@@ -21,6 +21,7 @@ const UNIT_OPTIONS = [
 export function SettingsPanel() {
   const open = useUiStore((s) => s.settingsPanelOpen);
   const toggle = useUiStore((s) => s.toggleSettingsPanel);
+  const toggleHowItWorks = useUiStore((s) => s.toggleHowItWorks);
   const skillLevel = useUiStore((s) => s.skillLevel);
   const setSkillLevel = useUiStore((s) => s.setSkillLevel);
   const unitPreference = useUiStore((s) => s.unitPreference);
@@ -70,7 +71,7 @@ export function SettingsPanel() {
         </div>
 
         {/* Content — only render when open so queries mount fresh & hit cache */}
-        <div className="flex-1 overflow-x-hidden overflow-y-auto p-4">
+        <div className="flex flex-col flex-1 overflow-x-hidden overflow-y-auto p-4">
           {/* Equipment Profiles — most important customization */}
           {open && <EquipmentProfileList />}
 
@@ -125,7 +126,7 @@ export function SettingsPanel() {
           </fieldset>
 
           {/* Units */}
-          <fieldset className="min-w-0">
+          <fieldset className="mb-6 min-w-0">
             <legend className="mb-2 text-xs font-medium uppercase tracking-wider text-[var(--text-secondary)]">
               Units
             </legend>
@@ -170,6 +171,17 @@ export function SettingsPanel() {
               ))}
             </div>
           </fieldset>
+          {/* How It Works */}
+          <div className="mt-auto pt-4 border-t border-[var(--cata-border)]">
+            <button
+              type="button"
+              onClick={() => { toggle(); toggleHowItWorks(); }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+            >
+              <BookOpen className="h-4 w-4 shrink-0" />
+              How it works
+            </button>
+          </div>
         </div>
       </div>
     </>
