@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## Platform Parity: Always Implement UI Changes Identically on Both Mobile and Desktop (2026-03-08)
+
+**Pattern**: When building or modifying ANY UI element, implement it on BOTH platforms simultaneously with identical behavior, positioning, and visual design. Never do mobile-first-then-desktop or vice versa. Same relative position (e.g., both bottom-right), same interaction pattern, same visual treatment.
+
+**Why**: Built a FAB menu on mobile only → user had to say "redesign desktop the same way." Then positioned it bottom-left on desktop but bottom-right on mobile → user corrected again. User explicitly stated: "this is bad UX practice — changing on one platform but not the other." The entire session's work was reverted because of compounding platform inconsistencies. Three corrections on the same theme = systemic failure, not a one-off.
+
+**Error signature**: Any thought like "I'll do mobile first and desktop later" or using different position classes per breakpoint for the same element without a conscious design reason.
+
 ## New Overlay UI Must Match the "Non-Obstructive" Requirement It Was Given (2026-03-08)
 
 **Pattern**: When a feature spec says "don't obstruct the UI/data", implement the MINIMUM visual footprint for idle state (collapsed/inactive). For sticky notes: idle = tiny pin dot (~36px), active = translucent glassmorphic card. Never use opaque backgrounds or wide collapsed states for features that must coexist with dense data.

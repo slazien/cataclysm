@@ -91,6 +91,7 @@ Check: text clip, horiz overflow, touch targets ≥44px, chart scale.
 - Loading state: use `isPending` (not `isLoading`) in chart guards — `isLoading = isPending && isFetching` misses paused queries (mobile background/network blip). Guard order in chart early-returns: (1) prerequisites (e.g. `selectedLaps.length === 0`), (2) `isPending` spinner, (3) data validity (`!data?.available`).
 - Touch tooltips: never Radix `Tooltip` for info icons (hover-only, vanishes ~100ms on mobile). Use Radix `Popover` with `className="bg-foreground text-background ..."` on `PopoverContent`.
 - Overlay/floating UI: idle state = minimum footprint (small dot/pin, not wide bars). Expanded = dark glassmorphic (`bg-[var(--bg-surface)]/70 backdrop-blur-xl`), never opaque pastels. This is a dark-theme data-dense app.
+- **Platform parity**: ANY UI change → implement identically on mobile + desktop simultaneously. Same position, same interaction, same visual. Never one-platform-first.
 
 ### Tier 2 — Specific
 
