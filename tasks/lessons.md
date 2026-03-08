@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## Track Reference Turns: Curvature Peaks First, Labels Second (2026-03-08)
+
+**Pattern**: When fixing track reference data (fractions, directions, names), ALWAYS (1) load the `.npz` curvature data, (2) find curvature peaks with `scipy.signal.find_peaks`, (3) map official turns to peaks by topology, (4) extract fraction and direction from the curvature sign (positive=LEFT, negative=RIGHT). Never change surface attributes (direction labels, names) without first verifying the underlying fraction maps to the correct curvature peak. Build the full verification pipeline BEFORE making any code changes.
+
+**Why**: Changing direction labels without fixing fractions is meaningless — the direction depends on WHICH curvature peak the turn maps to. Visual map reading for directions is unreliable (got 8/16 wrong). Similarly-named tracks cause research errors ("Atlantic" vs "Atlanta" Motorsports Park are completely different tracks with different turn counts).
+
+**Error signature**: Two turns mapped to the same curvature peak (T7/T8 at 0.498/0.508 = 29m apart), or curvature sign disagrees with assigned direction.
+
 ## User-ID Migration Must Be Idempotent and Consolidate All Duplicates (2026-03-08)
 
 **Pattern**: Any `ensure_user_exists`-style function that migrates data between user IDs must ALWAYS check for and consolidate ALL duplicate rows (same email, different IDs) — not just handle the "not found by ID" case. Early-return paths that skip consolidation create ping-pong where two auth sessions alternately migrate data back and forth.
