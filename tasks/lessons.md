@@ -572,3 +572,34 @@ if (isPending) return <Skeleton />;  // Renders in SSR HTML correctly
 **Why**: After three failed deploys, checking `get-logs` without an ID returned a clean successful build log, making it look like everything was fine. User had to explicitly tell me to check the logs — I was looking at the wrong deployment.
 
 **Error signature**: `get-logs` output shows `✓ Compiled successfully` but Railway dashboard shows FAILED status. You're reading old logs.
+
+## Radix ScrollArea `display:table` Causes Mobile Horizontal Overflow (2026-03-08)
+
+**Pattern**: When a Radix `ScrollArea` is used as a full-page scroll container and content overflows its expected width on mobile, the culprit is likely the Radix Viewport inner div: Radix sets `style="display:table; min-width:100%"` via inline JS. On mobile this creates a circular width dependency — table width expands to content's intrinsic width, content expands to table width — breaking any `max-width` CSS constraint.
+
+Fix: Add a CSS class (`.no-hscroll`) to the ScrollArea root and target the inner div with `!important`:
+```css
+.no-hscroll > [data-slot="scroll-area-viewport"] > div {
+  display: block !important;
+  min-width: 0 !important;
+}
+```
+Apply only to vertical-scroll areas (NOT horizontal-scroll areas like LapPillBar).
+
+**Why**: `max-width: 100vw` doesn't work on `display:table` — table layout uses a two-pass column algorithm that ignores `max-width`. Only changing `display` to `block` restores normal flow where width is bounded by the parent viewport. `!important` is required because Radix sets the style as an inline attribute (higher specificity than class-based CSS).
+
+**Error signature**: Content on mobile is laid out wider than the viewport (e.g., 439px on a 360px viewport). `overflow-x-hidden` clips the content visually but the layout is still wrong. JS confirms: `innerDisplay: "table"`, `innerW: 439` when `window.innerWidth: 360`.
+
+## Use `docScrollWidth` — Not BoundingClientRect — for Overflow Detection (2026-03-08)
+
+**Pattern**: When verifying that a page has no horizontal overflow, use `document.documentElement.scrollWidth > window.innerWidth` as the authoritative test. Do NOT sweep `getBoundingClientRect().right > window.innerWidth` on all elements — this produces false positives from off-screen `position:fixed` elements (like closed drawers/modals rendered outside the viewport).
+
+```js
+// CORRECT
+document.documentElement.scrollWidth > window.innerWidth  // true = overflow
+
+// MISLEADING — returns false positives from off-screen fixed elements
+el.getBoundingClientRect().right > window.innerWidth
+```
+
+**Why**: `scrollWidth` measures whether the document can be scrolled horizontally. Fixed-position elements outside the viewport do NOT contribute to `scrollWidth`, but their `getBoundingClientRect()` can show `right: 680` on a 360px viewport, making it look like overflow exists when none does.
