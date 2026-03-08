@@ -24,7 +24,7 @@ Ask clarifying Qs before implementing. Concise, action-oriented.
 
 ## Core Principles
 
-Simplicity (minimal impact) · No shortcuts (root causes, senior standards) · Minimal blast radius.
+Simplicity (minimal impact) · No shortcuts (root causes, senior standards) · Minimal blast radius · **Pattern propagation**: when fixing a bug, grep for the same pattern elsewhere and fix all instances in the same commit.
 
 ## Project Overview
 
@@ -54,6 +54,7 @@ All must pass before commit:
 
 **Mobile viewports** (CSS px): S24 360×780 | iPhone14 390×844 | Pixel9 412×915 | iPhone16PM 440×956
 Check: text clip, horiz overflow, touch targets ≥44px, chart scale.
+**Tooltip rule**: Never use Radix `Tooltip` (hover-only) for interactive content. Always use `Popover` — tap-to-open stays open until dismissed. `Tooltip` fires enter+leave in rapid succession on touch → immediately disappears.
 
 ## Deployment
 
