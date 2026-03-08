@@ -161,7 +161,7 @@ def detect_linked_corners(
 
         # Distance gate: corners with apexes too far apart are independent
         # even if the car doesn't reach full speed between them.
-        if apex_gap > MAX_LINK_DISTANCE_M:
+        if apex_gap >= MAX_LINK_DISTANCE_M:
             linked_pairs.append(False)
             continue
 

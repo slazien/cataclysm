@@ -41,6 +41,7 @@ from backend.api.services.pipeline import (
     _collect_independent_calibration_telemetry,
     _collect_per_corner_mu,
     _get_physics_cached,
+    _implied_mu_from_corners,
     _resolve_curvature_and_elevation,
     _set_physics_cached,
     _track_lidar_task,
@@ -1804,3 +1805,167 @@ class TestCollectPerCornerMu:
         # With no corners, calibrate_per_corner_grip returns {} — just verify no crash
         result = _collect_per_corner_mu(sd)
         assert isinstance(result, dict)
+
+
+# ---------------------------------------------------------------------------
+# Tests for _implied_mu_from_corners (apex-window logic)
+# ---------------------------------------------------------------------------
+
+
+def _make_real_corner(
+    number: int,
+    entry_m: float,
+    exit_m: float,
+    apex_m: float,
+    min_speed_mps: float,
+) -> Any:
+    """Build a Corner with specified min_speed for implied mu testing."""
+    from cataclysm.corners import Corner
+
+    return Corner(
+        number=number,
+        entry_distance_m=entry_m,
+        exit_distance_m=exit_m,
+        apex_distance_m=apex_m,
+        min_speed_mps=min_speed_mps,
+        brake_point_m=None,
+        peak_brake_g=None,
+        throttle_commit_m=None,
+        apex_type="mid",
+    )
+
+
+def _make_curv_result(
+    distance_m: np.ndarray,
+    curvature: np.ndarray,
+) -> Any:
+    """Build a CurvatureResult with dummy heading/xy fields."""
+    from cataclysm.curvature import CurvatureResult
+
+    n = len(distance_m)
+    return CurvatureResult(
+        distance_m=distance_m,
+        curvature=curvature,
+        abs_curvature=np.abs(curvature),
+        heading_rad=np.zeros(n),
+        x_smooth=np.zeros(n),
+        y_smooth=np.zeros(n),
+    )
+
+
+class TestImpliedMuFromCorners:
+    """Tests for _implied_mu_from_corners apex-window logic."""
+
+    def test_basic_mu_calculation(self) -> None:
+        """Known curvature and min_speed → mu = v² * kappa_max / g."""
+        distance_m = np.linspace(0, 500, 1000)
+        curvature = np.zeros(1000)
+        # Constant curvature of 0.01 (1/m) in the corner zone
+        mask = (distance_m >= 100) & (distance_m <= 200)
+        curvature[mask] = 0.01
+
+        curv_result = _make_curv_result(distance_m, curvature)
+
+        min_speed = 20.0  # m/s
+        corner = _make_real_corner(1, 100.0, 200.0, 150.0, min_speed)
+
+        result = _implied_mu_from_corners([corner], curv_result)
+
+        expected_mu = min_speed**2 * 0.01 / 9.81  # 400 * 0.01 / 9.81 ≈ 0.4077
+        assert 1 in result
+        assert result[1] == pytest.approx(expected_mu, rel=0.01)
+
+    def test_apex_window_ignores_curvature_outside(self) -> None:
+        """Curvature spike outside apex window is ignored."""
+        distance_m = np.linspace(0, 500, 1000)
+        curvature = np.zeros(1000)
+        # Low curvature near apex (150m ±30m → 120-180m)
+        apex_mask = (distance_m >= 120) & (distance_m <= 180)
+        curvature[apex_mask] = 0.005
+        # High curvature spike at zone boundary (far from apex)
+        boundary_mask = (distance_m >= 100) & (distance_m < 110)
+        curvature[boundary_mask] = 0.05  # 10x higher but outside apex window
+
+        curv_result = _make_curv_result(distance_m, curvature)
+
+        # Zone: 100-200m, apex at 150m
+        # Zone width = 100m, apex_fraction=0.30 → half_win = max(30, 20) = 30m
+        # Apex window: 150-30=120 to 150+30=180
+        corner = _make_real_corner(1, 100.0, 200.0, 150.0, 20.0)
+
+        result = _implied_mu_from_corners([corner], curv_result)
+
+        # Should use 0.005, NOT 0.05
+        expected_mu = 20.0**2 * 0.005 / 9.81
+        assert result[1] == pytest.approx(expected_mu, rel=0.01)
+
+    def test_low_curvature_skipped(self) -> None:
+        """Corner with kappa_max < 1e-4 is skipped (essentially a straight)."""
+        distance_m = np.linspace(0, 500, 1000)
+        curvature = np.full(1000, 1e-5)  # very low curvature
+
+        curv_result = _make_curv_result(distance_m, curvature)
+
+        corner = _make_real_corner(1, 100.0, 200.0, 150.0, 20.0)
+        result = _implied_mu_from_corners([corner], curv_result)
+        assert 1 not in result
+
+    def test_no_points_in_apex_window_skipped(self) -> None:
+        """Corner with no curvature points in apex window is skipped."""
+        # Very sparse distance array — no points between 120 and 180
+        distance_m = np.array([0.0, 50.0, 110.0, 190.0, 300.0, 500.0])
+        curvature = np.array([0.0, 0.0, 0.01, 0.01, 0.0, 0.0])
+
+        curv_result = _make_curv_result(distance_m, curvature)
+
+        # Zone: 100-200m, apex at 150m. Apex window: 120-180m.
+        # distance_m has no points in [120, 180].
+        corner = _make_real_corner(1, 100.0, 200.0, 150.0, 20.0)
+        result = _implied_mu_from_corners([corner], curv_result)
+        # 110 < 120 and 190 > 180, so no samples in window
+        assert 1 not in result
+
+    def test_asymmetric_apex_clamps_to_zone(self) -> None:
+        """Apex near zone entry → window clamps to zone boundary."""
+        distance_m = np.linspace(0, 500, 2000)
+        curvature = np.zeros(2000)
+        # Curvature in zone 100-200m
+        mask = (distance_m >= 100) & (distance_m <= 200)
+        curvature[mask] = 0.008
+        # Higher curvature spike just before zone entry
+        pre_mask = (distance_m >= 80) & (distance_m < 100)
+        curvature[pre_mask] = 0.02
+
+        curv_result = _make_curv_result(distance_m, curvature)
+
+        # Apex at 110m (near entry), zone 100-200m
+        # half_win = max(100*0.30, 20) = 30m
+        # Window: max(110-30, 100)=100 to min(110+30, 200)=140
+        corner = _make_real_corner(1, 100.0, 200.0, 110.0, 20.0)
+        result = _implied_mu_from_corners([corner], curv_result)
+
+        # Should use 0.008 (from zone), NOT 0.02 (before zone)
+        expected_mu = 20.0**2 * 0.008 / 9.81
+        assert result[1] == pytest.approx(expected_mu, rel=0.02)
+
+    def test_min_window_guarantees_minimum_size(self) -> None:
+        """Narrow zone uses MIN_APEX_WINDOW_M (20m) instead of 30% of zone width."""
+        distance_m = np.linspace(0, 500, 2000)
+        curvature = np.zeros(2000)
+
+        # Very narrow zone: 145-155m (only 10m wide)
+        # 30% of 10m = 3m half_win → too small, use MIN_APEX_WINDOW_M = 20m
+        narrow_mask = (distance_m >= 130) & (distance_m <= 170)
+        curvature[narrow_mask] = 0.01
+
+        curv_result = _make_curv_result(distance_m, curvature)
+
+        corner = _make_real_corner(1, 145.0, 155.0, 150.0, 20.0)
+        result = _implied_mu_from_corners([corner], curv_result)
+
+        # half_win = max(10*0.30, 20.0) = 20.0
+        # Window: max(150-20, 145)=145 to min(150+20, 155)=155
+        # Curvature in [145, 155] is 0.01 (from narrow_mask covering 130-170)
+        expected_mu = 20.0**2 * 0.01 / 9.81
+        assert 1 in result
+        assert result[1] == pytest.approx(expected_mu, rel=0.02)

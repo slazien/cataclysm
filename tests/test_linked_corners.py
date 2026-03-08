@@ -85,14 +85,15 @@ class TestTwoLinkedCorners:
 
     def test_two_linked_corners(self) -> None:
         """Two corners with low speed between them -> one group of 2."""
-        # Track: 0--[C1: 100-200]--low speed--[C2: 250-350]--500
+        # Track: 0--[C1: 100-200]--low speed--[C2: 220-320]--500
+        # Apex gap: 150 - 270 = 120m (< 150m gate)
         distance_m = np.linspace(0, 500, 1000)
         speed = np.ones(1000) * 50.0  # max straight speed = 50 m/s
 
         # Slow in corners
         c1_mask = (distance_m >= 100) & (distance_m <= 200)
-        c2_mask = (distance_m >= 250) & (distance_m <= 350)
-        between_mask = (distance_m > 200) & (distance_m < 250)
+        c2_mask = (distance_m >= 220) & (distance_m <= 320)
+        between_mask = (distance_m > 200) & (distance_m < 220)
 
         speed[c1_mask] = 20.0
         speed[c2_mask] = 20.0
@@ -100,7 +101,7 @@ class TestTwoLinkedCorners:
 
         corners = [
             _make_corner(1, 100.0, 200.0),
-            _make_corner(2, 250.0, 350.0),
+            _make_corner(2, 220.0, 320.0),
         ]
 
         result = detect_linked_corners(corners, speed, distance_m)
@@ -160,10 +161,10 @@ class TestMixedLinkedAndIsolated:
         distance_m = np.linspace(0, 1500, 3000)
         speed = np.ones(3000) * 55.0
 
-        # C1 and C2 close together, low speed between
+        # C1 and C2 close together (apex gap = 120m < 150m), low speed between
         c1_mask = (distance_m >= 100) & (distance_m <= 200)
-        c2_mask = (distance_m >= 250) & (distance_m <= 350)
-        between_1_2 = (distance_m > 200) & (distance_m < 250)
+        c2_mask = (distance_m >= 220) & (distance_m <= 320)
+        between_1_2 = (distance_m > 200) & (distance_m < 220)
 
         speed[c1_mask] = 20.0
         speed[c2_mask] = 22.0
@@ -172,11 +173,11 @@ class TestMixedLinkedAndIsolated:
         # C3 far away, full speed between C2 and C3
         c3_mask = (distance_m >= 1000) & (distance_m <= 1100)
         speed[c3_mask] = 25.0
-        # Speed between C2 exit (350) and C3 entry (1000) stays at 55 — not linked
+        # Speed between C2 exit (320) and C3 entry (1000) stays at 55 — not linked
 
         corners = [
             _make_corner(1, 100.0, 200.0),
-            _make_corner(2, 250.0, 350.0),
+            _make_corner(2, 220.0, 320.0),
             _make_corner(3, 1000.0, 1100.0),
         ]
 
@@ -580,3 +581,141 @@ class TestFindVMaxStraightV2:
         ]
         v_max = _find_v_max_straight(speed, distance_m, corners)
         assert v_max > 0
+
+
+# ---------------------------------------------------------------------------
+# I-4: Distance gate prevents linking far-apart corners
+# ---------------------------------------------------------------------------
+
+
+class TestDistanceGate:
+    """MAX_LINK_DISTANCE_M prevents linking corners with distant apexes."""
+
+    def test_distance_gate_prevents_linking(self) -> None:
+        """Corners >150m apart are NOT linked even with low speed between them."""
+        distance_m = np.linspace(0, 1000, 2000)
+        speed = np.ones(2000) * 50.0
+        # Two corners with apexes 250m apart, low speed between
+        speed[(distance_m >= 100) & (distance_m <= 200)] = 20.0
+        speed[(distance_m >= 350) & (distance_m <= 450)] = 22.0
+        speed[(distance_m > 200) & (distance_m < 350)] = 30.0  # below threshold
+
+        corners = [
+            _make_corner(1, 100.0, 200.0),  # apex at 150
+            _make_corner(2, 350.0, 450.0),  # apex at 400, gap = 250m >= 150m
+        ]
+        result = detect_linked_corners(corners, speed, distance_m)
+        assert len(result.groups) == 0
+
+    def test_distance_gate_boundary_exclusive(self) -> None:
+        """Corners with apexes exactly at MAX_LINK_DISTANCE_M are NOT linked."""
+        from cataclysm.linked_corners import MAX_LINK_DISTANCE_M
+
+        distance_m = np.linspace(0, 1000, 2000)
+        speed = np.ones(2000) * 50.0
+        speed[(distance_m >= 50) & (distance_m <= 100)] = 20.0
+        speed[(distance_m >= 225) & (distance_m <= 275)] = 22.0
+        speed[(distance_m > 100) & (distance_m < 225)] = 30.0  # below threshold
+
+        # Apexes at 75m and 250m → gap exactly 175m (> 150m)
+        # But let's set exactly 150m gap to test boundary
+        apex_a = 75.0
+        apex_b = apex_a + MAX_LINK_DISTANCE_M  # exactly 150m gap
+        corners = [
+            _make_corner(1, 50.0, 100.0, apex_m=apex_a),
+            _make_corner(2, apex_b - 25, apex_b + 25, apex_m=apex_b),
+        ]
+        result = detect_linked_corners(corners, speed, distance_m)
+        assert len(result.groups) == 0  # boundary: >= means NOT linked
+
+    def test_just_under_distance_gate_can_link(self) -> None:
+        """Corners just under the distance gate with low speed ARE linked."""
+        from cataclysm.linked_corners import MAX_LINK_DISTANCE_M
+
+        distance_m = np.linspace(0, 500, 2000)
+        speed = np.ones(2000) * 50.0
+        speed[(distance_m >= 50) & (distance_m <= 100)] = 20.0
+        speed[(distance_m >= 195) & (distance_m <= 245)] = 22.0
+        speed[(distance_m > 100) & (distance_m < 195)] = 30.0  # below threshold
+
+        apex_a = 75.0
+        apex_b = apex_a + MAX_LINK_DISTANCE_M - 1.0  # 149m gap, under gate
+        corners = [
+            _make_corner(1, 50.0, 100.0, apex_m=apex_a),
+            _make_corner(2, apex_b - 25, apex_b + 25, apex_m=apex_b),
+        ]
+        result = detect_linked_corners(corners, speed, distance_m)
+        assert len(result.groups) == 1
+
+
+# ---------------------------------------------------------------------------
+# I-5: Contiguous official corners (regression test for the motivating bug)
+# ---------------------------------------------------------------------------
+
+
+class TestContiguousZones:
+    """Official corners with contiguous zones (exit == entry of next)."""
+
+    def test_contiguous_zones_with_straight_between_apexes_not_linked(self) -> None:
+        """Contiguous zones with full speed between apexes are NOT linked."""
+        distance_m = np.linspace(0, 2000, 4000)
+        speed = np.ones(4000) * 60.0
+        # T1 zone: 100-400, apex at 250
+        speed[(distance_m >= 100) & (distance_m <= 400)] = 25.0
+        # T2 zone: 400-700, apex at 550 (contiguous: T1 exit == T2 entry)
+        speed[(distance_m >= 400) & (distance_m <= 700)] = 22.0
+        # Between apexes (250-550), speed reaches 60 in the gap
+        speed[(distance_m > 300) & (distance_m < 500)] = 60.0
+
+        corners = [
+            _make_corner(1, 100.0, 400.0, apex_m=250.0),
+            _make_corner(2, 400.0, 700.0, apex_m=550.0),  # apex gap = 300m >= 150m
+        ]
+        result = detect_linked_corners(corners, speed, distance_m)
+        assert len(result.groups) == 0
+
+    def test_contiguous_zones_close_apexes_low_speed_linked(self) -> None:
+        """Contiguous zones with close apexes and low inter-apex speed ARE linked."""
+        distance_m = np.linspace(0, 500, 2000)
+        speed = np.ones(2000) * 50.0
+        # T1: 50-150, apex at 100
+        speed[(distance_m >= 50) & (distance_m <= 150)] = 20.0
+        # T2: 150-250, apex at 200 (contiguous, apex gap = 100m < 150m)
+        speed[(distance_m >= 150) & (distance_m <= 250)] = 22.0
+        # Between apexes (100-200), speed stays low
+        speed[(distance_m > 120) & (distance_m < 180)] = 28.0  # < 0.95 * 50 = 47.5
+
+        corners = [
+            _make_corner(1, 50.0, 150.0, apex_m=100.0),
+            _make_corner(2, 150.0, 250.0, apex_m=200.0),  # contiguous
+        ]
+        result = detect_linked_corners(corners, speed, distance_m)
+        assert len(result.groups) == 1
+        assert result.groups[0].corner_numbers == [1, 2]
+
+    def test_many_contiguous_zones_only_chicane_linked(self) -> None:
+        """16 contiguous corners, only a chicane pair (close apexes, low speed) links."""
+        # Track: 16 corners (0-3200m) + start/finish straight (3200-4000m at 60 m/s)
+        distance_m = np.linspace(0, 4000, 8000)
+        speed = np.ones(8000) * 60.0  # straight speed = 60 on the 3200-4000 segment
+
+        # 16 contiguous corners, each 200m wide
+        corners = []
+        for i in range(16):
+            entry = i * 200.0
+            exit_ = (i + 1) * 200.0
+            apex = entry + 100.0
+            speed[(distance_m >= entry) & (distance_m <= exit_)] = 25.0
+            corners.append(_make_corner(i + 1, entry, exit_, apex_m=apex))
+
+        # Most corners have apexes 200m apart (>= 150m gate) → not linked
+        # Make T7-T8 a chicane: move apexes closer and keep low speed between
+        corners[6] = _make_corner(7, 1200.0, 1400.0, apex_m=1330.0)
+        corners[7] = _make_corner(8, 1400.0, 1600.0, apex_m=1430.0)
+        # Apex gap = 1430 - 1330 = 100m < 150m, and speed stays 25 between
+        # 25 < 0.95 * 60 = 57 → linked
+
+        result = detect_linked_corners(corners, speed, distance_m)
+        # Only T7-T8 should be linked
+        assert len(result.groups) == 1
+        assert result.groups[0].corner_numbers == [7, 8]

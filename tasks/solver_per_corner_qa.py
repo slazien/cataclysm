@@ -14,13 +14,12 @@ import os
 import sys
 
 import numpy as np
-import pandas as pd
 
 # Ensure project root is on path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from cataclysm.constants import MPS_TO_MPH
-from cataclysm.corners import Corner, detect_corners, extract_corner_kpis_for_lap
+from cataclysm.corners import Corner, extract_corner_kpis_for_lap
 from cataclysm.curvature import CurvatureResult, compute_curvature
 from cataclysm.elevation_profile import compute_gradient_array, compute_vertical_curvature
 from cataclysm.engine import process_session
@@ -30,18 +29,20 @@ from cataclysm.grip_calibration import (
     calibrate_per_corner_grip,
 )
 from cataclysm.linked_corners import detect_linked_corners
-from cataclysm.optimal_comparison import compare_with_optimal
+from cataclysm.optimal_comparison import (
+    APEX_WINDOW_FRACTION,
+    MIN_APEX_WINDOW_M,
+    compare_with_optimal,
+)
 from cataclysm.parser import parse_racechrono_csv
 from cataclysm.track_db import locate_official_corners
 from cataclysm.track_match import detect_track_or_lookup
 from cataclysm.track_reference import (
-    TrackReference,
     align_reference_to_session,
     get_track_reference,
     track_slug_from_layout,
 )
 from cataclysm.velocity_profile import (
-    VehicleParams,
     compute_optimal_profile,
     default_vehicle_params,
 )
@@ -72,12 +73,10 @@ def _implied_mu_from_corners(
     curvature_result: CurvatureResult,
 ) -> dict[int, float]:
     """Replicate pipeline._implied_mu_from_corners (max curvature in apex window)."""
-    apex_fraction = 0.30
-    min_half_window_m = 20.0
     result: dict[int, float] = {}
     for corner in corners:
         zone_width = corner.exit_distance_m - corner.entry_distance_m
-        half_win = max(zone_width * apex_fraction, min_half_window_m)
+        half_win = max(zone_width * APEX_WINDOW_FRACTION, MIN_APEX_WINDOW_M)
         apex_start = max(corner.apex_distance_m - half_win, corner.entry_distance_m)
         apex_end = min(corner.apex_distance_m + half_win, corner.exit_distance_m)
         apex_mask = (curvature_result.distance_m >= apex_start) & (
@@ -113,9 +112,9 @@ def pick_best_session(csv_files: list[str]) -> tuple[str, float]:
 def analyze_session(csv_path: str) -> None:
     """Full pipeline replication for one session file."""
     basename = os.path.basename(csv_path)
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"Session: {basename}")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
 
     # 1. Parse & process
     parsed = parse_racechrono_csv(csv_path)
@@ -150,7 +149,9 @@ def analyze_session(csv_path: str) -> None:
     if ref is not None:
         session_dist = best_lap_df["lap_distance_m"].to_numpy()
         curvature_result, resolved_alt = align_reference_to_session(ref, session_dist)
-        print(f"  Curvature: canonical reference ({ref.n_laps_averaged} laps, q={ref.gps_quality_score:.1f})")
+        n_avg = ref.n_laps_averaged
+        q_score = ref.gps_quality_score
+        print(f"  Curvature: canonical reference ({n_avg} laps, q={q_score:.1f})")
     else:
         curvature_result = compute_curvature(best_lap_df, savgol_window=15)
         resolved_alt = None
@@ -158,8 +159,7 @@ def analyze_session(csv_path: str) -> None:
 
     # 5. Grip calibration (combine all coaching laps)
     coaching_laps = [
-        ln for ln, s in enumerate(processed.lap_summaries, 1)
-        if ln in processed.resampled_laps
+        ln for ln, s in enumerate(processed.lap_summaries, 1) if ln in processed.resampled_laps
     ]
 
     # Global calibration
@@ -185,9 +185,11 @@ def analyze_session(csv_path: str) -> None:
         )
         if grip is not None:
             vehicle_params = apply_calibration_to_params(base_params, grip)
-            print(f"  Grip: mu={vehicle_params.mu:.3f} lat={grip.max_lateral_g:.3f} "
-                  f"brake={grip.max_brake_g:.3f} accel={grip.max_accel_g:.3f} "
-                  f"({grip.confidence})")
+            print(
+                f"  Grip: mu={vehicle_params.mu:.3f} lat={grip.max_lateral_g:.3f} "
+                f"brake={grip.max_brake_g:.3f} accel={grip.max_accel_g:.3f} "
+                f"({grip.confidence})"
+            )
         else:
             vehicle_params = base_params
             print("  Grip: calibration failed, using defaults")
@@ -241,7 +243,9 @@ def analyze_session(csv_path: str) -> None:
         dist = best_lap_df["lap_distance_m"].to_numpy()
         gradient_sin = compute_gradient_array(alt, dist)
         vert_curvature = compute_vertical_curvature(alt, dist)
-        print(f"  Elevation: gradient=[{float(np.min(gradient_sin)):.4f}, {float(np.max(gradient_sin)):.4f}]")
+        g_min = float(np.min(gradient_sin))
+        g_max = float(np.max(gradient_sin))
+        print(f"  Elevation: gradient=[{g_min:.4f}, {g_max:.4f}]")
 
     # 8. Compute optimal profile
     optimal = compute_optimal_profile(
@@ -268,16 +272,19 @@ def analyze_session(csv_path: str) -> None:
     linked = detect_linked_corners(corners, optimal.optimal_speed_mps, optimal.distance_m)
     if linked.groups:
         group_strs = [
-            f"G{g.group_id}=[{','.join(f'T{c}' for c in g.corner_numbers)}]"
-            for g in linked.groups
+            f"G{g.group_id}=[{','.join(f'T{c}' for c in g.corner_numbers)}]" for g in linked.groups
         ]
         print(f"  Linked: {' '.join(group_strs)}")
 
     # 11. Per-corner detail
-    print(f"\n  {'Corner':>8s} {'Act mph':>8s} {'Opt mph':>8s} {'Gap mph':>8s} "
-          f"{'Time s':>7s} {'Brk gap':>8s} {'Zone mu':>8s} {'Impl mu':>8s} {'Flags':>12s}")
-    print(f"  {'-'*8:>8s} {'-'*8:>8s} {'-'*8:>8s} {'-'*8:>8s} "
-          f"{'-'*7:>7s} {'-'*8:>8s} {'-'*8:>8s} {'-'*8:>8s} {'-'*12:>12s}")
+    print(
+        f"\n  {'Corner':>8s} {'Act mph':>8s} {'Opt mph':>8s} {'Gap mph':>8s} "
+        f"{'Time s':>7s} {'Brk gap':>8s} {'Zone mu':>8s} {'Impl mu':>8s} {'Flags':>12s}"
+    )
+    print(
+        f"  {'-' * 8:>8s} {'-' * 8:>8s} {'-' * 8:>8s} {'-' * 8:>8s} "
+        f"{'-' * 7:>7s} {'-' * 8:>8s} {'-' * 8:>8s} {'-' * 8:>8s} {'-' * 12:>12s}"
+    )
 
     issues = []
     for opp in result.corner_opportunities:
@@ -302,8 +309,10 @@ def analyze_session(csv_path: str) -> None:
             flags.append(f"G{group}")
 
         flag_str = " ".join(flags)
-        print(f"  T{cn:>6d} {act_mph:>8.1f} {opt_mph:>8.1f} {gap_mph:>+8.1f} "
-              f"{time_s:>7.3f} {brk:>8s} {z_mu:>8s} {i_mu:>8s} {flag_str:>12s}")
+        print(
+            f"  T{cn:>6d} {act_mph:>8.1f} {opt_mph:>8.1f} {gap_mph:>+8.1f} "
+            f"{time_s:>7.3f} {brk:>8s} {z_mu:>8s} {i_mu:>8s} {flag_str:>12s}"
+        )
 
         if "OPT<ACT" in flag_str or "GAP>25" in flag_str or "NEG_BRK" in flag_str:
             issues.append(f"T{cn}: {flag_str}")
@@ -320,12 +329,12 @@ def analyze_session(csv_path: str) -> None:
         for issue in issues:
             print(f"     - {issue}")
     else:
-        print(f"\n  ✓ All corners look physically reasonable")
+        print("\n  All corners look physically reasonable")
 
     # 14. Curvature comparison (canonical vs session)
     if ref is not None:
         session_curv = compute_curvature(best_lap_df, savgol_window=15)
-        print(f"\n  Curvature comparison (canonical / session):")
+        print("\n  Curvature comparison (canonical / session):")
         for corner in corners:
             # Canonical zone curvature
             c_mask = (curvature_result.distance_m >= corner.entry_distance_m) & (
@@ -349,7 +358,8 @@ def analyze_session(csv_path: str) -> None:
                 flag = " !! canonical >> session"
             elif ratio < 0.85:
                 flag = " !! canonical << session"
-            print(f"    T{corner.number:>3d}: canon={c_p95:.5f} sess={s_p95:.5f} ratio={ratio:.2f}{flag}")
+            cn = corner.number
+            print(f"    T{cn:>3d}: canon={c_p95:.5f} sess={s_p95:.5f} ratio={ratio:.2f}{flag}")
 
 
 def main() -> None:
@@ -366,9 +376,9 @@ def main() -> None:
             print(f"\n{track_dir}: No CSV files")
             continue
 
-        print(f"\n{'#'*70}")
+        print(f"\n{'#' * 70}")
         print(f"# {track_dir.upper()} — {len(csv_files)} sessions")
-        print(f"{'#'*70}")
+        print(f"{'#' * 70}")
 
         best_file, best_time = pick_best_session(csv_files)
         if best_file is None:

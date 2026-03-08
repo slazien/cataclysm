@@ -25,8 +25,8 @@ _MIN_SPEED_MPS = 1.0
 # zone includes acceleration/braking ramps whose speeds reflect the preceding/
 # following corner, not the current one.  A ±30% window around the apex captures
 # the curvature-limited portion without ramp contamination.
-_APEX_WINDOW_FRACTION = 0.30  # fraction of zone width on each side of apex
-_MIN_APEX_WINDOW_M = 20.0  # absolute minimum half-window (metres)
+APEX_WINDOW_FRACTION = 0.30  # fraction of zone width on each side of apex
+MIN_APEX_WINDOW_M = 20.0  # absolute minimum half-window (metres)
 
 
 @dataclass
@@ -204,7 +204,7 @@ def compute_corner_opportunities(
         # the zone entry includes a long forward-pass acceleration ramp
         # whose speeds are well below the actual curvature-limited minimum.
         zone_width = corner.exit_distance_m - corner.entry_distance_m
-        apex_half_window = max(zone_width * _APEX_WINDOW_FRACTION, _MIN_APEX_WINDOW_M)
+        apex_half_window = max(zone_width * APEX_WINDOW_FRACTION, MIN_APEX_WINDOW_M)
         apex_start = max(corner.apex_distance_m - apex_half_window, corner.entry_distance_m)
         apex_end = min(corner.apex_distance_m + apex_half_window, corner.exit_distance_m)
         apex_mask = (optimal.distance_m >= apex_start) & (optimal.distance_m <= apex_end)

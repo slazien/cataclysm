@@ -47,7 +47,11 @@ from cataclysm.grip_calibration import (
     calibrate_per_corner_grip,
 )
 from cataclysm.linked_corners import detect_linked_corners
-from cataclysm.optimal_comparison import compare_with_optimal
+from cataclysm.optimal_comparison import (
+    APEX_WINDOW_FRACTION,
+    MIN_APEX_WINDOW_M,
+    compare_with_optimal,
+)
 from cataclysm.parser import ParsedSession, parse_racechrono_csv
 from cataclysm.track_db import locate_official_corners
 from cataclysm.track_match import detect_track_or_lookup
@@ -746,14 +750,10 @@ def _implied_mu_from_corners(
     Applied via ``max()`` in ``_build_mu_array``, implied mu can only *raise*
     the corner-level optimal — it never lowers predictions.
     """
-    # Must match optimal_comparison._APEX_WINDOW_FRACTION / _MIN_APEX_WINDOW_M
-    apex_fraction = 0.30
-    min_half_window_m = 20.0
-
     result: dict[int, float] = {}
     for corner in corners:
         zone_width = corner.exit_distance_m - corner.entry_distance_m
-        half_win = max(zone_width * apex_fraction, min_half_window_m)
+        half_win = max(zone_width * APEX_WINDOW_FRACTION, MIN_APEX_WINDOW_M)
         apex_start = max(corner.apex_distance_m - half_win, corner.entry_distance_m)
         apex_end = min(corner.apex_distance_m + half_win, corner.exit_distance_m)
 
