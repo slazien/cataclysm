@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 # Bump this whenever the physics algorithm output changes.
 # Format: YYYY-MM-DD.N where N is a daily counter.
-PHYSICS_CODE_VERSION = "2026-03-08.1"
+PHYSICS_CODE_VERSION = "2026-03-08.2"
 
 
 async def db_get_cached(

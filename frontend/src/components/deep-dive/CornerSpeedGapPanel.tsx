@@ -134,6 +134,8 @@ function CornerFocusView({
   const absGap = Math.abs(convertSpeed(opp.speed_gap_mph));
   const gapDisplay = absGap.toFixed(1);
   const hasTimeCost = opp.time_cost_s > 0;
+  // Negative speed_gap means driver is already faster than the model's apex prediction
+  const driverFasterAtApex = opp.speed_gap_mph < 0;
 
   return (
     <motion.div
@@ -204,7 +206,21 @@ function CornerFocusView({
       {/* Insight text */}
       <div className="rounded-lg bg-[var(--bg-elevated)] px-3 py-2">
         <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-          {hasTimeCost ? (
+          {hasTimeCost && driverFasterAtApex ? (
+            <>
+              {'Your apex speed exceeds the model prediction by '}
+              <span className="font-semibold tabular-nums text-[var(--color-throttle)]">
+                {gapDisplay} {speedUnit}
+              </span>
+              {', but you\'re still losing '}
+              <span className="font-semibold tabular-nums text-[var(--color-brake)]">
+                ~{opp.time_cost_s.toFixed(2)}s
+              </span>
+              {' in this zone. Focus on '}
+              <span className="font-semibold text-[var(--text-primary)]">corner entry and exit</span>
+              {' — late braking may be costing more than the apex gain saves.'}
+            </>
+          ) : hasTimeCost ? (
             <>
               {'You\'re losing '}
               <span className="font-semibold tabular-nums text-[var(--color-brake)]">
@@ -212,11 +228,11 @@ function CornerFocusView({
               </span>
               {' at Turn '}
               <span className="font-semibold text-[var(--text-primary)]">{opp.corner_number}</span>
-              {' — closing the '}
+              {' — gaining '}
               <span className="font-semibold tabular-nums text-[var(--cata-accent)]">
                 {gapDisplay} {speedUnit}
               </span>
-              {' speed gap would save '}
+              {' at the apex would save '}
               <span className="font-semibold tabular-nums text-[var(--color-throttle)]">
                 ~{opp.time_cost_s.toFixed(2)}s
               </span>
