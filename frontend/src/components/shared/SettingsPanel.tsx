@@ -71,7 +71,7 @@ export function SettingsPanel() {
         </div>
 
         {/* Content — only render when open so queries mount fresh & hit cache */}
-        <div className="flex flex-col flex-1 overflow-x-hidden overflow-y-auto p-4">
+        <div className="flex-1 overflow-x-hidden overflow-y-auto p-4">
           {/* Equipment Profiles — most important customization */}
           {open && <EquipmentProfileList />}
 
@@ -172,7 +172,7 @@ export function SettingsPanel() {
             </div>
           </fieldset>
           {/* How It Works */}
-          <div className="mt-auto pt-4 border-t border-[var(--cata-border)]">
+          <div className="pt-4 border-t border-[var(--cata-border)]">
             <button
               type="button"
               onClick={() => { toggle(); toggleHowItWorks(); }}
