@@ -9,6 +9,8 @@ This module persists lightweight metadata to PostgreSQL for:
 
 from __future__ import annotations
 
+import logging
+
 from cataclysm.equipment import SessionConditions, TrackCondition
 from cataclysm.trends import _parse_session_date  # noqa: F401 — re-exported for callers
 from sqlalchemy import select, text
@@ -19,6 +21,8 @@ from backend.api.db.models import User as UserModel
 from backend.api.dependencies import AuthenticatedUser
 from backend.api.services.session_store import SessionData
 
+logger = logging.getLogger(__name__)
+
 
 async def ensure_user_exists(db: AsyncSession, user: AuthenticatedUser) -> None:
     """Create or update the User row (FK target for sessions).
@@ -26,7 +30,24 @@ async def ensure_user_exists(db: AsyncSession, user: AuthenticatedUser) -> None:
     Handles the case where a user already exists with the same email but a
     different ID (e.g. dev-user row from DEV_AUTH_BYPASS, or OAuth provider
     returning a different ``sub`` claim).
+
+    Also consolidates duplicate email entries: when multiple auth sessions
+    (e.g. mobile vs desktop, or stale NextAuth sessions) resolve to different
+    user IDs for the same email, all data is merged into the current user_id
+    to prevent ownership ping-pong.
     """
+    _fk_refs = [
+        ("user_id", "sessions"),
+        ("user_id", "equipment_profiles"),
+        ("user_id", "user_achievements"),
+        ("user_id", "corner_records"),
+        ("user_id", "corner_kings"),
+        ("user_id", "shared_sessions"),
+        ("instructor_id", "instructor_students"),
+        ("student_id", "student_flags"),
+        ("user_id", "org_memberships"),
+    ]
+
     # Check by primary key first
     result = await db.execute(select(UserModel).where(UserModel.id == user.user_id))
     existing = result.scalar_one_or_none()
@@ -34,6 +55,43 @@ async def ensure_user_exists(db: AsyncSession, user: AuthenticatedUser) -> None:
         # Update name/avatar in case they changed
         existing.name = user.name
         existing.avatar_url = user.picture
+
+        # Consolidate: check for OTHER user rows with the same email.
+        # This prevents migration ping-pong when two auth sessions for the
+        # same email resolve to different user IDs (e.g. mobile vs desktop
+        # with stale NextAuth sessions).
+        dups = await db.execute(
+            select(UserModel).where(
+                UserModel.email == user.email,
+                UserModel.id != user.user_id,
+            )
+        )
+        dup_rows = dups.scalars().all()
+        if dup_rows:
+            from backend.api.services import equipment_store
+            from backend.api.services.session_store import sync_user_id
+
+            for dup in dup_rows:
+                old_id = dup.id
+                db.expunge(dup)
+                for col, table in _fk_refs:
+                    await db.execute(
+                        text(f"UPDATE {table} SET {col} = :new_id WHERE {col} = :old_id"),
+                        {"new_id": user.user_id, "old_id": old_id},
+                    )
+                await db.execute(
+                    text("DELETE FROM users WHERE id = :old_id"),
+                    {"old_id": old_id},
+                )
+                sync_user_id(old_id, user.user_id)
+                equipment_store.sync_user_id(old_id, user.user_id)
+                logger.info(
+                    "Consolidated duplicate user %s → %s (email=%s)",
+                    old_id,
+                    user.user_id,
+                    user.email,
+                )
+            await db.flush()
         return
 
     # Not found by ID — check if email already exists under a different ID
@@ -48,17 +106,6 @@ async def ensure_user_exists(db: AsyncSession, user: AuthenticatedUser) -> None:
         # delete old user, then fix email. This avoids FK violations (can't
         # UPDATE FKs to new_id before new_id exists) and email uniqueness
         # conflicts (can't have two rows with same email).
-        _fk_refs = [
-            ("user_id", "sessions"),
-            ("user_id", "equipment_profiles"),
-            ("user_id", "user_achievements"),
-            ("user_id", "corner_records"),
-            ("user_id", "corner_kings"),
-            ("user_id", "shared_sessions"),
-            ("instructor_id", "instructor_students"),
-            ("student_id", "student_flags"),
-            ("user_id", "org_memberships"),
-        ]
 
         # 1. Insert new user row with temporary email (FK target must exist first)
         # Must include all NOT NULL columns — raw SQL bypasses ORM defaults.
