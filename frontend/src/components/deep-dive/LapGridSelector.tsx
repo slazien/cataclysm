@@ -103,7 +103,7 @@ export function LapGridSelector() {
         <button
           type="button"
           className={cn(
-            'inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors',
+            'inline-flex min-h-[44px] items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors',
             'border-[var(--cata-border)] text-[var(--text-secondary)]',
             'hover:border-[var(--text-muted)] hover:text-[var(--text-primary)]',
           )}

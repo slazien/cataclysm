@@ -238,7 +238,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
         <div className="flex min-w-0 items-center gap-1.5">
           <button
             onClick={() => cycleCorner('prev')}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] sm:h-6 sm:w-6"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] sm:h-8 sm:w-8"
             aria-label="Previous corner"
           >
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -250,7 +250,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
           </h3>
           <button
             onClick={() => cycleCorner('next')}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] sm:h-6 sm:w-6"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] sm:h-8 sm:w-8"
             aria-label="Next corner"
           >
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

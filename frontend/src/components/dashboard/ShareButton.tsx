@@ -29,7 +29,7 @@ export function ShareButton({ sessionId }: ShareButtonProps) {
       size="sm"
       onClick={handleShare}
       disabled={isRendering}
-      className="gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+      className="min-h-[44px] gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
     >
       {isRendering ? (
         <CircularProgress size={14} strokeWidth={2} />

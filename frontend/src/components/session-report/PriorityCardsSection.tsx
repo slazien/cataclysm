@@ -79,7 +79,7 @@ function PriorityCard({
       <button
         type="button"
         onClick={() => onExplore(p.corner)}
-        className="mb-2 flex items-center gap-1 text-xs font-medium text-[var(--cata-accent)] transition-colors hover:text-[var(--cata-accent)]/80"
+        className="mb-2 inline-flex min-h-[44px] items-center gap-1 text-xs font-medium text-[var(--cata-accent)] transition-colors hover:text-[var(--cata-accent)]/80"
       >
         Explore in Deep Dive <ArrowRight className="h-3 w-3" />
       </button>
@@ -94,7 +94,7 @@ function PriorityCard({
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-secondary)]"
+          className="inline-flex min-h-[44px] items-center gap-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-secondary)]"
         >
           {expanded ? (
             <>

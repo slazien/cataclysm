@@ -107,7 +107,7 @@ export function ShareSessionDialog({ sessionId }: ShareSessionDialogProps) {
         <Button
           variant="outline"
           size="sm"
-          className="gap-1.5 border-[var(--cata-border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          className="min-h-[44px] gap-1.5 border-[var(--cata-border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
         >
           <Link2 className="h-3.5 w-3.5" />
           Challenge a Friend

@@ -226,7 +226,7 @@ export function SessionReport() {
             <button
               onClick={regenerate}
               disabled={isGenerating || regenRemaining === 0}
-              className="flex items-center gap-1.5 rounded-md border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex min-h-[44px] items-center gap-1.5 rounded-md border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
               title={regenRemaining === 0 ? 'Daily regeneration limit reached' : 'Regenerate all coaching for this session'}
             >
               <RefreshCw className={`h-3 w-3 ${isGenerating ? 'animate-spin' : ''}`} />
