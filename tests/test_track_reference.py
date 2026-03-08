@@ -74,10 +74,15 @@ class FakeProcessedSession:
     lap_summaries: list[object] = field(default_factory=list)
 
 
-def _make_session(n_laps: int = 5) -> FakeProcessedSession:
+def _make_session(n_laps: int = 5, radius_m: float = 320.0) -> FakeProcessedSession:
+    """Build a fake session with circular laps.
+
+    Default radius 320 m gives a circumference of ~1608 m, which passes the
+    _MIN_TRACK_LENGTH_M = 1000 m guard in maybe_update_track_reference.
+    """
     laps = {}
     for i in range(1, n_laps + 1):
-        laps[i] = _circle_lap_df(radius_m=100.0, n=500, fraction=0.8, seed=100 + i)
+        laps[i] = _circle_lap_df(radius_m=radius_m, n=500, fraction=0.8, seed=100 + i)
     return FakeProcessedSession(resampled_laps=laps, best_lap=1)
 
 
@@ -331,6 +336,61 @@ class TestAlignReferenceToSession:
         assert len(aligned_curv.curvature) == 300
         assert aligned_elev is not None
         assert len(aligned_elev) == 300
+
+
+class TestLengthValidation:
+    """maybe_update_track_reference rejects sessions whose length is implausible."""
+
+    def test_rejects_short_session_no_db_length(self, tmp_path: Path) -> None:
+        """Session < 1000 m with no track DB length should be rejected."""
+        layout = _make_layout()  # length_m=None
+        short_session = _make_session(radius_m=100.0)  # ~503 m arc
+
+        with patch("cataclysm.track_reference._DATA_DIR", tmp_path):
+            result = maybe_update_track_reference(
+                layout,
+                short_session,  # type: ignore[arg-type]
+                coaching_laps=[1, 2, 3],
+                session_id="short-circuit",
+                gps_quality_score=90.0,
+            )
+            assert result is None
+
+    def test_rejects_session_mismatched_with_db_length(self, tmp_path: Path) -> None:
+        """Session length > 25% off known track DB length should be rejected."""
+        from cataclysm.track_db import TrackLayout
+
+        # 3662m track, session is ~503m (~86% shorter) — way outside 25% band
+        layout = TrackLayout(name="Test Track", corners=[], length_m=3662.0)
+        short_session = _make_session(radius_m=100.0)  # ~503 m
+
+        with patch("cataclysm.track_reference._DATA_DIR", tmp_path):
+            result = maybe_update_track_reference(
+                layout,
+                short_session,  # type: ignore[arg-type]
+                coaching_laps=[1, 2, 3],
+                session_id="short-session",
+                gps_quality_score=90.0,
+            )
+            assert result is None
+
+    def test_accepts_session_within_db_length_tolerance(self, tmp_path: Path) -> None:
+        """Session within 25% of DB track length should be accepted."""
+        from cataclysm.track_db import TrackLayout
+
+        # session ~1608 m, DB says 1800 m → 10.7% difference → accept
+        layout = TrackLayout(name="Test Track", corners=[], length_m=1800.0)
+        session = _make_session(radius_m=320.0)  # ~1608 m
+
+        with patch("cataclysm.track_reference._DATA_DIR", tmp_path):
+            result = maybe_update_track_reference(
+                layout,
+                session,  # type: ignore[arg-type]
+                coaching_laps=[1, 2, 3, 4, 5],
+                session_id="good-session",
+                gps_quality_score=75.0,
+            )
+            assert result is not None
 
 
 class TestUnknownTrack:

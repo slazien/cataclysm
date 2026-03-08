@@ -44,6 +44,15 @@ LENGTH_MISMATCH_WARN_THRESHOLD = 0.05
 # Minimum GPS quality improvement to trigger a rebuild.
 GPS_QUALITY_IMPROVEMENT_THRESHOLD = 5.0
 
+# Minimum plausible race circuit length in metres.  Prevents short test/debug
+# uploads (< 1 km) from contaminating the canonical track reference.
+_MIN_TRACK_LENGTH_M = 1000.0
+
+# Maximum fractional length deviation from the track DB expected length before
+# rejecting a reference update.  25% allows for GPS line variation on long
+# circuits while still catching a 500m upload overwriting a 3700m track.
+_MAX_LENGTH_RATIO = 0.25
+
 
 @dataclass
 class TrackReference:
@@ -219,6 +228,44 @@ def build_track_reference(
     return ref
 
 
+def _session_estimated_length(session_data: ProcessedSession) -> float:
+    """Return the best lap's maximum lap_distance_m as a quick track length estimate."""
+    best_lap_df = session_data.resampled_laps[session_data.best_lap]
+    return float(best_lap_df["lap_distance_m"].max())
+
+
+def _length_plausible(layout: TrackLayout, new_length: float) -> bool:
+    """Return True if *new_length* is a plausible track length for *layout*.
+
+    Checks against the track DB expected length when available, otherwise
+    applies a minimum-length floor.  Logs a warning and returns False when
+    the session is implausibly short or grossly mismatched — preventing short
+    test/debug uploads from overwriting a valid canonical reference.
+    """
+    if layout.length_m is not None and layout.length_m > 0:
+        ratio = abs(new_length - layout.length_m) / layout.length_m
+        if ratio > _MAX_LENGTH_RATIO:
+            logger.warning(
+                "Rejecting track reference update for %s: session %.0fm differs from "
+                "known track length %.0fm by %.1f%% (threshold %.0f%%)",
+                track_slug_from_layout(layout),
+                new_length,
+                layout.length_m,
+                ratio * 100,
+                _MAX_LENGTH_RATIO * 100,
+            )
+            return False
+    elif new_length < _MIN_TRACK_LENGTH_M:
+        logger.warning(
+            "Rejecting track reference update for %s: session length %.0fm below minimum %.0fm",
+            track_slug_from_layout(layout),
+            new_length,
+            _MIN_TRACK_LENGTH_M,
+        )
+        return False
+    return True
+
+
 def maybe_update_track_reference(
     layout: TrackLayout,
     session_data: ProcessedSession,
@@ -229,8 +276,16 @@ def maybe_update_track_reference(
 ) -> TrackReference | None:
     """Rebuild the track reference if the new session has better GPS quality.
 
+    Rejects updates when the session's track length is implausibly short or
+    grossly mismatched with the expected track length — preventing short
+    test/debug uploads from overwriting a valid canonical reference.
+
     Returns the new reference if rebuilt, or None if the existing one is kept.
     """
+    new_length = _session_estimated_length(session_data)
+    if not _length_plausible(layout, new_length):
+        return None
+
     existing = get_track_reference(layout)
     if existing is None:
         return build_track_reference(
