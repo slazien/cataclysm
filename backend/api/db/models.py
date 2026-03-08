@@ -399,6 +399,39 @@ class OrgEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class NoteDB(Base):
+    """User-created note, optionally anchored to a session and/or data point."""
+
+    __tablename__ = "notes"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    session_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("sessions.session_id", ondelete="CASCADE"), nullable=True
+    )
+    anchor_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    anchor_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    anchor_meta: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    is_pinned: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    color: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    # Relationships
+    user: Mapped[User] = relationship()
+    session: Mapped[Session | None] = relationship()
+
+    __table_args__ = (
+        Index("ix_notes_user_session", "user_id", "session_id"),
+        Index("ix_notes_user_global", "user_id"),
+    )
+
+
 class PhysicsCacheEntry(Base):
     """Persistent cache for physics computation results (optimal profile/comparison).
 
