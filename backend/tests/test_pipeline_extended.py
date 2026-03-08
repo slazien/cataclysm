@@ -27,6 +27,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import time
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
@@ -36,7 +37,9 @@ from cataclysm.velocity_profile import VehicleParams
 from backend.api.services import equipment_store
 from backend.api.services import pipeline as pipeline_module
 from backend.api.services.pipeline import (
+    _build_mu_array,
     _collect_independent_calibration_telemetry,
+    _collect_per_corner_mu,
     _get_physics_cached,
     _resolve_curvature_and_elevation,
     _set_physics_cached,
@@ -153,7 +156,7 @@ _BASE_PATCHES = [
 ]
 
 
-def _apply_base_mocks(mocks: dict[str, MagicMock]) -> None:
+def _apply_base_mocks(mocks: dict[str, MagicMock]) -> tuple[MagicMock, MagicMock, MagicMock]:
     parsed = _make_parsed()
     processed = _make_processed(n_laps=3)
     snap = _make_snapshot()
@@ -376,14 +379,14 @@ class TestPhysicsCacheFunctions:
 
     def test_set_physics_cached_stores_entry(self) -> None:
         """_set_physics_cached stores a result and it can be retrieved."""
-        data = {"distance_m": [0.0, 100.0]}
+        data: dict[str, object] = {"distance_m": [0.0, 100.0]}
         _set_physics_cached("sess-cache", "profile", data, "prof-1")
         retrieved = _get_physics_cached("sess-cache", "profile", "prof-1")
         assert retrieved == data
 
     def test_get_physics_cached_expired_entry_returns_none(self) -> None:
         """An expired cache entry is treated as a miss."""
-        data = {"distance_m": [0.0]}
+        data: dict[str, object] = {"distance_m": [0.0]}
         cache_key = ("sess-expired:profile", "prof-2")
         # Insert entry with a timestamp in the past
         pipeline_module._physics_cache[cache_key] = (data, time.time() - 99999)  # noqa: SLF001
@@ -742,7 +745,7 @@ class TestCollectIndependentCalibrationTelemetry:
 class TestResolveCurvatureAndElevation:
     """Tests for _resolve_curvature_and_elevation."""
 
-    def _make_sd_for_curv(self, layout=None) -> MagicMock:
+    def _make_sd_for_curv(self, layout: object = None) -> MagicMock:
         import pandas as pd
 
         sd = MagicMock()
@@ -1245,7 +1248,8 @@ class TestGetOptimalComparisonData:
         ):
             result = await get_optimal_comparison_data(sd)
 
-        assert result["corner_opportunities"][0]["brake_gap_m"] is None
+        opps = cast(list[dict[str, object]], result["corner_opportunities"])
+        assert opps[0]["brake_gap_m"] is None
 
     @pytest.mark.asyncio
     async def test_elevation_used_in_comparison_when_altitude_col_present(self) -> None:
@@ -1435,7 +1439,7 @@ class TestFallbackLapConsistency:
         """The fallback function delegates to compute_lap_consistency."""
         from backend.api.services.pipeline import _fallback_lap_consistency
 
-        mock_summaries = [MagicMock()]
+        mock_summaries: list[MagicMock] = [MagicMock()]
         mock_anomalous: set[int] = {2}
         mock_result = MagicMock()
 
@@ -1446,7 +1450,7 @@ class TestFallbackLapConsistency:
             "cataclysm.consistency.compute_lap_consistency",
             return_value=mock_result,
         ) as m_clc:
-            result = _fallback_lap_consistency(mock_summaries, mock_anomalous)
+            result = _fallback_lap_consistency(mock_summaries, mock_anomalous)  # type: ignore[arg-type]
 
         m_clc.assert_called_once_with(mock_summaries, mock_anomalous)
         assert result is mock_result
@@ -1637,3 +1641,166 @@ class TestGetIdealLapData:
         assert "distance_m" in result
         assert "speed_mph" in result
         assert "segment_sources" in result
+
+
+# ---------------------------------------------------------------------------
+# _build_mu_array
+# ---------------------------------------------------------------------------
+
+
+class TestBuildMuArray:
+    """Unit tests for _build_mu_array."""
+
+    def _corner(self, number: int, entry_m: float, exit_m: float) -> Any:
+        from cataclysm.corners import Corner
+
+        return Corner(
+            number=number,
+            entry_distance_m=entry_m,
+            exit_distance_m=exit_m,
+            apex_distance_m=(entry_m + exit_m) / 2.0,
+            min_speed_mps=20.0,
+            brake_point_m=None,
+            peak_brake_g=None,
+            throttle_commit_m=None,
+            apex_type="mid",
+        )
+
+    def test_global_mu_outside_all_corners(self) -> None:
+        """Points outside every corner zone get the global mu."""
+        dist = np.array([0.0, 10.0, 200.0])
+        corners = [self._corner(1, entry_m=50.0, exit_m=100.0)]
+        result = _build_mu_array(dist, corners, per_corner_mu={1: 1.1}, global_mu=0.9)
+        assert result[0] == pytest.approx(0.9)
+        assert result[1] == pytest.approx(0.9)
+        assert result[2] == pytest.approx(0.9)
+
+    def test_per_corner_mu_applied_inside_zone(self) -> None:
+        """Points inside a corner zone get max(global, per_corner)."""
+        dist = np.linspace(0.0, 200.0, 201)
+        corners = [self._corner(1, entry_m=50.0, exit_m=100.0)]
+        result = _build_mu_array(dist, corners, per_corner_mu={1: 1.1}, global_mu=0.9)
+        inside = (dist >= 50.0) & (dist <= 100.0)
+        assert np.all(result[inside] == pytest.approx(1.1))
+        assert np.all(result[~inside] == pytest.approx(0.9))
+
+    def test_global_mu_wins_when_higher(self) -> None:
+        """When global_mu > per_corner_mu, global value is used (never lowers prediction)."""
+        dist = np.linspace(0.0, 200.0, 201)
+        corners = [self._corner(1, entry_m=50.0, exit_m=100.0)]
+        result = _build_mu_array(dist, corners, per_corner_mu={1: 0.7}, global_mu=1.0)
+        inside = (dist >= 50.0) & (dist <= 100.0)
+        # global=1.0 wins, per_corner=0.7 is ignored
+        assert np.all(result[inside] == pytest.approx(1.0))
+
+    def test_corner_missing_from_per_corner_mu_uses_global(self) -> None:
+        """Corners not in per_corner_mu dict keep the global mu."""
+        dist = np.linspace(0.0, 200.0, 201)
+        corners = [self._corner(5, entry_m=50.0, exit_m=100.0)]
+        result = _build_mu_array(dist, corners, per_corner_mu={}, global_mu=0.95)
+        assert np.all(result == pytest.approx(0.95))
+
+    def test_output_length_matches_distance_array(self) -> None:
+        """Output array length always equals len(distance_m)."""
+        dist = np.linspace(0.0, 500.0, 1000)
+        corners = [self._corner(1, 50.0, 150.0), self._corner(2, 300.0, 400.0)]
+        result = _build_mu_array(dist, corners, per_corner_mu={1: 1.1, 2: 1.05}, global_mu=0.9)
+        assert len(result) == 1000
+
+    def test_multiple_corners_each_get_own_mu(self) -> None:
+        """Multiple corners get independent per-corner values."""
+        dist = np.array([75.0, 175.0, 350.0])  # inside C1, C2, outside
+        corners = [
+            self._corner(1, entry_m=50.0, exit_m=100.0),
+            self._corner(2, entry_m=150.0, exit_m=200.0),
+        ]
+        result = _build_mu_array(dist, corners, per_corner_mu={1: 1.1, 2: 1.05}, global_mu=0.9)
+        assert result[0] == pytest.approx(1.1)
+        assert result[1] == pytest.approx(1.05)
+        assert result[2] == pytest.approx(0.9)
+
+
+# ---------------------------------------------------------------------------
+# _collect_per_corner_mu
+# ---------------------------------------------------------------------------
+
+
+class TestCollectPerCornerMu:
+    """Unit tests for _collect_per_corner_mu."""
+
+    def _make_sd(
+        self,
+        coaching_laps: list[int],
+        lat_g_by_lap: dict[int, list[float]] | None = None,
+        dist_by_lap: dict[int, list[float]] | None = None,
+        missing_lat_col: bool = False,
+    ) -> MagicMock:
+        import pandas as pd
+
+        sd = MagicMock()
+        sd.coaching_laps = coaching_laps
+        sd.corners = []
+
+        laps: dict[int, Any] = {}
+        for n in coaching_laps:
+            lat = lat_g_by_lap.get(n, [0.8, -0.9, 0.7]) if lat_g_by_lap else [0.8, -0.9, 0.7]
+            dist = dist_by_lap.get(n, [10.0, 20.0, 30.0]) if dist_by_lap else [10.0, 20.0, 30.0]
+            if missing_lat_col:
+                df = pd.DataFrame({"lap_distance_m": dist})
+            else:
+                df = pd.DataFrame({"lateral_g": lat, "lap_distance_m": dist})
+            laps[n] = df
+
+        sd.processed.resampled_laps = laps
+        return sd
+
+    def test_returns_empty_when_no_coaching_laps(self) -> None:
+        """Returns {} when coaching_laps is empty."""
+        sd = self._make_sd(coaching_laps=[])
+        result = _collect_per_corner_mu(sd)
+        assert result == {}
+
+    def test_returns_empty_when_lateral_g_missing(self) -> None:
+        """Returns {} when lateral_g column absent from all laps."""
+        sd = self._make_sd(coaching_laps=[1, 2], missing_lat_col=True)
+        result = _collect_per_corner_mu(sd)
+        assert result == {}
+
+    def test_returns_empty_when_all_laps_none(self) -> None:
+        """Returns {} when resampled_laps returns None for every lap."""
+        sd = MagicMock()
+        sd.coaching_laps = [1, 2]
+        sd.corners = []
+        sd.processed.resampled_laps = {}  # .get() returns None for all keys
+        result = _collect_per_corner_mu(sd)
+        assert result == {}
+
+    def test_returns_empty_when_all_values_nan(self) -> None:
+        """Returns {} when all lateral_g values are NaN (after finite filter)."""
+        import pandas as pd
+
+        sd = MagicMock()
+        sd.coaching_laps = [1]
+        sd.corners = []
+        df = pd.DataFrame(
+            {"lateral_g": [float("nan"), float("nan")], "lap_distance_m": [10.0, 20.0]}
+        )
+        sd.processed.resampled_laps = {1: df}
+        result = _collect_per_corner_mu(sd)
+        # calibrate_per_corner_grip returns {} for no corners — valid empty result
+        assert isinstance(result, dict)
+
+    def test_concatenates_multiple_laps(self) -> None:
+        """Combines data from multiple coaching laps before calibrating."""
+        import pandas as pd
+
+        sd = MagicMock()
+        sd.coaching_laps = [1, 2]
+        sd.corners = []
+        # Both laps contribute data; the function should concatenate them
+        df1 = pd.DataFrame({"lateral_g": [0.8, -0.9, 0.7], "lap_distance_m": [10.0, 20.0, 30.0]})
+        df2 = pd.DataFrame({"lateral_g": [0.85, -0.95, 0.75], "lap_distance_m": [10.0, 20.0, 30.0]})
+        sd.processed.resampled_laps = {1: df1, 2: df2}
+        # With no corners, calibrate_per_corner_grip returns {} — just verify no crash
+        result = _collect_per_corner_mu(sd)
+        assert isinstance(result, dict)

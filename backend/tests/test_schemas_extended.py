@@ -83,7 +83,7 @@ class TestVehicleSpecSchemaValidator:
 
 
 # mu_confidence is a str field in TireSpecSchema
-_TIRE_PAYLOAD = {
+_TIRE_PAYLOAD: dict[str, object] = {
     "model": "RE-71RS",
     "compound_category": "r_compound",
     "size": "245/40R17",
@@ -102,7 +102,7 @@ class TestEquipmentProfileCreateValidator:
 
         profile = EquipmentProfileCreate(
             name="Test",
-            tires=_TIRE_PAYLOAD,
+            tires=_TIRE_PAYLOAD,  # type: ignore[arg-type]
             vehicle_overrides={"hp": 400.0, "weight_kg": 1500.0},
         )
         assert profile.vehicle_overrides["hp"] == 400.0
@@ -114,7 +114,7 @@ class TestEquipmentProfileCreateValidator:
         with pytest.raises(ValidationError) as exc_info:
             EquipmentProfileCreate(
                 name="Test",
-                tires=_TIRE_PAYLOAD,
+                tires=_TIRE_PAYLOAD,  # type: ignore[arg-type]
                 vehicle_overrides={"invalid_field": 42.0},
             )
         assert "invalid vehicle_overrides keys" in str(exc_info.value).lower()
@@ -126,7 +126,7 @@ class TestEquipmentProfileCreateValidator:
         with pytest.raises(ValidationError) as exc_info:
             EquipmentProfileCreate(
                 name="Test",
-                tires=_TIRE_PAYLOAD,
+                tires=_TIRE_PAYLOAD,  # type: ignore[arg-type]
                 vehicle_overrides={"bad_key1": 1.0, "bad_key2": 2.0},
             )
         error_str = str(exc_info.value)
@@ -138,7 +138,7 @@ class TestEquipmentProfileCreateValidator:
 
         profile = EquipmentProfileCreate(
             name="Test",
-            tires=_TIRE_PAYLOAD,
+            tires=_TIRE_PAYLOAD,  # type: ignore[arg-type]
             vehicle_overrides={},
         )
         assert profile.vehicle_overrides == {}
@@ -263,7 +263,7 @@ class TestGetOptionalUser:
 
         settings = Settings()
         settings.dev_auth_bypass = False
-        settings.nextauth_secret = None
+        settings.nextauth_secret = ""
         # No authorization, no cookie, no test header → should raise inside → return None
         result = get_optional_user(
             settings=settings,
@@ -284,7 +284,7 @@ class TestGetOptionalUser:
 
         settings = Settings()
         settings.dev_auth_bypass = True
-        settings.nextauth_secret = None
+        settings.nextauth_secret = ""
 
         # Ensure RAILWAY_ENVIRONMENT is not set
         with patch.dict(os.environ, {}, clear=True):

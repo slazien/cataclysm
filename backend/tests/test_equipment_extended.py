@@ -12,6 +12,7 @@ Targets:
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -165,7 +166,7 @@ class TestProfileCrud:
     """Tests for profile CRUD — 404 and default enforcement paths."""
 
     @pytest.fixture(autouse=True)
-    def _cleanup_profiles(self) -> None:
+    def _cleanup_profiles(self) -> Generator[None, None, None]:
         """Clear equipment store state after each test."""
         yield
         equipment_store._profiles.clear()
@@ -301,7 +302,7 @@ class TestSessionEquipment:
     """Tests for PUT/GET /{session_id}/equipment."""
 
     @pytest.fixture(autouse=True)
-    def _cleanup(self) -> None:
+    def _cleanup(self) -> Generator[None, None, None]:
         """Clear equipment store state after each test."""
         yield
         equipment_store._profiles.clear()

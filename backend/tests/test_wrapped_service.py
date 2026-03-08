@@ -10,6 +10,7 @@ Lines targeted:
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -114,7 +115,7 @@ class TestComputeWrapped:
     """Tests for compute_wrapped service function."""
 
     @pytest.fixture(autouse=True)
-    def _clear_sessions(self) -> None:
+    def _clear_sessions(self) -> Generator[None, None, None]:
         """Clear all in-memory sessions before each test."""
         session_store.clear_all()
         yield

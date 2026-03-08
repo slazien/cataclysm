@@ -193,7 +193,7 @@ class TestPublicViewWithCoaching:
             skill_level="intermediate",
             summary="Good session",
             corner_grades=[
-                {
+                {  # type: ignore[list-item]
                     "corner": 1,
                     "braking": "A",
                     "trail_braking": "A",

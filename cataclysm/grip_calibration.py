@@ -7,9 +7,9 @@ underestimates the car's actual capability at specific corners.
 
 The approach:
 1. Filter G-G data by cross-axis threshold to isolate pure-axis events.
-2. Take the 90th percentile (not max) to reject transient spikes from weight
+2. Take the 95th percentile (not max) to reject transient spikes from weight
    transfer, curb strikes, and sensor noise.  This better represents sustained
-   cornering capability rather than momentary peaks.
+   near-limit cornering capability rather than momentary peaks.
 3. Classify confidence based on available data point count.
 
 Also provides a speed-bucketed GGV (G-G-Velocity) surface that captures how
@@ -53,9 +53,9 @@ _TWO_PI = 2.0 * np.pi
 class CalibratedGrip:
     """Observed vehicle capability extracted from G-G data."""
 
-    max_lateral_g: float  # 90th percentile |ay| when |ax| < 0.2g
-    max_brake_g: float  # 90th percentile |ax| when ax < -0.2g, |ay| < 0.2g
-    max_accel_g: float  # 90th percentile |ax| when ax > 0.2g, |ay| < 0.2g
+    max_lateral_g: float  # 95th percentile |ay| when |ax| < 0.2g and |ay| >= 0.3g
+    max_brake_g: float  # 95th percentile |ax| when ax < -0.2g, |ay| < 0.2g
+    max_accel_g: float  # 95th percentile |ax| when ax > 0.2g, |ay| < 0.2g
     point_count: int  # number of data points used (minimum across axes)
     confidence: str  # "high" (>500 pts per axis), "medium" (100-500), "low" (<100)
 
@@ -94,9 +94,10 @@ def calibrate_grip_from_telemetry(
     lateral_g: np.ndarray,
     longitudinal_g: np.ndarray,
     *,
-    percentile: float = 90.0,
+    percentile: float = 95.0,
     cross_axis_threshold: float = 0.2,
     min_points: int = 20,
+    min_lateral_g: float = 0.3,
 ) -> CalibratedGrip | None:
     """Extract 3-axis grip limits from observed G-G data.
 
@@ -111,15 +112,24 @@ def calibrate_grip_from_telemetry(
     longitudinal_g
         Array of longitudinal acceleration values (G).  Negative = braking.
     percentile
-        Percentile to use for extracting peak values (default 90.0).
-        p90 better represents sustained cornering capability than p99,
-        which captures transient spikes from weight transfer and curb strikes.
+        Percentile to use for extracting peak values (default 95.0).
+        p95 captures near-limit cornering capability while rejecting sensor
+        noise spikes.  Lower values (p90) under-estimate grip because the
+        distribution includes below-limit moderate cornering; higher values
+        (p99) over-index on transient spikes from weight transfer and curbs.
     cross_axis_threshold
         Maximum allowed cross-axis G to consider a sample "pure" for that
         axis (default 0.2G).
     min_points
         Minimum number of data points required in each axis regime.
         Returns None if any axis has fewer points than this.
+    min_lateral_g
+        Minimum |lateral_g| to include in the lateral regime (default 0.3G).
+        Excludes gentle sweeping curves and highway-speed lane changes that
+        dilute the distribution toward lower G values.  Only samples where
+        the driver is genuinely cornering at ≥0.3G are used to estimate the
+        tire's lateral grip limit.  Has no effect on braking or acceleration
+        regimes.
 
     Returns
     -------
@@ -129,8 +139,13 @@ def calibrate_grip_from_telemetry(
     if len(lateral_g) == 0 or len(longitudinal_g) == 0:
         return None
 
-    # Lateral: points where |longitudinal_g| < threshold
-    lat_mask = np.abs(longitudinal_g) < cross_axis_threshold
+    # Lateral: points where |longitudinal_g| < threshold AND driver is
+    # genuinely cornering (|lateral_g| >= min_lateral_g).  The min_lateral_g
+    # filter removes gentle sweeper data that dilutes the p-percentile toward
+    # below-limit values, causing systematic under-estimation of tire mu.
+    lat_mask = (np.abs(longitudinal_g) < cross_axis_threshold) & (
+        np.abs(lateral_g) >= min_lateral_g
+    )
     if int(lat_mask.sum()) < min_points:
         return None
     max_lat = float(np.percentile(np.abs(lateral_g[lat_mask]), percentile))
@@ -241,7 +256,7 @@ def calibrate_per_corner_grip(
     distance_m: np.ndarray,
     corners: list[Corner],
     *,
-    percentile: float = 90.0,
+    percentile: float = 95.0,
     min_points: int = 10,
 ) -> dict[int, float]:
     """Extract per-corner effective mu from observed lateral G.
@@ -252,7 +267,9 @@ def calibrate_per_corner_grip(
     where G_ACCEL = 9.81 m/s^2 (converting from G-force to friction coefficient).
 
     Since lateral_g is already in G units (multiples of 9.81), mu_eff is simply
-    the percentile of |lateral_g| in the corner zone.
+    the percentile of |lateral_g| in the corner zone.  Unlike the global
+    calibration, per-corner data is already concentrated on cornering events
+    so no additional min_lateral_g filter is needed.
 
     Parameters
     ----------
@@ -263,7 +280,7 @@ def calibrate_per_corner_grip(
     corners
         List of detected corners with entry/exit distances.
     percentile
-        Percentile to extract from |lateral_g| in each zone (default 90.0).
+        Percentile to extract from |lateral_g| in each zone (default 95.0).
     min_points
         Minimum data points in a corner zone to include it.
         Corners with fewer points are excluded from the result.

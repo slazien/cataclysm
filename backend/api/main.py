@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Annotated
+from typing import Annotated, cast
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Request
@@ -238,25 +238,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from backend.api.db.database import async_session_factory as _asf
     from backend.api.db.models import User as UserModel
     from backend.api.routers.coaching import trigger_auto_coaching
+    from backend.api.schemas.coaching import SkillLevel
 
     # Build user_id → skill_level lookup so we generate the right report
-    user_skill: dict[str, str] = {}
+    _valid: tuple[SkillLevel, ...] = ("novice", "intermediate", "advanced")
+    user_skill: dict[str, SkillLevel] = {}
     try:
         async with _asf() as _db:
             from sqlalchemy import select as _sa_select
 
-            _valid = ("novice", "intermediate", "advanced")
             for u in (await _db.execute(_sa_select(UserModel))).scalars():
-                lvl = u.skill_level if u.skill_level in _valid else "intermediate"
-                user_skill[u.id] = lvl
+                raw = u.skill_level if u.skill_level in _valid else "intermediate"
+                user_skill[u.id] = cast(SkillLevel, raw)
     except Exception:
         logger.warning("Failed to load user skill levels", exc_info=True)
 
     all_sessions = list_sessions()
     for sd in all_sessions:
         if not sd.is_anonymous:
-            lvl = user_skill.get(sd.user_id or "", "intermediate")
-            await trigger_auto_coaching(sd.session_id, sd, skill_level=lvl)
+            skill: SkillLevel = user_skill.get(sd.user_id or "", "intermediate")
+            await trigger_auto_coaching(sd.session_id, sd, skill_level=skill)
     if all_sessions:
         logger.info("Checked %d session(s) for missing coaching reports", len(all_sessions))
 

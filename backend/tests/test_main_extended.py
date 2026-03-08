@@ -9,6 +9,7 @@ Lines targeted:
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -201,7 +202,7 @@ class TestHealthCheck:
         from backend.api.main import app
 
         # Override the DB dependency to return a session that raises on execute
-        async def failing_db():
+        async def failing_db() -> AsyncGenerator[AsyncMock, None]:
             mock_session = AsyncMock()
             mock_session.execute = AsyncMock(side_effect=Exception("DB down"))
             yield mock_session
@@ -293,7 +294,7 @@ class TestReloadSessionsFromDb:
         from backend.api.main import _reload_sessions_from_db
 
         @asynccontextmanager
-        async def _failing_factory():
+        async def _failing_factory() -> AsyncGenerator[None, None]:
             raise SQLAlchemyError("DB connection failed")
             yield  # type: ignore[misc]
 
