@@ -355,13 +355,13 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
             1,
             "Downhill Hairpin",
             0.059,
-            direction="right",
+            direction="left",
             corner_type="hairpin",
             elevation_trend="downhill",
             camber="off-camber",
             coaching_notes=(
                 "Most dangerous turn on track. Heavy braking from top speed into "
-                "downhill off-camber right. Don't overdrive — grip drops fast."
+                "downhill off-camber left. Don't overdrive — grip drops fast."
             ),
         ),
         OfficialCorner(
@@ -380,7 +380,7 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
             3,
             "Carousel Entry",
             0.206,
-            direction="right",
+            direction="left",
             corner_type="sweeper",
             elevation_trend="uphill",
             camber="positive",
@@ -390,12 +390,12 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
             4,
             "The Carousel",
             0.237,
-            direction="right",
+            direction="left",
             corner_type="sweeper",
             elevation_trend="crest",
             camber="positive",
             coaching_notes=(
-                "Long constant-radius right. Single steering angle — more throttle "
+                "Long constant-radius left. Single steering angle — more throttle "
                 "pushes you wide, less throttle tightens the line."
             ),
         ),
@@ -426,27 +426,29 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
         ),
         OfficialCorner(
             7,
-            "Back Straight Entry",
+            "Chicane Left",
             0.498,
+            direction="left",
+            corner_type="hairpin",
+            elevation_trend="flat",
+            camber="positive",
+            coaching_notes=(
+                "Left entry of the tight chicane. Set up wide for a quick "
+                "direction change into the right of T8."
+            ),
+        ),
+        OfficialCorner(
+            8,
+            "Chicane Right",
+            0.508,
             direction="right",
             corner_type="hairpin",
             elevation_trend="flat",
             camber="positive",
             coaching_notes=(
-                "Slowest point on track — leads onto the long back straight. "
-                "Sacrifice entry for exit speed. Biggest laptime opportunity."
+                "Right exit of the chicane onto the back straight. "
+                "Sacrifice T7 entry for T8 exit speed — biggest laptime opportunity."
             ),
-        ),
-        OfficialCorner(
-            8,
-            "Right Kink",
-            0.508,
-            character="flat",
-            direction="right",
-            corner_type="kink",
-            elevation_trend="flat",
-            camber="positive",
-            coaching_notes="Flat out. Continuation of T7 arc onto back straight.",
         ),
         OfficialCorner(
             9,

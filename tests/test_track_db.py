@@ -314,14 +314,14 @@ class TestAMPEnrichedData:
 
     def test_t1_downhill_hairpin(self) -> None:
         c = self._get_corner(1)
-        assert c.direction == "right"
+        assert c.direction == "left"
         assert c.corner_type == "hairpin"
         assert c.elevation_trend == "downhill"
         assert c.camber == "off-camber"
 
     def test_t4_carousel(self) -> None:
         c = self._get_corner(4)
-        assert c.direction == "right"
+        assert c.direction == "left"
         assert "carousel" in c.name.lower() or "carousel" in (c.coaching_notes or "").lower()
 
     def test_t5_blind_braking(self) -> None:
