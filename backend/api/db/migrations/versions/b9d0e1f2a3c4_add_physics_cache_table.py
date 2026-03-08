@@ -1,8 +1,8 @@
 """Add physics_cache table for persistent velocity solver results.
 
-Revision ID: a7b8c9d0e1f2
-Revises: f6b7c8d9e0a1
-Create Date: 2026-03-07
+Revision ID: b9d0e1f2a3c4
+Revises: f6b7c8d9e0a1, e4f5a6b7c8d9
+Create Date: 2026-03-08
 
 """
 
@@ -13,8 +13,8 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = "a7b8c9d0e1f2"
-down_revision = "f6b7c8d9e0a1"
+revision = "b9d0e1f2a3c4"
+down_revision = ("f6b7c8d9e0a1", "e4f5a6b7c8d9")
 branch_labels = None
 depends_on = None
 
