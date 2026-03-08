@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 # Bump this whenever the physics algorithm output changes.
 # Format: YYYY-MM-DD.N where N is a daily counter.
-PHYSICS_CODE_VERSION = "2026-03-08.2"
+PHYSICS_CODE_VERSION = "2026-03-08.3"
 
 
 async def db_get_cached(
@@ -197,12 +197,18 @@ async def db_set_cached_by_track(
                 result_json=result,
                 code_version=PHYSICS_CODE_VERSION,
             )
+            # Target uq_physics_cache_key (session_id, endpoint, profile_id) rather
+            # than uq_physics_cache_track_key: concurrent track inserts race on the
+            # former because session_id="_track:<slug>" still participates in that
+            # constraint.  Targeting the constraint that actually fires prevents the
+            # unhandled IntegrityError in the concurrent-write case.
             stmt = stmt.on_conflict_do_update(
-                constraint="uq_physics_cache_track_key",
+                constraint="uq_physics_cache_key",
                 set_={
                     "result_json": stmt.excluded.result_json,
                     "code_version": stmt.excluded.code_version,
-                    "session_id": stmt.excluded.session_id,
+                    "track_slug": stmt.excluded.track_slug,
+                    "calibrated_mu": stmt.excluded.calibrated_mu,
                     "created_at": stmt.excluded.created_at,
                 },
             )

@@ -734,31 +734,33 @@ def _implied_mu_from_corners(
 ) -> dict[int, float]:
     """Back-solve friction coefficient from the driver's best observed min speed.
 
-    Uses circular motion physics: ``mu = v² × κ / g``, where κ is the absolute
-    curvature at each corner's apex distance.  This gives the minimum mu that
-    would allow the physics solver to predict the driver's own observed speed.
+    Uses circular motion physics: ``mu = v² × κ / g``.  Rather than using the
+    curvature at the apex point, we use the 95th-percentile curvature *within
+    the corner zone* [entry, exit].  This ensures that the model's 5th-percentile
+    zone speed (as computed in ``compute_corner_opportunities``) is >= the
+    driver's observed minimum speed even when GPS noise creates spurious
+    high-curvature points elsewhere in the zone.
 
-    Without this, GPS curvature overestimates (making a corner appear tighter
-    than it is) cause ``v_optimal = sqrt(mu × g / κ)`` to underestimate the
-    achievable speed, producing nonsensical results like "your speed exceeds
-    the physics limit" even though the driver demonstrably reached it.
+    The math: if mu = v² × κ_p95 / g, then at the p95 curvature point
+    v_limit = sqrt(mu × g / κ_p95) = v_actual.  95 % of zone points have
+    κ ≤ κ_p95 → v_limit ≥ v_actual.  The 5th-percentile of zone speeds
+    (which uses the *lowest* speed values) therefore stays at or above
+    v_actual, preventing the "model slower than driver" invalidity flag.
 
     Applied via ``max()`` in ``_build_mu_array``, implied mu can only *raise*
-    the corner-level optimal — it never lowers predictions for corners where
-    the driver was conservative.
+    the corner-level optimal — it never lowers predictions.
     """
     result: dict[int, float] = {}
     for corner in corners:
-        kappa = float(
-            np.interp(
-                corner.apex_distance_m,
-                curvature_result.distance_m,
-                curvature_result.abs_curvature,
-            )
+        zone_mask = (curvature_result.distance_m >= corner.entry_distance_m) & (
+            curvature_result.distance_m <= corner.exit_distance_m
         )
-        if kappa < 1e-4:  # essentially a straight — skip
+        if not zone_mask.any():
             continue
-        mu = corner.min_speed_mps**2 * kappa / _G_ACCEL
+        kappa_p95 = float(np.percentile(curvature_result.abs_curvature[zone_mask], 95))
+        if kappa_p95 < 1e-4:  # essentially a straight — skip
+            continue
+        mu = corner.min_speed_mps**2 * kappa_p95 / _G_ACCEL
         result[corner.number] = mu
     return result
 
