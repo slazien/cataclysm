@@ -61,6 +61,12 @@ from cataclysm.velocity_profile import (
 )
 
 from backend.api.services import equipment_store
+from backend.api.services.db_physics_cache import (
+    db_get_cached,
+    db_invalidate_profile,
+    db_invalidate_session,
+    db_set_cached,
+)
 from backend.api.services.session_store import SessionData, store_session
 
 logger = logging.getLogger(__name__)
@@ -113,29 +119,32 @@ def _set_physics_cached(
 
 
 def invalidate_physics_cache(session_id: str) -> None:
-    """Clear all physics cache entries for a session."""
+    """Clear all physics cache entries for a session (in-memory + DB)."""
     keys_to_remove = [k for k in _physics_cache if k[0].startswith(f"{session_id}:")]
     for k in keys_to_remove:
         del _physics_cache[k]
     if keys_to_remove:
         logger.info(
-            "Invalidated %d physics cache entries for session %s",
+            "Invalidated %d in-memory physics cache entries for session %s",
             len(keys_to_remove),
             session_id,
         )
+    # Fire-and-forget DB invalidation (will be awaited by the event loop)
+    asyncio.ensure_future(db_invalidate_session(session_id))
 
 
 def invalidate_profile_cache(profile_id: str) -> None:
-    """Clear all physics cache entries using a specific profile."""
+    """Clear all physics cache entries using a specific profile (in-memory + DB)."""
     keys_to_remove = [k for k in _physics_cache if k[1] == profile_id]
     for k in keys_to_remove:
         del _physics_cache[k]
     if keys_to_remove:
         logger.info(
-            "Invalidated %d physics cache entries for profile %s",
+            "Invalidated %d in-memory physics cache entries for profile %s",
             len(keys_to_remove),
             profile_id,
         )
+    asyncio.ensure_future(db_invalidate_profile(profile_id))
 
 
 def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
@@ -638,6 +647,12 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
     if cached is not None:
         return cached
 
+    # Check persistent DB cache (survives backend restarts)
+    db_cached = await db_get_cached(session_id, "profile", profile_id)
+    if db_cached is not None:
+        _set_physics_cached(session_id, "profile", db_cached, profile_id)
+        return db_cached
+
     # Try LIDAR elevation (async, before entering sync thread)
     lidar_alt = await _try_lidar_elevation(session_data)
 
@@ -733,6 +748,7 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
 
     result = await asyncio.to_thread(_compute)
     _set_physics_cached(session_id, "profile", result, profile_id)
+    await db_set_cached(session_id, "profile", result, profile_id)
     return result
 
 
@@ -755,6 +771,12 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
     cached = _get_physics_cached(session_id, "comparison", profile_id)
     if cached is not None:
         return cached
+
+    # Check persistent DB cache (survives backend restarts)
+    db_cached = await db_get_cached(session_id, "comparison", profile_id)
+    if db_cached is not None:
+        _set_physics_cached(session_id, "comparison", db_cached, profile_id)
+        return db_cached
 
     # Try LIDAR elevation (async, before entering sync thread)
     lidar_alt = await _try_lidar_elevation(session_data)
@@ -880,4 +902,5 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
 
     result = await asyncio.to_thread(_compute)
     _set_physics_cached(session_id, "comparison", result, profile_id)
+    await db_set_cached(session_id, "comparison", result, profile_id)
     return result

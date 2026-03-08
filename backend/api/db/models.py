@@ -397,3 +397,30 @@ class OrgEvent(Base):
     event_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     run_groups: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PhysicsCacheEntry(Base):
+    """Persistent cache for physics computation results (optimal profile/comparison).
+
+    Survives backend restarts and Railway deploys.  Keyed by session, endpoint,
+    and equipment profile.  A ``code_version`` column enables bulk invalidation
+    when the physics algorithm changes.
+    """
+
+    __tablename__ = "physics_cache"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    session_id: Mapped[str] = mapped_column(String, nullable=False)
+    endpoint: Mapped[str] = mapped_column(String, nullable=False)  # "profile" | "comparison"
+    profile_id: Mapped[str] = mapped_column(
+        String, nullable=False, server_default=""
+    )  # "" = no equipment
+    result_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    code_version: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("session_id", "endpoint", "profile_id", name="uq_physics_cache_key"),
+        Index("ix_physics_cache_session", "session_id"),
+        Index("ix_physics_cache_profile", "profile_id"),
+    )
