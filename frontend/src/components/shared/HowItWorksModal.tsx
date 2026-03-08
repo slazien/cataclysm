@@ -174,7 +174,7 @@ export function HowItWorksModal() {
             type="button"
             onClick={handleClose}
             aria-label="Close"
-            className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+            className="flex h-11 w-11 items-center justify-center rounded-md text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
           >
             <X className="h-4 w-4" />
           </button>

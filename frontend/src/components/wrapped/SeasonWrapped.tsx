@@ -187,7 +187,7 @@ export function SeasonWrapped({ open, onClose }: SeasonWrappedProps) {
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-3 top-3 z-10 rounded-full bg-black/40 p-1.5 text-white/70 transition hover:bg-black/60 hover:text-white"
+          className="absolute right-2 top-2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-black/40 text-white/70 transition hover:bg-black/60 hover:text-white"
         >
           <X className="h-4 w-4" />
         </button>
