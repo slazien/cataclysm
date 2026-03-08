@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { NoteColor, NoteAnchorType } from '@/lib/types';
@@ -49,14 +49,17 @@ export function NoteEditor({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const createNote = useCreateNote();
 
-  const allSuggestions: MentionSuggestion[] = [
-    ...corners.map((c) => ({ label: c, value: c })),
-    ...laps.map((l) => ({ label: `L${l}`, value: `L${l}` })),
-    { label: 'braking', value: 'braking' },
-    { label: 'apex_speed', value: 'apex_speed' },
-    { label: 'consistency', value: 'consistency' },
-    { label: 'coaching', value: 'coaching' },
-  ];
+  const allSuggestions: MentionSuggestion[] = useMemo(
+    () => [
+      ...corners.map((c) => ({ label: c, value: c })),
+      ...laps.map((l) => ({ label: `L${l}`, value: `L${l}` })),
+      { label: 'braking', value: 'braking' },
+      { label: 'apex_speed', value: 'apex_speed' },
+      { label: 'consistency', value: 'consistency' },
+      { label: 'coaching', value: 'coaching' },
+    ],
+    [corners, laps],
+  );
 
   const handleChange = useCallback(
     (value: string) => {

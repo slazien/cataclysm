@@ -95,6 +95,9 @@ export function useAutoSaveNote(
   const updateMutation = useUpdateNote();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRef = useRef<NoteUpdate | null>(null);
+  // Keep a stable ref to mutate so debounce callbacks never go stale
+  const mutateRef = useRef(updateMutation.mutate);
+  mutateRef.current = updateMutation.mutate;
 
   const flush = useCallback(() => {
     if (timerRef.current) {
@@ -105,7 +108,7 @@ export function useAutoSaveNote(
       const body = pendingRef.current;
       pendingRef.current = null;
       setSaveStatus("saving");
-      updateMutation.mutate(
+      mutateRef.current(
         { noteId, body, sessionId },
         {
           onSuccess: () => setSaveStatus("saved"),
@@ -113,7 +116,7 @@ export function useAutoSaveNote(
         },
       );
     }
-  }, [noteId, sessionId, updateMutation]);
+  }, [noteId, sessionId]);
 
   const debouncedSave = useCallback(
     (body: NoteUpdate) => {
@@ -131,9 +134,8 @@ export function useAutoSaveNote(
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
-      // Can't call async flush on unmount, but mutation will fire synchronously
       if (pendingRef.current && noteId) {
-        updateMutation.mutate({
+        mutateRef.current({
           noteId,
           body: pendingRef.current,
           sessionId,

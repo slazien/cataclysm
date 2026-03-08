@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useRef, useEffect, Fragment } from 'react';
+import { useState, useRef, useEffect, useCallback, Fragment } from 'react';
 import { Pin, Trash2, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Note, NoteColor, NoteUpdate } from '@/lib/types';
 import { useAutoSaveNote, useDeleteNote, useUpdateNote } from '@/hooks/useNotes';
+import { useUiStore, useAnalysisStore, useNotesStore } from '@/stores';
 
 const COLOR_CLASSES: Record<NoteColor, string> = {
   yellow: 'bg-yellow-500/10 border-yellow-500/30',
@@ -24,9 +25,11 @@ const COLOR_DOT: Record<NoteColor, string> = {
 
 const COLORS: NoteColor[] = ['yellow', 'blue', 'green', 'pink', 'purple'];
 
-/** Parse @-references in note content and render as highlighted spans. */
-function renderContent(content: string) {
-  // Match @T1-@T99 (corners), @L1-@L99 (laps), @word (metrics)
+/** Parse @-references and render as clickable navigation chips. */
+function renderContent(
+  content: string,
+  onNavigate: (ref: string, type: string) => void,
+) {
   const regex = /@(T\d{1,2}|L\d{1,2}|braking|apex_speed|consistency|coaching)/g;
   const parts: (string | { ref: string; type: string })[] = [];
   let lastIndex = 0;
@@ -54,13 +57,18 @@ function renderContent(content: string) {
       return <Fragment key={i}>{part}</Fragment>;
     }
     return (
-      <span
+      <button
         key={i}
-        className="inline-flex items-center rounded bg-[var(--cata-accent)]/20 px-1 py-0.5 text-xs font-medium text-[var(--cata-accent)]"
-        title={`${part.type}: ${part.ref}`}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onNavigate(part.ref, part.type);
+        }}
+        className="inline-flex items-center rounded bg-[var(--cata-accent)]/20 px-1 py-0.5 text-xs font-medium text-[var(--cata-accent)] transition-colors hover:bg-[var(--cata-accent)]/40 cursor-pointer"
+        title={`Go to ${part.ref}`}
       >
         @{part.ref}
-      </span>
+      </button>
     );
   });
 }
@@ -80,6 +88,39 @@ export function NoteCard({ note }: NoteCardProps) {
   const deleteMutation = useDeleteNote();
   const updateMutation = useUpdateNote();
   const color = (note.color ?? 'yellow') as NoteColor;
+
+  const setActiveView = useUiStore((s) => s.setActiveView);
+  const selectCorner = useAnalysisStore((s) => s.selectCorner);
+  const selectLaps = useAnalysisStore((s) => s.selectLaps);
+  const setMode = useAnalysisStore((s) => s.setMode);
+  const toggleNotesPanel = useNotesStore((s) => s.togglePanel);
+
+  /** Navigate to the referenced corner, lap, or metric view. */
+  const handleNavigate = useCallback(
+    (ref: string, type: string) => {
+      // Close the notes drawer so user sees the destination
+      toggleNotesPanel();
+      if (type === 'corner') {
+        setActiveView('deep-dive');
+        setMode('corner');
+        selectCorner(ref);
+      } else if (type === 'lap') {
+        const lapNum = parseInt(ref.replace('L', ''), 10);
+        setActiveView('deep-dive');
+        setMode('speed');
+        selectLaps([lapNum]);
+      } else {
+        // Metrics like @braking, @consistency → go to report
+        setActiveView('session-report');
+      }
+    },
+    [setActiveView, selectCorner, selectLaps, setMode, toggleNotesPanel],
+  );
+
+  // Sync content from server when not editing (e.g., after refetch)
+  useEffect(() => {
+    if (!isEditing) setContent(note.content);
+  }, [note.content, isEditing]);
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -218,7 +259,7 @@ export function NoteCard({ note }: NoteCardProps) {
           className="cursor-text whitespace-pre-wrap text-sm text-[var(--text-primary)]"
           onClick={() => setIsEditing(true)}
         >
-          {renderContent(content)}
+          {renderContent(content, handleNavigate)}
         </div>
       )}
 

@@ -16,9 +16,9 @@ export function FloatingNotesButton() {
           type="button"
           onClick={togglePanel}
           className={cn(
-            'fixed bottom-24 right-20 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg',
+            'fixed bottom-24 left-4 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg',
             'bg-gradient-to-br from-amber-500 to-amber-500/80 text-white',
-            'lg:bottom-8 lg:right-24',
+            'lg:bottom-8 lg:left-8',
           )}
           title="Open Notes (press n)"
           aria-label="Open Notes"

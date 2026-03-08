@@ -69,6 +69,10 @@ export async function fetchApi<T>(
   if (!res.ok) {
     throw new Error(`API error: ${res.status} ${res.statusText}`);
   }
+  // 204 No Content — nothing to parse (e.g., DELETE endpoints)
+  if (res.status === 204) {
+    return undefined as T;
+  }
   // Guard against HTML redirect responses (e.g., middleware auth redirect)
   const contentType = res.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) {

@@ -7,11 +7,12 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.db.database import get_db
 from backend.api.db.models import NoteDB
+from backend.api.db.models import Session as SessionModel
 from backend.api.dependencies import AuthenticatedUser, get_current_user
 from backend.api.schemas.notes import NoteCreate, NoteResponse, NotesList, NoteUpdate
 
@@ -44,14 +45,26 @@ async def create_note(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> NoteResponse:
     """Create a new note."""
-    # Check note limit
-    count_q = select(NoteDB).where(NoteDB.user_id == current_user.user_id)
-    result = await db.execute(count_q)
-    if len(result.scalars().all()) >= _MAX_NOTES_PER_USER:
+    # Check note limit — use SQL COUNT (not load-all)
+    count_q = (
+        select(func.count())
+        .select_from(NoteDB)
+        .where(
+            NoteDB.user_id == current_user.user_id,
+        )
+    )
+    count = (await db.execute(count_q)).scalar_one()
+    if count >= _MAX_NOTES_PER_USER:
         raise HTTPException(
             status_code=429,
             detail=f"Maximum {_MAX_NOTES_PER_USER} notes per user",
         )
+
+    # Verify session ownership if session_id provided
+    if body.session_id:
+        session = await db.get(SessionModel, body.session_id)
+        if session is None or session.user_id != current_user.user_id:
+            raise HTTPException(status_code=404, detail="Session not found")
 
     note = NoteDB(
         id=str(uuid.uuid4()),
