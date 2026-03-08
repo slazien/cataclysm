@@ -8,6 +8,7 @@ import { useUploadSessions } from '@/hooks/useSession';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { SkillLevelPicker, shouldShowSkillPicker } from './SkillLevelPicker';
 
 const VALUE_PROPS = [
   {
@@ -48,6 +49,8 @@ export function WelcomeScreen() {
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const isMobile = useIsMobile();
   const [showSuccess, setShowSuccess] = useState(false);
+  const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
+  const [showSkillPicker, setShowSkillPicker] = useState(false);
 
   const handleFiles = useCallback(
     (files: File[]) => {
@@ -56,17 +59,34 @@ export function WelcomeScreen() {
       uploadMutation.mutate(files, {
         onSuccess: (data) => {
           if (data.session_ids.length > 0) {
-            localStorage.setItem('cataclysm_anon_session_id', data.session_ids[0]);
+            const sessionId = data.session_ids[0];
+            localStorage.setItem('cataclysm_anon_session_id', sessionId);
             setShowSuccess(true);
-            setTimeout(() => {
-              setActiveSession(data.session_ids[0]);
-            }, 800);
+
+            if (shouldShowSkillPicker()) {
+              // Hold the session ID — show picker after brief success feedback
+              setPendingSessionId(sessionId);
+              setTimeout(() => {
+                setShowSkillPicker(true);
+              }, 800);
+            } else {
+              setTimeout(() => {
+                setActiveSession(sessionId);
+              }, 800);
+            }
           }
         },
       });
     },
     [uploadMutation, setActiveSession],
   );
+
+  const handleSkillPickerComplete = useCallback(() => {
+    setShowSkillPicker(false);
+    if (pendingSessionId) {
+      setActiveSession(pendingSessionId);
+    }
+  }, [pendingSessionId, setActiveSession]);
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -389,6 +409,13 @@ export function WelcomeScreen() {
       </p>
 
       <div className="h-8 shrink-0" />
+
+      {/* Skill level picker overlay — shown once after first upload */}
+      <AnimatePresence>
+        {showSkillPicker && (
+          <SkillLevelPicker onComplete={handleSkillPickerComplete} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
