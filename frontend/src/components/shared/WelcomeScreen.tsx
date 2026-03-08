@@ -117,7 +117,7 @@ export function WelcomeScreen() {
           Your fastest lap is next.
         </h1>
         <p className="mx-auto mt-3 max-w-md text-lg text-[var(--text-secondary)] lg:text-xl">
-          Upload your telemetry. Get physics-based coaching in seconds.
+          Upload telemetry. Get physics-based coaching. Drive faster.
         </p>
       </div>
 
