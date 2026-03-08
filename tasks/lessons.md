@@ -581,23 +581,33 @@ const timeCost = liveValue || undefined;  // then: timeCost ?? fallbackValue
 
 **Error signature**: A badge/label shows a "no data" state despite having a valid fallback value. The intermediate value is `0`, not `null`.
 
-## React Query `isLoading` Is False During SSR — Use `isPending` ([2026-03-07])
+## React Query `isLoading` Is False for SSR and Paused Queries — Use `isPending` ([2026-03-07])
 
-**Pattern**: In React Query v5, `isLoading = isPending && isFetching`. During SSR, no fetch runs (`isFetching = false`), so `isLoading` is always `false` — even when the query has no data. Use `isPending` instead of `isLoading` for any loading state that must render correctly in SSR HTML (loading skeletons, placeholder cards).
+**Pattern**: In React Query v5, `isLoading = isPending && isFetching`. Two scenarios make `isFetching=false` while there is still no data: (1) SSR — no network request runs server-side, (2) paused queries — mobile OS suspends network activity (background tab, WiFi→cellular switch). In both cases `isLoading=false` even though `data` is `undefined`. Use `isPending` everywhere for loading gates.
 
 ```typescript
-// WRONG — isLoading is false during SSR, shows "no data" in server HTML
+// WRONG — isLoading=false during SSR and mobile pause, so chart renders blank
 const { data, isLoading } = useQuery({ queryKey: ['x'], queryFn: fetchX });
-if (isLoading) return <Skeleton />;  // Never renders during SSR!
+if (isLoading) return <Spinner />;   // misses paused state → blank canvas
 
-// CORRECT — isPending is true when no data exists, regardless of fetch status
-const { data, isPending } = useQuery({ queryKey: ['x'], queryFn: fetchX });
-if (isPending) return <Skeleton />;  // Renders in SSR HTML correctly
+// CORRECT — isPending=true whenever there is no data, regardless of cause
+const { data, isPending: isLoading } = useQuery({ queryKey: ['x'], queryFn: fetchX });
+if (isLoading) return <Spinner />;   // catches SSR, pause, and normal loading
 ```
 
-**Why**: `EquipmentProfileList` used `isLoading` for its loading skeleton. During SSR, `isLoading` was false, so the component rendered "No equipment profiles yet" in the server HTML. Users saw this flash before client hydration fired the query and loaded profiles. Same issue affected the Optimal Target metric card.
+**Why**: Deep Dive charts (SpeedTrace, DeltaT, LateralOffsetChart) used `isLoading`. On mobile, iOS/Android suspend background network requests, putting queries into paused state (`isPending=true, isFetching=false → isLoading=false`). Charts passed the spinner gate with `data=undefined`, rendered blank canvases, and in one case showed a false "GPS quality too low" error.
 
-**Error signature**: Component shows "no data" state briefly on first page load, then data appears after ~500ms. The "no data" text is visible in View Source (SSR HTML). Hard refresh doesn't help because the SSR HTML always has it.
+**Error signature**: Charts appear empty (no spinner, no data) after selecting laps. Hard refresh fixes it. Happens more on mobile and iPad than desktop. Or: "no data" flash on SSR with data appearing after ~500ms.
+
+## Conditional Render Guard Order: Prerequisites Before Data Validity (2026-03-08)
+
+**Pattern**: In chart components, check prerequisite conditions (empty selection, missing session) BEFORE checking data validity (`!data?.available`, empty array). When data is `undefined` (loading or paused), validity checks produce false error states instead of spinners.
+
+Correct order: (1) prerequisite check → (2) `isPending` spinner → (3) data validity.
+
+**Why**: `LateralOffsetChart` checked `!lineData?.available` before `selectedLaps.length === 0`. With a paused query `lineData=undefined`, `!undefined?.available` is `true` → showed "GPS quality too low" error even when data would load fine on refresh.
+
+**Error signature**: Chart shows a data-validity error ("GPS quality too low", "No laps") when the real issue is that no laps are selected or data is still loading. Refresh fixes it.
 
 ## Browser-First Debugging for Frontend Issues ([2026-03-07])
 

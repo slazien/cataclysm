@@ -85,6 +85,7 @@ Check: text clip, horiz overflow, touch targets ≥44px, chart scale.
 - Contrast: min `text-secondary` (never `text.muted`) for lines/borders/indicators
 - Canvas: lines ≥1.5px, dashes ≥[6,3]
 - Canvas events: use React props (`onClick`, `onMouseMove`) on `<canvas>` — not `addEventListener` in `useEffect` (ref never changes in deps → effect fires once, misses conditional-mount canvas)
+- Loading state: use `isPending` (not `isLoading`) in chart guards — `isLoading = isPending && isFetching` misses paused queries (mobile background/network blip). Guard order in chart early-returns: (1) prerequisites (e.g. `selectedLaps.length === 0`), (2) `isPending` spinner, (3) data validity (`!data?.available`).
 - Touch tooltips: never Radix `Tooltip` for info icons (hover-only, vanishes ~100ms on mobile). Use Radix `Popover` with `className="bg-foreground text-background ..."` on `PopoverContent`.
 
 ### Tier 2 — Specific
