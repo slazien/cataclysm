@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSession as useAuthSession, signIn, signOut } from 'next-auth/react';
 import { FileText, Upload, Settings, ChevronRight, LogOut, Sparkles, Award } from 'lucide-react';
 import { useUiStore, useSessionStore } from '@/stores';
@@ -29,8 +29,28 @@ export function TopBar() {
   const toggleSettingsPanel = useUiStore((s) => s.toggleSettingsPanel);
   const setUploadPromptOpen = useUiStore((s) => s.setUploadPromptOpen);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const [wrappedOpen, setWrappedOpen] = useState(false);
   const [badgesOpen, setBadgesOpen] = useState(false);
+
+  // Close user menu on click-outside or Escape
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setUserMenuOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [userMenuOpen]);
 
   const { data: authSession, status: authStatus } = useAuthSession();
   const isAnonymous = authStatus === 'unauthenticated';
@@ -171,7 +191,7 @@ export function TopBar() {
           )}
           {/* User avatar + sign-out */}
           {authSession?.user && (
-            <div className="relative ml-1">
+            <div ref={userMenuRef} className="relative ml-1">
               <button
                 type="button"
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
