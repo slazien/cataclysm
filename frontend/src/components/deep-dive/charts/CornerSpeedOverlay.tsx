@@ -243,7 +243,12 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
       ctx.setLineDash([]);
     }
 
-    // --- 2. Data: speed traces ---
+    // --- 2. Data: speed traces (clipped to speed area) ---
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(dimensions.margins.left, dimensions.margins.top, dimensions.innerWidth, speedAreaHeight);
+    ctx.clip();
+
     // All clean laps — thin, semi-transparent
     for (let li = 0; li < lapDataArr.length; li++) {
       const lap = lapDataArr[li];
@@ -339,6 +344,8 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
       }
       ctx.stroke();
     }
+
+    ctx.restore();
 
     // --- 3. Brake/throttle mini-trace strip (best lap only) ---
     // Separator line between speed chart and g-strip
