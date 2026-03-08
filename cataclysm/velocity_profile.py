@@ -139,6 +139,9 @@ def _compute_max_cornering_speed(
     # Tire force model: F_y = mu_ref * Fz_ref * (Fz / Fz_ref)^n, where n < 1.
     # At cornering limit, lateral G ~ mu*g, so lateral load transfer ratio:
     #   dLT = mu * cg_height / track_width
+    # NOTE (DOC-2): The rigorous formula is dLT = lat_G * h_cg / (0.5 * track_w),
+    # i.e. a factor of 2 different.  Our simplified form folds this into the
+    # exponent tuning — not a bug, but a deliberate simplification.
     # Total force from inner + outer tire pair, normalised by static force:
     #   correction = 0.5 * ((1+dLT)^n + (1-dLT)^n)
     # For n < 1, x^n is concave → correction < 1.0 (Jensen's inequality).
