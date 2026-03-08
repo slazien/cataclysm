@@ -11,7 +11,8 @@ Ask clarifying Qs before implementing. Concise, action-oriented.
 ## Workflow
 
 1. **Plan first** — Plan mode for any non-trivial task (3+ steps/arch). Sideways → STOP & re-plan.
-2. **Subagents** — One task per agent. Match type to task (see Playbook).
+2. **Subagents** — One task per agent. Match type to task (see Playbook). **Always** search available skills/agents/plugins before starting any task — prefer specialized tools over vanilla capabilities.
+
 3. **Self-improve** — After any correction: `tasks/lessons.md`. **Rule-writing standard**: CLAUDE.md entries = action only, no "why" prose, use symbols (→ · ≥ ≠), abbreviate freely, merge related bullets. lessons.md = Pattern+Why+Error triplet, tight sentences, no padding. Never duplicate info between files. If a rule needs more than 2 lines in CLAUDE.md, the "why" belongs in lessons.md only.
 4. **Verify** — Proof before done (tests/logs). Always `superpowers:code-reviewer` post-impl.
 5. **Elegance** — Non-trivial: "simpler way?" Skip for quick fixes.
