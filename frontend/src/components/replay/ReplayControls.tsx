@@ -93,9 +93,9 @@ export function ReplayControls({
         />
       </div>
 
-      {/* Controls row */}
-      <div className="flex items-center justify-between gap-3">
-        {/* Left: play controls */}
+      {/* Controls row — stacks to two rows on narrow viewports */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        {/* Row 1 (mobile) / Left (desktop): play controls + distance/time */}
         <div className="flex items-center gap-2">
           <button
             onClick={reset}
@@ -111,18 +111,18 @@ export function ReplayControls({
           >
             {isPlaying ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
           </button>
+
+          {/* Distance / time readout — inline with play controls on mobile */}
+          <div className="flex items-center gap-1.5 font-mono text-xs text-[var(--text-secondary)]">
+            <span>{formatLength(currentDistance)}</span>
+            <span>/</span>
+            <span>{formatLength(totalDistance)}</span>
+            <span className="mx-0.5">|</span>
+            <span>{formatTime(currentTime)}</span>
+          </div>
         </div>
 
-        {/* Center: distance / time readout */}
-        <div className="flex items-center gap-3 font-mono text-xs text-[var(--text-secondary)]">
-          <span>{formatLength(currentDistance)}</span>
-          <span className="text-[var(--text-secondary)]">/</span>
-          <span>{formatLength(totalDistance)}</span>
-          <span className="mx-1 text-[var(--text-secondary)]">|</span>
-          <span>{formatTime(currentTime)}</span>
-        </div>
-
-        {/* Right: speed selector + recording controls */}
+        {/* Row 2 (mobile) / Right (desktop): speed selector + recording controls */}
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1">
             {SPEED_OPTIONS.map((s) => (
