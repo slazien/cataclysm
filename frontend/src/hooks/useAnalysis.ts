@@ -88,7 +88,10 @@ export function useMultiLapData(
     })),
   });
 
-  const isLoading = results.some((r) => r.isLoading);
+  // Use isPending (not isLoading) so paused queries (mobile background, network
+  // blip) also show a spinner.  React Query v5: isLoading = isPending && isFetching;
+  // a paused query has isFetching=false so isLoading=false even with no data yet.
+  const isLoading = results.some((r) => r.isPending);
   const data = results
     .map((r) => r.data)
     .filter((d): d is LapData => d !== undefined);
@@ -157,7 +160,9 @@ export function useLineAnalysis(
   return useQuery<LineAnalysisData>({
     queryKey: ["line-analysis", sessionId, laps],
     queryFn: () => getLineAnalysis(sessionId!, laps),
-    enabled: !!sessionId,
+    // Don't fire with empty lap array — backend returns available:false anyway, and
+    // isPending=true on a disabled query would show a ghost spinner when 0 laps selected.
+    enabled: !!sessionId && (laps === undefined || laps.length > 0),
     ...IMMUTABLE,
   });
 }
