@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## Commit Before Reporting "Done" — Not After (2026-03-08)
+
+**Pattern**: Commit+push to `staging` BEFORE sending the "Done" message to the user. The workflow is: edit → commit → push → then respond. Never respond first and commit later.
+
+**Why**: Said "Done." after editing `help-content.ts`, user had to ask "did you merge to staging?" and then direct me to re-read the rules. The rule exists in CLAUDE.md and MEMORY.md but execution failed because task-completion reporting felt like the terminal step. Commit is the terminal step.
+
+**Error signature**: Responding "Done." or summarising what was changed without having already run `git commit && git push`.
+
 ## Radix DropdownMenu Fails When Custom Overlays Coexist (2026-03-08)
 
 **Pattern**: Don't refactor hand-rolled dropdowns to Radix `DropdownMenu` when the app has custom overlay components (like `SettingsPanel`) with their own document-level `keydown`/`mousedown` listeners and fixed z-index overlays. Radix's `DismissableLayer` doesn't reliably dismiss when a separate `z-40` overlay + Escape handler is active. Hand-rolled `useEffect` with document-level `mousedown` (click-outside) and `keydown` (Escape) listeners works universally regardless of overlay hierarchy.
