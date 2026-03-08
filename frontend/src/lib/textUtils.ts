@@ -27,15 +27,17 @@ export function resolveSpeedMarkers(text: string, isMetric: boolean): string {
     return `${a}-${b} mph`;
   });
 
-  // Phase 1b: structured {{speed:N}} markers
+  // Phase 1b: structured {{speed:N}} markers (may include trailing "+")
   result = result.replace(SPEED_MARKER_RE, (_, n: string) => {
-    const mph = parseFloat(n);
+    const suffix = n.endsWith('+') ? '+' : '';
+    const num = n.replace(/\+$/, '');
+    const mph = parseFloat(num);
     if (isNaN(mph)) return n;
     if (isMetric) {
-      const dec = n.includes('.') ? n.split('.')[1].length : 0;
-      return `${(mph * MPH_TO_KMH).toFixed(dec)} km/h`;
+      const dec = num.includes('.') ? num.split('.')[1].length : 0;
+      return `${(mph * MPH_TO_KMH).toFixed(dec)}${suffix} km/h`;
     }
-    return `${n} mph`;
+    return `${num}${suffix} mph`;
   });
 
   // Phase 2: legacy fallback for old cached reports (bare "N mph")
