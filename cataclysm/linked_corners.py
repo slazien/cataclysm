@@ -17,6 +17,12 @@ from cataclysm.corners import Corner
 # Fraction of max straight speed below which two corners are considered linked.
 DEFAULT_LINK_THRESHOLD = 0.95
 
+# Maximum apex-to-apex distance (metres) for corners to be considered linked.
+# Corners further apart than this are independent even if the car doesn't reach
+# full speed between them — prevents grouping entire twisty track sections as
+# a single compound.  Real chicanes/esses have apexes within ~50-100 m.
+MAX_LINK_DISTANCE_M = 150.0
+
 
 @dataclass
 class CornerGroup:
@@ -142,28 +148,35 @@ def detect_linked_corners(
     # Sort corners by entry distance
     sorted_corners = sorted(corners, key=lambda c: c.entry_distance_m)
 
-    # Determine which adjacent pairs are linked
+    # Determine which adjacent pairs are linked.
+    # Use apex-to-apex distance to check max speed between corners.
+    # With official corners from track_db, zone boundaries are contiguous
+    # (exit of one == entry of next), so checking exit-to-entry would
+    # falsely link everything.  Apex-to-apex always has a meaningful gap.
     linked_pairs: list[bool] = []
     for i in range(len(sorted_corners) - 1):
-        exit_dist = sorted_corners[i].exit_distance_m
-        entry_dist = sorted_corners[i + 1].entry_distance_m
+        apex_a = sorted_corners[i].apex_distance_m
+        apex_b = sorted_corners[i + 1].apex_distance_m
+        apex_gap = apex_b - apex_a
 
-        if entry_dist <= exit_dist:
-            # Overlapping corners — they are definitely linked
+        # Distance gate: corners with apexes too far apart are independent
+        # even if the car doesn't reach full speed between them.
+        if apex_gap > MAX_LINK_DISTANCE_M:
+            linked_pairs.append(False)
+            continue
+
+        apex_a_idx = int(np.searchsorted(distance_m, apex_a))
+        apex_b_idx = int(np.searchsorted(distance_m, apex_b))
+
+        apex_a_idx = min(apex_a_idx, len(optimal_speed) - 1)
+        apex_b_idx = min(apex_b_idx, len(optimal_speed) - 1)
+
+        if apex_b_idx <= apex_a_idx + 1:
+            # Apexes so close they're effectively one corner
             linked_pairs.append(True)
             continue
 
-        exit_idx = int(np.searchsorted(distance_m, exit_dist))
-        entry_idx = int(np.searchsorted(distance_m, entry_dist))
-
-        exit_idx = min(exit_idx, len(optimal_speed) - 1)
-        entry_idx = min(entry_idx, len(optimal_speed) - 1)
-
-        if entry_idx <= exit_idx:
-            linked_pairs.append(True)
-            continue
-
-        between_speed = optimal_speed[exit_idx:entry_idx]
+        between_speed = optimal_speed[apex_a_idx + 1 : apex_b_idx]
         if len(between_speed) == 0:
             linked_pairs.append(True)
             continue

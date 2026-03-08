@@ -340,17 +340,18 @@ class TestLinkThresholdSensitivity:
 
     def test_strict_threshold_links_more(self) -> None:
         """Higher threshold (closer to 1.0) means harder to reach -> more linking."""
-        distance_m = np.linspace(0, 1000, 2000)
-        speed = np.ones(2000) * 50.0
+        # Corners close enough (apexes 75m apart) to pass the distance gate.
+        distance_m = np.linspace(0, 500, 1000)
+        speed = np.ones(1000) * 50.0
 
-        speed[(distance_m >= 100) & (distance_m <= 200)] = 20.0
-        speed[(distance_m >= 300) & (distance_m <= 400)] = 22.0
+        speed[(distance_m >= 100) & (distance_m <= 150)] = 20.0
+        speed[(distance_m >= 200) & (distance_m <= 250)] = 22.0
         # Between speed = 48 m/s
-        speed[(distance_m > 200) & (distance_m < 300)] = 48.0
+        speed[(distance_m > 150) & (distance_m < 200)] = 48.0
 
         corners = [
-            _make_corner(1, 100.0, 200.0),
-            _make_corner(2, 300.0, 400.0),
+            _make_corner(1, 100.0, 150.0),
+            _make_corner(2, 200.0, 250.0),
         ]
 
         # With default threshold (0.95): 48 < 50*0.95=47.5 -> NOT linked (48 > 47.5)
@@ -363,16 +364,16 @@ class TestLinkThresholdSensitivity:
 
     def test_loose_threshold_unlinks(self) -> None:
         """Lower threshold (e.g. 0.5) means easier to reach -> fewer links."""
-        distance_m = np.linspace(0, 1000, 2000)
-        speed = np.ones(2000) * 50.0
+        distance_m = np.linspace(0, 500, 1000)
+        speed = np.ones(1000) * 50.0
 
-        speed[(distance_m >= 100) & (distance_m <= 200)] = 20.0
-        speed[(distance_m >= 300) & (distance_m <= 400)] = 22.0
-        speed[(distance_m > 200) & (distance_m < 300)] = 30.0  # 30 > 50*0.5=25
+        speed[(distance_m >= 100) & (distance_m <= 150)] = 20.0
+        speed[(distance_m >= 200) & (distance_m <= 250)] = 22.0
+        speed[(distance_m > 150) & (distance_m < 200)] = 30.0  # 30 > 50*0.5=25
 
         corners = [
-            _make_corner(1, 100.0, 200.0),
-            _make_corner(2, 300.0, 400.0),
+            _make_corner(1, 100.0, 150.0),
+            _make_corner(2, 200.0, 250.0),
         ]
 
         result = detect_linked_corners(corners, speed, distance_m, link_threshold=0.50)

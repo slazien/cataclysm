@@ -735,33 +735,37 @@ def _implied_mu_from_corners(
 ) -> dict[int, float]:
     """Back-solve friction coefficient from the driver's best observed min speed.
 
-    Uses circular motion physics: ``mu = v² × κ / g``.  Rather than using the
-    curvature at the apex point, we use the 95th-percentile curvature *within
-    the corner zone* [entry, exit].  This ensures that the model's 5th-percentile
-    zone speed (as computed in ``compute_corner_opportunities``) is >= the
-    driver's observed minimum speed even when GPS noise creates spurious
-    high-curvature points elsewhere in the zone.
+    Uses circular motion physics: ``mu = v² × κ / g``.
 
-    The math: if mu = v² × κ_p95 / g, then at the p95 curvature point
-    v_limit = sqrt(mu × g / κ_p95) = v_actual.  95 % of zone points have
-    κ ≤ κ_p95 → v_limit ≥ v_actual.  The 5th-percentile of zone speeds
-    (which uses the *lowest* speed values) therefore stays at or above
-    v_actual, preventing the "model slower than driver" invalidity flag.
+    The curvature reference must align with how ``compute_corner_opportunities``
+    picks the optimal min speed — an apex-centred window (±30% zone width,
+    min ±20 m).  We use the **max** curvature in that window so the resulting
+    mu guarantees the solver's minimum speed in the same window is ≥ the
+    driver's actual minimum.
 
     Applied via ``max()`` in ``_build_mu_array``, implied mu can only *raise*
     the corner-level optimal — it never lowers predictions.
     """
+    # Must match optimal_comparison._APEX_WINDOW_FRACTION / _MIN_APEX_WINDOW_M
+    apex_fraction = 0.30
+    min_half_window_m = 20.0
+
     result: dict[int, float] = {}
     for corner in corners:
-        zone_mask = (curvature_result.distance_m >= corner.entry_distance_m) & (
-            curvature_result.distance_m <= corner.exit_distance_m
+        zone_width = corner.exit_distance_m - corner.entry_distance_m
+        half_win = max(zone_width * apex_fraction, min_half_window_m)
+        apex_start = max(corner.apex_distance_m - half_win, corner.entry_distance_m)
+        apex_end = min(corner.apex_distance_m + half_win, corner.exit_distance_m)
+
+        apex_mask = (curvature_result.distance_m >= apex_start) & (
+            curvature_result.distance_m <= apex_end
         )
-        if not zone_mask.any():
+        if not apex_mask.any():
             continue
-        kappa_p95 = float(np.percentile(curvature_result.abs_curvature[zone_mask], 95))
-        if kappa_p95 < 1e-4:  # essentially a straight — skip
+        kappa_max = float(np.max(curvature_result.abs_curvature[apex_mask]))
+        if kappa_max < 1e-4:  # essentially a straight — skip
             continue
-        mu = corner.min_speed_mps**2 * kappa_p95 / _G_ACCEL
+        mu = corner.min_speed_mps**2 * kappa_max / _G_ACCEL
         result[corner.number] = mu
     return result
 
