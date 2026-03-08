@@ -79,7 +79,7 @@ export function RawDataTable() {
         </Button>
       </div>
       <div className="scroll-fade-right overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="min-w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--cata-border)]">
               {columns.map((col, i) => (

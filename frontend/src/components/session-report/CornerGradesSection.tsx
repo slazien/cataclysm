@@ -53,7 +53,7 @@ export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
       </h3>
       <div className="relative">
       <div className="overflow-x-auto rounded-lg border border-[var(--cata-border)]">
-        <table className="w-full text-sm">
+        <table className="min-w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--cata-border)] bg-[var(--bg-surface)]">
               <th className="px-2 py-1.5 text-left font-medium text-[var(--text-secondary)] lg:px-3 lg:py-2">Corner</th>
