@@ -222,21 +222,17 @@ function CornerFocusView({
             </>
           ) : hasTimeCost ? (
             <>
-              {'You\'re losing '}
-              <span className="font-semibold tabular-nums text-[var(--color-brake)]">
-                ~{opp.time_cost_s.toFixed(2)}s
-              </span>
-              {' at Turn '}
-              <span className="font-semibold text-[var(--text-primary)]">{opp.corner_number}</span>
-              {' — gaining '}
+              {'Carry '}
               <span className="font-semibold tabular-nums text-[var(--cata-accent)]">
                 {gapDisplay} {speedUnit}
               </span>
-              {' at the apex would save '}
-              <span className="font-semibold tabular-nums text-[var(--color-throttle)]">
+              {' more through Turn '}
+              <span className="font-semibold text-[var(--text-primary)]">{opp.corner_number}</span>
+              {' — that\'s '}
+              <span className="font-semibold tabular-nums text-[var(--color-brake)]">
                 ~{opp.time_cost_s.toFixed(2)}s
               </span>
-              {' per lap.'}
+              {' per lap on the table.'}
             </>
           ) : (
             <>
