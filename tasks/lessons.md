@@ -96,6 +96,22 @@
 
 **Error signature**: `TypeError: func() got an unexpected keyword argument 'X'` after a partial merge.
 
+## LLM Prompt Context Values Bypass the Speed Marker System (2026-03-08)
+
+**Pattern**: When fixing unit bugs in AI coaching text, fix BOTH layers: (1) the backend prompt context (give values in the primary unit so the LLM quotes the right unit) AND (2) a frontend legacy fallback in `resolveSpeedMarkers` for old cached reports. The `{{speed:N}}` marker system only works for values the LLM generates in its *output* — values given in the *input context* are echoed verbatim by the LLM.
+
+**Why**: `_format_weather_context` passed `wind_speed_kmh` as "20 km/h". The LLM echoed "20 km/h" into coaching text. Imperial users saw km/h. Fixing only the prompt would leave existing cached reports broken; fixing only the frontend would leave the LLM generating wrong units for new reports. The two-layer defense (backend unit + frontend fallback) is the correct pattern.
+
+**Error signature**: Imperial users see "km/h", "°C", or "mm" in AI coaching text despite having imperial units selected.
+
+## Check git branch Before Committing in Any Session With Temp Branches (2026-03-08)
+
+**Pattern**: Always run `git branch --show-current` immediately before `git commit` in any session where temp branches may exist from previous work. Never assume you're on staging.
+
+**Why**: Committed the weather-units fix to `temp/velocity-model-fix` (a leftover branch from a previous session) instead of `staging`. Required a manual merge to staging and branch cleanup. Wasted time; could have contaminated the commit with unrelated in-progress changes on that branch.
+
+**Error signature**: `git commit` succeeds but `git push origin staging` fails with "non-fast-forward" — you're not on staging.
+
 ## Docker pip-install Changes __file__ Resolution (2026-03-07)
 
 **Pattern**: Never use `Path(__file__).parent.parent / "data"` for writable data dirs in packages that get pip-installed. In Docker, `__file__` resolves to `site-packages/` which is read-only. Use an env var with a fallback.
