@@ -79,7 +79,7 @@ export function CornerAnalysis() {
   }
 
   return (
-    <div className="flex min-h-0 flex-col gap-3 overflow-y-auto p-3 lg:h-full lg:overflow-visible">
+    <div className="flex min-h-0 flex-col gap-3 overflow-y-auto px-3 pt-3 pb-24 lg:pb-3 lg:h-full lg:overflow-visible">
       {/* View mode toggle */}
       <div className="flex items-center justify-end gap-1">
         <button

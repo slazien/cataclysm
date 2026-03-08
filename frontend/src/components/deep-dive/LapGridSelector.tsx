@@ -108,7 +108,7 @@ export function LapGridSelector() {
             'hover:border-[var(--text-muted)] hover:text-[var(--text-primary)]',
           )}
         >
-          <span className="max-w-[260px] truncate">{triggerLabel}</span>
+          <span className="max-w-[120px] truncate sm:max-w-[200px] lg:max-w-[260px]">{triggerLabel}</span>
           <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
         </button>
       </PopoverTrigger>
