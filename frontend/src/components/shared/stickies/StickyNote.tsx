@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { motion, useDragControls, type PanInfo } from 'motion/react';
 import {
   GripHorizontal,
@@ -31,26 +31,33 @@ interface StickyNoteProps {
   onDelete: (stickyId: string) => void;
 }
 
-const TONE_STYLES: Record<StickyTone, string> = {
-  amber:
-    'bg-[linear-gradient(180deg,rgba(255,251,235,0.97),rgba(254,243,199,0.92))] text-amber-950',
-  sky: 'bg-[linear-gradient(180deg,rgba(239,246,255,0.97),rgba(224,242,254,0.92))] text-sky-950',
-  mint: 'bg-[linear-gradient(180deg,rgba(236,253,245,0.97),rgba(209,250,229,0.92))] text-emerald-950',
-  rose:
-    'bg-[linear-gradient(180deg,rgba(255,241,242,0.97),rgba(255,228,230,0.92))] text-rose-950',
-  violet:
-    'bg-[linear-gradient(180deg,rgba(245,243,255,0.97),rgba(237,233,254,0.92))] text-violet-950',
-  peach:
-    'bg-[linear-gradient(180deg,rgba(255,247,237,0.97),rgba(255,237,213,0.92))] text-orange-950',
+/** Small colored pin for collapsed state. */
+const PIN_BG: Record<StickyTone, string> = {
+  amber: 'bg-amber-400/80',
+  sky: 'bg-sky-400/80',
+  mint: 'bg-emerald-400/80',
+  rose: 'bg-rose-400/80',
+  violet: 'bg-violet-400/80',
+  peach: 'bg-orange-400/80',
 };
 
-const TONE_BUTTON: Record<StickyTone, string> = {
-  amber: 'bg-amber-300',
-  sky: 'bg-sky-300',
-  mint: 'bg-emerald-300',
-  rose: 'bg-rose-300',
-  violet: 'bg-violet-300',
-  peach: 'bg-orange-300',
+/** Thin accent line at top of expanded card. */
+const TONE_ACCENT: Record<StickyTone, string> = {
+  amber: 'bg-amber-400',
+  sky: 'bg-sky-400',
+  mint: 'bg-emerald-400',
+  rose: 'bg-rose-400',
+  violet: 'bg-violet-400',
+  peach: 'bg-orange-400',
+};
+
+const TONE_PICKER: Record<StickyTone, string> = {
+  amber: 'bg-amber-400',
+  sky: 'bg-sky-400',
+  mint: 'bg-emerald-400',
+  rose: 'bg-rose-400',
+  violet: 'bg-violet-400',
+  peach: 'bg-orange-400',
 };
 
 const TONE_OPTIONS: StickyTone[] = ['amber', 'sky', 'mint', 'rose', 'violet', 'peach'];
@@ -76,13 +83,9 @@ export function StickyNote({
   } = useStickyStore();
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const dragControls = useDragControls();
+  const didDragRef = useRef(false);
 
   const dragEnabled = isMobile ? sticky.mobileMoveMode : true;
-
-  const dragClass = useMemo(() => {
-    if (dragEnabled) return 'cursor-grab active:cursor-grabbing';
-    return 'cursor-default';
-  }, [dragEnabled]);
 
   const startDrag = (event: React.PointerEvent) => {
     if (!dragEnabled) return;
@@ -94,6 +97,7 @@ export function StickyNote({
     _event: MouseEvent | TouchEvent | PointerEvent,
     info: PanInfo,
   ) => {
+    didDragRef.current = true;
     moveSticky(
       sticky.id,
       {
@@ -101,9 +105,7 @@ export function StickyNote({
         y: sticky.y + info.offset.y,
       },
       viewport,
-      {
-        avoidObstacles: resolveObstacles(),
-      },
+      { avoidObstacles: resolveObstacles() },
     );
     onPositionChange(sticky.id);
     if (isMobile && sticky.mobileMoveMode) {
@@ -130,19 +132,18 @@ export function StickyNote({
     onContentChange(sticky.id, text);
   };
 
+  /* ────────────────────────────────────────────
+   * Collapsed: tiny colored pin dot
+   * ──────────────────────────────────────────── */
   if (sticky.collapsed) {
     return (
       <motion.div
-        className={cn(
-          'pointer-events-auto absolute rounded-2xl border border-white/70 shadow-[0_16px_38px_-20px_rgba(15,23,42,0.75)] backdrop-blur-xl',
-          TONE_STYLES[sticky.tone],
-          dragClass,
-        )}
-        style={{ zIndex: sticky.zIndex, maxWidth: Math.max(210, sticky.width - 48) }}
+        className="pointer-events-auto absolute"
+        style={{ zIndex: sticky.zIndex }}
         animate={{ x: sticky.x, y: sticky.y, opacity: 1, scale: 1 }}
-        initial={{ x: sticky.x, y: sticky.y, opacity: 0, scale: 0.92 }}
-        exit={{ opacity: 0, scale: 0.92 }}
-        transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.7 }}
+        initial={{ x: sticky.x, y: sticky.y, opacity: 0, scale: 0.4 }}
+        exit={{ opacity: 0, scale: 0.4 }}
+        transition={{ type: 'spring', stiffness: 420, damping: 30, mass: 0.6 }}
         drag={dragEnabled}
         dragMomentum={false}
         dragControls={dragControls}
@@ -150,36 +151,51 @@ export function StickyNote({
         onDragEnd={handleDragEnd}
         onPointerDown={() => bringToFront(sticky.id)}
       >
-        <div className="flex items-center gap-1 p-1.5">
-          <button
-            type="button"
-            onClick={handleToggleCollapsed}
-            aria-label="Open sticky note"
-            className="flex min-h-11 min-w-0 items-center gap-2 rounded-xl px-3 text-left transition hover:bg-white/55"
-          >
-            <StickyIcon className="h-4 w-4 shrink-0 text-amber-900/80" />
-            <span className="max-w-[132px] truncate text-xs font-semibold">
-              {sticky.text.trim() || 'New note'}
+        <button
+          type="button"
+          onPointerDown={(e) => {
+            didDragRef.current = false;
+            if (!isMobile) startDrag(e);
+          }}
+          onClick={() => {
+            if (!didDragRef.current) handleToggleCollapsed();
+          }}
+          aria-label={`Open note: ${sticky.text.trim().slice(0, 30) || 'Empty note'}`}
+          className={cn(
+            'group relative flex items-center justify-center rounded-full',
+            'shadow-[0_4px_14px_-3px_rgba(0,0,0,0.4)] backdrop-blur-sm',
+            'border border-white/25',
+            'transition-transform hover:scale-110 active:scale-95',
+            isMobile ? 'h-11 w-11' : 'h-9 w-9',
+            PIN_BG[sticky.tone],
+          )}
+        >
+          <StickyIcon className={cn(
+            'text-white/90 drop-shadow-sm',
+            isMobile ? 'h-5 w-5' : 'h-4 w-4',
+          )} />
+
+          {/* Hover preview — desktop only */}
+          {!isMobile && sticky.text.trim() && (
+            <span className="pointer-events-none absolute left-full ml-2.5 hidden max-w-[200px] truncate whitespace-nowrap rounded-lg bg-black/85 px-2.5 py-1.5 text-[11px] font-medium leading-tight text-white/90 shadow-lg backdrop-blur-sm group-hover:block">
+              {sticky.text.trim().slice(0, 60)}
             </span>
-          </button>
-          <button
-            type="button"
-            aria-label="Drag sticky note"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-amber-900/70 transition hover:bg-white/55"
-            onPointerDown={startDrag}
-          >
-            <GripHorizontal className="h-4 w-4" />
-          </button>
-        </div>
+          )}
+        </button>
       </motion.div>
     );
   }
 
+  /* ────────────────────────────────────────────
+   * Expanded: dark glassmorphic card
+   * ──────────────────────────────────────────── */
   return (
     <motion.div
       className={cn(
-        'pointer-events-auto absolute flex flex-col overflow-hidden rounded-2xl border border-white/70 shadow-[0_25px_50px_-24px_rgba(15,23,42,0.88)] backdrop-blur-xl',
-        TONE_STYLES[sticky.tone],
+        'pointer-events-auto absolute flex flex-col overflow-hidden rounded-xl',
+        'border border-white/[0.08]',
+        'bg-[var(--bg-surface)]/70 backdrop-blur-xl',
+        'shadow-[0_20px_50px_-16px_rgba(0,0,0,0.55)]',
       )}
       style={{ zIndex: sticky.zIndex, width: sticky.width, minHeight: sticky.height }}
       animate={{ x: sticky.x, y: sticky.y, opacity: 1, scale: 1 }}
@@ -193,28 +209,27 @@ export function StickyNote({
       onDragEnd={handleDragEnd}
       onPointerDown={() => bringToFront(sticky.id)}
     >
-      <div
-        className={cn(
-          'flex min-h-12 items-center justify-between gap-1.5 border-b border-black/10 px-2.5',
-          dragClass,
-        )}
-      >
-        <div className="flex items-center gap-1.5">
+      {/* Tone accent strip */}
+      <div className={cn('h-[2px]', TONE_ACCENT[sticky.tone])} />
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-1.5 py-1">
+        <div className="flex items-center gap-0.5">
           <button
             type="button"
-            aria-label="Collapse sticky note"
+            aria-label="Minimize to pin"
             onClick={handleToggleCollapsed}
-            className="flex h-9 w-9 items-center justify-center rounded-lg transition hover:bg-white/60"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-white/10 hover:text-[var(--text-secondary)]"
           >
-            <Pin className="h-4 w-4 text-black/70" />
+            <Pin className="h-3.5 w-3.5" />
           </button>
           <button
             type="button"
-            aria-label="Change sticky tone"
+            aria-label="Change color"
             onClick={() => setColorPickerOpen((open) => !open)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg transition hover:bg-white/60"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-white/10 hover:text-[var(--text-secondary)]"
           >
-            <Palette className="h-4 w-4 text-black/70" />
+            <Palette className="h-3.5 w-3.5" />
           </button>
           {isMobile && (
             <button
@@ -222,64 +237,66 @@ export function StickyNote({
               aria-label="Move note"
               onClick={() => setMobileMoveMode(sticky.id, !sticky.mobileMoveMode)}
               className={cn(
-                'flex h-7 items-center gap-1 rounded-lg px-2 text-[11px] font-semibold tracking-wide transition',
+                'flex h-8 items-center gap-1 rounded-lg px-2 text-[11px] font-semibold tracking-wide transition',
                 sticky.mobileMoveMode
-                  ? 'bg-black/75 text-white'
-                  : 'bg-white/55 text-black/70 hover:bg-white/75',
+                  ? 'bg-[var(--cata-accent)] text-black'
+                  : 'text-[var(--text-muted)] hover:bg-white/10',
               )}
             >
-              <Move className="h-3.5 w-3.5" />
+              <Move className="h-3 w-3" />
               Move
             </button>
           )}
         </div>
 
-        <button
-          type="button"
-          aria-label="Close sticky"
-          onClick={() => onDelete(sticky.id)}
-          className="flex h-9 w-9 items-center justify-center rounded-lg transition hover:bg-red-500/20"
-        >
-          <X className="h-4 w-4 text-black/70" />
-        </button>
+        <div className="flex items-center gap-0.5">
+          {/* Drag handle — desktop always, mobile only in move mode */}
+          {(!isMobile || sticky.mobileMoveMode) && (
+            <button
+              type="button"
+              aria-label="Drag sticky note"
+              onPointerDown={startDrag}
+              className="flex h-8 w-8 cursor-grab items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-white/10 hover:text-[var(--text-secondary)] active:cursor-grabbing"
+            >
+              <GripHorizontal className="h-3.5 w-3.5" />
+            </button>
+          )}
+          <button
+            type="button"
+            aria-label="Delete sticky"
+            onClick={() => onDelete(sticky.id)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-red-500/20 hover:text-red-400"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
 
-      <button
-        type="button"
-        className={cn(
-          'flex h-8 items-center justify-center border-b border-black/10 text-black/50',
-          'hover:bg-white/45',
-          dragClass,
-        )}
-        onPointerDown={startDrag}
-        aria-label="Drag sticky note"
-      >
-        <GripHorizontal className="h-4 w-4" />
-      </button>
-
+      {/* Color picker */}
       {colorPickerOpen && (
-        <div className="grid grid-cols-6 gap-2 border-b border-black/10 bg-white/45 px-3 py-2">
+        <div className="grid grid-cols-6 gap-2 border-t border-white/[0.06] bg-white/[0.03] px-3 py-2">
           {TONE_OPTIONS.map((tone) => (
             <button
               key={tone}
               type="button"
-              aria-label={`Set ${tone} tone`}
+              aria-label={`Set ${tone} color`}
               onClick={() => handleToneChange(tone)}
               className={cn(
-                'h-6 w-6 rounded-full border border-black/20 shadow-sm transition hover:scale-110',
-                TONE_BUTTON[tone],
-                tone === sticky.tone && 'ring-2 ring-black/45',
+                'h-6 w-6 rounded-full border border-white/20 shadow-sm transition hover:scale-110',
+                TONE_PICKER[tone],
+                tone === sticky.tone && 'ring-2 ring-white/50',
               )}
             />
           ))}
         </div>
       )}
 
+      {/* Content */}
       <textarea
         value={sticky.text}
         onChange={handleTextChange}
         placeholder="Write a note…"
-        className="min-h-[150px] w-full resize-none bg-transparent px-3 py-2.5 text-sm leading-relaxed text-black/80 placeholder:text-black/45 focus:outline-none"
+        className="min-h-[100px] w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-[var(--text-primary)]/85 placeholder:text-[var(--text-muted)] focus:outline-none"
         onBlur={() => {
           moveSticky(
             sticky.id,
@@ -292,9 +309,10 @@ export function StickyNote({
         onPointerDown={(event) => event.stopPropagation()}
       />
 
+      {/* Mobile move-mode hint */}
       {isMobile && sticky.mobileMoveMode && (
-        <div className="border-t border-black/10 bg-white/45 px-3 py-1.5 text-[11px] font-medium text-black/70">
-          Drag using the handle, then release to dock safely.
+        <div className="border-t border-white/[0.06] bg-white/[0.03] px-3 py-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+          Drag anywhere to reposition, then release.
         </div>
       )}
     </motion.div>

@@ -72,12 +72,12 @@ describe('StickyNote', () => {
     useStickyStore.getState().addSticky(desktopViewport);
     render(<StickyHarness isMobile={false} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Open note:/ }));
     const textarea = screen.getByPlaceholderText('Write a note…');
     fireEvent.change(textarea, { target: { value: 'Braking marker: 2 board' } });
     expect(useStickyStore.getState().stickies[0].text).toBe('Braking marker: 2 board');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Close sticky' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete sticky' }));
     expect(useStickyStore.getState().stickies).toHaveLength(0);
   });
 
@@ -85,7 +85,7 @@ describe('StickyNote', () => {
     useStickyStore.getState().addSticky(mobileViewport);
     render(<StickyHarness isMobile />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Open note:/ }));
     const moveButton = screen.getByRole('button', { name: 'Move note' });
     fireEvent.click(moveButton);
     expect(useStickyStore.getState().stickies[0].mobileMoveMode).toBe(true);
