@@ -1316,6 +1316,27 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         notes="3.4 L MA1/23 flat-6. Best-balanced Cayman generation.",
     ),
     # -----------------------------------------------------------------------
+    # Porsche Cayman GT4 981
+    # -----------------------------------------------------------------------
+    "porsche_cayman_gt4_981": VehicleSpec(
+        make="Porsche",
+        model="Cayman GT4",
+        generation="981",
+        year_range=(2015, 2016),
+        weight_kg=1340,
+        wheelbase_m=2.475,
+        track_width_front_m=1.532,
+        track_width_rear_m=1.516,
+        cg_height_m=0.44,
+        weight_dist_front_pct=44.0,
+        drivetrain="RWD",
+        hp=385,
+        torque_nm=420,
+        has_aero=True,
+        cd_a=0.68,
+        notes="3.8 L MA1/77 flat-6 NA from 991 Carrera S. GT3-derived suspension. Manual only.",
+    ),
+    # -----------------------------------------------------------------------
     # Porsche 911 Carrera — 996 / 997.2 S / 991.2 S / 992 S
     # -----------------------------------------------------------------------
     "porsche_911_996": VehicleSpec(
