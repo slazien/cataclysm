@@ -332,6 +332,12 @@ async def upload_sessions(
             if existing_sid and session_store.get_session(existing_sid) is not None:
                 logger.info("Skipping duplicate upload: %s already in memory", existing_sid)
                 session_ids.append(existing_sid)
+                # Grant anonymous access to the existing session — possession of
+                # the raw CSV bytes is sufficient proof of access intent.
+                if is_anonymous:
+                    existing_sd = session_store.get_session(existing_sid)
+                    if existing_sd is not None:
+                        existing_sd.is_anonymous = True
                 continue
 
             result = await process_upload(file_bytes, f.filename)
