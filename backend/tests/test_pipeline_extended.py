@@ -31,6 +31,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
 import pytest
+from cataclysm.velocity_profile import VehicleParams
 
 from backend.api.services import equipment_store
 from backend.api.services import pipeline as pipeline_module
@@ -1158,49 +1159,39 @@ class TestGetOptimalComparisonData:
 
     @pytest.mark.asyncio
     async def test_grip_calibration_applied_when_no_equipment(self) -> None:
-        """Grip calibration is applied when no meaningful equipment grip is available."""
+        """Comparison delegates to get_optimal_profile_data (which handles calibration)."""
         sd = _make_session_data("comp-calib-sess")
         comparison = self._make_comparison_result()
-        optimal = self._make_optimal_result()
 
-        # Provide fake calibration data
-        lat_g = np.random.default_rng(42).normal(0, 0.8, 100)
-        lon_g = np.random.default_rng(43).normal(0, 0.5, 100)
-        mock_grip = MagicMock()
-        mock_grip.max_lateral_g = 1.1
-        mock_grip.max_brake_g = 1.0
-        mock_grip.max_accel_g = 0.4
-        mock_grip.confidence = "high"
+        # Build a realistic profile result dict that _reconstruct_optimal_profile expects
+        profile_result: dict[str, object] = {
+            "distance_m": [0.0, 100.0, 200.0],
+            "optimal_speed_mph": [67.1, 78.3, 71.6],
+            "max_cornering_speed_mph": [62.6, 73.8, 67.1],
+            "brake_points": [],
+            "throttle_points": [],
+            "lap_time_s": 88.5,
+            "vehicle_params": {
+                "mu": 1.1,
+                "max_accel_g": 0.3,
+                "max_decel_g": 0.9,
+                "max_lateral_g": 1.0,
+                "top_speed_mps": 60.0,
+                "calibrated": True,
+            },
+            "calibrated_mu": "1.10",
+            "equipment_profile_id": None,
+        }
 
         with (
             patch(
-                "backend.api.services.pipeline._try_lidar_elevation",
+                "backend.api.services.pipeline.get_optimal_profile_data",
                 new_callable=AsyncMock,
-                return_value=None,
-            ),
-            patch(
-                "backend.api.services.pipeline.compute_curvature",
-                return_value=MagicMock(),
-            ),
-            patch(
-                "backend.api.services.pipeline.compute_optimal_profile",
-                return_value=optimal,
+                return_value=profile_result,
             ),
             patch(
                 "backend.api.services.pipeline.compare_with_optimal",
                 return_value=comparison,
-            ),
-            patch(
-                "backend.api.services.pipeline._collect_independent_calibration_telemetry",
-                return_value=(lat_g, lon_g, [2, 3]),
-            ),
-            patch(
-                "backend.api.services.pipeline.calibrate_grip_from_telemetry",
-                return_value=mock_grip,
-            ),
-            patch(
-                "backend.api.services.pipeline.apply_calibration_to_params",
-                return_value=MagicMock(),
             ),
         ):
             result = await get_optimal_comparison_data(sd)
@@ -1585,7 +1576,13 @@ class TestGetOptimalProfileDataGripCalibration:
             ),
             patch(
                 "backend.api.services.pipeline.apply_calibration_to_params",
-                return_value=MagicMock(),
+                return_value=VehicleParams(
+                    mu=1.15,
+                    max_accel_g=0.42,
+                    max_decel_g=1.05,
+                    max_lateral_g=1.15,
+                    calibrated=True,
+                ),
             ) as m_apply,
         ):
             result = await get_optimal_profile_data(sd)
