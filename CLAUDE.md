@@ -1,5 +1,9 @@
 # CLAUDE.md
 
+## Tools Priority
+
+**Serena (MCP) is the default** for all code exploration/editing. Use `find_symbol`, `get_symbols_overview`, `find_referencing_symbols`, `replace_symbol_body` over Read/Edit/Grep. Only fall back to built-in tools when Serena is unavailable or broken.
+
 ## Project Context
 
 AI motorsport coaching platform (Python + Next.js/FastAPI). Primary lang: Python.
