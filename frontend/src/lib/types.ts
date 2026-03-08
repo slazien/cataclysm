@@ -865,3 +865,46 @@ export interface LineAnalysisData {
   n_laps_used: number;
   lap_traces: LapSpatialTrace[];
 }
+
+// --- Notes ---
+
+export type NoteAnchorType = "corner" | "lap" | "chart" | "coaching" | "metric";
+export type NoteColor = "yellow" | "blue" | "green" | "pink" | "purple";
+
+export interface Note {
+  id: string;
+  user_id: string;
+  session_id: string | null;
+  anchor_type: NoteAnchorType | null;
+  anchor_id: string | null;
+  anchor_meta: Record<string, unknown> | null;
+  content: string;
+  is_pinned: boolean;
+  color: NoteColor | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NoteCreate {
+  session_id?: string | null;
+  anchor_type?: NoteAnchorType | null;
+  anchor_id?: string | null;
+  anchor_meta?: Record<string, unknown> | null;
+  content: string;
+  is_pinned?: boolean;
+  color?: NoteColor | null;
+}
+
+export interface NoteUpdate {
+  content?: string;
+  is_pinned?: boolean;
+  color?: NoteColor | null;
+  anchor_type?: NoteAnchorType | null;
+  anchor_id?: string | null;
+  anchor_meta?: Record<string, unknown> | null;
+}
+
+export interface NotesList {
+  items: Note[];
+  total: number;
+}

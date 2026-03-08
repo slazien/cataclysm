@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useCallback } from 'react';
-import { useUiStore, useAnalysisStore, useCoachStore } from '@/stores';
+import { useUiStore, useAnalysisStore, useCoachStore, useNotesStore } from '@/stores';
 import { useCorners } from '@/hooks/useAnalysis';
 import { useSessionStore } from '@/stores';
 
@@ -19,6 +19,9 @@ export function useKeyboardShortcuts() {
 
   const panelOpen = useCoachStore((s) => s.panelOpen);
   const togglePanel = useCoachStore((s) => s.togglePanel);
+
+  const notesPanelOpen = useNotesStore((s) => s.panelOpen);
+  const toggleNotesPanel = useNotesStore((s) => s.togglePanel);
 
   const { data: corners } = useCorners(activeSessionId);
 
@@ -52,9 +55,15 @@ export function useKeyboardShortcuts() {
           e.preventDefault();
           if (sessionDrawerOpen) {
             toggleSessionDrawer();
+          } else if (notesPanelOpen) {
+            toggleNotesPanel();
           } else if (panelOpen) {
             togglePanel();
           }
+          break;
+        case 'n':
+          e.preventDefault();
+          toggleNotesPanel();
           break;
         case '/':
           e.preventDefault();
@@ -108,6 +117,8 @@ export function useKeyboardShortcuts() {
       toggleSessionDrawer,
       panelOpen,
       togglePanel,
+      notesPanelOpen,
+      toggleNotesPanel,
       selectedCorner,
       selectCorner,
       deepDiveMode,

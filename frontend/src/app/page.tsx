@@ -12,6 +12,8 @@ import { ViewRouter } from '@/components/navigation/ViewRouter';
 import { MobileBottomTabs } from '@/components/navigation/MobileBottomTabs';
 import { FloatingChatButton } from '@/components/coach/FloatingChatButton';
 import { ChatDrawer } from '@/components/coach/ChatDrawer';
+import { FloatingNotesButton } from '@/components/notes/FloatingNotesButton';
+import { NotesDrawer } from '@/components/notes/NotesDrawer';
 import { ProcessingOverlay } from '@/components/shared/ProcessingOverlay';
 import { SettingsPanel } from '@/components/shared/SettingsPanel';
 import { ToastContainer } from '@/components/shared/ToastContainer';
@@ -77,7 +79,9 @@ export default function Home() {
       </div>
       <AppFooter />
       <MobileBottomTabs />
+      <FloatingNotesButton />
       <FloatingChatButton />
+      <NotesDrawer />
       <ChatDrawer />
       <ProcessingOverlay />
       <SettingsPanel />

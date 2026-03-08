@@ -591,3 +591,38 @@ export async function claimSession(sessionId: string) {
     body: JSON.stringify({ session_id: sessionId }),
   });
 }
+
+// --- Notes API ---
+
+import type { Note, NoteCreate, NoteUpdate, NotesList } from "./types";
+
+export async function listNotes(params?: {
+  session_id?: string;
+  global_only?: boolean;
+  anchor_type?: string;
+}) {
+  const searchParams = new URLSearchParams();
+  if (params?.session_id) searchParams.set("session_id", params.session_id);
+  if (params?.global_only) searchParams.set("global_only", "true");
+  if (params?.anchor_type) searchParams.set("anchor_type", params.anchor_type);
+  const qs = searchParams.toString();
+  return fetchApi<NotesList>(`/api/notes${qs ? `?${qs}` : ""}`);
+}
+
+export async function createNote(body: NoteCreate) {
+  return fetchApi<Note>("/api/notes", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function updateNote(noteId: string, body: NoteUpdate) {
+  return fetchApi<Note>(`/api/notes/${noteId}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteNote(noteId: string) {
+  return fetchApi<void>(`/api/notes/${noteId}`, { method: "DELETE" });
+}
