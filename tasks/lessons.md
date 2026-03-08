@@ -110,6 +110,16 @@
 
 **Anti-pattern**: Guessing viewport sizes from physical specs, or listing devices without research. ALWAYS web-search for "[device name] CSS viewport size" from yesviz.com or blisk.io before testing.
 
+## Canvas Chart Scales Calibrated on a Data Subset Must Use ctx.clip() (2026-03-08)
+
+**Pattern**: Any canvas chart section whose axis scale domain is computed from a **subset** of the data (e.g., only data within the corner's distance window) MUST wrap its draw loop in `ctx.save()` / `ctx.beginPath()` + `ctx.rect(...)` / `ctx.clip()` / `ctx.restore()`. Without it, data points outside the calibration window map to pixel values outside the chart area and the lines visibly escape the bounds.
+
+**Why**: `CornerSpeedOverlay.tsx` builds `yScale` from speeds in `[xMin, xMax]`, but the draw loop iterates all points in each lap array. Points outside the corner window have very different speeds → `yScale()` maps them to y values above `margins.top` or below `margins.top + speedAreaHeight`. The g-strip section in the same file already used `ctx.clip()` correctly; the speed section was missing it.
+
+**Error signature**: Chart lines bleed outside the chart area, crossing axis labels or adjacent UI elements.
+
+**Check**: Any time a new canvas chart filters data to compute scale domains — grep for `xMin`/`xMax` filtering in scale setup but absence of `ctx.clip()` in the draw loop.
+
 ## Canvas Charts Need Explicit Height, Not min-height
 - **When**: Changing mobile layout for D3 canvas chart containers (SpeedTrace, DeltaT, BrakeThrottle, CornerSpeedOverlay, BrakeConsistency)
 - **Rule**: Canvas charts use `h-full` which resolves against the parent's `height` property, NOT `min-height`. If you remove `flex-1` from a chart container on mobile, you MUST replace `min-h-[16rem]` with `h-[16rem]` (explicit height). On desktop, use `lg:h-auto` so `lg:flex-1` can take over.
