@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## Radix Tooltip Breaks on Mobile Touch — Use Popover Instead (2026-03-08)
+
+**Pattern**: Never use Radix `Tooltip` for info icons that must work on mobile. Tooltip is hover-only: on touch, `pointerdown` opens it and `blur`/`pointerleave` (~100ms later) closes it immediately. Use Radix `Popover` instead — it opens on click and stays open until the user taps outside or presses Escape.
+
+**Why**: `InfoTooltip.tsx` used `<Tooltip>` and all `?` help icons were effectively invisible on mobile (text disappeared almost immediately after tapping). Swapping to `<Popover>` with identical visual styling (inline `bg-foreground text-background` on `PopoverContent`) fixed it for all charts at once.
+
+**Error signature**: Mobile user taps `?` icon → tooltip appears for ~100ms → vanishes. No JS error; purely a pointer-event semantic mismatch.
+
 ## ⛔ NEVER Push to Main — Not Even Hotfixes (2026-03-07)
 
 **Pattern**: NEVER push to `main` directly. Always fix on `staging`, verify, then wait for the user to explicitly say "push to main" or "merge staging into prod." Asking "should I push to main?" and getting "yes" is leading the witness — the user must initiate it.
