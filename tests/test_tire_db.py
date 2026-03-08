@@ -34,8 +34,8 @@ class TestSearchCuratedTires:
 
     def test_search_partial_model(self) -> None:
         results = search_curated_tires("Pilot Sport")
-        assert len(results) == 1
-        assert results[0].brand == "Michelin"
+        assert len(results) >= 1
+        assert all(t.brand == "Michelin" for t in results)
 
     def test_search_no_match(self) -> None:
         results = search_curated_tires("NonexistentTire9999")
@@ -86,7 +86,7 @@ class TestListAllCuratedTires:
 
     def test_returns_all_tires(self) -> None:
         all_tires = list_all_curated_tires()
-        assert len(all_tires) == 10
+        assert len(all_tires) >= 35  # expanded from GRM buyer's guide
 
     def test_sorted_by_model(self) -> None:
         all_tires = list_all_curated_tires()
