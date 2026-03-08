@@ -142,6 +142,13 @@ def _compute_max_cornering_speed(
     # Total force from inner + outer tire pair, normalised by static force:
     #   correction = 0.5 * ((1+dLT)^n + (1-dLT)^n)
     # For n < 1, x^n is concave → correction < 1.0 (Jensen's inequality).
+    #
+    # For calibrated params (from telemetry), the observed p95 already includes
+    # real load-transfer effects.  Applying the full correction would double-count.
+    # Instead we apply a RELATIVE correction: how much does load sensitivity vary
+    # from the calibration reference condition.  At the reference, the ratio is 1.0;
+    # at higher load transfer (fast corners) it drops below 1.0; at lower load
+    # transfer (slow corners) it rises above 1.0.
     n_exp = params.load_sensitivity_exponent
     if n_exp < 1.0 and params.track_width_m > 0 and params.cg_height_m > 0:
         dlt = effective_mu * params.cg_height_m / params.track_width_m
@@ -149,6 +156,13 @@ def _compute_max_cornering_speed(
         correction = 0.5 * (
             np.power(1.0 + dlt_clamp, n_exp) + np.power(np.maximum(1.0 - dlt_clamp, 0.05), n_exp)
         )
+        if params.calibrated:
+            # Relative correction: normalise by the correction at the calibration
+            # condition (where mu = effective_mu_scalar, i.e. the global p95 value).
+            dlt_ref = effective_mu_scalar * params.cg_height_m / params.track_width_m
+            dlt_ref = min(dlt_ref, 0.95)
+            correction_ref = 0.5 * ((1.0 + dlt_ref) ** n_exp + max(1.0 - dlt_ref, 0.05) ** n_exp)
+            correction = correction / correction_ref
         effective_mu = effective_mu * correction
 
     if gradient_sin is not None:
@@ -170,9 +184,10 @@ def _compute_max_cornering_speed(
             - effective_mu[curved_indices] * kappa_v[curved_indices]
             - params.aero_coefficient * G
         )
-        # Floor: vertical curvature must not reduce effective curvature below
-        # 50% of lateral curvature.  Prevents LIDAR/GPS altitude noise from
-        # dominating the denominator at gentle curves (Codex-identified issue).
+        # Numerical guard (not a physics limit): vertical curvature must not
+        # reduce effective curvature below 50% of lateral curvature.  Prevents
+        # LIDAR/GPS altitude noise from dominating the denominator at gentle
+        # curves.  Caps aero/compression speed benefit to ~√2 factor.
         denom_floor = 0.5 * abs_curvature[curved_indices]
         denom = np.maximum(denom, denom_floor)
         bounded_mask = denom > 1e-9
@@ -255,16 +270,17 @@ def _forward_pass(
         avg_k = 0.5 * (abs_curvature[i - 1] + abs_curvature[i])
         lateral_g = v_prev**2 * avg_k / G
         accel_g = _available_accel(v_prev, lateral_g, params, "accel")
-        # Power-limited regime: a = P/(m*v) at high speed
-        if params.wheel_power_w > 0 and params.mass_kg > 0 and v_prev > MIN_SPEED_MPS:
-            power_accel_g = params.wheel_power_w / (params.mass_kg * v_prev * G)
-            accel_g = min(accel_g, power_accel_g)
-        # Vertical curvature scales available traction via normal force:
-        # N_eff/N_static = 1 + v²·κ_v/g.  Scale accel budget accordingly.
+        # Vertical curvature scales grip-limited traction via normal force:
+        # N_eff/N_static = 1 + v²·κ_v/g.  Only affects tire-force budget,
+        # not power-limited acceleration (engine doesn't care about normal force).
         if vertical_curvature is not None:
             kv = float(vertical_curvature[i])
             normal_scale = max(1.0 + v_prev**2 * kv / G, 0.1)
             accel_g *= normal_scale
+        # Power-limited regime: a = P/(m*v) at high speed
+        if params.wheel_power_w > 0 and params.mass_kg > 0 and v_prev > MIN_SPEED_MPS:
+            power_accel_g = params.wheel_power_w / (params.mass_kg * v_prev * G)
+            accel_g = min(accel_g, power_accel_g)
         drag_g = params.drag_coefficient * v_prev**2 / G
         gradient_g = float(gradient_sin[i]) if gradient_sin is not None else 0.0
         net_accel_g = max(accel_g - drag_g - gradient_g, 0.0)
