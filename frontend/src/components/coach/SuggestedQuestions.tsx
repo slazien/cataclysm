@@ -53,7 +53,7 @@ export function SuggestedQuestions({ onAsk }: SuggestedQuestionsProps) {
           <button
             key={q}
             onClick={() => onAsk(q)}
-            className="rounded-full border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-3 py-1 text-[11px] text-[var(--text-secondary)] hover:border-[var(--cata-accent)] hover:text-[var(--text-primary)] transition-colors"
+            className="inline-flex min-h-[44px] items-center rounded-full border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-3 text-[11px] text-[var(--text-secondary)] transition-colors hover:border-[var(--cata-accent)] hover:text-[var(--text-primary)]"
           >
             {q}
           </button>

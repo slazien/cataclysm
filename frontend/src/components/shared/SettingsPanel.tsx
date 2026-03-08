@@ -176,7 +176,7 @@ export function SettingsPanel() {
             <button
               type="button"
               onClick={() => { toggle(); toggleHowItWorks(); }}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+              className="flex min-h-[44px] w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
             >
               <BookOpen className="h-4 w-4 shrink-0" />
               How it works

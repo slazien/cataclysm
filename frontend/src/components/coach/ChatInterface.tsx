@@ -195,11 +195,11 @@ export function ChatInput() {
         />
         <Button
           type="submit"
-          size="icon"
+          size="icon-touch"
           variant="ghost"
           disabled={!input.trim() || isWaiting || !reportReady}
           aria-label="Send message"
-          className="h-8 w-8 shrink-0 text-[var(--cata-accent)] hover:bg-[var(--cata-accent)]/10 disabled:opacity-30"
+          className="shrink-0 text-[var(--cata-accent)] hover:bg-[var(--cata-accent)]/10 disabled:opacity-30"
         >
           <Send className="h-4 w-4" />
         </Button>

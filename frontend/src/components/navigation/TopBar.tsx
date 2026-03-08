@@ -196,19 +196,21 @@ export function TopBar() {
                 type="button"
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
                 aria-label="User menu"
-                className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full ring-2 ring-transparent transition-all hover:ring-[var(--cata-accent)]"
+                className="group flex h-11 w-11 items-center justify-center"
               >
-                {authSession.user.image ? (
-                  <img
-                    src={authSession.user.image}
-                    alt={authSession.user.name ?? 'User'}
-                    className="h-full w-full rounded-full object-cover"
-                  />
-                ) : (
-                  <span className="flex h-full w-full items-center justify-center rounded-full bg-[var(--cata-accent)] text-xs font-bold text-white">
-                    {(authSession.user.name ?? 'U')[0].toUpperCase()}
-                  </span>
-                )}
+                <div className="h-7 w-7 overflow-hidden rounded-full ring-2 ring-transparent transition-all group-hover:ring-[var(--cata-accent)]">
+                  {authSession.user.image ? (
+                    <img
+                      src={authSession.user.image}
+                      alt={authSession.user.name ?? 'User'}
+                      className="h-full w-full rounded-full object-cover"
+                    />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center rounded-full bg-[var(--cata-accent)] text-xs font-bold text-white">
+                      {(authSession.user.name ?? 'U')[0].toUpperCase()}
+                    </span>
+                  )}
+                </div>
               </button>
               {userMenuOpen && (
                 <div className="absolute right-0 top-9 z-50 w-48 rounded-md border border-[var(--cata-border)] bg-[var(--bg-surface)] py-1 shadow-lg">
