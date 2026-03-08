@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, RefreshCw } from 'lucide-react';
-import { useSessionStore, useUiStore } from '@/stores';
+import { useSessionStore, useUiStore, useAnalysisStore } from '@/stores';
 import { useSession, useSessionLaps } from '@/hooks/useSession';
 import { useAutoReport } from '@/hooks/useAutoReport';
 import { useCorners, useConsistency, useGPSQuality, useOptimalComparison } from '@/hooks/useAnalysis';
@@ -118,7 +118,19 @@ export function SessionReport() {
   const { data: recentAchievementsData } = useRecentAchievements(!!activeSessionId);
   const { isNovice, isAdvanced, showFeature } = useSkillLevel();
   const skillLevel = useUiStore((s) => s.skillLevel);
+  const setActiveView = useUiStore((s) => s.setActiveView);
+  const selectCorner = useAnalysisStore((s) => s.selectCorner);
+  const setMode = useAnalysisStore((s) => s.setMode);
   const [badgesOpen, setBadgesOpen] = useState(false);
+
+  const handleCornerDrillDown = useCallback(
+    (cornerNumber: number) => {
+      selectCorner(`T${cornerNumber}`);
+      setMode('corner');
+      setActiveView('deep-dive');
+    },
+    [selectCorner, setMode, setActiveView],
+  );
 
   // ---------------------------------------------------------------------------
   // Progressive disclosure — section expand/collapse state
@@ -279,7 +291,7 @@ export function SessionReport() {
             sectionStates={sectionStates}
             onToggle={handleToggle}
           >
-            <OptimalGapChart sessionId={activeSessionId} />
+            <OptimalGapChart sessionId={activeSessionId} onCornerClick={handleCornerDrillDown} />
           </CollapsibleSection>
         )}
 

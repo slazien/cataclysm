@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { useOptimalComparison } from '@/hooks/useAnalysis';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
@@ -33,13 +33,21 @@ function lerpColor(a: string, b: string, t: number): string {
 const COLOR_GREEN = '22c55e';
 const COLOR_RED = 'ef4444';
 
-interface OptimalGapChartProps {
-  sessionId: string;
+interface BarRegion {
+  cornerNumber: number;
+  y: number;
+  height: number;
 }
 
-export function OptimalGapChart({ sessionId }: OptimalGapChartProps) {
+interface OptimalGapChartProps {
+  sessionId: string;
+  onCornerClick?: (cornerNumber: number) => void;
+}
+
+export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartProps) {
   const { data: comparison, isLoading } = useOptimalComparison(sessionId);
   const { convertSpeed, speedUnit } = useUnits();
+  const barRegionsRef = useRef<BarRegion[]>([]);
   const isInvalidComparison =
     comparison != null && (!comparison.is_valid || comparison.total_gap_s <= 0);
   const invalidReason = 'The physics-optimal reference was invalid for this session. Speed gap data is unavailable.';
@@ -72,6 +80,13 @@ export function OptimalGapChart({ sessionId }: OptimalGapChartProps) {
         ? (chartH - barHeight * opportunities.length) / (opportunities.length - 1)
         : 0;
     const maxTimeCost = Math.max(...opportunities.map((o) => o.time_cost_s));
+
+    // Build hit regions for click detection
+    barRegionsRef.current = opportunities.map((opp, i) => ({
+      cornerNumber: opp.corner_number,
+      y: margins.top + i * (barHeight + barSpacing),
+      height: barHeight,
+    }));
 
     opportunities.forEach((opp: CornerOpportunity, i: number) => {
       const y = margins.top + i * (barHeight + barSpacing);
@@ -131,6 +146,39 @@ export function OptimalGapChart({ sessionId }: OptimalGapChartProps) {
     });
 
   }, [opportunities, dimensions, getDataCtx, convertSpeed, speedUnit]);
+
+  // Click and hover interaction on bars
+  useEffect(() => {
+    if (!onCornerClick) return;
+    const canvas = dataCanvasRef.current;
+    if (!canvas) return;
+
+    const hitCorner = (e: MouseEvent): BarRegion | undefined => {
+      const rect = canvas.getBoundingClientRect();
+      const mouseY = e.clientY - rect.top;
+      return barRegionsRef.current.find((r) => mouseY >= r.y && mouseY <= r.y + r.height);
+    };
+
+    const handleClick = (e: MouseEvent) => {
+      const hit = hitCorner(e);
+      if (hit) onCornerClick(hit.cornerNumber);
+    };
+    const handleMouseMove = (e: MouseEvent) => {
+      canvas.style.cursor = hitCorner(e) ? 'pointer' : 'default';
+    };
+    const handleMouseLeave = () => {
+      canvas.style.cursor = 'default';
+    };
+
+    canvas.addEventListener('click', handleClick);
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseleave', handleMouseLeave);
+    return () => {
+      canvas.removeEventListener('click', handleClick);
+      canvas.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, [onCornerClick, dataCanvasRef]);
 
   if (isLoading) {
     return <SkeletonCard height="h-40" />;
@@ -198,6 +246,11 @@ export function OptimalGapChart({ sessionId }: OptimalGapChartProps) {
           <canvas ref={dataCanvasRef} className="absolute inset-0" />
         </motion.div>
       </div>
+      {onCornerClick && (
+        <p className="mt-2 text-[10px] text-[var(--text-secondary)] opacity-60">
+          Click any bar to explore in Deep Dive →
+        </p>
+      )}
     </div>
   );
 }
