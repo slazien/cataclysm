@@ -76,10 +76,10 @@ async def update_me(
             import logging
 
             from backend.api.routers.coaching import trigger_auto_coaching
-            from backend.api.services.session_store import list_sessions_for_user
+            from backend.api.services.session_store import list_sessions
 
             logger = logging.getLogger(__name__)
-            sessions = list_sessions_for_user(current_user.user_id)
+            sessions = [s for s in list_sessions() if s.user_id == current_user.user_id]
             for sd in sessions:
                 try:
                     await trigger_auto_coaching(
