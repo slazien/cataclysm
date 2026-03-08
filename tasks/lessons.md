@@ -1,5 +1,11 @@
 # Lessons Learned
 
+## New Overlay UI Must Match the "Non-Obstructive" Requirement It Was Given (2026-03-08)
+
+**Pattern**: When a feature spec says "don't obstruct the UI/data", implement the MINIMUM visual footprint for idle state (collapsed/inactive). For sticky notes: idle = tiny pin dot (~36px), active = translucent glassmorphic card. Never use opaque backgrounds or wide collapsed states for features that must coexist with dense data.
+
+**Why**: The first sticky implementation used opaque pastel gradients (92-97% alpha) and a 210px collapsed pill bar — directly contradicting the user's explicit instruction. The user had to correct this with frustration. Default to transparent/translucent + minimal footprint when the spec says "non-obstructive."
+
 ## Check Existing Fixed-Position Elements Before Placing New Ones (2026-03-08)
 
 **Pattern**: Before adding any `position: fixed` element, grep for ALL existing `fixed` elements in the codebase and map their positions. New fixed elements must not overlap existing ones at any breakpoint.
