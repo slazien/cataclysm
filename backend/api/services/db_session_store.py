@@ -44,8 +44,11 @@ async def ensure_user_exists(db: AsyncSession, user: AuthenticatedUser) -> None:
         ("user_id", "corner_kings"),
         ("user_id", "shared_sessions"),
         ("instructor_id", "instructor_students"),
+        ("student_id", "instructor_students"),
         ("student_id", "student_flags"),
         ("user_id", "org_memberships"),
+        ("user_id", "notes"),
+        ("user_id", "stickies"),
     ]
 
     # Check by primary key first
@@ -74,23 +77,48 @@ async def ensure_user_exists(db: AsyncSession, user: AuthenticatedUser) -> None:
             for dup in dup_rows:
                 old_id = dup.id
                 db.expunge(dup)
-                for col, table in _fk_refs:
-                    await db.execute(
-                        text(f"UPDATE {table} SET {col} = :new_id WHERE {col} = :old_id"),
-                        {"new_id": user.user_id, "old_id": old_id},
+                try:
+                    async with db.begin_nested():
+                        for col, table in _fk_refs:
+                            # Try UPDATE; on unique constraint conflict, delete
+                            # the old row instead (new user's row wins).
+                            try:
+                                async with db.begin_nested():
+                                    await db.execute(
+                                        text(
+                                            f"UPDATE {table} SET {col} = :new_id "  # noqa: S608
+                                            f"WHERE {col} = :old_id"
+                                        ),
+                                        {"new_id": user.user_id, "old_id": old_id},
+                                    )
+                            except Exception:
+                                # Unique constraint violation — delete old rows
+                                await db.execute(
+                                    text(
+                                        f"DELETE FROM {table} "  # noqa: S608
+                                        f"WHERE {col} = :old_id"
+                                    ),
+                                    {"old_id": old_id},
+                                )
+                        await db.execute(
+                            text("DELETE FROM users WHERE id = :old_id"),
+                            {"old_id": old_id},
+                        )
+                    sync_user_id(old_id, user.user_id)
+                    equipment_store.sync_user_id(old_id, user.user_id)
+                    logger.info(
+                        "Consolidated duplicate user %s → %s (email=%s)",
+                        old_id,
+                        user.user_id,
+                        user.email,
                     )
-                await db.execute(
-                    text("DELETE FROM users WHERE id = :old_id"),
-                    {"old_id": old_id},
-                )
-                sync_user_id(old_id, user.user_id)
-                equipment_store.sync_user_id(old_id, user.user_id)
-                logger.info(
-                    "Consolidated duplicate user %s → %s (email=%s)",
-                    old_id,
-                    user.user_id,
-                    user.email,
-                )
+                except Exception:
+                    logger.warning(
+                        "Failed to consolidate user %s → %s, skipping",
+                        old_id,
+                        user.user_id,
+                        exc_info=True,
+                    )
             await db.flush()
         return
 
@@ -127,10 +155,24 @@ async def ensure_user_exists(db: AsyncSession, user: AuthenticatedUser) -> None:
 
         # 2. Migrate all FK references from old_id to new_id
         for col, table in _fk_refs:
-            await db.execute(
-                text(f"UPDATE {table} SET {col} = :new_id WHERE {col} = :old_id"),
-                {"new_id": user.user_id, "old_id": old_id},
-            )
+            try:
+                async with db.begin_nested():
+                    await db.execute(
+                        text(
+                            f"UPDATE {table} SET {col} = :new_id "  # noqa: S608
+                            f"WHERE {col} = :old_id"
+                        ),
+                        {"new_id": user.user_id, "old_id": old_id},
+                    )
+            except Exception:
+                # Unique constraint violation — delete old rows (new user wins)
+                await db.execute(
+                    text(
+                        f"DELETE FROM {table} "  # noqa: S608
+                        f"WHERE {col} = :old_id"
+                    ),
+                    {"old_id": old_id},
+                )
 
         # 3. Delete old user row (no FKs point to it now)
         await db.execute(
