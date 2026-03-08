@@ -107,10 +107,26 @@ export function OptimalGapChart({ sessionId }: OptimalGapChartProps) {
         ctx.textAlign = 'left';
         ctx.fillText(label, margins.left + 6, y + barHeight / 2);
       } else {
-        ctx.fillStyle = 'rgba(200, 200, 210, 0.6)';
         ctx.font = '10px Inter, system-ui, sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText(label, margins.left + barW + 4, y + barHeight / 2);
+        const labelX = margins.left + barW + 4;
+        const textW = ctx.measureText(label).width;
+        const rightBound = width - margins.right;
+        if (labelX + textW > rightBound && barW >= 50) {
+          // Not enough space outside — draw inside bar, right-aligned
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+          ctx.textAlign = 'right';
+          ctx.fillText(label, margins.left + barW - 4, y + barHeight / 2);
+        } else {
+          ctx.fillStyle = 'rgba(200, 200, 210, 0.6)';
+          ctx.textAlign = 'left';
+          // Clip to right bound to avoid any overflow
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(labelX, y, rightBound - labelX, barHeight + 2);
+          ctx.clip();
+          ctx.fillText(label, labelX, y + barHeight / 2);
+          ctx.restore();
+        }
       }
     });
 
