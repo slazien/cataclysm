@@ -6,11 +6,10 @@ import { ShareSessionDialog } from '@/components/comparison/ShareSessionDialog';
 import { AssignEquipmentButton } from '@/components/equipment/AssignEquipmentButton';
 import { useUnits } from '@/hooks/useUnits';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 
 interface SessionReportHeaderProps {
   session: SessionSummary | null;
@@ -116,25 +115,23 @@ export function SessionReportHeader({ session, gpsQuality, sessionId }: SessionR
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
       {/* Score circle with breakdown tooltip */}
       {hasBreakdown ? (
-        <TooltipProvider delayDuration={0}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button type="button" className="cursor-default">
-                {scoreCircle}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent
-              side="bottom"
-              sideOffset={8}
-              className="w-44 space-y-1.5 p-3"
-            >
-              <p className="mb-1 text-xs font-medium text-[var(--text-primary)]">Score Breakdown</p>
-              <BreakdownRow label="Consistency" value={session?.score_consistency} />
-              <BreakdownRow label="Pace" value={session?.score_pace} />
-              <BreakdownRow label="Technique" value={session?.score_technique} />
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button type="button" className="cursor-default" aria-label="View score breakdown">
+              {scoreCircle}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            side="bottom"
+            sideOffset={8}
+            className="w-44 space-y-1.5 border-[var(--cata-border)] bg-[var(--bg-surface)] p-3"
+          >
+            <p className="mb-1 text-xs font-medium text-[var(--text-primary)]">Score Breakdown</p>
+            <BreakdownRow label="Consistency" value={session?.score_consistency} />
+            <BreakdownRow label="Pace" value={session?.score_pace} />
+            <BreakdownRow label="Technique" value={session?.score_technique} />
+          </PopoverContent>
+        </Popover>
       ) : (
         scoreCircle
       )}
