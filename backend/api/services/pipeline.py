@@ -10,6 +10,7 @@ All CPU-bound cataclysm functions are run via asyncio.to_thread().
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import io
 import logging
 import time
@@ -202,7 +203,11 @@ def invalidate_track_physics_cache(track_slug: str) -> None:
             len(keys_to_remove),
             track_slug,
         )
-    asyncio.ensure_future(db_invalidate_track(track_slug))
+    # ensure_future needs an event loop; suppress RuntimeError when called
+    # from a threadpool (sync context).  Stale DB entries self-correct via
+    # code_version check on next read.
+    with contextlib.suppress(RuntimeError):
+        asyncio.ensure_future(db_invalidate_track(track_slug))
 
 
 def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
