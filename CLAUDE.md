@@ -38,7 +38,7 @@ Arch → `docs/architecture.md` | Setup → `docs/developer-guide.md` | **Always
 - Python 3.11+, all fns typed (`mypy disallow_untyped_defs`), line len 100, rules: E F W I N UP B SIM
 - All files: `from __future__ import annotations`
 - Constants: UPPER_SNAKE_CASE · Structured data: dataclasses not dicts
-- DB `user_id` columns: plain `String`, NEVER `ForeignKey("users.id")` — OAuth/JWT users may lack rows in `users` table
+- DB `user_id` columns: plain `String`, NEVER `ForeignKey("users.id")` — OAuth/JWT users may lack rows in `users` table. Removing a FK → also remove its `relationship()` (orphan poisons ALL mappers).
 
 ## Quality Gates
 

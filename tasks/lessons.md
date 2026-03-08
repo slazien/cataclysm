@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## Removing FK Without Removing ORM Relationship Poisons All Models (2026-03-08)
+
+**Pattern**: When dropping a `ForeignKey` from a column, always also remove any `relationship()` that depended on it. SQLAlchemy mapper initialization is all-or-nothing — one invalid relationship makes every model's queries crash (`InvalidRequestError: One or more mappers failed to initialize`).
+
+**Why**: The mapper registry is global. A broken relationship on `NoteDB` caused `select(User)`, `select(SessionFile)`, and every other query to fail. The entire backend became non-functional — sessions disappeared, equipment/skill level loads failed. Took production-impacting debugging to trace back to an orphaned `user: Mapped[User] = relationship()` on a column that no longer had a FK.
+
+**Error signature**: `sqlalchemy.exc.InvalidRequestError: One or more mappers failed to initialize - can't proceed with initialization of other mappers. Triggering mapper: 'Mapper[NoteDB(notes)]'`
+
 ## Playwright `browser_evaluate` Requires `function` Parameter (2026-03-08)
 
 **Pattern**: When calling `browser_evaluate` in Playwright MCP, always use the `function` parameter with the format `"() => { ... }"`. Do NOT use a `script` parameter — it doesn't exist.
