@@ -3,11 +3,16 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { StickyNote } from 'lucide-react';
 import { useNotesStore } from '@/stores';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 export function FloatingNotesButton() {
+  const isMobile = useIsMobile();
   const panelOpen = useNotesStore((s) => s.panelOpen);
   const togglePanel = useNotesStore((s) => s.togglePanel);
+
+  // Mobile uses FloatingToolsMenu instead
+  if (isMobile) return null;
 
   return (
     <AnimatePresence>

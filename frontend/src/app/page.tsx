@@ -13,6 +13,7 @@ import { MobileBottomTabs } from '@/components/navigation/MobileBottomTabs';
 import { FloatingChatButton } from '@/components/coach/FloatingChatButton';
 import { ChatDrawer } from '@/components/coach/ChatDrawer';
 import { FloatingNotesButton } from '@/components/notes/FloatingNotesButton';
+import { FloatingToolsMenu } from '@/components/navigation/FloatingToolsMenu';
 import { NotesDrawer } from '@/components/notes/NotesDrawer';
 import { ProcessingOverlay } from '@/components/shared/ProcessingOverlay';
 import { SettingsPanel } from '@/components/shared/SettingsPanel';
@@ -81,6 +82,7 @@ export default function Home() {
       <MobileBottomTabs />
       <FloatingNotesButton />
       <FloatingChatButton />
+      <FloatingToolsMenu />
       <NotesDrawer />
       <ChatDrawer />
       <ProcessingOverlay />

@@ -3,16 +3,19 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { MessageCircle } from 'lucide-react';
 import { useCoachStore } from '@/stores';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 
 export function FloatingChatButton() {
+  const isMobile = useIsMobile();
   const panelOpen = useCoachStore((s) => s.panelOpen);
   const togglePanel = useCoachStore((s) => s.togglePanel);
   const chatHistory = useCoachStore((s) => s.chatHistory);
 
-  // Count assistant messages since last user message as "unread" (simplified)
-  // In practice this would use a proper unread counter from the store
   const hasMessages = chatHistory.length > 0;
+
+  // Mobile uses FloatingToolsMenu instead
+  if (isMobile) return null;
 
   return (
     <AnimatePresence>

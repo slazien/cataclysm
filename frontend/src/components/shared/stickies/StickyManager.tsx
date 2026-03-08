@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Plus, StickyNote as StickyIcon } from 'lucide-react';
-import { useStickyStore, type StickyTone } from '@/stores/useStickyStore';
+import { useStickyStore, registerTriggerAdd, type StickyTone } from '@/stores/useStickyStore';
 import { StickyNote } from '@/components/shared/stickies/StickyNote';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useStickies, useCreateSticky, useUpdateSticky, useDeleteSticky } from '@/hooks/useStickies';
@@ -161,6 +161,12 @@ export function StickyManager() {
     });
   }, [viewport, addSticky, createMutation]);
 
+  // Register handleAdd so FloatingToolsMenu can trigger it on mobile
+  useEffect(() => {
+    registerTriggerAdd(handleAdd);
+    return () => registerTriggerAdd(null);
+  }, [handleAdd]);
+
   // Debounced sync for position changes
   const syncPosition = useCallback(
     (stickyId: string) => {
@@ -263,33 +269,30 @@ export function StickyManager() {
         </AnimatePresence>
       </div>
 
-      <div
-        className={
-          isMobile
-            ? 'fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] left-1/2 z-40 -translate-x-1/2'
-            : 'fixed bottom-8 left-24 z-40'
-        }
-      >
-        <motion.button
-          type="button"
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.96 }}
-          onClick={handleAdd}
-          aria-label="Create sticky note"
-          title="Add Sticky Note"
-          className="group flex items-center gap-2.5 rounded-full border border-[var(--cata-border)] bg-[var(--bg-surface)]/92 px-4 py-3 shadow-[0_20px_35px_-24px_rgba(15,23,42,0.9)] backdrop-blur-lg transition-colors hover:border-[var(--cata-accent)]/60"
-        >
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">
-            <StickyIcon className="h-4 w-4" />
-          </span>
-          <span className="text-xs font-semibold tracking-wide text-[var(--text-primary)]">
-            Add Sticky
-          </span>
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--cata-accent)] text-black">
-            <Plus className="h-3.5 w-3.5" />
-          </span>
-        </motion.button>
-      </div>
+      {/* Desktop only — mobile uses FloatingToolsMenu */}
+      {!isMobile && (
+        <div className="fixed bottom-8 left-24 z-40">
+          <motion.button
+            type="button"
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.96 }}
+            onClick={handleAdd}
+            aria-label="Create sticky note"
+            title="Add Sticky Note"
+            className="group flex items-center gap-2.5 rounded-full border border-[var(--cata-border)] bg-[var(--bg-surface)]/92 px-4 py-3 shadow-[0_20px_35px_-24px_rgba(15,23,42,0.9)] backdrop-blur-lg transition-colors hover:border-[var(--cata-accent)]/60"
+          >
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">
+              <StickyIcon className="h-4 w-4" />
+            </span>
+            <span className="text-xs font-semibold tracking-wide text-[var(--text-primary)]">
+              Add Sticky
+            </span>
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--cata-accent)] text-black">
+              <Plus className="h-3.5 w-3.5" />
+            </span>
+          </motion.button>
+        </div>
+      )}
     </>
   );
 }

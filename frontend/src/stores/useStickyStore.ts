@@ -253,4 +253,19 @@ export const useStickyStore = create<StickyState>()((set, get) => ({
       pos_y: Math.max(0, Math.min(1, sticky.y / viewport.height)),
     };
   },
+
 }));
+
+/**
+ * Module-level callback so FloatingToolsMenu can trigger add
+ * without a Zustand state update (avoids re-render loops).
+ */
+let _triggerAddFn: (() => void) | null = null;
+
+export function registerTriggerAdd(fn: (() => void) | null) {
+  _triggerAddFn = fn;
+}
+
+export function callTriggerAdd() {
+  _triggerAddFn?.();
+}
