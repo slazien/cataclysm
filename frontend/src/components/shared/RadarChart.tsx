@@ -78,7 +78,7 @@ export function RadarChart({ axes, datasets, size = 200, maxValue = 100 }: Radar
   );
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="mx-auto">
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="mx-auto" overflow="visible">
       {/* Grid rings */}
       {ringPaths.map((points, i) => (
         <polygon
