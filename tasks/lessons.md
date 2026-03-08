@@ -148,6 +148,22 @@
 
 **Error signature**: Mobile user taps `?` icon → tooltip appears for ~100ms → vanishes. No JS error; purely a pointer-event semantic mismatch.
 
+## Boundary Operator Change (> → >=) Requires Test Boundary Audit (2026-03-08)
+
+**Pattern**: When changing a comparison operator at a boundary (e.g., `>` to `>=`), grep all test files for the boundary constant's value and update any test that relies on the old inclusive/exclusive semantics. Also verify that test fixtures provide valid reference data for dependent functions (e.g., `_find_v_max_straight` needs a segment outside corner zones).
+
+**Why**: Changed `MAX_LINK_DISTANCE_M` gate from `>` to `>=` in `linked_corners.py`. Three tests had apex gaps of exactly 150m — previously accepted (`150 > 150` = false), now rejected (`150 >= 150` = true). One test also had all corners contiguous with no separate straight segment, so `_find_v_max_straight` returned the global max as the reference speed, making the speed threshold too high for any linking.
+
+**Error signature**: Tests that passed before a `>` → `>=` change start failing, with assertion failures involving the exact boundary value.
+
+## Test Dataclass Construction: Use Helpers for Multi-Field Dataclasses (2026-03-08)
+
+**Pattern**: When constructing dataclass instances in tests (especially physics results like `CurvatureResult`), create a `_make_*()` helper that fills in all required fields with sensible defaults. Never construct the dataclass inline with only the fields you care about — mypy will catch missing fields but only after you've written many broken test cases.
+
+**Why**: `CurvatureResult` requires 6 fields (`distance_m`, `curvature`, `abs_curvature`, `heading_rad`, `x_smooth`, `y_smooth`). Tests only needed `distance_m` and `curvature`, but passing just those caused 6 mypy errors. A `_make_curv_result(distance_m, curvature)` helper that fills `heading_rad`/`x_smooth`/`y_smooth` with zeros fixed all of them.
+
+**Error signature**: `error: Missing named argument "field_name" for "DataclassName"` repeated across multiple test functions.
+
 ## ⛔ NEVER Push to Main — Not Even Hotfixes (2026-03-07)
 
 **Pattern**: NEVER push to `main` directly. Always fix on `staging`, verify, then wait for the user to explicitly say "push to main" or "merge staging into prod." Asking "should I push to main?" and getting "yes" is leading the witness — the user must initiate it.
