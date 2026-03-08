@@ -95,7 +95,7 @@ export function FloatingToolsMenu() {
         className={
           isMobile
             ? 'fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-40 flex flex-col items-end gap-2.5'
-            : 'fixed bottom-8 left-8 z-40 flex flex-col items-start gap-2.5'
+            : 'fixed bottom-8 right-8 z-40 flex flex-col items-end gap-2.5'
         }
       >
         {/* Fan-out items */}
