@@ -235,7 +235,11 @@ body {
    width instead of viewport width. Capping at 100vw breaks the circular dependency.
    Only applied to .no-hscroll areas (NOT horizontal scroll areas like LapPillBar). */
 .no-hscroll > [data-slot="scroll-area-viewport"] > div {
-  max-width: 100vw;
+  /* Radix sets display:table;min-width:100% via inline style. On mobile this
+     causes circular w-full expansion beyond viewport width. Override to block
+     layout so normal flow constraint (parent width = 100vw) applies. */
+  display: block !important;
+  min-width: 0 !important;
 }
 
 /* --- Scroll fade indicator (right edge) --- */
