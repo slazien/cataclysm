@@ -1898,7 +1898,8 @@ class TestFormatWeatherContext:
 
         weather = SessionConditions(track_condition=TrackCondition.DRY, ambient_temp_c=22.0)
         text = _format_weather_context(weather)
-        assert "22" in text
+        assert "22°C" in text
+        assert "72°F" in text  # 22 * 9/5 + 32 = 71.6 → 72
 
     def test_ambient_temp_absent_when_none(self) -> None:
         from cataclysm.equipment import SessionConditions, TrackCondition
@@ -1932,7 +1933,8 @@ class TestFormatWeatherContext:
 
         weather = SessionConditions(track_condition=TrackCondition.WET, precipitation_mm=3.5)
         text = _format_weather_context(weather)
-        assert "3.5" in text
+        assert "3.5mm" in text
+        assert "0.14in" in text  # 3.5 / 25.4 ≈ 0.138 → 0.14
         assert "Precipitation" in text
 
     def test_precipitation_zero_not_shown(self) -> None:

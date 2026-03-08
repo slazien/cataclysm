@@ -545,7 +545,10 @@ def _format_equipment_context(
     if conditions is not None:
         lines.append(f"**Track condition:** {conditions.track_condition.value}")
         if conditions.ambient_temp_c is not None:
-            lines.append(f"**Ambient temp:** {conditions.ambient_temp_c:.0f}\u00b0C")
+            temp_f = conditions.ambient_temp_c * 9 / 5 + 32
+            lines.append(
+                f"**Ambient temp:** {conditions.ambient_temp_c:.0f}\u00b0C ({temp_f:.0f}\u00b0F)"
+            )
         if conditions.humidity_pct is not None:
             lines.append(f"**Humidity:** {conditions.humidity_pct:.0f}%")
 
@@ -562,14 +565,16 @@ def _format_weather_context(
     lines = ["\n## Weather Conditions"]
     lines.append(f"**Track condition:** {weather.track_condition.value}")
     if weather.ambient_temp_c is not None:
-        lines.append(f"**Ambient temp:** {weather.ambient_temp_c:.0f}\u00b0C")
+        temp_f = weather.ambient_temp_c * 9 / 5 + 32
+        lines.append(f"**Ambient temp:** {weather.ambient_temp_c:.0f}\u00b0C ({temp_f:.0f}\u00b0F)")
     if weather.humidity_pct is not None:
         lines.append(f"**Humidity:** {weather.humidity_pct:.0f}%")
     if weather.wind_speed_kmh is not None:
         wind_mph = weather.wind_speed_kmh / 1.60934
         lines.append(f"**Wind:** {wind_mph:.0f} mph")
     if weather.precipitation_mm is not None and weather.precipitation_mm > 0:
-        lines.append(f"**Precipitation:** {weather.precipitation_mm:.1f}mm")
+        precip_in = weather.precipitation_mm / 25.4
+        lines.append(f"**Precipitation:** {weather.precipitation_mm:.1f}mm ({precip_in:.2f}in)")
     return "\n".join(lines)
 
 
@@ -593,9 +598,17 @@ def _format_cross_condition_context(
         "\n## Cross-Condition Warning",
         "These sessions were driven in DIFFERENT conditions:",
         f"- Session A: {weather_a.track_condition.value}"
-        + (f", {temp_a:.0f}\u00b0C" if temp_a is not None else ""),
+        + (
+            f", {temp_a:.0f}\u00b0C ({temp_a * 9 / 5 + 32:.0f}\u00b0F)"
+            if temp_a is not None
+            else ""
+        ),
         f"- Session B: {weather_b.track_condition.value}"
-        + (f", {temp_b:.0f}\u00b0C" if temp_b is not None else ""),
+        + (
+            f", {temp_b:.0f}\u00b0C ({temp_b * 9 / 5 + 32:.0f}\u00b0F)"
+            if temp_b is not None
+            else ""
+        ),
         "",
         "IMPORTANT coaching adjustments:",
         "- Factor weather differences into your analysis",

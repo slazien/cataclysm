@@ -176,6 +176,37 @@ describe('resolveSpeedMarkers', () => {
     });
   });
 
+  describe('temperature conversion (legacy)', () => {
+    it('converts "N°C" → °F in imperial mode', () => {
+      // 22 * 9/5 + 32 = 71.6 → 72
+      expect(resolveSpeedMarkers('Temp was 22°C today', false)).toBe('Temp was 72°F today');
+    });
+
+    it('converts "N°F" → °C in metric mode', () => {
+      // (72 - 32) * 5/9 = 22.2 → 22
+      expect(resolveSpeedMarkers('Temp was 72°F today', true)).toBe('Temp was 22°C today');
+    });
+
+    it('leaves °F unchanged in imperial mode', () => {
+      expect(resolveSpeedMarkers('Temp was 72°F today', false)).toBe('Temp was 72°F today');
+    });
+
+    it('leaves °C unchanged in metric mode', () => {
+      expect(resolveSpeedMarkers('Temp was 22°C today', true)).toBe('Temp was 22°C today');
+    });
+  });
+
+  describe('precipitation conversion (legacy)', () => {
+    it('converts "Nmm" → in in imperial mode', () => {
+      // 3.5 / 25.4 = 0.138 → 0.14
+      expect(resolveSpeedMarkers('Precipitation 3.5mm', false)).toBe('Precipitation 0.14in');
+    });
+
+    it('leaves "Nmm" unchanged in metric mode', () => {
+      expect(resolveSpeedMarkers('Precipitation 3.5mm', true)).toBe('Precipitation 3.5mm');
+    });
+  });
+
   describe('mixed markers + legacy', () => {
     it('resolves both in same string', () => {
       const input = '{{speed:50}} at entry, then 42 mph at exit';

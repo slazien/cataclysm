@@ -5,6 +5,9 @@ const SPEED_RANGE_LEGACY_RE = /(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)\s*mph/gi;
 const SPEED_SINGLE_LEGACY_RE = /(\d+(?:\.\d+)?)\s*mph/gi;
 const SPEED_RANGE_KMH_LEGACY_RE = /(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)\s*km\/h/gi;
 const SPEED_SINGLE_KMH_LEGACY_RE = /(\d+(?:\.\d+)?)\s*km\/h/gi;
+const TEMP_C_LEGACY_RE = /(\d+(?:\.\d+)?)\s*°C/g;
+const TEMP_F_LEGACY_RE = /(\d+(?:\.\d+)?)\s*°F/g;
+const PRECIP_MM_LEGACY_RE = /(\d+(?:\.\d+)?)\s*mm\b/g;
 const MPH_TO_KMH = 1.60934;
 
 /**
@@ -68,6 +71,20 @@ export function resolveSpeedMarkers(text: string, isMetric: boolean): string {
       const dec = n.includes('.') ? n.split('.')[1].length : 0;
       return `${mph.toFixed(dec)} mph`;
     });
+    // Imperial: convert bare "N°C" → °F and "Nmm" → in
+    result = result.replace(TEMP_C_LEGACY_RE, (_, n: string) =>
+      `${Math.round(parseFloat(n) * 9 / 5 + 32)}°F`,
+    );
+    result = result.replace(PRECIP_MM_LEGACY_RE, (_, n: string) =>
+      `${(parseFloat(n) / 25.4).toFixed(2)}in`,
+    );
+  }
+
+  // Metric: convert bare "N°F" → °C (LLM drift when it quotes imperial-only cached data)
+  if (isMetric) {
+    result = result.replace(TEMP_F_LEGACY_RE, (_, n: string) =>
+      `${Math.round((parseFloat(n) - 32) * 5 / 9)}°C`,
+    );
   }
 
   return result;
