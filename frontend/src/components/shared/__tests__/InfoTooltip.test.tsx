@@ -4,11 +4,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { InfoTooltip } from '../InfoTooltip';
 
-// Mock the tooltip UI primitives — Radix portals don't work in jsdom
-vi.mock('@/components/ui/tooltip', () => ({
-  TooltipProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  TooltipTrigger: ({
+// Mock the popover UI primitives — Radix portals don't work in jsdom
+vi.mock('@/components/ui/popover', () => ({
+  Popover: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  PopoverTrigger: ({
     children,
     asChild,
     ...rest
@@ -16,7 +15,7 @@ vi.mock('@/components/ui/tooltip', () => ({
     children: React.ReactNode;
     asChild?: boolean;
   }) => <>{children}</>,
-  TooltipContent: ({
+  PopoverContent: ({
     children,
     ...rest
   }: {
