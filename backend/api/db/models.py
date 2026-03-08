@@ -415,12 +415,22 @@ class PhysicsCacheEntry(Base):
     profile_id: Mapped[str] = mapped_column(
         String, nullable=False, server_default=""
     )  # "" = no equipment
+    track_slug: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    calibrated_mu: Mapped[str | None] = mapped_column(String(8), nullable=True)
     result_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
     code_version: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
         UniqueConstraint("session_id", "endpoint", "profile_id", name="uq_physics_cache_key"),
+        UniqueConstraint(
+            "track_slug",
+            "endpoint",
+            "profile_id",
+            "calibrated_mu",
+            name="uq_physics_cache_track_key",
+        ),
         Index("ix_physics_cache_session", "session_id"),
         Index("ix_physics_cache_profile", "profile_id"),
+        Index("ix_physics_cache_track_slug", "track_slug"),
     )
