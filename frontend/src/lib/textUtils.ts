@@ -3,11 +3,14 @@ const SPEED_RANGE_MARKER_RE = /\{\{speed:([\d.]+)-([\d.]+)\}\}/g;
 const TIME_MARKER_RE = /\{\{time:([\d.]+)\}\}/g;
 const SPEED_RANGE_LEGACY_RE = /(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)\s*mph/gi;
 const SPEED_SINGLE_LEGACY_RE = /(\d+(?:\.\d+)?)\s*mph/gi;
+const SPEED_RANGE_KMH_LEGACY_RE = /(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)\s*km\/h/gi;
+const SPEED_SINGLE_KMH_LEGACY_RE = /(\d+(?:\.\d+)?)\s*km\/h/gi;
 const MPH_TO_KMH = 1.60934;
 
 /**
- * Resolve {{speed:N}} and {{time:N}} markers, plus legacy bare "N mph" values.
+ * Resolve {{speed:N}} and {{time:N}} markers, plus legacy bare speed values.
  * Speed N is always in mph — converts to km/h when isMetric.
+ * Legacy: bare "N mph" → km/h when metric; bare "N km/h" → mph when imperial.
  * Time N is always in seconds — rendered as "Ns" (no unit conversion needed).
  */
 export function resolveSpeedMarkers(text: string, isMetric: boolean): string {
@@ -40,7 +43,7 @@ export function resolveSpeedMarkers(text: string, isMetric: boolean): string {
     return `${num}${suffix} mph`;
   });
 
-  // Phase 2: legacy fallback for old cached reports (bare "N mph")
+  // Phase 2: legacy fallback for old cached reports and LLM drift
   if (isMetric) {
     // Ranges first ("2-3 mph"), then singles ("42 mph")
     result = result.replace(SPEED_RANGE_LEGACY_RE, (_, a: string, b: string) => {
@@ -52,6 +55,18 @@ export function resolveSpeedMarkers(text: string, isMetric: boolean): string {
       const kmh = parseFloat(n) * MPH_TO_KMH;
       const dec = n.includes('.') ? n.split('.')[1].length : 0;
       return `${kmh.toFixed(dec)} km/h`;
+    });
+  } else {
+    // Imperial: convert bare "N km/h" → mph (LLM drift or reports cached before backend fix)
+    result = result.replace(SPEED_RANGE_KMH_LEGACY_RE, (_, a: string, b: string) => {
+      const aMph = parseFloat(a) / MPH_TO_KMH;
+      const bMph = parseFloat(b) / MPH_TO_KMH;
+      return `${Math.round(aMph)}-${Math.round(bMph)} mph`;
+    });
+    result = result.replace(SPEED_SINGLE_KMH_LEGACY_RE, (_, n: string) => {
+      const mph = parseFloat(n) / MPH_TO_KMH;
+      const dec = n.includes('.') ? n.split('.')[1].length : 0;
+      return `${mph.toFixed(dec)} mph`;
     });
   }
 

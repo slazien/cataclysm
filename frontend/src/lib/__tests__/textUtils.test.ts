@@ -73,6 +73,34 @@ describe('resolveSpeedMarkers', () => {
     });
   });
 
+  describe('legacy fallback (bare "N km/h") in imperial mode', () => {
+    it('converts single "N km/h" → mph in imperial mode', () => {
+      // 20 km/h / 1.60934 = 12.427 → 12 (0 decimal in original)
+      expect(resolveSpeedMarkers('Wind was 20 km/h today', false)).toBe(
+        'Wind was 12 mph today',
+      );
+    });
+
+    it('converts range "N-M km/h" → mph in imperial mode', () => {
+      // 20/1.60934=12, 30/1.60934=19
+      expect(resolveSpeedMarkers('Speed between 20-30 km/h', false)).toBe(
+        'Speed between 12-19 mph',
+      );
+    });
+
+    it('preserves decimal precision for km/h in imperial', () => {
+      // 80.0 km/h / 1.60934 = 49.709... → "49.7" (1 decimal)
+      const result = resolveSpeedMarkers('Speed was 80.0 km/h', false);
+      expect(result).toBe('Speed was 49.7 mph');
+    });
+
+    it('does not convert km/h in metric mode (already correct unit)', () => {
+      expect(resolveSpeedMarkers('Wind was 20 km/h today', true)).toBe(
+        'Wind was 20 km/h today',
+      );
+    });
+  });
+
   describe('legacy fallback (bare "N mph")', () => {
     it('converts single "N mph" in metric mode', () => {
       // 42 * 1.60934 = 67.59228 -> 67.6 (1 decimal in original)

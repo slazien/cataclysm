@@ -566,7 +566,8 @@ def _format_weather_context(
     if weather.humidity_pct is not None:
         lines.append(f"**Humidity:** {weather.humidity_pct:.0f}%")
     if weather.wind_speed_kmh is not None:
-        lines.append(f"**Wind:** {weather.wind_speed_kmh:.0f} km/h")
+        wind_mph = weather.wind_speed_kmh / 1.60934
+        lines.append(f"**Wind:** {wind_mph:.0f} mph")
     if weather.precipitation_mm is not None and weather.precipitation_mm > 0:
         lines.append(f"**Precipitation:** {weather.precipitation_mm:.1f}mm")
     return "\n".join(lines)

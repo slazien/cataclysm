@@ -1921,6 +1921,11 @@ class TestFormatWeatherContext:
         weather = SessionConditions(track_condition=TrackCondition.DRY, wind_speed_kmh=20.0)
         text = _format_weather_context(weather)
         assert "Wind" in text
+        # Wind speed must be in mph so the LLM quotes mph in coaching output,
+        # which the frontend marker system can then convert to km/h for metric users.
+        assert "mph" in text
+        assert "km/h" not in text
+        assert "12" in text  # 20 km/h ÷ 1.60934 ≈ 12 mph
 
     def test_precipitation_included_when_positive(self) -> None:
         from cataclysm.equipment import SessionConditions, TrackCondition
