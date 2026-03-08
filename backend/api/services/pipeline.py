@@ -136,8 +136,10 @@ def invalidate_physics_cache(session_id: str) -> None:
             len(keys_to_remove),
             session_id,
         )
-    # Fire-and-forget DB invalidation (will be awaited by the event loop)
-    asyncio.ensure_future(db_invalidate_session(session_id))
+    # Fire-and-forget DB invalidation — only schedule if an event loop is running.
+    # get_running_loop() raises RuntimeError in sync/threadpool context; suppress it.
+    with contextlib.suppress(RuntimeError):
+        asyncio.get_running_loop().create_task(db_invalidate_session(session_id))
 
 
 def invalidate_profile_cache(profile_id: str) -> None:
@@ -151,7 +153,8 @@ def invalidate_profile_cache(profile_id: str) -> None:
             len(keys_to_remove),
             profile_id,
         )
-    asyncio.ensure_future(db_invalidate_profile(profile_id))
+    with contextlib.suppress(RuntimeError):
+        asyncio.get_running_loop().create_task(db_invalidate_profile(profile_id))
 
 
 # ---------------------------------------------------------------------------
@@ -204,11 +207,8 @@ def invalidate_track_physics_cache(track_slug: str) -> None:
             len(keys_to_remove),
             track_slug,
         )
-    # ensure_future needs an event loop; suppress RuntimeError when called
-    # from a threadpool (sync context).  Stale DB entries self-correct via
-    # code_version check on next read.
     with contextlib.suppress(RuntimeError):
-        asyncio.ensure_future(db_invalidate_track(track_slug))
+        asyncio.get_running_loop().create_task(db_invalidate_track(track_slug))
 
 
 def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
