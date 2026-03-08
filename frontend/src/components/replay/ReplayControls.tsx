@@ -123,7 +123,8 @@ export function ReplayControls({
         </div>
 
         {/* Row 2 (mobile) / Right (desktop): speed selector + recording controls */}
-        <div className="flex items-center gap-2">
+        {/* pr-16 sm:pr-0: reserve space on the right on mobile so the FAB doesn't overlap Record */}
+        <div className="flex items-center gap-2 pr-16 sm:pr-0">
           <div className="flex items-center gap-1">
             {SPEED_OPTIONS.map((s) => (
               <button
