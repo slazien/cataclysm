@@ -46,6 +46,7 @@ from cataclysm.grip_calibration import (
     calibrate_grip_from_telemetry,
     calibrate_per_corner_grip,
 )
+from cataclysm.linked_corners import detect_linked_corners
 from cataclysm.optimal_comparison import compare_with_optimal
 from cataclysm.parser import ParsedSession, parse_racechrono_csv
 from cataclysm.track_db import locate_official_corners
@@ -1105,6 +1106,9 @@ async def get_optimal_comparison_data(
                 result.invalid_reasons,
             )
 
+        # Detect linked corner groups (chicanes/esses) from optimal speed profile
+        linked = detect_linked_corners(corners, optimal.optimal_speed_mps, optimal.distance_m)
+
         return {
             "corner_opportunities": [
                 {
@@ -1122,6 +1126,7 @@ async def get_optimal_comparison_data(
                         round(opp.brake_gap_m, 2) if opp.brake_gap_m is not None else None
                     ),
                     "time_cost_s": round(opp.time_cost_s, 3),
+                    "linked_group_id": linked.corner_to_group.get(opp.corner_number),
                 }
                 for opp in result.corner_opportunities
             ],

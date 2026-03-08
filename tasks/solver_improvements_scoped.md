@@ -101,3 +101,23 @@
 - IMP-3 is post-processing → no cache impact
 - Combine all solver changes into a single `PHYSICS_CODE_VERSION` bump
 - File: `backend/api/services/db_physics_cache.py`
+
+---
+
+## Phase 3.7: Comprehensive Per-Corner QA — MANDATORY
+
+> Added per user request: validate solver output makes physical sense for HPDE3 driver.
+
+### Method
+For each track with sessions, pick the best session (highest session score). Trace through every corner:
+1. **Min actual vs min optimal speed** — optimal should always be ≥ actual (driver hasn't exceeded physics limit). If optimal < actual, something is wrong (curvature overestimate, mu too low, etc.)
+2. **Speed gap magnitude** — for HPDE3 driver, typical gaps 3-15 mph per corner. Gaps >25 mph in a single corner are suspicious.
+3. **Corner chains** — linked corners (chicanes/esses) should have speeds that make sense together. Speed between linked corners shouldn't drop to near-zero.
+4. **Lap time gap** — total optimal should be 5-15% faster than actual for HPDE3. <3% = model too conservative. >20% = model too aggressive.
+5. **Brake gaps** — should be 0-50m (HPDE3 brakes early). Negative brake gaps = something wrong.
+
+### Tracks to validate
+- All tracks with sessions in the system
+
+### Fix loop
+Keep fixing until all corners make physical sense. Document any fixes made.
