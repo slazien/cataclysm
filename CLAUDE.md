@@ -84,7 +84,7 @@ Use specialized agents (via `Agent` tool with `subagent_type`) instead of doing 
 | **Codebase exploration** | `Explore` | Finding files, tracing code paths, understanding architecture |
 | **Python backend** | `python-development:python-pro` | Editing `cataclysm/` modules, data pipeline, dataclasses |
 | **FastAPI** | `python-development:fastapi-pro` | Editing `backend/` routes, services, Pydantic models |
-| **Frontend** | `frontend-mobile-development:frontend-developer` | React, Next.js, Tailwind, D3 charts. **Contrast rule**: Never use `colors.text.muted` for lines/borders/indicators — use `colors.text.secondary` min. Canvas lines >=1.5px, dash segments >=[6,3]. |
+| **Frontend** | `frontend-mobile-development:frontend-developer` | React, Next.js, Tailwind, D3 charts. **Contrast rule**: Never use `colors.text.muted` for lines/borders/indicators — use `colors.text.secondary` min. Canvas lines >=1.5px, dash segments >=[6,3]. **Canvas events**: Use React event props (`onClick`, `onMouseMove`) directly on `<canvas>` — never `addEventListener` in `useEffect` when the canvas is conditionally rendered (e.g., behind a loading state). The ref object in deps never changes, so the effect only runs once, missing the canvas if it isn't mounted yet. |
 | **Writing tests** | `backend-development:test-automator` | Creating or expanding test suites |
 
 ### Tier 2 — Specific Scenarios

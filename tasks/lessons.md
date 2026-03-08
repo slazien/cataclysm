@@ -600,6 +600,33 @@ Apply only to vertical-scroll areas (NOT horizontal-scroll areas like LapPillBar
 
 **Error signature**: Content on mobile is laid out wider than the viewport (e.g., 439px on a 360px viewport). `overflow-x-hidden` clips the content visually but the layout is still wrong. JS confirms: `innerDisplay: "table"`, `innerW: 439` when `window.innerWidth: 360`.
 
+## React Ref Object in useEffect Deps Silently Breaks Conditionally-Rendered Canvas Listeners (2026-03-08)
+
+**Pattern**: NEVER put a React ref object (`useRef` result) in a `useEffect` dependency array to detect when the referenced DOM element mounts. The ref object is stable (same identity across all renders) — React never sees it as "changed", so the effect only runs once. If the element is conditionally rendered (behind a loading state), the first run finds `.current === null`, returns early, and listeners are NEVER attached.
+
+**Fix**: Use **React event props** (`onClick`, `onMouseMove`, `onMouseLeave`) directly on the element instead of imperative `addEventListener`. React event props are always in sync with the element lifecycle — no timing window.
+
+```tsx
+// ❌ BROKEN — effect runs once during isLoading, finds canvas=null, never re-runs
+useEffect(() => {
+  const canvas = dataCanvasRef.current;
+  if (!canvas) return;          // ← returns early, effect never re-runs
+  canvas.addEventListener('click', handleClick);
+}, [onCornerClick, dataCanvasRef]);  // dataCanvasRef object never changes
+
+// ✅ CORRECT — React attaches handlers whenever the element exists
+<canvas
+  ref={dataCanvasRef}
+  onClick={(e) => { const hit = getHitCorner(e); if (hit) onAction(hit.id); }}
+  onMouseMove={(e) => { e.currentTarget.style.cursor = getHitCorner(e) ? 'pointer' : 'default'; }}
+  onMouseLeave={(e) => { e.currentTarget.style.cursor = 'default'; }}
+/>
+```
+
+**Why**: This silently ships broken interactivity. The CTA hint (e.g., "Click any bar to explore →") is visible in JSX, but the canvas never responds to clicks or cursor changes because the native listeners were never registered. The bug is invisible in code review because the effect body looks correct.
+
+**Error signature**: UI shows an interactive hint ("Click to do X") but clicks do nothing. Hover cursor never changes. Feature worked in initial testing but fails consistently — because the initial test was done before data loaded (when the skeleton was shown) or within a narrow timing window.
+
 ## Use `docScrollWidth` — Not BoundingClientRect — for Overflow Detection (2026-03-08)
 
 **Pattern**: When verifying that a page has no horizontal overflow, use `document.documentElement.scrollWidth > window.innerWidth` as the authoritative test. Do NOT sweep `getBoundingClientRect().right > window.innerWidth` on all elements — this produces false positives from off-screen `position:fixed` elements (like closed drawers/modals rendered outside the viewport).
