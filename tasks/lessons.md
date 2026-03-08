@@ -1,5 +1,37 @@
 # Lessons Learned
 
+## Playwright `browser_evaluate` Requires `function` Parameter (2026-03-08)
+
+**Pattern**: When calling `browser_evaluate` in Playwright MCP, always use the `function` parameter with the format `"() => { ... }"`. Do NOT use a `script` parameter — it doesn't exist.
+
+**Why**: Using `script` causes `"expected string, received undefined"` silently. The tool only accepts `function` as the parameter name, and the value must be a zero-argument arrow function string.
+
+**Error signature**: `"expected string, received undefined"` when passing `script:` instead of `function:`
+
+## Playwright Click on Off-Screen Element Times Out — Use Escape Key (2026-03-08)
+
+**Pattern**: If a `browser_click` times out because the button is outside the viewport (e.g., a modal close button scrolled above the visible area), use `browser_press_key` with `"Escape"` instead. Never retry the same off-screen click.
+
+**Why**: Playwright's `click` requires the element to be interactable/in viewport. Close buttons and dismiss actions always have keyboard equivalents. `browser_press_key` with `"Escape"` closes virtually all dialogs/modals/drawers.
+
+## React Query 3-Retry Default Delays Public Error State ~5s (2026-03-08)
+
+**Pattern**: Public pages using React Query (e.g., `/share/[token]`) show a loading spinner for ~5 seconds before displaying 404/not-found error state. This is NOT a bug — it's React Query's default retry behavior (3 retries with exponential backoff). When testing public 404 routes with Playwright, wait 5-6 seconds before asserting error state.
+
+**Why**: React Query retries failed queries 3 times by default. On a 404 this takes ~5s total. Using `browser_evaluate` with a `setTimeout(resolve, 5000)` promise is the reliable way to wait before asserting.
+
+## Playwright Modal Scroll: Target `[role="dialog"]` Not Inner Overflow Divs (2026-03-08)
+
+**Pattern**: To scroll a modal's content via `browser_evaluate`, target `document.querySelector('[role="dialog"]')` and set `element.scrollTop = N` directly. Do NOT try to find inner `.overflow-y-auto` divs — they may not be the actual scroll container.
+
+**Why**: Shadcn/Radix `Dialog` makes the `[role="dialog"]` element itself the scroll container. Inner divs with `overflow-y-auto` class exist for styling but setting `scrollTop` on them is a no-op. The dialog element's `scrollHeight > clientHeight` confirms it's scrollable.
+
+## Playwright Accessibility Snapshot ≠ Visual Render During Hydration (2026-03-08)
+
+**Pattern**: `browser_snapshot` taken before React hydration completes shows SSR/pre-hydration content (e.g., WelcomeScreen skeleton) even if `browser_take_screenshot` shows the correct post-hydration state. Always use `browser_take_screenshot` for visual verification, and `browser_snapshot` only after confirming hydration is complete.
+
+**Why**: The accessibility tree is built from the DOM at snapshot time. SSR renders the initial state; Next.js hydration then updates state from client stores/hooks. During this window, the snapshot and visual render diverge.
+
 ## MagicMock Fails Python Format Specs (2026-03-08)
 
 **Pattern**: When mocked functions return objects whose attributes get f-string formatted (e.g., `f"{result.mu:.2f}"`), return real dataclass instances — not `MagicMock()`. MagicMock doesn't implement `__format__` with spec strings.
