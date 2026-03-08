@@ -7,7 +7,6 @@ Targets missing coverage lines:
 - 252-253: consistency exception path (already covered by test_pipeline.py
             but we hit it via a different code path to ensure 252 vs 253)
 - 266-267: gains exception path
-- 442: _has_meaningful_grip — session has no equipment
 - 457: _try_lidar_elevation — lat/lon missing from best_lap_df
 - 471-475: _try_lidar_elevation — TimeoutError / general exception paths
 - 484-494: _track_lidar_task — done callback with exception / cancellation
@@ -38,7 +37,6 @@ from backend.api.services import pipeline as pipeline_module
 from backend.api.services.pipeline import (
     _collect_independent_calibration_telemetry,
     _get_physics_cached,
-    _has_meaningful_grip,
     _resolve_curvature_and_elevation,
     _set_physics_cached,
     _track_lidar_task,
@@ -441,121 +439,6 @@ class TestPhysicsCacheFunctions:
         """invalidate_profile_cache with no matching keys does not raise (line 543)."""
         pipeline_module._physics_cache.clear()  # noqa: SLF001
         invalidate_profile_cache("no-such-profile")
-
-
-# ===========================================================================
-# _has_meaningful_grip (line 442)
-# ===========================================================================
-
-
-class TestHasMeaningfulGrip:
-    """Tests for _has_meaningful_grip."""
-
-    def setup_method(self) -> None:
-        equipment_store.clear_all_equipment()
-
-    def test_returns_false_when_no_session_equipment(self) -> None:
-        """Returns False when no equipment is assigned to the session (line 439)."""
-        result = _has_meaningful_grip("sess-no-equip")
-        assert result is False
-
-    def test_returns_false_when_profile_missing(self) -> None:
-        """Returns False when the profile referenced by session equipment does not exist."""
-        from cataclysm.equipment import SessionEquipment
-
-        se = SessionEquipment(
-            session_id="sess-orphan-grip",
-            profile_id="ghost-profile",
-            overrides={},
-            conditions=None,
-        )
-        equipment_store.store_session_equipment(se)
-        result = _has_meaningful_grip("sess-orphan-grip")
-        assert result is False
-
-    def test_returns_false_for_formula_estimate_mu_1_0(self) -> None:
-        """Returns False when mu=1.0 from FORMULA_ESTIMATE — the uncalibrated sentinel."""
-        from cataclysm.equipment import (
-            EquipmentProfile,
-            MuSource,
-            SessionEquipment,
-            TireCompoundCategory,
-            TireSpec,
-        )
-
-        tire = TireSpec(
-            model="Generic",
-            compound_category=TireCompoundCategory.STREET,
-            size="205/55R16",
-            treadwear_rating=0,
-            estimated_mu=1.0,
-            mu_source=MuSource.FORMULA_ESTIMATE,
-            mu_confidence="low",
-            pressure_psi=32.0,
-            brand="Generic",
-            age_sessions=0,
-        )
-        profile = EquipmentProfile(
-            id="hmg-formula-prof",
-            name="Formula Profile",
-            tires=tire,
-            brakes=None,
-            suspension=None,
-            notes=None,
-        )
-        se = SessionEquipment(
-            session_id="sess-formula-grip",
-            profile_id="hmg-formula-prof",
-            overrides={},
-            conditions=None,
-        )
-        equipment_store.store_profile(profile)
-        equipment_store.store_session_equipment(se)
-
-        result = _has_meaningful_grip("sess-formula-grip")
-        assert result is False
-
-    def test_returns_true_for_curated_mu(self) -> None:
-        """Returns True when mu has a curated/meaningful source."""
-        from cataclysm.equipment import (
-            EquipmentProfile,
-            MuSource,
-            SessionEquipment,
-            TireCompoundCategory,
-            TireSpec,
-        )
-
-        tire = TireSpec(
-            model="RE-71RS",
-            compound_category=TireCompoundCategory.SUPER_200TW,
-            size="245/40ZR18",
-            treadwear_rating=200,
-            estimated_mu=1.12,
-            mu_source=MuSource.CURATED_TABLE,
-            mu_confidence="high",
-            pressure_psi=34.0,
-            brand="Bridgestone",
-            age_sessions=2,
-        )
-        profile = EquipmentProfile(
-            id="hmg-curated-prof",
-            name="Curated Profile",
-            tires=tire,
-            brakes=None,
-            suspension=None,
-            notes=None,
-        )
-        se = SessionEquipment(
-            session_id="sess-curated-grip",
-            profile_id="hmg-curated-prof",
-            overrides={},
-            conditions=None,
-        )
-        equipment_store.store_profile(profile)
-        equipment_store.store_session_equipment(se)
-
-        result = _has_meaningful_grip("sess-curated-grip")
-        assert result is True
 
 
 # ===========================================================================

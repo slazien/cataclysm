@@ -25,7 +25,7 @@ from cataclysm.curvature import CurvatureResult, compute_curvature
 from cataclysm.elevation import compute_corner_elevation, enrich_corners_with_elevation
 from cataclysm.elevation_profile import compute_gradient_array, compute_vertical_curvature
 from cataclysm.engine import LapSummary, ProcessedSession, find_anomalous_laps, process_session
-from cataclysm.equipment import CATEGORY_MU_DEFAULTS, MuSource, equipment_to_vehicle_params
+from cataclysm.equipment import CATEGORY_MU_DEFAULTS, equipment_to_vehicle_params
 from cataclysm.gains import (
     GainEstimate,
     build_segments,
@@ -439,25 +439,6 @@ def resolve_vehicle_params(session_id: str) -> VehicleParams | None:
     return equipment_to_vehicle_params(profile)
 
 
-def _has_meaningful_grip(session_id: str) -> bool:
-    """Check whether the session's equipment provides a meaningful grip estimate.
-
-    Returns False when mu is the uncalibrated default 1.0 from
-    ``estimate_mu_from_treadwear(0)`` AND the source is ``FORMULA_ESTIMATE``.
-    Curated, manufacturer, or user-overridden mu values of 1.0 are intentional
-    and should be trusted.
-    """
-    se = equipment_store.get_session_equipment(session_id)
-    if se is None:
-        return False
-    profile = equipment_store.get_profile(se.profile_id)
-    if profile is None:
-        return False
-    tire = profile.tires
-    # mu=1.0 from formula estimate with no treadwear is the uncalibrated sentinel
-    return not (tire.mu_source == MuSource.FORMULA_ESTIMATE and tire.estimated_mu == 1.0)
-
-
 # Margin above CATEGORY_MU_DEFAULTS to account for within-category variation
 # (e.g., Yokohama A052 vs Hankook RS4, both 200TW but different grip levels),
 # alignment/camber benefits, and better-than-average tire samples.
@@ -651,7 +632,6 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
     # profile that was current at request time.
     profile_id = _current_profile_id(session_id)
     vehicle_params = resolve_vehicle_params(session_id)
-    has_meaningful_grip = _has_meaningful_grip(session_id)
     mu_cap = _get_compound_mu_cap(session_id)
 
     cached = _get_physics_cached(session_id, "profile", profile_id)
@@ -670,37 +650,36 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
 
         # Auto-calibrate from independent session telemetry, excluding the lap
         # currently being evaluated so the benchmark stays externally anchored.
-        # Skip grip calibration when equipment provides meaningful grip data.
-        # Fall back to calibration when mu is the uncalibrated default.
+        # Calibration always runs: equipment mu serves as floor via max(base, calibrated),
+        # and compound mu cap prevents unrealistic inflation.
         nonlocal vehicle_params
         grip = None
-        if not has_meaningful_grip:
-            calibration_data = _collect_independent_calibration_telemetry(
-                session_data,
-                target_lap=processed.best_lap,
-            )
-            if calibration_data is not None:
-                lat_g, lon_g, calibration_laps = calibration_data
-                grip = calibrate_grip_from_telemetry(lat_g, lon_g)
-                if grip is not None:
-                    base = vehicle_params or default_vehicle_params()
-                    vehicle_params = apply_calibration_to_params(
-                        base,
-                        grip,
-                        mu_cap=mu_cap,
-                    )
-                    logger.info(
-                        "Grip calibration [profile] sid=%s laps=%s: mu=%.3f lat_g=%.3f "
-                        "brake_g=%.3f accel_g=%.3f confidence=%s mu_cap=%s",
-                        session_id,
-                        calibration_laps,
-                        vehicle_params.mu,
-                        grip.max_lateral_g,
-                        grip.max_brake_g,
-                        grip.max_accel_g,
-                        grip.confidence,
-                        mu_cap,
-                    )
+        calibration_data = _collect_independent_calibration_telemetry(
+            session_data,
+            target_lap=processed.best_lap,
+        )
+        if calibration_data is not None:
+            lat_g, lon_g, calibration_laps = calibration_data
+            grip = calibrate_grip_from_telemetry(lat_g, lon_g)
+            if grip is not None:
+                base = vehicle_params or default_vehicle_params()
+                vehicle_params = apply_calibration_to_params(
+                    base,
+                    grip,
+                    mu_cap=mu_cap,
+                )
+                logger.info(
+                    "Grip calibration [profile] sid=%s laps=%s: mu=%.3f lat_g=%.3f "
+                    "brake_g=%.3f accel_g=%.3f confidence=%s mu_cap=%s",
+                    session_id,
+                    calibration_laps,
+                    vehicle_params.mu,
+                    grip.max_lateral_g,
+                    grip.max_brake_g,
+                    grip.max_accel_g,
+                    grip.confidence,
+                    mu_cap,
+                )
         mu_array = None
 
         # Compute elevation gradient and vertical curvature for the solver
@@ -765,13 +744,12 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
     """
     session_id = session_data.session_id
 
-    # Capture profile_id, vehicle params, and grip flag now, before entering
-    # the thread pool.  This prevents a TOCTOU race where the user switches
-    # equipment while _compute() is running — we must compute AND cache under
-    # the profile that was current at request time.
+    # Capture profile_id and vehicle params now, before entering the thread
+    # pool.  This prevents a TOCTOU race where the user switches equipment
+    # while _compute() is running — we must compute AND cache under the
+    # profile that was current at request time.
     profile_id = _current_profile_id(session_id)
     vehicle_params = resolve_vehicle_params(session_id)
-    has_meaningful_grip = _has_meaningful_grip(session_id)
     mu_cap = _get_compound_mu_cap(session_id)
 
     cached = _get_physics_cached(session_id, "comparison", profile_id)
@@ -807,37 +785,35 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
 
         # Auto-calibrate from independent session telemetry, excluding the lap
         # currently being evaluated so the benchmark stays externally anchored.
-        # Skip grip calibration when equipment provides meaningful grip data.
-        # Fall back to calibration when mu is the uncalibrated default.
+        # Calibration always runs: equipment mu serves as floor via max(base, calibrated),
+        # and compound mu cap prevents unrealistic inflation.
         grip = None
-        if not has_meaningful_grip:
-            calibration_data = _collect_independent_calibration_telemetry(
-                session_data,
-                target_lap=processed.best_lap,
-            )
-            if calibration_data is not None:
-                lat_g, lon_g, calibration_laps = calibration_data
-                grip = calibrate_grip_from_telemetry(lat_g, lon_g)
-                if grip is not None:
-                    base = vehicle_params or default_vehicle_params()
-                    vehicle_params = apply_calibration_to_params(
-                        base,
-                        grip,
-                        mu_cap=mu_cap,
-                    )
-                    logger.info(
-                        "Grip calibration [comparison] sid=%s laps=%s: mu=%.3f lat_g=%.3f "
-                        "brake_g=%.3f accel_g=%.3f confidence=%s mu_cap=%s",
-                        session_id,
-                        calibration_laps,
-                        vehicle_params.mu,
-                        grip.max_lateral_g,
-                        grip.max_brake_g,
-                        grip.max_accel_g,
-                        grip.confidence,
-                        mu_cap,
-                    )
-
+        calibration_data = _collect_independent_calibration_telemetry(
+            session_data,
+            target_lap=processed.best_lap,
+        )
+        if calibration_data is not None:
+            lat_g, lon_g, calibration_laps = calibration_data
+            grip = calibrate_grip_from_telemetry(lat_g, lon_g)
+            if grip is not None:
+                base = vehicle_params or default_vehicle_params()
+                vehicle_params = apply_calibration_to_params(
+                    base,
+                    grip,
+                    mu_cap=mu_cap,
+                )
+                logger.info(
+                    "Grip calibration [comparison] sid=%s laps=%s: mu=%.3f lat_g=%.3f "
+                    "brake_g=%.3f accel_g=%.3f confidence=%s mu_cap=%s",
+                    session_id,
+                    calibration_laps,
+                    vehicle_params.mu,
+                    grip.max_lateral_g,
+                    grip.max_brake_g,
+                    grip.max_accel_g,
+                    grip.confidence,
+                    mu_cap,
+                )
         mu_array = None
 
         # Compute elevation gradient and vertical curvature for the solver

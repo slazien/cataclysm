@@ -287,10 +287,11 @@ async def test_optimal_profile_with_equipment(client: AsyncClient) -> None:
     assert resp_equip.status_code == 200
     equip_data = resp_equip.json()
 
-    # Vehicle params: when equipment is assigned, grip calibration is skipped
-    # so the equipment's tire grip (mu) is used directly.
+    # Vehicle params: calibration always runs — equipment mu serves as the
+    # floor via max(base, calibrated), so calibrated is True when telemetry
+    # data is available.
     vp = equip_data["vehicle_params"]
-    assert vp["calibrated"] is False
+    assert vp["calibrated"] is True
     assert vp["mu"] > 0
     assert vp["max_lateral_g"] > 0
     assert vp["max_accel_g"] > 0
