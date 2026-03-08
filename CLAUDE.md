@@ -2,118 +2,110 @@
 
 ## Project Context
 
-Motorsport telemetry analysis and AI coaching platform (Python + Next.js/FastAPI). Primary language is Python. Use Python idioms and tooling by default.
+AI motorsport coaching platform (Python + Next.js/FastAPI). Primary lang: Python.
 
 ## Communication Style
 
-Before implementing changes, ask clarifying questions rather than writing long inline markdown plans. Be concise and action-oriented.
+Ask clarifying Qs before implementing. Concise, action-oriented.
 
-## Workflow Orchestration
+## Workflow
 
-1. **Plan Mode Default** — Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions). If something goes sideways, STOP and re-plan.
-2. **Subagent Strategy** — Use subagents liberally. One task per subagent. Match agent type to task (see Agent Playbook).
-3. **Self-Improvement** — After ANY correction: update `tasks/lessons.md`. Write rules to prevent repeat mistakes.
-4. **Verification** — Never mark complete without proving it works. Run tests, check logs, demonstrate correctness. Always run `superpowers:code-reviewer` after implementation.
-5. **Elegance** — For non-trivial changes: "is there a more elegant way?" Skip for simple fixes.
-6. **Autonomous Bugs** — Just fix bugs. Don't ask for hand-holding. Use `debugging-toolkit:debugger` for complex bugs.
-7. **No Hedging** — NEVER say "ambitious" or hedge about scope. Implement everything requested.
-8. **Domain Research** — Before any feature involving domain knowledge (vehicle dynamics, G-force analysis, coaching methodology), WebSearch first. Research iteratively (broad → specific → authoritative: SAE papers, MoTeC docs, YourDataDriven, TrailBrake, Driver61). Cite sources. Never invent domain algorithms from coding intuition alone.
-9. **Task Tracking** — Write plan to `tasks/todo.md`, check in before implementing, mark items complete, capture lessons.
-10. **Commit Immediately** — Always commit and push after making changes. Do not wait to be asked. Push to `staging` branch by default. NEVER push to `main` (production) unless the user explicitly says to deploy to prod.
-11. **Image Viewing** — Download locally (`curl -sL -o /tmp/filename.ext "URL"`), view with Read tool, then delete.
+1. **Plan first** — Plan mode for any non-trivial task (3+ steps/arch). Sideways → STOP & re-plan.
+2. **Subagents** — One task per agent. Match type to task (see Playbook).
+3. **Self-improve** — After any correction: `tasks/lessons.md`.
+4. **Verify** — Proof before done (tests/logs). Always `superpowers:code-reviewer` post-impl.
+5. **Elegance** — Non-trivial: "simpler way?" Skip for quick fixes.
+6. **Bugs** — Fix autonomously. Complex → `debugging-toolkit:debugger`.
+7. **No hedging** — Never say "ambitious." Implement everything.
+8. **Domain research** — Physics/coaching feature: WebSearch first (SAE, MoTeC, YourDataDriven, TrailBrake, Driver61). Never invent algorithms from coding intuition.
+9. **Task tracking** — Plan → `tasks/todo.md`, mark complete, capture lessons.
+10. **Commit immediately** — After every change. Push `staging`. NEVER push `main` unless user says "deploy to prod."
+11. **Images** — `curl -sL -o /tmp/f.ext "URL"`, Read tool, delete.
 
 ## Core Principles
 
-- *Simplicity First*: Make every change as simple as possible. Impact minimal code.
-- *No Laziness*: Find root causes. No temporary fixes. Senior developer standards.
-- *Minimal Impact*: Changes should only touch what's necessary. Avoid introducing bugs.
+Simplicity (minimal impact) · No shortcuts (root causes, senior standards) · Minimal blast radius.
 
 ## Project Overview
 
-Cataclysm is an AI-powered motorsport telemetry analysis and coaching platform for track day drivers. It ingests RaceChrono CSV v3 exports, processes them in the distance domain, detects corners, and generates AI coaching reports via the Claude API. Next.js + FastAPI, deployed on Railway from `main` branch.
+Ingests RaceChrono CSV v3, processes in distance domain, detects corners, generates AI coaching via Claude API. Next.js + FastAPI on Railway (`main` branch).
 
-For full architecture details: read `docs/architecture.md`. For setup/commands: read `docs/developer-guide.md`.
-
-**Always work inside the project venv.** Run `source .venv/bin/activate` before any Python command.
+Arch → `docs/architecture.md` | Setup → `docs/developer-guide.md` | **Always activate venv**: `source .venv/bin/activate`
 
 ## Code Conventions
 
-- Python 3.11+, type hints required on all functions (mypy `disallow_untyped_defs`)
-- Line length: 100 chars (ruff). Rules: E, F, W, I, N, UP, B, SIM
-- All files start with `from __future__ import annotations`
-- Module-level constants in UPPER_SNAKE_CASE
-- Dataclasses for structured data, not dicts
+- Python 3.11+, all fns typed (`mypy disallow_untyped_defs`), line len 100, rules: E F W I N UP B SIM
+- All files: `from __future__ import annotations`
+- Constants: UPPER_SNAKE_CASE · Structured data: dataclasses not dicts
 
 ## Quality Gates
 
-All must pass before committing:
+All must pass before commit:
 
-1. **Ruff**: `ruff format cataclysm/ tests/ backend/` then `ruff check cataclysm/ tests/ backend/`
-2. **Mypy**: `dmypy run -- cataclysm/ backend/` (daemon mode, ~4s warm)
-3. **Tests**: `pytest tests/ backend/tests/ -v` (parallel via `-n auto`, skips `@pytest.mark.slow`). Every new module needs `tests/test_<module>.py`. Use synthetic data fixtures, mock external APIs.
-4. **Code review**: Dispatch `superpowers:code-reviewer` after implementation (mandatory).
-5. **Frontend TypeScript**: Run `npx tsc --noEmit` from `frontend/` before every push. Local incremental cache hides missed symbol references that Railway's clean build catches. `vitest` alone is insufficient — it only typechecks imported files.
-6. **Frontend QA**: If ANY frontend files changed, use Playwright MCP to visually verify every affected component on staging BEFORE promoting to prod. **BLOCKING gate.** Wait for Railway deploy (~2-3 min) before QA — don't test stale code.
-7. **Railway deploy verification**: After every push, immediately call `list-deployments` to get the deployment ID, then `get-logs` with that ID to confirm success. `get-logs` without an ID returns the latest *successful* build — useless for debugging failures.
+1. **Ruff**: `ruff format cataclysm/ tests/ backend/` → `ruff check cataclysm/ tests/ backend/`
+2. **Mypy**: `dmypy run -- cataclysm/ backend/` (~4s warm)
+3. **Tests**: `pytest tests/ backend/tests/ -v -n auto`. New module → `tests/test_<module>.py`. Synthetic fixtures, mock external APIs.
+4. **Code review**: `superpowers:code-reviewer` (mandatory)
+5. **Frontend TS**: `cd frontend && npx tsc --noEmit` before every push. Incremental cache hides errors Railway's clean build catches; `vitest` alone insufficient.
+6. **Frontend QA**: ANY frontend change → Playwright visual verify on staging post-deploy. **BLOCKING.** Wait ~2-3 min.
+7. **Deploy verify**: `list-deployments --service <svc>` → get ID → `get-logs <id>`. Specify service explicitly (default = linked svc only).
 
-**CRITICAL: Fix ALL errors, including pre-existing ones.** Zero errors means zero errors.
+**CRITICAL: Fix ALL errors incl. pre-existing. Zero means zero.**
 
-**Mobile testing** — real CSS viewport sizes (not physical resolutions):
-- Samsung Galaxy S24 (360x780) | iPhone 14 (390x844) | Pixel 9 (412x915) | iPhone 16 Pro Max (440x956)
-- Check: text clipping, horizontal overflow, touch targets (44x44px min), chart scaling.
+**Mobile viewports** (CSS px): S24 360×780 | iPhone14 390×844 | Pixel9 412×915 | iPhone16PM 440×956
+Check: text clip, horiz overflow, touch targets ≥44px, chart scale.
 
 ## Deployment
 
-- **Railway** (PaaS): Two environments — **production** (branch `main`) and **staging** (branch `staging`).
-- **Hetzner VPS**: Auto-deploys from `main-hetzner` via GitHub Actions. Dev branch: `hetzner-migration`.
-- **Production URLs**: Frontend `https://cataclysm.up.railway.app` | Backend `https://backend-production-4c97.up.railway.app`
-- **Staging URLs**: Frontend `https://cataclysm-staging.up.railway.app` | Backend `https://backend-staging-0dbd.up.railway.app`
-- When pushing to GitHub, confirm remote URL — personal repo is github.com, NOT github.intuit.com.
-- For full deployment guide: read `docs/deployment.md`.
-- **`list-deployments` only shows the linked service.** Always check both services: pass `--service frontend` and `--service backend` explicitly when verifying a push that touches both.
-- **NEVER set `DEV_AUTH_BYPASS=true` on staging.** It overrides ALL authentication — every request (including the real user's browser) authenticates as `dev-user`, hiding all real sessions. Remove: `railway variables delete DEV_AUTH_BYPASS --service backend` then `railway redeploy --service backend --yes`.
+| Env | Branch | Frontend | Backend |
+|-----|--------|----------|---------|
+| prod | `main` | cataclysm.up.railway.app | backend-production-4c97.up.railway.app |
+| staging | `staging` | cataclysm-staging.up.railway.app | backend-staging-0dbd.up.railway.app |
+
+- Hetzner: `main-hetzner` via GH Actions. Dev: `hetzner-migration`.
+- GitHub remote: github.com (not github.intuit.com). Full guide: `docs/deployment.md`.
+- **NEVER `DEV_AUTH_BYPASS=true` on staging.** Bypasses ALL auth → every req as `dev-user` → real sessions hidden. Fix: `railway variables delete DEV_AUTH_BYPASS --service backend` + `railway redeploy --service backend --yes`.
 
 ## Agent Playbook
 
-Use specialized agents (via `Agent` tool with `subagent_type`) instead of doing everything in main context.
+### Tier 1 — Routine
 
-### Tier 1 — Use Routinely
+| Scenario | `subagent_type` |
+|----------|----------------|
+| Code review (mandatory post-impl) | `superpowers:code-reviewer` |
+| Bug investigation | `debugging-toolkit:debugger` |
+| Codebase exploration | `Explore` |
+| Python backend (`cataclysm/`, pipeline) | `python-development:python-pro` |
+| FastAPI (`backend/` routes, Pydantic) | `python-development:fastapi-pro` |
+| Frontend (React, Next.js, Tailwind, D3) | `frontend-mobile-development:frontend-developer` |
+| Tests | `backend-development:test-automator` |
 
-| Scenario | Agent `subagent_type` | When |
-|---|---|---|
-| **Code review** | `superpowers:code-reviewer` | After every implementation (mandatory) |
-| **Bug investigation** | `debugging-toolkit:debugger` | Any bug report, test failure, unexpected behavior |
-| **Codebase exploration** | `Explore` | Finding files, tracing code paths, understanding architecture |
-| **Python backend** | `python-development:python-pro` | Editing `cataclysm/` modules, data pipeline, dataclasses |
-| **FastAPI** | `python-development:fastapi-pro` | Editing `backend/` routes, services, Pydantic models |
-| **Frontend** | `frontend-mobile-development:frontend-developer` | React, Next.js, Tailwind, D3 charts. **Contrast rule**: Never use `colors.text.muted` for lines/borders/indicators — use `colors.text.secondary` min. Canvas lines >=1.5px, dash segments >=[6,3]. **Canvas events**: Use React event props (`onClick`, `onMouseMove`) directly on `<canvas>` — never `addEventListener` in `useEffect` when the canvas is conditionally rendered (e.g., behind a loading state). The ref object in deps never changes, so the effect only runs once, missing the canvas if it isn't mounted yet. **Touch tooltips**: Never use Radix `Tooltip` for info icons — hover-only, breaks on mobile (content vanishes in ~100ms). Use Radix `Popover` instead; keep visual parity with inline `className="bg-foreground text-background ..."` on `PopoverContent`. |
-| **Writing tests** | `backend-development:test-automator` | Creating or expanding test suites |
+**Frontend rules** (pass to frontend agent):
+- Contrast: min `text-secondary` (never `text.muted`) for lines/borders/indicators
+- Canvas: lines ≥1.5px, dashes ≥[6,3]
+- Canvas events: use React props (`onClick`, `onMouseMove`) on `<canvas>` — not `addEventListener` in `useEffect` (ref never changes in deps → effect fires once, misses conditional-mount canvas)
+- Touch tooltips: never Radix `Tooltip` for info icons (hover-only, vanishes ~100ms on mobile). Use Radix `Popover` with `className="bg-foreground text-background ..."` on `PopoverContent`.
 
-### Tier 2 — Specific Scenarios
+### Tier 2 — Specific
 
-| Scenario | Agent `subagent_type` | When |
-|---|---|---|
-| **Architecture** | `comprehensive-review:architect-review` | New features, major refactors |
-| **Security** | `comprehensive-review:security-auditor` | Auth changes, API endpoints, pre-deployment |
-| **Performance** | `application-performance:performance-engineer` | Slow queries, caching strategy |
-| **Coaching prompts** | `llm-application-dev:prompt-engineer` | Changes to `coaching.py` prompts |
-| **Error handling** | `pr-review-toolkit:silent-failure-hunter` | After adding try/catch or fallback logic |
-| **Type design** | `pr-review-toolkit:type-design-analyzer` | New dataclasses, Pydantic models, TS types |
-| **Visual UI** | `accessibility-compliance:ui-visual-validator` | After layout changes. Flag `colors.text.muted` on functional elements. |
-
-### Tier 3 — Occasional
-
-| Scenario | Agent `subagent_type` |
-|---|---|
-| **Test coverage** | `pr-review-toolkit:pr-test-analyzer` |
-| **Code simplification** | `pr-review-toolkit:code-simplifier` |
-| **Deploy issues** | `cicd-automation:devops-troubleshooter` |
-| **DB optimization** | `database-cloud-optimization:database-optimizer` |
-| **Documentation** | `code-documentation:docs-architect` |
+| Scenario | `subagent_type` |
+|----------|----------------|
+| Architecture | `comprehensive-review:architect-review` |
+| Security | `comprehensive-review:security-auditor` |
+| Performance / caching | `application-performance:performance-engineer` |
+| Coaching prompts | `llm-application-dev:prompt-engineer` |
+| Error handling / fallbacks | `pr-review-toolkit:silent-failure-hunter` |
+| Type design | `pr-review-toolkit:type-design-analyzer` |
+| Visual UI / a11y | `accessibility-compliance:ui-visual-validator` |
+| Test coverage | `pr-review-toolkit:pr-test-analyzer` |
+| Code simplify | `pr-review-toolkit:code-simplifier` |
+| Deploy issues | `cicd-automation:devops-troubleshooter` |
+| DB optimize | `database-cloud-optimization:database-optimizer` |
+| Docs | `code-documentation:docs-architect` |
 
 ### Parallel Patterns
 
-- **Full feature**: `fastapi-pro` + `frontend-developer` in parallel, then `code-reviewer`
-- **Bug hunt**: `debugger` + `Explore` in parallel
-- **Pre-deploy**: `security-auditor` + `performance-engineer` + `code-reviewer` in parallel
-- **New module**: `python-pro` -> `test-automator` -> `code-reviewer`
+- Full feature: `fastapi-pro` + `frontend-developer` → `code-reviewer`
+- Bug hunt: `debugger` + `Explore`
+- Pre-deploy: `security-auditor` + `performance-engineer` + `code-reviewer`
+- New module: `python-pro` → `test-automator` → `code-reviewer`
