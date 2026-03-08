@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## PostgreSQL ON CONFLICT Only Fires for Its Specified Constraint (2026-03-08)
+
+**Pattern**: When a table has multiple unique constraints, `INSERT ... ON CONFLICT ON CONSTRAINT X DO UPDATE` only handles violations of constraint X. If the row also violates a DIFFERENT unique constraint Y, PostgreSQL raises a normal `IntegrityError` — the ON CONFLICT handler does NOT fire for Y. Ensure the ON CONFLICT target matches the constraint that actually fires in the race condition.
+
+**Why**: `db_set_cached_by_track()` used `on_conflict_do_update(constraint="uq_physics_cache_track_key")`. But track entries use `session_id="_track:<slug>"` which also participates in `uq_physics_cache_key` (`session_id, endpoint, profile_id`). Concurrent track inserts conflicted on `uq_physics_cache_key` first; the handler for `uq_physics_cache_track_key` never fired → `IntegrityError` spam in logs.
+
+**Error signature**: `sqlalchemy.exc.IntegrityError: ... UniqueViolationError: duplicate key value violates unique constraint "uq_physics_cache_key"` when the insert statement specifies ON CONFLICT for a DIFFERENT constraint name.
+
 ## Platform Parity: Always Implement UI Changes Identically on Both Mobile and Desktop (2026-03-08)
 
 **Pattern**: When building or modifying ANY UI element, implement it on BOTH platforms simultaneously with identical behavior, positioning, and visual design. Never do mobile-first-then-desktop or vice versa. Same relative position (e.g., both bottom-right), same interaction pattern, same visual treatment.
@@ -76,13 +84,13 @@
 
 **Error signature**: `TypeError: unsupported format string passed to MagicMock.__format__`
 
-## asyncio.ensure_future Fails in Threadpool (2026-03-08)
+## asyncio.ensure_future Creates Coroutine Before Checking Loop (2026-03-08)
 
-**Pattern**: Code running inside `asyncio.to_thread()` has no event loop. `asyncio.ensure_future()` raises `RuntimeError`. For best-effort async fire-and-forget from threadpool code, use `contextlib.suppress(RuntimeError)`.
+**Pattern**: Use `asyncio.get_running_loop().create_task(coro())` inside `contextlib.suppress(RuntimeError)`, NOT `asyncio.ensure_future(coro())`. `ensure_future` calls `coro()` (creates the coroutine object) BEFORE checking for a running loop. If no loop exists, the coroutine is created but never awaited → `RuntimeWarning: coroutine '...' was never awaited`. `get_running_loop()` raises RuntimeError before `coro()` is even called.
 
-**Why**: `_run_pipeline_sync` called `invalidate_track_physics_cache(slug)` which used `asyncio.ensure_future(db_invalidate_track(...))`. Since `_run_pipeline_sync` runs in `asyncio.to_thread()`, no event loop exists → `RuntimeError`. The in-memory invalidation still works; DB entries self-correct via code_version on next read.
+**Why**: Pipeline invalidation functions called `asyncio.ensure_future(db_invalidate_track(slug))` inside `contextlib.suppress(RuntimeError)`. The suppress caught the RuntimeError but Python still warned about the unawaited coroutine. Replaced with `asyncio.get_running_loop().create_task(coro())` — no coroutine created if no loop.
 
-**Error signature**: `RuntimeError: There is no current event loop in thread 'ThreadPoolExecutor-0_0'`
+**Error signature**: `RuntimeWarning: coroutine 'db_invalidate_track' was never awaited` in production logs even though the RuntimeError was suppressed.
 
 ## Refactoring Delegation Breaks Mock Targets (2026-03-08)
 
