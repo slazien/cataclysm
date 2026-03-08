@@ -725,6 +725,44 @@ def _collect_per_corner_mu(
     )
 
 
+_G_ACCEL = 9.81  # m/s²
+
+
+def _implied_mu_from_corners(
+    corners: list[Corner],
+    curvature_result: CurvatureResult,
+) -> dict[int, float]:
+    """Back-solve friction coefficient from the driver's best observed min speed.
+
+    Uses circular motion physics: ``mu = v² × κ / g``, where κ is the absolute
+    curvature at each corner's apex distance.  This gives the minimum mu that
+    would allow the physics solver to predict the driver's own observed speed.
+
+    Without this, GPS curvature overestimates (making a corner appear tighter
+    than it is) cause ``v_optimal = sqrt(mu × g / κ)`` to underestimate the
+    achievable speed, producing nonsensical results like "your speed exceeds
+    the physics limit" even though the driver demonstrably reached it.
+
+    Applied via ``max()`` in ``_build_mu_array``, implied mu can only *raise*
+    the corner-level optimal — it never lowers predictions for corners where
+    the driver was conservative.
+    """
+    result: dict[int, float] = {}
+    for corner in corners:
+        kappa = float(
+            np.interp(
+                corner.apex_distance_m,
+                curvature_result.distance_m,
+                curvature_result.abs_curvature,
+            )
+        )
+        if kappa < 1e-4:  # essentially a straight — skip
+            continue
+        mu = corner.min_speed_mps**2 * kappa / _G_ACCEL
+        result[corner.number] = mu
+    return result
+
+
 def _resolve_curvature_and_elevation(
     session_data: SessionData,
     lidar_alt: np.ndarray | None,
@@ -882,6 +920,14 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
         mu_array: np.ndarray | None = None
         if session_data.corners and calibrated_vp is not None:
             per_corner_mu = _collect_per_corner_mu(session_data)
+            # Also incorporate mu implied by driver's own best speed at each corner.
+            # If GPS curvature is overestimated for a corner the solver would predict
+            # a speed below what the driver already achieved — raising the local mu
+            # to match the observed speed prevents the model from being less than
+            # the driver's own demonstrated capability.
+            implied_mu = _implied_mu_from_corners(session_data.corners, curvature_result)
+            for cn, mu in implied_mu.items():
+                per_corner_mu[cn] = max(per_corner_mu.get(cn, 0.0), mu)
             if per_corner_mu:
                 mu_array = _build_mu_array(
                     curvature_result.distance_m,
