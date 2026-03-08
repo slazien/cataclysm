@@ -70,6 +70,8 @@ All must pass before committing:
 - **Staging URLs**: Frontend `https://cataclysm-staging.up.railway.app` | Backend `https://backend-staging-0dbd.up.railway.app`
 - When pushing to GitHub, confirm remote URL — personal repo is github.com, NOT github.intuit.com.
 - For full deployment guide: read `docs/deployment.md`.
+- **`list-deployments` only shows the linked service.** Always check both services: pass `--service frontend` and `--service backend` explicitly when verifying a push that touches both.
+- **NEVER set `DEV_AUTH_BYPASS=true` on staging.** It overrides ALL authentication — every request (including the real user's browser) authenticates as `dev-user`, hiding all real sessions. Remove: `railway variables delete DEV_AUTH_BYPASS --service backend` then `railway redeploy --service backend --yes`.
 
 ## Agent Playbook
 

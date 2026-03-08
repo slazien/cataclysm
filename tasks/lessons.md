@@ -640,3 +640,19 @@ el.getBoundingClientRect().right > window.innerWidth
 ```
 
 **Why**: `scrollWidth` measures whether the document can be scrolled horizontally. Fixed-position elements outside the viewport do NOT contribute to `scrollWidth`, but their `getBoundingClientRect()` can show `right: 680` on a 360px viewport, making it look like overflow exists when none does.
+
+## NEVER Enable DEV_AUTH_BYPASS on Staging (2026-03-08)
+
+**Pattern**: `DEV_AUTH_BYPASS=true` must NEVER be set in Railway staging env vars. It overrides ALL authentication globally — every HTTP request (including the real user's browser) authenticates as `dev-user`. This silently hides all real user sessions and data. Remove it with `railway variables delete DEV_AUTH_BYPASS --service backend` then `railway redeploy --service backend --yes`.
+
+**Why**: User flagged this as an explicit mistake. A QA agent set `DEV_AUTH_BYPASS=true` to simplify anonymous testing, which caused the real user's sessions to disappear from the UI. The correct approach for QA agents that need unauthenticated access: use the `get_user_or_anon` backend dependency (already in place) — it allows anonymous reads without bypassing all auth.
+
+**Error signature**: Real user sees 0 sessions in the app after a backend restart. Backend logs show: `DEV_AUTH_BYPASS is ENABLED` and `list_sessions: user_id=dev-user → 0 session(s)` for every request.
+
+## QA Agents Run Unauthenticated — Expect False Failures on Session-Owned Endpoints (2026-03-08)
+
+**Pattern**: When a Playwright QA agent tests session-specific endpoints (e.g., `/api/sessions/{id}/laps/{n}/data`, `/optimal-comparison`), it will get 404/403/500 because it has no auth cookie and the session is owned by a specific user. These are **not real bugs** — the app is working correctly. Do not file these as failures unless the endpoint is supposed to be publicly accessible.
+
+**Why**: Confused 2 legitimate backend failures with QA artifacts. The distinction: if the real authenticated user can access the data (confirmed in browser), the QA agent failure is an artifact. Document this expectation when writing QA agent prompts.
+
+**Error signature**: QA agent reports `500`/`404` on `/laps/{id}/data` or similar session-scoped endpoints, while the real user sees data fine in their browser.
