@@ -229,6 +229,15 @@ body {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
+/* --- Fix: Radix ScrollArea display:table circular width expansion on mobile ---
+   Radix ScrollArea wraps children in display:table;min-width:100% to measure
+   scroll dimensions. On mobile this causes w-full content to expand to intrinsic
+   width instead of viewport width. Capping at 100vw breaks the circular dependency.
+   Only applied to .no-hscroll areas (NOT horizontal scroll areas like LapPillBar). */
+.no-hscroll > [data-slot="scroll-area-viewport"] > div {
+  max-width: 100vw;
+}
+
 /* --- Scroll fade indicator (right edge) --- */
 .scroll-fade-right {
   mask-image: linear-gradient(to right, black 85%, transparent 100%);
