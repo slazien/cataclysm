@@ -74,7 +74,9 @@ function drawAxes(
 
 export function LateralOffsetChart({ sessionId }: LateralOffsetChartProps) {
   const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
-  const { data: lineData, isLoading } = useLineAnalysis(sessionId, selectedLaps);
+  // isPending (not isLoading) covers paused queries — isLoading = isPending && isFetching
+  // misses mobile background suspension, so undefined data slips past the spinner gate.
+  const { data: lineData, isPending: isLoading } = useLineAnalysis(sessionId, selectedLaps);
   const { data: corners } = useCorners(sessionId);
   const { convertDistance, distanceUnit } = useUnits();
 
@@ -240,6 +242,15 @@ export function LateralOffsetChart({ sessionId }: LateralOffsetChartProps) {
     }
   });
 
+  // Check laps FIRST — prevents ghost spinner or GPS error when 0 laps selected.
+  if (selectedLaps.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-sm text-[var(--text-secondary)]">Select laps to view driving line</p>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -248,20 +259,13 @@ export function LateralOffsetChart({ sessionId }: LateralOffsetChartProps) {
     );
   }
 
+  // Only shown after data has loaded and backend says GPS quality is too low.
   if (!lineData?.available) {
     return (
       <div className="flex h-full items-center justify-center">
         <p className="text-sm text-[var(--text-secondary)]">
           Line analysis requires GPS grade A/B and 3+ laps
         </p>
-      </div>
-    );
-  }
-
-  if (selectedLaps.length === 0) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-sm text-[var(--text-secondary)]">Select laps to view driving line</p>
       </div>
     );
   }

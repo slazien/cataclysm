@@ -23,7 +23,9 @@ export function DeltaT({ sessionId }: DeltaTProps) {
   const refLap = selectedLaps.length >= 2 ? selectedLaps[0] : null;
   const compLap = selectedLaps.length >= 2 ? selectedLaps[1] : null;
 
-  const { data: delta, isLoading } = useDelta(sessionId, refLap, compLap);
+  // isPending (not isLoading) covers paused queries too — mobile browsers pause
+  // fetches on background/network blip; isLoading = isPending && isFetching misses those.
+  const { data: delta, isPending: isLoading } = useDelta(sessionId, refLap, compLap);
 
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx, makeTouchProps } =
     useCanvasChart(getChartMargins);

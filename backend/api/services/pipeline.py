@@ -52,9 +52,11 @@ from cataclysm.track_reference import (
     align_reference_to_session,
     get_track_reference,
     maybe_update_track_reference,
+    track_slug_from_layout,
 )
 from cataclysm.trends import SessionSnapshot, build_session_snapshot
 from cataclysm.velocity_profile import (
+    OptimalProfile,
     VehicleParams,
     compute_optimal_profile,
     default_vehicle_params,
@@ -63,9 +65,12 @@ from cataclysm.velocity_profile import (
 from backend.api.services import equipment_store
 from backend.api.services.db_physics_cache import (
     db_get_cached,
+    db_get_cached_by_track,
     db_invalidate_profile,
     db_invalidate_session,
+    db_invalidate_track,
     db_set_cached,
+    db_set_cached_by_track,
 )
 from backend.api.services.session_store import SessionData, store_session
 
@@ -145,6 +150,59 @@ def invalidate_profile_cache(profile_id: str) -> None:
             profile_id,
         )
     asyncio.ensure_future(db_invalidate_profile(profile_id))
+
+
+# ---------------------------------------------------------------------------
+# Track-level physics cache: shares optimal profile across sessions on the
+# same track with the same equipment. Key includes calibrated_mu (2dp) so
+# sessions with materially different grip don't share.
+# Key = (f"{track_slug}:{endpoint}", profile_id_or_None, calibrated_mu_str)
+# Value = (result_dict, timestamp)
+# ---------------------------------------------------------------------------
+_track_physics_cache: dict[tuple[str, str | None, str], tuple[dict[str, object], float]] = {}
+TRACK_CACHE_TTL_S = 3600  # 1 hour — track geometry doesn't change
+
+
+def _get_track_cached(
+    track_slug: str,
+    key_suffix: str,
+    profile_id: str | None,
+    calibrated_mu: str,
+) -> dict[str, object] | None:
+    cache_key = (f"{track_slug}:{key_suffix}", profile_id, calibrated_mu)
+    entry = _track_physics_cache.get(cache_key)
+    if entry and (time.time() - entry[1]) < TRACK_CACHE_TTL_S:
+        logger.debug("Track cache HIT for %s", cache_key)
+        return entry[0]
+    return None
+
+
+def _set_track_cached(
+    track_slug: str,
+    key_suffix: str,
+    result: dict[str, object],
+    profile_id: str | None,
+    calibrated_mu: str,
+) -> None:
+    cache_key = (f"{track_slug}:{key_suffix}", profile_id, calibrated_mu)
+    _track_physics_cache[cache_key] = (result, time.time())
+    if len(_track_physics_cache) > PHYSICS_CACHE_MAX_ENTRIES:
+        oldest_key = min(_track_physics_cache, key=lambda k: _track_physics_cache[k][1])
+        del _track_physics_cache[oldest_key]
+
+
+def invalidate_track_physics_cache(track_slug: str) -> None:
+    """Clear all track-level cache entries for a track (in-memory + DB)."""
+    keys_to_remove = [k for k in _track_physics_cache if k[0].startswith(f"{track_slug}:")]
+    for k in keys_to_remove:
+        del _track_physics_cache[k]
+    if keys_to_remove:
+        logger.info(
+            "Invalidated %d track-level cache entries for %s",
+            len(keys_to_remove),
+            track_slug,
+        )
+    asyncio.ensure_future(db_invalidate_track(track_slug))
 
 
 def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
@@ -328,6 +386,9 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
                 snap.session_id,
                 quality_score,
             )
+            # Invalidate track-level physics cache when reference updates
+            slug = track_slug_from_layout(layout)
+            invalidate_track_physics_cache(slug)
         except Exception:
             logger.warning("Failed to update track reference for %s", filename, exc_info=True)
 
@@ -631,6 +692,11 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
     the equipment-derived VehicleParams are used; otherwise the solver's
     built-in defaults apply.
 
+    Grip calibration is hoisted before cache checks so we can build the
+    track-level cache key (which includes calibrated_mu).  The track-level
+    cache shares optimal profiles across sessions on the same track with the
+    same equipment + grip, avoiding the ~8s velocity solver on repeat visits.
+
     Returns columnar data suitable for JSON serialisation.
     """
     session_id = session_data.session_id
@@ -643,11 +709,79 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
     vehicle_params = resolve_vehicle_params(session_id)
     mu_cap = _get_compound_mu_cap(session_id)
 
+    # Hoist grip calibration BEFORE cache checks (~1ms, cheap) so we can
+    # include calibrated_mu in the track-level cache key.
+    def _calibrate_sync() -> VehicleParams | None:
+        calibration_data = _collect_independent_calibration_telemetry(
+            session_data,
+            target_lap=session_data.processed.best_lap,
+        )
+        if calibration_data is None:
+            return vehicle_params
+        lat_g, lon_g, calibration_laps = calibration_data
+        grip = calibrate_grip_from_telemetry(lat_g, lon_g)
+        if grip is None:
+            return vehicle_params
+        base = vehicle_params or default_vehicle_params()
+        calibrated = apply_calibration_to_params(base, grip, mu_cap=mu_cap)
+        logger.info(
+            "Grip calibration [profile] sid=%s laps=%s: mu=%.3f lat_g=%.3f "
+            "brake_g=%.3f accel_g=%.3f confidence=%s mu_cap=%s",
+            session_id,
+            calibration_laps,
+            calibrated.mu,
+            grip.max_lateral_g,
+            grip.max_brake_g,
+            grip.max_accel_g,
+            grip.confidence,
+            mu_cap,
+        )
+        return calibrated
+
+    calibrated_vp = await asyncio.to_thread(_calibrate_sync)
+    calibrated_mu_str = f"{calibrated_vp.mu:.2f}" if calibrated_vp else "default"
+    track_slug = track_slug_from_layout(session_data.layout) if session_data.layout else None
+
+    # --- Track-level cache (shared across sessions on the same track) ---
+    if track_slug is not None:
+        track_hit = _get_track_cached(
+            track_slug,
+            "profile",
+            profile_id,
+            calibrated_mu_str,
+        )
+        if track_hit is not None:
+            # Populate session-level cache for faster future lookups
+            _set_physics_cached(session_id, "profile", track_hit, profile_id)
+            return track_hit
+
+        db_track_hit = await db_get_cached_by_track(
+            track_slug,
+            "profile",
+            profile_id,
+            calibrated_mu_str,
+        )
+        if db_track_hit is not None:
+            _set_track_cached(
+                track_slug,
+                "profile",
+                db_track_hit,
+                profile_id,
+                calibrated_mu_str,
+            )
+            _set_physics_cached(
+                session_id,
+                "profile",
+                db_track_hit,
+                profile_id,
+            )
+            return db_track_hit
+
+    # --- Session-level cache (fallback, also serves unknown tracks) ---
     cached = _get_physics_cached(session_id, "profile", profile_id)
     if cached is not None:
         return cached
 
-    # Check persistent DB cache (survives backend restarts)
     db_cached = await db_get_cached(session_id, "profile", profile_id)
     if db_cached is not None:
         _set_physics_cached(session_id, "profile", db_cached, profile_id)
@@ -661,40 +795,11 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
         best_lap_df = processed.resampled_laps[processed.best_lap]
 
         # Use canonical track reference if available, else per-session curvature
-        curvature_result, resolved_alt = _resolve_curvature_and_elevation(session_data, lidar_alt)
-
-        # Auto-calibrate from independent session telemetry, excluding the lap
-        # currently being evaluated so the benchmark stays externally anchored.
-        # Calibration always runs: equipment mu serves as floor via max(base, calibrated),
-        # and compound mu cap prevents unrealistic inflation.
-        nonlocal vehicle_params
-        grip = None
-        calibration_data = _collect_independent_calibration_telemetry(
+        curvature_result, resolved_alt = _resolve_curvature_and_elevation(
             session_data,
-            target_lap=processed.best_lap,
+            lidar_alt,
         )
-        if calibration_data is not None:
-            lat_g, lon_g, calibration_laps = calibration_data
-            grip = calibrate_grip_from_telemetry(lat_g, lon_g)
-            if grip is not None:
-                base = vehicle_params or default_vehicle_params()
-                vehicle_params = apply_calibration_to_params(
-                    base,
-                    grip,
-                    mu_cap=mu_cap,
-                )
-                logger.info(
-                    "Grip calibration [profile] sid=%s laps=%s: mu=%.3f lat_g=%.3f "
-                    "brake_g=%.3f accel_g=%.3f confidence=%s mu_cap=%s",
-                    session_id,
-                    calibration_laps,
-                    vehicle_params.mu,
-                    grip.max_lateral_g,
-                    grip.max_brake_g,
-                    grip.max_accel_g,
-                    grip.confidence,
-                    mu_cap,
-                )
+
         mu_array = None
 
         # Compute elevation gradient and vertical curvature for the solver
@@ -709,7 +814,8 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
             gradient_sin = compute_gradient_array(alt, dist)
             vert_curvature = compute_vertical_curvature(alt, dist)
             logger.info(
-                "Elevation data [profile] sid=%s: source=%s gradient_range=[%.4f, %.4f] "
+                "Elevation data [profile] sid=%s: source=%s "
+                "gradient_range=[%.4f, %.4f] "
                 "vert_curv_range=[%.5f, %.5f]",
                 session_id,
                 "canonical/lidar" if resolved_alt is not None else "gps",
@@ -719,10 +825,10 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
                 float(np.max(vert_curvature)),
             )
 
-        # Solve optimal velocity profile
+        # Solve optimal velocity profile (uses pre-calibrated params)
         optimal = compute_optimal_profile(
             curvature_result,
-            params=vehicle_params,
+            params=calibrated_vp,
             gradient_sin=gradient_sin,
             mu_array=mu_array,
             vertical_curvature=vert_curvature,
@@ -743,132 +849,110 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
                 "top_speed_mps": optimal.vehicle_params.top_speed_mps,
                 "calibrated": optimal.vehicle_params.calibrated,
             },
+            "calibrated_mu": calibrated_mu_str,
             "equipment_profile_id": profile_id,
         }
 
     result = await asyncio.to_thread(_compute)
+
+    # Cache at session level
     _set_physics_cached(session_id, "profile", result, profile_id)
     await db_set_cached(session_id, "profile", result, profile_id)
+
+    # Cache at track level (if known track)
+    if track_slug is not None:
+        _set_track_cached(
+            track_slug,
+            "profile",
+            result,
+            profile_id,
+            calibrated_mu_str,
+        )
+        await db_set_cached_by_track(
+            track_slug,
+            "profile",
+            result,
+            profile_id,
+            calibrated_mu_str,
+        )
+
     return result
 
 
-async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, object]:
+def _reconstruct_optimal_profile(data: dict[str, object]) -> OptimalProfile:
+    """Reconstruct an OptimalProfile from a cached profile result dict."""
+    vp_dict = data["vehicle_params"]
+    assert isinstance(vp_dict, dict)
+    dist = data["distance_m"]
+    assert isinstance(dist, list)
+    speed_mph = data["optimal_speed_mph"]
+    assert isinstance(speed_mph, list)
+    corner_mph = data["max_cornering_speed_mph"]
+    assert isinstance(corner_mph, list)
+    brake_pts = data["brake_points"]
+    assert isinstance(brake_pts, list)
+    throttle_pts = data["throttle_points"]
+    assert isinstance(throttle_pts, list)
+    lap_time = data["lap_time_s"]
+    assert isinstance(lap_time, (int, float))
+
+    return OptimalProfile(
+        distance_m=np.array(dist),
+        optimal_speed_mps=np.array(speed_mph) / MPS_TO_MPH,
+        curvature=np.zeros(len(dist)),  # not stored; not needed for comparison
+        max_cornering_speed_mps=np.array(corner_mph) / MPS_TO_MPH,
+        optimal_brake_points=brake_pts,
+        optimal_throttle_points=throttle_pts,
+        lap_time_s=float(lap_time),
+        vehicle_params=VehicleParams(
+            mu=vp_dict["mu"],
+            max_accel_g=vp_dict["max_accel_g"],
+            max_decel_g=vp_dict["max_decel_g"],
+            max_lateral_g=vp_dict["max_lateral_g"],
+            top_speed_mps=vp_dict["top_speed_mps"],
+            calibrated=vp_dict["calibrated"],
+        ),
+    )
+
+
+async def get_optimal_comparison_data(
+    session_data: SessionData,
+) -> dict[str, object]:
     """Compare the best lap against the physics-optimal profile per-corner.
+
+    Reuses the track-cached optimal profile from ``get_optimal_profile_data``
+    instead of re-solving the velocity model.  The comparison itself (~50ms)
+    is always per-session since it depends on the session's best lap telemetry.
 
     Returns per-corner opportunity gaps sorted by time cost descending,
     plus aggregate lap-time data.
     """
     session_id = session_data.session_id
-
-    # Capture profile_id and vehicle params now, before entering the thread
-    # pool.  This prevents a TOCTOU race where the user switches equipment
-    # while _compute() is running — we must compute AND cache under the
-    # profile that was current at request time.
     profile_id = _current_profile_id(session_id)
-    vehicle_params = resolve_vehicle_params(session_id)
-    mu_cap = _get_compound_mu_cap(session_id)
 
+    # --- Session-level comparison cache ---
     cached = _get_physics_cached(session_id, "comparison", profile_id)
     if cached is not None:
         return cached
 
-    # Check persistent DB cache (survives backend restarts)
     db_cached = await db_get_cached(session_id, "comparison", profile_id)
     if db_cached is not None:
-        _set_physics_cached(session_id, "comparison", db_cached, profile_id)
+        _set_physics_cached(
+            session_id,
+            "comparison",
+            db_cached,
+            profile_id,
+        )
         return db_cached
 
-    # Try LIDAR elevation (async, before entering sync thread)
-    lidar_alt = await _try_lidar_elevation(session_data)
+    # Get optimal profile (reuses track cache — near-instant if cached)
+    profile_data = await get_optimal_profile_data(session_data)
 
     def _compute() -> dict[str, object]:
-        nonlocal vehicle_params
-        processed = session_data.processed
-        best_lap_df = processed.resampled_laps[processed.best_lap]
+        optimal = _reconstruct_optimal_profile(profile_data)
+        best_lap_df = session_data.processed.resampled_laps[session_data.processed.best_lap]
         corners = session_data.corners
-        has_equipment = vehicle_params is not None
 
-        # Use canonical track reference if available, else per-session curvature
-        curvature_result, resolved_alt = _resolve_curvature_and_elevation(session_data, lidar_alt)
-
-        logger.info(
-            "Optimal comparison [params] sid=%s has_equipment=%s profile_id=%s "
-            "mu=%.3f lat_g=%.3f decel_g=%.3f accel_g=%.3f mass=%.0f power=%.0f",
-            session_id,
-            has_equipment,
-            profile_id,
-            vehicle_params.mu if vehicle_params else 0,
-            vehicle_params.max_lateral_g if vehicle_params else 0,
-            vehicle_params.max_decel_g if vehicle_params else 0,
-            vehicle_params.max_accel_g if vehicle_params else 0,
-            vehicle_params.mass_kg if vehicle_params else 0,
-            vehicle_params.wheel_power_w if vehicle_params else 0,
-        )
-
-        # Auto-calibrate from independent session telemetry, excluding the lap
-        # currently being evaluated so the benchmark stays externally anchored.
-        # Calibration always runs: equipment mu serves as floor via max(base, calibrated),
-        # and compound mu cap prevents unrealistic inflation.
-        grip = None
-        calibration_data = _collect_independent_calibration_telemetry(
-            session_data,
-            target_lap=processed.best_lap,
-        )
-        if calibration_data is not None:
-            lat_g, lon_g, calibration_laps = calibration_data
-            grip = calibrate_grip_from_telemetry(lat_g, lon_g)
-            if grip is not None:
-                base = vehicle_params or default_vehicle_params()
-                vehicle_params = apply_calibration_to_params(
-                    base,
-                    grip,
-                    mu_cap=mu_cap,
-                )
-                logger.info(
-                    "Grip calibration [comparison] sid=%s laps=%s: mu=%.3f lat_g=%.3f "
-                    "brake_g=%.3f accel_g=%.3f confidence=%s mu_cap=%s",
-                    session_id,
-                    calibration_laps,
-                    vehicle_params.mu,
-                    grip.max_lateral_g,
-                    grip.max_brake_g,
-                    grip.max_accel_g,
-                    grip.confidence,
-                    mu_cap,
-                )
-        mu_array = None
-
-        # Compute elevation gradient and vertical curvature for the solver
-        # Prefer resolved altitude (canonical/LIDAR), fall back to GPS
-        gradient_sin = None
-        vert_curvature = None
-        alt = resolved_alt
-        if alt is None and "altitude_m" in best_lap_df.columns:
-            alt = best_lap_df["altitude_m"].to_numpy()
-        if alt is not None and not np.all(np.isnan(alt)):
-            dist = best_lap_df["lap_distance_m"].to_numpy()
-            gradient_sin = compute_gradient_array(alt, dist)
-            vert_curvature = compute_vertical_curvature(alt, dist)
-            logger.info(
-                "Elevation data [comparison] sid=%s: source=%s gradient_range=[%.4f, %.4f] "
-                "vert_curv_range=[%.5f, %.5f]",
-                session_id,
-                "canonical/lidar" if resolved_alt is not None else "gps",
-                float(np.min(gradient_sin)),
-                float(np.max(gradient_sin)),
-                float(np.min(vert_curvature)),
-                float(np.max(vert_curvature)),
-            )
-
-        optimal = compute_optimal_profile(
-            curvature_result,
-            params=vehicle_params,
-            gradient_sin=gradient_sin,
-            mu_array=mu_array,
-            vertical_curvature=vert_curvature,
-        )
-
-        # Run the full comparison
         result = compare_with_optimal(best_lap_df, corners, optimal)
 
         if not result.is_valid:
@@ -883,8 +967,14 @@ async def get_optimal_comparison_data(session_data: SessionData) -> dict[str, ob
             "corner_opportunities": [
                 {
                     "corner_number": opp.corner_number,
-                    "actual_min_speed_mph": round(opp.actual_min_speed_mps * MPS_TO_MPH, 2),
-                    "optimal_min_speed_mph": round(opp.optimal_min_speed_mps * MPS_TO_MPH, 2),
+                    "actual_min_speed_mph": round(
+                        opp.actual_min_speed_mps * MPS_TO_MPH,
+                        2,
+                    ),
+                    "optimal_min_speed_mph": round(
+                        opp.optimal_min_speed_mps * MPS_TO_MPH,
+                        2,
+                    ),
                     "speed_gap_mph": round(opp.speed_gap_mph, 2),
                     "brake_gap_m": (
                         round(opp.brake_gap_m, 2) if opp.brake_gap_m is not None else None
