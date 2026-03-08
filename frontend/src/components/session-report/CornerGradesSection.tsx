@@ -51,6 +51,7 @@ export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
         Corner Grades
         <InfoTooltip helpKey="section.corner-grades" />
       </h3>
+      <div className="relative">
       <div className="overflow-x-auto rounded-lg border border-[var(--cata-border)]">
         <table className="w-full text-sm">
           <thead>
@@ -139,6 +140,9 @@ export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
             })}
           </m.tbody>
         </table>
+      </div>
+      {/* Right-edge fade indicator for horizontal scroll on mobile */}
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-8 rounded-r-lg bg-gradient-to-l from-[var(--bg-surface)] to-transparent" />
       </div>
       <p className="mt-2 text-xs text-[var(--text-secondary)]">
         Click any row to deep dive. Use the arrow icon to expand coaching notes.

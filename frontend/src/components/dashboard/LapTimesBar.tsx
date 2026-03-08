@@ -5,6 +5,7 @@ import { useSessionLaps } from '@/hooks/useSession';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useConsistency } from '@/hooks/useAnalysis';
 import { useCanvasChart } from '@/hooks/useCanvasChart';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { formatLapTime } from '@/lib/formatters';
 import { colors, fonts } from '@/lib/design-tokens';
 import { useUnits } from '@/hooks/useUnits';
@@ -17,7 +18,7 @@ interface LapTimesBarProps {
 }
 
 const MARGINS = { top: 32, right: 16, bottom: 36, left: 56 };
-const MARGINS_MOBILE = { top: 20, right: 8, bottom: 28, left: 40 };
+const MARGINS_MOBILE = { top: 20, right: 8, bottom: 28, left: 58 };
 const getLapTimesMargins = (isMobile: boolean) => (isMobile ? MARGINS_MOBILE : MARGINS);
 const CHART_HEIGHT = 220;
 const BAR_PADDING = 0.25;
@@ -29,6 +30,7 @@ function getBarColor(lap: LapSummary, bestTime: number): string {
 }
 
 export function LapTimesBar({ sessionId }: LapTimesBarProps) {
+  const isMobile = useIsMobile();
   const { containerRef, dataCanvasRef, overlayCanvasRef, dimensions, getDataCtx, getOverlayCtx } =
     useCanvasChart(getLapTimesMargins);
   const { data: laps, isLoading } = useSessionLaps(sessionId);
@@ -233,7 +235,7 @@ export function LapTimesBar({ sessionId }: LapTimesBarProps) {
     ctx.lineTo(margins.left, margins.top + innerHeight);
     ctx.stroke();
 
-    ctx.font = `10px ${fonts.mono}`;
+    ctx.font = `${isMobile ? 9 : 10}px ${fonts.mono}`;
     ctx.fillStyle = colors.text.secondary;
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
@@ -248,7 +250,7 @@ export function LapTimesBar({ sessionId }: LapTimesBarProps) {
       ctx.stroke();
     }
     ctx.restore();
-  }, [laps, dimensions, getDataCtx, report, resolveSpeed]);
+  }, [laps, dimensions, getDataCtx, report, resolveSpeed, isMobile]);
 
   useEffect(() => {
     renderChart();
