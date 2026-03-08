@@ -405,9 +405,7 @@ class NoteDB(Base):
     __tablename__ = "notes"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    user_id: Mapped[str] = mapped_column(
-        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
+    user_id: Mapped[str] = mapped_column(String, nullable=False)
     session_id: Mapped[str | None] = mapped_column(
         String, ForeignKey("sessions.session_id", ondelete="CASCADE"), nullable=True
     )
