@@ -1,5 +1,29 @@
 # Lessons Learned
 
+## MagicMock Fails Python Format Specs (2026-03-08)
+
+**Pattern**: When mocked functions return objects whose attributes get f-string formatted (e.g., `f"{result.mu:.2f}"`), return real dataclass instances — not `MagicMock()`. MagicMock doesn't implement `__format__` with spec strings.
+
+**Why**: `apply_calibration_to_params` mock returned `MagicMock()`. The refactored `get_optimal_profile_data` used `f"{vehicle_params.mu:.2f}"` for the cache key, causing `TypeError: unsupported format string passed to MagicMock.__format__`. Fixed by returning `VehicleParams(mu=1.15, max_accel_g=0.42, max_decel_g=1.05, max_lateral_g=1.15, calibrated=True)`.
+
+**Error signature**: `TypeError: unsupported format string passed to MagicMock.__format__`
+
+## asyncio.ensure_future Fails in Threadpool (2026-03-08)
+
+**Pattern**: Code running inside `asyncio.to_thread()` has no event loop. `asyncio.ensure_future()` raises `RuntimeError`. For best-effort async fire-and-forget from threadpool code, use `contextlib.suppress(RuntimeError)`.
+
+**Why**: `_run_pipeline_sync` called `invalidate_track_physics_cache(slug)` which used `asyncio.ensure_future(db_invalidate_track(...))`. Since `_run_pipeline_sync` runs in `asyncio.to_thread()`, no event loop exists → `RuntimeError`. The in-memory invalidation still works; DB entries self-correct via code_version on next read.
+
+**Error signature**: `RuntimeError: There is no current event loop in thread 'ThreadPoolExecutor-0_0'`
+
+## Refactoring Delegation Breaks Mock Targets (2026-03-08)
+
+**Pattern**: When refactoring function A to delegate to function B internally, update tests to mock B instead of A's former internals. The old mock targets are no longer called.
+
+**Why**: `get_optimal_comparison_data` was refactored to call `get_optimal_profile_data` (which handles the velocity solver). Tests that mocked `apply_calibration_to_params` and `solve_velocity_profile` individually broke — those functions are no longer called in the comparison path. Fixed by mocking `get_optimal_profile_data` directly with a realistic result dict.
+
+**Error signature**: Tests pass their mocked internal functions but the outer function returns unexpected results or calls unmocked code paths.
+
 ## Commit Before Reporting "Done" — Not After (2026-03-08)
 
 **Pattern**: Commit+push to `staging` BEFORE sending the "Done" message to the user. The workflow is: edit → commit → push → then respond. Never respond first and commit later.
