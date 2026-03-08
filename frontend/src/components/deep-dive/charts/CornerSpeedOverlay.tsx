@@ -403,7 +403,7 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
     }
 
     // --- 4. Axis tick labels and axis labels (on top) ---
-    drawLabels(ctx, xScale, yScale, dimensions.innerWidth, speedAreaHeight, MARGINS, `Speed (${speedUnit})`, `Distance (${distanceUnit})`, convertDistance);
+    drawLabels(ctx, xScale, yScale, dimensions.innerWidth, speedAreaHeight, dimensions.margins, `Speed (${speedUnit})`, `Distance (${distanceUnit})`, convertDistance);
 
     // Entry/apex/exit marker labels
     for (const m of markers) {

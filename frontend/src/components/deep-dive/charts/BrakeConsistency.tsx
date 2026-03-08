@@ -220,7 +220,7 @@ export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
     }
 
     // --- 3. Axis labels (on top of data) ---
-    drawLabels(ctx, xScale, yScale, dimensions.innerWidth, dimensions.innerHeight, MARGINS, convertDistance, distanceUnit);
+    drawLabels(ctx, xScale, yScale, dimensions.innerWidth, dimensions.innerHeight, dimensions.margins, convertDistance, distanceUnit);
 
     // Std dev annotation
     if (stdDev > 0) {

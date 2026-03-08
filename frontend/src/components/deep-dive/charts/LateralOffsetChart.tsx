@@ -166,7 +166,7 @@ export function LateralOffsetChart({ sessionId }: LateralOffsetChartProps) {
     }
 
     // Axes
-    drawAxes(ctx, xScale, yScale, dimensions.innerWidth, dimensions.innerHeight, MARGINS, `Distance (${distanceUnit})`, convertDistance, distanceUnit);
+    drawAxes(ctx, xScale, yScale, dimensions.innerWidth, dimensions.innerHeight, dimensions.margins, `Distance (${distanceUnit})`, convertDistance, distanceUnit);
   }, [lineData, corners, xScale, yScale, dimensions, distanceUnit, convertDistance]);
 
   // Mouse handlers
