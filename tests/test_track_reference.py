@@ -357,19 +357,23 @@ class TestLengthValidation:
             assert result is None
 
     def test_rejects_session_mismatched_with_db_length(self, tmp_path: Path) -> None:
-        """Session length > 25% off known track DB length should be rejected."""
+        """Session > 25% off DB length should be rejected via the ratio branch.
+
+        Session (~2262m) passes the _MIN_TRACK_LENGTH_M floor but is ~38% off
+        the 3662m DB length, so the ratio check must reject it.
+        """
         from cataclysm.track_db import TrackLayout
 
-        # 3662m track, session is ~503m (~86% shorter) — way outside 25% band
+        # radius=450m → arc ~2262m (> 1000m floor), vs 3662m DB → 38% off → rejected
         layout = TrackLayout(name="Test Track", corners=[], length_m=3662.0)
-        short_session = _make_session(radius_m=100.0)  # ~503 m
+        mismatched_session = _make_session(radius_m=450.0)  # ~2262 m
 
         with patch("cataclysm.track_reference._DATA_DIR", tmp_path):
             result = maybe_update_track_reference(
                 layout,
-                short_session,  # type: ignore[arg-type]
+                mismatched_session,  # type: ignore[arg-type]
                 coaching_laps=[1, 2, 3],
-                session_id="short-session",
+                session_id="mismatched-session",
                 gps_quality_score=90.0,
             )
             assert result is None

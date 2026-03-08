@@ -49,8 +49,9 @@ GPS_QUALITY_IMPROVEMENT_THRESHOLD = 5.0
 _MIN_TRACK_LENGTH_M = 1000.0
 
 # Maximum fractional length deviation from the track DB expected length before
-# rejecting a reference update.  25% allows for GPS line variation on long
-# circuits while still catching a 500m upload overwriting a 3700m track.
+# rejecting a reference update.  GPS line variation across sessions is < 5%;
+# 25% is generous to catch the class of bug where a short test-circuit upload
+# overwrites a full-length track reference (e.g. 500m vs 3700m = 86% off).
 _MAX_LENGTH_RATIO = 0.25
 
 
@@ -229,7 +230,12 @@ def build_track_reference(
 
 
 def _session_estimated_length(session_data: ProcessedSession) -> float:
-    """Return the best lap's maximum lap_distance_m as a quick track length estimate."""
+    """Return the best lap's maximum lap_distance_m as a track length estimate.
+
+    May underestimate if the best-lap DataFrame does not reach the finish line
+    (e.g. trimmed during resampling, early session end, or pit-in before lap
+    completion).  Callers should treat the result as a lower-bound approximation.
+    """
     best_lap_df = session_data.resampled_laps[session_data.best_lap]
     return float(best_lap_df["lap_distance_m"].max())
 
@@ -237,11 +243,20 @@ def _session_estimated_length(session_data: ProcessedSession) -> float:
 def _length_plausible(layout: TrackLayout, new_length: float) -> bool:
     """Return True if *new_length* is a plausible track length for *layout*.
 
-    Checks against the track DB expected length when available, otherwise
-    applies a minimum-length floor.  Logs a warning and returns False when
-    the session is implausibly short or grossly mismatched — preventing short
-    test/debug uploads from overwriting a valid canonical reference.
+    Always applies a minimum-length floor first, then cross-checks against
+    the track DB expected length when available.  Logs a warning and returns
+    False when the session is implausibly short or grossly mismatched —
+    preventing short test/debug uploads from overwriting a valid canonical
+    reference.
     """
+    if new_length < _MIN_TRACK_LENGTH_M:
+        logger.warning(
+            "Rejecting track reference update for %s: session length %.0fm below minimum %.0fm",
+            track_slug_from_layout(layout),
+            new_length,
+            _MIN_TRACK_LENGTH_M,
+        )
+        return False
     if layout.length_m is not None and layout.length_m > 0:
         ratio = abs(new_length - layout.length_m) / layout.length_m
         if ratio > _MAX_LENGTH_RATIO:
@@ -255,14 +270,6 @@ def _length_plausible(layout: TrackLayout, new_length: float) -> bool:
                 _MAX_LENGTH_RATIO * 100,
             )
             return False
-    elif new_length < _MIN_TRACK_LENGTH_M:
-        logger.warning(
-            "Rejecting track reference update for %s: session length %.0fm below minimum %.0fm",
-            track_slug_from_layout(layout),
-            new_length,
-            _MIN_TRACK_LENGTH_M,
-        )
-        return False
     return True
 
 
