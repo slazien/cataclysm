@@ -74,7 +74,7 @@ export function TrackMapContainer({ sessionId }: TrackMapContainerProps) {
             key={mode}
             onClick={() => setViewMode(mode)}
             className={cn(
-              'px-2 py-1 text-[11px] font-semibold uppercase tracking-wider transition-colors',
+              'min-h-[44px] px-3 text-[11px] font-semibold uppercase tracking-wider transition-colors',
               viewMode === mode
                 ? 'bg-[var(--bg-overlay)] text-[var(--text-primary)]'
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-secondary)]',
@@ -88,7 +88,7 @@ export function TrackMapContainer({ sessionId }: TrackMapContainerProps) {
       <button
         onClick={toggleSat}
         className={cn(
-          'flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold uppercase tracking-wider transition-colors',
+          'flex min-h-[44px] items-center gap-1 rounded-md border px-3 text-[11px] font-semibold uppercase tracking-wider transition-colors',
           satEnabled
             ? 'border-[var(--color-optimal)] bg-[var(--bg-overlay)] text-[var(--text-primary)]'
             : 'border-[var(--cata-border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-secondary)]',
@@ -100,7 +100,7 @@ export function TrackMapContainer({ sessionId }: TrackMapContainerProps) {
       </button>
 
       {showExaggerationSlider && (
-        <div className="flex items-center gap-1 rounded-md border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-2 py-1">
+        <div className="flex min-h-[44px] items-center gap-1 rounded-md border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-2">
           <span className="text-[10px] text-[var(--text-secondary)]">{exaggeration.toFixed(1)}×</span>
           <input
             type="range"
@@ -117,7 +117,7 @@ export function TrackMapContainer({ sessionId }: TrackMapContainerProps) {
 
       <button
         onClick={toggleFullscreen}
-        className="flex items-center justify-center rounded-md border border-[var(--cata-border)] bg-[var(--bg-elevated)] p-1 text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+        className="flex min-h-[44px] w-[44px] items-center justify-center rounded-md border border-[var(--cata-border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
         title={fullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
       >
         {fullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
