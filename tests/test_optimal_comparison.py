@@ -412,18 +412,18 @@ class TestCompareWithOptimal:
 
 
 # ---------------------------------------------------------------------------
-# TestSpikeRejection — percentile instead of min
+# TestSpikeRejection — apex-window excludes edge spikes
 # ---------------------------------------------------------------------------
 
 
 class TestSpikeRejection:
-    """Tests that optimal corner speed uses percentile(5) not min()."""
+    """Tests that the apex-centred window excludes spikes outside the window."""
 
     def test_spike_does_not_dominate_optimal_speed(self) -> None:
-        """A single spike-depressed point should not drag down the optimal min speed.
+        """Spikes outside the apex window should not affect optimal min speed.
 
-        With percentile(5), the spike should be rejected and the corner's
-        optimal speed should reflect the bulk of the zone.
+        The apex-centred window (±30% of zone width) excludes points near
+        zone edges where solver artifacts or ramp contamination may occur.
         """
         n = 1000
         speed_arr = np.full(n, 40.0)
@@ -449,7 +449,8 @@ class TestSpikeRejection:
         result = compute_corner_opportunities([corner], lap_df, optimal)
 
         assert len(result) == 1
-        # With percentile(5), optimal_min_speed should be ~40 not 20
+        # Spikes at indices 290,295 → dist 203m,206.5m.  Apex window is
+        # [275-45, 275+45] = [230, 320], so spikes fall outside the window.
         assert result[0].optimal_min_speed_mps > 35.0
 
 
