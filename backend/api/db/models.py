@@ -420,8 +420,8 @@ class NoteDB(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    # Relationships
-    user: Mapped[User] = relationship()
+    # Relationships (user_id has no FK — users table not populated for OAuth)
+    # No user relationship — user_id is plain String without FK
     session: Mapped[Session | None] = relationship()
 
     __table_args__ = (
