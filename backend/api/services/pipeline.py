@@ -52,6 +52,7 @@ from cataclysm.track_reference import (
     align_reference_to_session,
     get_track_reference,
     maybe_update_track_reference,
+    track_slug_from_layout,  # noqa: F401 — used in Task 6
 )
 from cataclysm.trends import SessionSnapshot, build_session_snapshot
 from cataclysm.velocity_profile import (
@@ -63,9 +64,12 @@ from cataclysm.velocity_profile import (
 from backend.api.services import equipment_store
 from backend.api.services.db_physics_cache import (
     db_get_cached,
+    db_get_cached_by_track,  # noqa: F401 — used in Task 6
     db_invalidate_profile,
     db_invalidate_session,
+    db_invalidate_track,
     db_set_cached,
+    db_set_cached_by_track,  # noqa: F401 — used in Task 6
 )
 from backend.api.services.session_store import SessionData, store_session
 
@@ -145,6 +149,59 @@ def invalidate_profile_cache(profile_id: str) -> None:
             profile_id,
         )
     asyncio.ensure_future(db_invalidate_profile(profile_id))
+
+
+# ---------------------------------------------------------------------------
+# Track-level physics cache: shares optimal profile across sessions on the
+# same track with the same equipment. Key includes calibrated_mu (2dp) so
+# sessions with materially different grip don't share.
+# Key = (f"{track_slug}:{endpoint}", profile_id_or_None, calibrated_mu_str)
+# Value = (result_dict, timestamp)
+# ---------------------------------------------------------------------------
+_track_physics_cache: dict[tuple[str, str | None, str], tuple[dict[str, object], float]] = {}
+TRACK_CACHE_TTL_S = 3600  # 1 hour — track geometry doesn't change
+
+
+def _get_track_cached(
+    track_slug: str,
+    key_suffix: str,
+    profile_id: str | None,
+    calibrated_mu: str,
+) -> dict[str, object] | None:
+    cache_key = (f"{track_slug}:{key_suffix}", profile_id, calibrated_mu)
+    entry = _track_physics_cache.get(cache_key)
+    if entry and (time.time() - entry[1]) < TRACK_CACHE_TTL_S:
+        logger.debug("Track cache HIT for %s", cache_key)
+        return entry[0]
+    return None
+
+
+def _set_track_cached(
+    track_slug: str,
+    key_suffix: str,
+    result: dict[str, object],
+    profile_id: str | None,
+    calibrated_mu: str,
+) -> None:
+    cache_key = (f"{track_slug}:{key_suffix}", profile_id, calibrated_mu)
+    _track_physics_cache[cache_key] = (result, time.time())
+    if len(_track_physics_cache) > PHYSICS_CACHE_MAX_ENTRIES:
+        oldest_key = min(_track_physics_cache, key=lambda k: _track_physics_cache[k][1])
+        del _track_physics_cache[oldest_key]
+
+
+def invalidate_track_physics_cache(track_slug: str) -> None:
+    """Clear all track-level cache entries for a track (in-memory + DB)."""
+    keys_to_remove = [k for k in _track_physics_cache if k[0].startswith(f"{track_slug}:")]
+    for k in keys_to_remove:
+        del _track_physics_cache[k]
+    if keys_to_remove:
+        logger.info(
+            "Invalidated %d track-level cache entries for %s",
+            len(keys_to_remove),
+            track_slug,
+        )
+    asyncio.ensure_future(db_invalidate_track(track_slug))
 
 
 def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
