@@ -16,8 +16,9 @@ interface ToolItem {
 }
 
 /**
- * Mobile-only FAB that consolidates Notes, AI Coach, and Add Sticky
- * into a single trigger that fans open on tap.
+ * FAB that consolidates Notes, AI Coach, and Add Sticky
+ * into a single trigger that fans open on click/tap.
+ * Same design on mobile and desktop — only positioning differs.
  */
 export function FloatingToolsMenu() {
   const isMobile = useIsMobile();
@@ -42,9 +43,6 @@ export function FloatingToolsMenu() {
     toggleCoach();
     setOpen(false);
   }, [toggleCoach]);
-
-  // Desktop keeps individual floating buttons
-  if (!isMobile) return null;
 
   // Hide when a panel is already open (they have their own close controls)
   if (notesPanelOpen || coachPanelOpen) return null;
@@ -75,7 +73,7 @@ export function FloatingToolsMenu() {
 
   return (
     <>
-      {/* Scrim — tap outside to dismiss */}
+      {/* Scrim — click/tap outside to dismiss */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -93,7 +91,13 @@ export function FloatingToolsMenu() {
       </AnimatePresence>
 
       {/* Menu + trigger */}
-      <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-40 flex flex-col items-end gap-2.5">
+      <div
+        className={
+          isMobile
+            ? 'fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-40 flex flex-col items-end gap-2.5'
+            : 'fixed bottom-8 left-8 z-40 flex flex-col items-start gap-2.5'
+        }
+      >
         {/* Fan-out items */}
         <AnimatePresence>
           {open &&
@@ -102,7 +106,7 @@ export function FloatingToolsMenu() {
                 key={item.id}
                 type="button"
                 onClick={item.action}
-                className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-[var(--bg-surface)]/85 py-1.5 pl-4 pr-1.5 shadow-lg backdrop-blur-xl"
+                className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-[var(--bg-surface)]/85 py-1.5 pl-4 pr-1.5 shadow-lg backdrop-blur-xl transition-colors hover:bg-[var(--bg-surface)]"
                 initial={{ opacity: 0, y: 16, scale: 0.85 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 8, scale: 0.85 }}
@@ -130,7 +134,12 @@ export function FloatingToolsMenu() {
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? 'Close tools menu' : 'Open tools menu'}
-          className="flex h-13 w-13 items-center justify-center rounded-full bg-[var(--cata-accent)] shadow-[0_8px_24px_-6px_rgba(0,0,0,0.5)]"
+          className={
+            isMobile
+              ? 'flex h-13 w-13 items-center justify-center rounded-full bg-[var(--cata-accent)] shadow-[0_8px_24px_-6px_rgba(0,0,0,0.5)]'
+              : 'flex h-12 w-12 items-center justify-center rounded-full bg-[var(--cata-accent)] shadow-[0_8px_24px_-6px_rgba(0,0,0,0.5)]'
+          }
+          whileHover={{ scale: 1.06 }}
           whileTap={{ scale: 0.9 }}
         >
           <motion.div

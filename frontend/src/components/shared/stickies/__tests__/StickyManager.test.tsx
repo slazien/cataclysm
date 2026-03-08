@@ -1,8 +1,8 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, render, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { StickyManager } from '../StickyManager';
-import { useStickyStore } from '@/stores/useStickyStore';
+import { useStickyStore, callTriggerAdd } from '@/stores/useStickyStore';
 
 function stripMotionProps(props: Record<string, unknown>) {
   const domProps = { ...props };
@@ -47,11 +47,14 @@ describe('StickyManager', () => {
     useStickyStore.setState({ stickies: [], maxZIndex: 100, hydrated: false });
   });
 
-  it('adds a sticky when the add button is pressed', async () => {
+  it('registers triggerAdd and adds a sticky when called', async () => {
     render(<StickyManager />);
 
-    const addButton = await screen.findByRole('button', { name: 'Create sticky note' });
-    fireEvent.click(addButton);
+    // StickyManager registers handleAdd via registerTriggerAdd on mount.
+    // FloatingToolsMenu calls callTriggerAdd() — simulate that here.
+    act(() => {
+      callTriggerAdd();
+    });
 
     await waitFor(() => {
       expect(useStickyStore.getState().stickies).toHaveLength(1);

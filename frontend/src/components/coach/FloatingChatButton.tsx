@@ -1,55 +1,9 @@
 'use client';
 
-import { motion, AnimatePresence } from 'motion/react';
-import { MessageCircle } from 'lucide-react';
-import { useCoachStore } from '@/stores';
-import { useIsMobile } from '@/hooks/useMediaQuery';
-import { cn } from '@/lib/utils';
-
+/**
+ * Deprecated — FloatingToolsMenu now handles AI Coach on both platforms.
+ * Kept as a no-op export so page.tsx doesn't need a diff.
+ */
 export function FloatingChatButton() {
-  const isMobile = useIsMobile();
-  const panelOpen = useCoachStore((s) => s.panelOpen);
-  const togglePanel = useCoachStore((s) => s.togglePanel);
-  const chatHistory = useCoachStore((s) => s.chatHistory);
-
-  const hasMessages = chatHistory.length > 0;
-
-  // Mobile uses FloatingToolsMenu instead
-  if (isMobile) return null;
-
-  return (
-    <AnimatePresence>
-      {!panelOpen && (
-        <motion.button
-          type="button"
-          onClick={togglePanel}
-          className={cn(
-            'fixed bottom-24 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-lg',
-            'bg-gradient-to-br from-[var(--cata-accent)] to-[var(--cata-accent)]/80 text-white',
-            'lg:bottom-8 lg:right-8',
-          )}
-          title="Open AI Coach (press /)"
-          aria-label="Open AI Coach"
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0, opacity: 0 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-          whileHover={{ scale: 1.08 }}
-          whileTap={{ scale: 0.92 }}
-        >
-          <MessageCircle className="h-6 w-6" />
-          {hasMessages && (
-            <motion.span
-              className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[11px] font-bold text-white"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 15, delay: 0.2 }}
-            >
-              !
-            </motion.span>
-          )}
-        </motion.button>
-      )}
-    </AnimatePresence>
-  );
+  return null;
 }
