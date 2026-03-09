@@ -8,7 +8,7 @@ from typing import Annotated
 from cataclysm.trends import SessionSnapshot
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from backend.api.dependencies import AuthenticatedUser, get_current_user
+from backend.api.dependencies import AuthenticatedUser, get_user_or_anon
 from backend.api.schemas.trends import MilestoneResponse, MilestoneSchema, TrendAnalysisResponse
 from backend.api.services import session_store
 from backend.api.services.serializers import dataclass_to_dict
@@ -39,7 +39,7 @@ _USABLE_THRESHOLD = 40.0
 @router.get("/{track_name}", response_model=TrendAnalysisResponse)
 async def get_trends(
     track_name: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     include_low_quality: Annotated[
         bool,
         Query(description="Include sessions with GPS quality grade F (score < 40)"),
@@ -92,7 +92,7 @@ async def get_trends(
 @router.get("/{track_name}/milestones", response_model=MilestoneResponse)
 async def get_milestones(
     track_name: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
 ) -> MilestoneResponse:
     """Get milestones (PBs, breakthroughs) for a track."""
     from cataclysm.trends import compute_trend_analysis

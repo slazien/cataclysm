@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.db.database import get_db
-from backend.api.dependencies import AuthenticatedUser, get_current_user
+from backend.api.dependencies import AuthenticatedUser, get_user_or_anon
 from backend.api.schemas.leaderboard import (
     KingsResponse,
     LeaderboardResponse,
@@ -24,7 +24,7 @@ router = APIRouter()
 @router.get("/{track}/corners", response_model=LeaderboardResponse)
 async def corner_leaderboard(
     track: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
     corner: Annotated[int, Query(description="Corner number", ge=1)],
     limit: Annotated[int, Query(description="Max entries", ge=1, le=50)] = 10,
@@ -45,7 +45,7 @@ async def corner_leaderboard(
 @router.get("/{track}/kings", response_model=KingsResponse)
 async def corner_kings(
     track: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> KingsResponse:
     """Get current kings for all corners on a track."""
