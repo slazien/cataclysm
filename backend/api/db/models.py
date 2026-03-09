@@ -491,6 +491,108 @@ class Track(Base):
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class TrackCornerV2(Base):
+    """Per-corner data for a track (normalized rows replacing JSONB blob)."""
+
+    __tablename__ = "track_corners_v2"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    track_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tracks.id", ondelete="CASCADE"), nullable=False
+    )
+    number: Mapped[int] = mapped_column(Integer, nullable=False)
+    name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    fraction: Mapped[float] = mapped_column(Float, nullable=False)
+    lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    lon: Mapped[float | None] = mapped_column(Float, nullable=True)
+    character: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    direction: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    corner_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    elevation_trend: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    camber: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    blind: Mapped[bool] = mapped_column(Boolean, server_default="false", nullable=False)
+    coaching_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    auto_detected: Mapped[bool] = mapped_column(Boolean, server_default="true", nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, server_default="0.0", nullable=False)
+    detection_method: Mapped[str | None] = mapped_column(String(30), nullable=True)
+
+    # Relationship
+    track: Mapped[Track] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint("track_id", "number"),
+        Index("ix_track_corners_v2_track_id", "track_id"),
+    )
+
+
+class TrackLandmark(Base):
+    """Visual reference landmark for a track."""
+
+    __tablename__ = "track_landmarks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    track_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tracks.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    distance_m: Mapped[float] = mapped_column(Float, nullable=False)
+    landmark_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    lon: Mapped[float | None] = mapped_column(Float, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source: Mapped[str] = mapped_column(String(50), nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, server_default="1.0", nullable=False)
+
+    # Relationship
+    track: Mapped[Track] = relationship()
+
+    __table_args__ = (Index("ix_track_landmarks_track_id", "track_id"),)
+
+
+class TrackElevationProfile(Base):
+    """Elevation profile for a track from a specific source."""
+
+    __tablename__ = "track_elevation_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    track_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tracks.id", ondelete="CASCADE"), nullable=False
+    )
+    source: Mapped[str] = mapped_column(String(30), nullable=False)
+    accuracy_m: Mapped[float | None] = mapped_column(Float, nullable=True)
+    distances_m: Mapped[list] = mapped_column(JSONB, nullable=False)
+    elevations_m: Mapped[list] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationship
+    track: Mapped[Track] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint("track_id", "source"),
+        Index("ix_track_elevation_profiles_track_id", "track_id"),
+    )
+
+
+class TrackEnrichmentLog(Base):
+    """Audit trail entry for track enrichment pipeline steps."""
+
+    __tablename__ = "track_enrichment_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    track_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tracks.id", ondelete="CASCADE"), nullable=False
+    )
+    step: Mapped[str] = mapped_column(String(50), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    details: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationship
+    track: Mapped[Track] = relationship()
+
+    __table_args__ = (Index("ix_track_enrichment_log_track_id", "track_id"),)
+
+
 class PhysicsCacheEntry(Base):
     """Persistent cache for physics computation results (optimal profile/comparison).
 
