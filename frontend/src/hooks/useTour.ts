@@ -55,21 +55,34 @@ export function useTour(
 
   const startTour = useCallback(async () => {
     // Guard against concurrent/duplicate calls
-    if (startedRef.current) return;
+    if (startedRef.current) {
+      console.info('[tour] startTour: already started, skipping');
+      return;
+    }
 
     const steps = getStepsRef.current();
 
     // Verify all target elements exist in DOM before starting
+    const missing: string[] = [];
     const allPresent = steps.every((step) => {
       if (!step.element) return true; // non-element steps always ok
-      return document.querySelector(step.element as string) !== null;
+      const found = document.querySelector(step.element as string) !== null;
+      if (!found) missing.push(step.element as string);
+      return found;
     });
-    if (!allPresent) return;
+    if (!allPresent) {
+      console.info('[tour] startTour: DOM elements missing:', missing);
+      return;
+    }
 
     // Don't start while a modal overlay is blocking.
-    if (!localStorage.getItem('cataclysm-disclaimer-accepted')) return;
+    if (!localStorage.getItem('cataclysm-disclaimer-accepted')) {
+      console.info('[tour] startTour: disclaimer not accepted');
+      return;
+    }
 
     // All checks passed — prevent duplicate starts
+    console.info('[tour] startTour: all checks passed, starting driver.js');
     startedRef.current = true;
 
     // Dynamic import — zero bundle cost for returning users
@@ -98,12 +111,15 @@ export function useTour(
   // Uses interval-based retry: first attempt at 800ms (settle delay),
   // then every 500ms up to ~4s total. Handles transient DOM/overlay timing.
   useEffect(() => {
+    console.info(`[tour] effect: enabled=${enabled} hasSeen=${hasSeen} started=${startedRef.current}`);
     if (!enabled || hasSeen || startedRef.current) return;
 
+    console.info('[tour] effect: scheduling first attempt in 800ms');
     let attempts = 0;
     const maxAttempts = 8;
 
     const timer = setTimeout(() => {
+      console.info(`[tour] attempt ${attempts + 1}/${maxAttempts}`);
       startTour();
       attempts++;
       if (startedRef.current || attempts >= maxAttempts) return;

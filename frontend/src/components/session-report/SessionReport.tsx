@@ -177,6 +177,7 @@ export function SessionReport() {
 
   // Tour: trigger when session + laps are loaded (no coaching dependency)
   const hasTourTargets = Boolean(session && laps?.length);
+  console.info(`[tour] SessionReport: session=${!!session} laps=${laps?.length ?? 'undefined'} hasTourTargets=${hasTourTargets}`);
   useTour('report', hasTourTargets, () => getReportSteps(skillLevel));
 
   return (
