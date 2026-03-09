@@ -383,6 +383,8 @@ export interface VehicleSpec {
   hp: number;
   torque_nm: number;
   has_aero: boolean;
+  stock_tire_size_front: string | null;
+  stock_tire_size_rear: string | null;
   notes: string | null;
 }
 

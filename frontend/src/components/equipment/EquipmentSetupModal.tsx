@@ -170,6 +170,8 @@ export function EquipmentSetupModal({
         weight_dist_front_pct: 0,
         torque_nm: 0,
         has_aero: false,
+        stock_tire_size_front: null,
+        stock_tire_size_rear: null,
         notes: null,
       });
     }

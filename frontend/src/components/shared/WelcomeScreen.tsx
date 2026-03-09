@@ -9,6 +9,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { SkillLevelPicker, shouldShowSkillPicker } from './SkillLevelPicker';
+import { EquipmentInterstitial } from '@/components/equipment/EquipmentInterstitial';
 
 const VALUE_PROPS = [
   {
@@ -51,6 +52,7 @@ export function WelcomeScreen() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
   const [showSkillPicker, setShowSkillPicker] = useState(false);
+  const [showEquipmentInterstitial, setShowEquipmentInterstitial] = useState(false);
 
   const handleFiles = useCallback(
     (files: File[]) => {
@@ -75,14 +77,16 @@ export function WelcomeScreen() {
             setShowSuccess(true);
 
             if (shouldShowSkillPicker()) {
-              // Hold the session ID — show picker after brief success feedback
+              // Hold the session ID — show skill picker after brief success feedback
               setPendingSessionId(sessionId);
               setTimeout(() => {
                 setShowSkillPicker(true);
               }, 800);
             } else {
+              // Skip skill picker — go straight to equipment interstitial
+              setPendingSessionId(sessionId);
               setTimeout(() => {
-                setActiveSession(sessionId);
+                setShowEquipmentInterstitial(true);
               }, 800);
             }
           }
@@ -94,6 +98,12 @@ export function WelcomeScreen() {
 
   const handleSkillPickerComplete = useCallback(() => {
     setShowSkillPicker(false);
+    // After skill picker, always show equipment interstitial
+    setShowEquipmentInterstitial(true);
+  }, []);
+
+  const handleEquipmentInterstitialComplete = useCallback(() => {
+    setShowEquipmentInterstitial(false);
     if (pendingSessionId) {
       setActiveSession(pendingSessionId);
     }
@@ -426,6 +436,16 @@ export function WelcomeScreen() {
       <AnimatePresence>
         {showSkillPicker && (
           <SkillLevelPicker onComplete={handleSkillPickerComplete} />
+        )}
+      </AnimatePresence>
+
+      {/* Equipment interstitial — shown after every upload to collect car setup */}
+      <AnimatePresence>
+        {showEquipmentInterstitial && pendingSessionId && (
+          <EquipmentInterstitial
+            sessionId={pendingSessionId}
+            onComplete={handleEquipmentInterstitialComplete}
+          />
         )}
       </AnimatePresence>
     </div>
