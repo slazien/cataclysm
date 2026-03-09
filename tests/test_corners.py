@@ -18,6 +18,7 @@ from cataclysm.corners import (
     _smooth,
     classify_corner_type,
     detect_corners,
+    detect_corners_adaptive,
     extract_corner_kpis_for_lap,
 )
 
@@ -893,3 +894,67 @@ class TestExtractCornerKpisForLapBranches:
         result = extract_corner_kpis_for_lap(sample_resampled_lap, [degenerate_corner])
         # Degenerate corner with exit==entry should be skipped
         assert 99 not in [c.number for c in result]
+
+
+class TestAdaptiveCornerDetection:
+    def _make_sweeping_track(self, n: int = 5000, max_rate: float = 0.8) -> pd.DataFrame:
+        dist = np.linspace(0, 3200, n)
+        heading = np.cumsum(np.sin(dist / 300) * max_rate * (3200 / n))
+        speed = 30 - 10 * np.abs(np.sin(dist / 300))
+        return pd.DataFrame(
+            {
+                "lap_distance_m": dist,
+                "heading_deg": heading % 360,
+                "speed_mps": speed,
+                "longitudinal_g": np.zeros(n),
+            }
+        )
+
+    def test_fixed_threshold_finds_zero_on_sweeping(self) -> None:
+        df = self._make_sweeping_track()
+        corners = detect_corners(df)
+        assert len(corners) == 0
+
+    def test_adaptive_finds_corners_on_sweeping(self) -> None:
+        df = self._make_sweeping_track()
+        corners = detect_corners_adaptive(df)
+        assert len(corners) > 0
+
+    def test_adaptive_floor_prevents_false_positives(self) -> None:
+        n = 5000
+        dist = np.linspace(0, 3000, n)
+        heading = np.linspace(0, 10, n)
+        speed = np.full(n, 50.0)
+        df = pd.DataFrame(
+            {
+                "lap_distance_m": dist,
+                "heading_deg": heading,
+                "speed_mps": speed,
+                "longitudinal_g": np.zeros(n),
+            }
+        )
+        corners = detect_corners_adaptive(df)
+        assert len(corners) == 0
+
+    def test_adaptive_matches_fixed_on_tight_tracks(self) -> None:
+        n = 5000
+        dist = np.linspace(0, 3662, n)
+        heading_rate = np.zeros(n)
+        corner_positions = [0.05, 0.10, 0.15, 0.30, 0.40, 0.50, 0.60, 0.75, 0.90]
+        for frac in corner_positions:
+            idx = int(frac * n)
+            width = 50
+            start, end = max(0, idx - width), min(n, idx + width)
+            heading_rate[start:end] = 2.5
+        heading = np.cumsum(heading_rate * (3662 / n))
+        speed = 30 - 10 * np.abs(heading_rate / 2.5)
+        df = pd.DataFrame(
+            {
+                "lap_distance_m": dist,
+                "heading_deg": heading % 360,
+                "speed_mps": speed,
+                "longitudinal_g": np.zeros(n),
+            }
+        )
+        corners = detect_corners_adaptive(df)
+        assert len(corners) >= 5

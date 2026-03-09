@@ -513,6 +513,32 @@ def _detect_advanced(
     return corners
 
 
+_ADAPTIVE_PERCENTILE = 85
+_ADAPTIVE_FLOOR = 0.3  # deg/m
+
+
+def detect_corners_adaptive(
+    lap_df: pd.DataFrame,
+    step_m: float = 0.7,
+    percentile: int = _ADAPTIVE_PERCENTILE,
+    floor: float = _ADAPTIVE_FLOOR,
+) -> list[Corner]:
+    """Detect corners using adaptive percentile-based threshold.
+
+    Computes the 85th percentile of |heading_rate| and uses max(floor, percentile)
+    as the threshold. Then delegates to the existing detect_corners() with that
+    threshold. Works on both tight (Barber) and sweeping (Roebling) tracks.
+    """
+    heading = lap_df["heading_deg"].to_numpy()
+    heading_rate = _compute_heading_rate(heading, step_m)
+
+    window_pts = max(2, int(SMOOTHING_WINDOW_M / step_m))
+    smoothed_rate = _smooth(np.abs(heading_rate), window_pts)
+
+    threshold = max(floor, float(np.percentile(smoothed_rate, percentile)))
+    return detect_corners(lap_df, step_m=step_m, threshold=threshold)
+
+
 def detect_corners(
     lap_df: pd.DataFrame,
     step_m: float = 0.7,
