@@ -8,12 +8,19 @@ from __future__ import annotations
 
 import logging
 from dataclasses import replace
+from typing import TYPE_CHECKING
 
-from cataclysm.track_db import OfficialCorner, TrackLayout
+from cataclysm.corners import extract_corner_kpis_for_lap
+from cataclysm.elevation import compute_corner_elevation, enrich_corners_with_elevation
+from cataclysm.track_db import OfficialCorner, TrackLayout, locate_official_corners
+from cataclysm.track_reference import track_slug_from_layout
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.db.models import TrackCornerConfig
+
+if TYPE_CHECKING:
+    from backend.api.services.session_store import SessionData
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +69,67 @@ def override_layout_corners(
 ) -> TrackLayout:
     """Return a new TrackLayout with corners replaced by DB-edited ones."""
     return replace(layout, corners=db_corners)
+
+
+def reapply_corner_overrides_if_stale(sd: SessionData) -> bool:
+    """Re-extract corners if the session's corner override version is stale.
+
+    Mutates sd.corners, sd.all_lap_corners, sd.layout, sd.corner_override_version
+    in place. Returns True if corners were updated, False if no change needed.
+    """
+    if sd.layout is None:
+        return False
+
+    slug = track_slug_from_layout(sd.layout)
+    current_version = get_corner_override_version(slug)
+
+    if current_version is None:
+        return False
+    if sd.corner_override_version == current_version:
+        return False
+
+    # Session is stale — re-extract corners from updated DB override
+    db_corners = get_corner_override_sync(slug)
+    if db_corners is None:
+        return False
+
+    new_layout = override_layout_corners(sd.layout, db_corners)
+    best_lap_df = sd.processed.resampled_laps[sd.processed.best_lap]
+    skeletons = locate_official_corners(best_lap_df, new_layout)
+    new_best_corners = extract_corner_kpis_for_lap(best_lap_df, skeletons)
+
+    new_all_lap_corners: dict[int, list] = {}
+    for lap_num in sd.coaching_laps:
+        if lap_num == sd.processed.best_lap:
+            new_all_lap_corners[lap_num] = new_best_corners
+        else:
+            lap_df = sd.processed.resampled_laps[lap_num]
+            new_all_lap_corners[lap_num] = extract_corner_kpis_for_lap(lap_df, new_best_corners)
+
+    # Elevation enrichment (wrapped in try/except like pipeline does)
+    try:
+        elev = compute_corner_elevation(best_lap_df, new_best_corners)
+        if elev:
+            enrich_corners_with_elevation(new_all_lap_corners, elev)
+    except (ValueError, KeyError, IndexError):
+        logger.warning(
+            "Failed elevation during corner reapply for %s",
+            sd.session_id,
+            exc_info=True,
+        )
+
+    # Mutate in place
+    sd.corners = new_best_corners
+    sd.all_lap_corners = new_all_lap_corners
+    sd.layout = new_layout
+    sd.corner_override_version = current_version
+
+    logger.info(
+        "Re-applied corner overrides for session %s (v%d)",
+        sd.session_id,
+        current_version,
+    )
+    return True
 
 
 # ---------------------------------------------------------------------------
