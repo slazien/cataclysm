@@ -473,6 +473,11 @@ export function TrackEditor() {
         "optimal-comparison",
         "delta",
         "degradation",
+        "consistency",
+        "gains",
+        "session",
+        "sessions",
+        "line-analysis",
       ]) {
         queryClient.invalidateQueries({ queryKey: [key] });
       }
