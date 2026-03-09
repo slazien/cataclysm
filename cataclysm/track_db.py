@@ -995,6 +995,12 @@ def locate_official_corners(
             geo_exit_m = float(distance[geo_exit_idx])
             entry_m = max(geo_entry_m, midpoint_before)
             exit_m = min(geo_exit_m, midpoint_after)
+            # Fall back to midpoints for gentle corners where heading-rate
+            # walk produces a narrow zone.  A sub-2m zone maps to the same
+            # index in extract_corner_kpis_for_lap → corner gets dropped.
+            if (exit_m - entry_m) < 2.0:
+                entry_m = midpoint_before
+                exit_m = midpoint_after
         else:
             # Fallback: midpoints only (no heading data)
             entry_m = midpoint_before

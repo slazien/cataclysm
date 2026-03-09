@@ -153,6 +153,41 @@ class TestLocateOfficialCorners:
         assert result[0].peak_brake_g is None
         assert result[0].throttle_commit_m is None
 
+    def test_gentle_corners_not_dropped_with_heading(self) -> None:
+        """Corners with low heading rate must still appear (midpoint fallback)."""
+        layout = TrackLayout(
+            name="Test",
+            corners=[
+                OfficialCorner(1, "Sharp Turn", 0.20),
+                OfficialCorner(2, "Gentle Kink", 0.50),
+                OfficialCorner(3, "Sharp Turn", 0.80),
+            ],
+        )
+        n = 500
+        max_dist = 2000.0
+        dist = np.linspace(0, max_dist, n)
+        # Heading: sharp turns at T1/T3 (±40°), gentle kink at T2 (~2°)
+        heading = np.zeros(n)
+        # T1 at 400m (idx~100): 40° turn
+        heading[95:105] = np.linspace(0, 40, 10)
+        heading[105:] = 40
+        # T2 at 1000m (idx~250): only 2° kink — below heading-rate threshold
+        heading[248:252] = np.linspace(40, 42, 4)
+        heading[252:] = 42
+        # T3 at 1600m (idx~400): another 40° turn
+        heading[395:405] = np.linspace(42, 82, 10)
+        heading[405:] = 82
+
+        lap_df = pd.DataFrame({"lap_distance_m": dist, "heading_deg": heading})
+        result = locate_official_corners(lap_df, layout)
+        assert len(result) == 3, (
+            f"Expected 3 corners, got {len(result)}: {[c.number for c in result]}"
+        )
+        assert [c.number for c in result] == [1, 2, 3]
+        # T2 should have entry < exit (valid zone from midpoint fallback)
+        t2 = result[1]
+        assert t2.entry_distance_m < t2.exit_distance_m
+
     def test_scales_with_lap_distance(self) -> None:
         """Same fraction should produce different apex_m for different lap lengths."""
         layout = TrackLayout(
