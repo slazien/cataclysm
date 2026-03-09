@@ -38,6 +38,11 @@ export function useTour(
   const startedRef = useRef(false);
   // Keep driver instance ref for cleanup
   const driverRef = useRef<import('driver.js').Driver | null>(null);
+  // Stable ref for getSteps — updated each render so startTour callback
+  // can always see the latest steps without being a useCallback dependency.
+  // This prevents the timer from being cancelled on every re-render.
+  const getStepsRef = useRef(getSteps);
+  getStepsRef.current = getSteps;
 
   const markSeen = useCallback(() => {
     try {
@@ -49,7 +54,7 @@ export function useTour(
   }, [storageKey]);
 
   const startTour = useCallback(async () => {
-    const steps = getSteps();
+    const steps = getStepsRef.current();
 
     // Verify all target elements exist in DOM before starting
     const allPresent = steps.every((step) => {
@@ -86,7 +91,7 @@ export function useTour(
 
     driverRef.current = driverInstance;
     driverInstance.drive();
-  }, [getSteps, markSeen]);
+  }, [markSeen]);
 
   // Auto-trigger when enabled becomes true and tour not yet seen
   useEffect(() => {
