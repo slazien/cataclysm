@@ -124,8 +124,13 @@ export function StickyManager() {
     };
 
     const findContainer = () => {
-      const el = document.querySelector<HTMLElement>('[data-scroll-container="main"]');
-      if (el && el !== currentContainer) {
+      const wrapper = document.querySelector<HTMLElement>('[data-scroll-container="main"]');
+      if (!wrapper) return;
+      // Radix ScrollArea viewport captures scrolling inside the wrapper;
+      // fall back to the wrapper itself for views without ScrollArea (DeepDive, Debrief).
+      const el =
+        wrapper.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]') ?? wrapper;
+      if (el !== currentContainer) {
         currentContainer?.removeEventListener('scroll', handleScroll);
         currentContainer = el;
         scrollContainerRef.current = el;
