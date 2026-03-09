@@ -3,7 +3,6 @@
 import { useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Upload, ChevronDown, Target, Check, BookOpen, TrendingDown, MessageSquare } from 'lucide-react';
-import { useSession as useAuthSession } from 'next-auth/react';
 import { useSessionStore, useUiStore } from '@/stores';
 import { useUploadSessions } from '@/hooks/useSession';
 import { useIsMobile } from '@/hooks/useMediaQuery';
@@ -41,11 +40,6 @@ const SAMPLE_GRADES = [
 ] as const;
 
 export function WelcomeScreen() {
-  const { status: authStatus } = useAuthSession();
-  // Treat 'loading' as potentially-authenticated (fail-closed):
-  // if auth hasn't resolved yet, default to showing the interstitial so authenticated
-  // users don't skip it on a fast upload. Anon users can always click Skip.
-  const isAuthenticated = authStatus !== 'unauthenticated';
   const uploadMutation = useUploadSessions();
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const toggleHowItWorks = useUiStore((s) => s.toggleHowItWorks);
@@ -88,34 +82,26 @@ export function WelcomeScreen() {
               setTimeout(() => {
                 setShowSkillPicker(true);
               }, 800);
-            } else if (isAuthenticated) {
-              // Skip skill picker — go straight to equipment interstitial (auth only)
+            } else {
+              // All users (anon + auth) go through equipment interstitial.
+              // Anon uses the inline endpoint; auth creates a persistent profile.
               setPendingSessionId(sessionId);
               setTimeout(() => {
                 setShowEquipmentInterstitial(true);
-              }, 800);
-            } else {
-              // Anonymous user — skip equipment interstitial, go straight to session
-              setTimeout(() => {
-                setActiveSession(sessionId);
               }, 800);
             }
           }
         },
       });
     },
-    [uploadMutation, setActiveSession, isAuthenticated],
+    [uploadMutation, setActiveSession],
   );
 
   const handleSkillPickerComplete = useCallback(() => {
     setShowSkillPicker(false);
-    if (isAuthenticated) {
-      setShowEquipmentInterstitial(true);
-    } else {
-      // Anonymous user — skip equipment interstitial
-      if (pendingSessionId) setActiveSession(pendingSessionId);
-    }
-  }, [isAuthenticated, pendingSessionId, setActiveSession]);
+    // All users (anon + auth) proceed to equipment interstitial after skill picker
+    setShowEquipmentInterstitial(true);
+  }, []);
 
   const handleEquipmentInterstitialComplete = useCallback(() => {
     setShowEquipmentInterstitial(false);

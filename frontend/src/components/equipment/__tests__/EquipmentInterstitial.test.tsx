@@ -6,14 +6,20 @@ import { getVehicleSpec } from '@/lib/api';
 // Mock hooks
 const mockCreateProfile = vi.fn();
 const mockAssignEquipment = vi.fn();
+const mockAssignEquipmentInline = vi.fn();
 const mockVehicleSearch = vi.fn(() => ({ data: [], isLoading: false }));
 const mockEquipmentProfiles = vi.fn(() => ({ data: { items: [] }, isLoading: false }));
 
 vi.mock('@/hooks/useEquipment', () => ({
   useCreateProfile: () => ({ mutateAsync: mockCreateProfile, isPending: false }),
   useAssignEquipment: () => ({ mutateAsync: mockAssignEquipment, isPending: false }),
+  useAssignEquipmentInline: () => ({ mutateAsync: mockAssignEquipmentInline, isPending: false }),
   useVehicleSearch: (q: string) => mockVehicleSearch(q),
   useEquipmentProfiles: () => mockEquipmentProfiles(),
+}));
+
+vi.mock('next-auth/react', () => ({
+  useSession: () => ({ status: 'authenticated' }),
 }));
 
 vi.mock('@/lib/api', () => ({
@@ -39,6 +45,7 @@ describe('EquipmentInterstitial', () => {
     vi.clearAllMocks();
     mockVehicleSearch.mockReturnValue({ data: [], isLoading: false });
     mockEquipmentProfiles.mockReturnValue({ data: { items: [] }, isLoading: false });
+    mockAssignEquipmentInline.mockResolvedValue({});
   });
 
   it('renders the heading and skip button', () => {

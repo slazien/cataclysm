@@ -33,6 +33,7 @@ from backend.api.schemas.equipment import (
     EquipmentProfileCreate,
     EquipmentProfileList,
     EquipmentProfileResponse,
+    InlineEquipmentSet,
     SessionConditionsSchema,
     SessionEquipmentResponse,
     SessionEquipmentSet,
@@ -490,9 +491,14 @@ async def create_profile(
 
 @router.get("/profiles", response_model=EquipmentProfileList)
 async def list_profiles(
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
 ) -> EquipmentProfileList:
-    """List equipment profiles owned by the current user."""
+    """List equipment profiles owned by the current user.
+
+    Returns an empty list for anonymous users — they have no persistent profiles.
+    """
+    if current_user.user_id == "anon":
+        return EquipmentProfileList(items=[], total=0)
     profiles = equipment_store.list_profiles_for_user(current_user.user_id)
     items = [_profile_to_response(p) for p in profiles]
     return EquipmentProfileList(items=items, total=len(items))
@@ -629,6 +635,75 @@ async def set_session_equipment(
         brakes=_brakes_to_schema(profile.brakes) if profile.brakes else None,
         suspension=_suspension_to_schema(profile.suspension) if profile.suspension else None,
         conditions=_conditions_to_schema(conditions) if conditions else None,
+    )
+
+
+@router.put("/{session_id}/equipment/inline", response_model=SessionEquipmentResponse)
+async def set_session_equipment_inline(
+    session_id: str,
+    body: InlineEquipmentSet,
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> SessionEquipmentResponse:
+    """Assign equipment to a session without creating a named profile.
+
+    Works for both anonymous and authenticated users.  The ephemeral profile is
+    stored in-memory and promoted to a persistent profile when the user signs up
+    (via the session claim endpoint).
+    """
+    sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
+    if sd is None:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+    try:
+        category = TireCompoundCategory(body.compound_category)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid compound_category: {body.compound_category}",
+        ) from exc
+
+    mu = (
+        body.estimated_mu
+        if body.estimated_mu is not None
+        else CATEGORY_MU_DEFAULTS.get(category, 0.93)
+    )
+    tire_schema = TireSpecSchema(
+        model="OEM / Stock",
+        compound_category=body.compound_category,
+        size=body.tire_size.strip(),
+        estimated_mu=mu,
+        mu_source="auto",
+        mu_confidence="low",
+    )
+    profile_id = f"eq_{uuid.uuid4().hex[:12]}"
+    profile = EquipmentProfile(
+        id=profile_id,
+        name="Track Day Setup",
+        tires=_schema_to_tire(tire_schema),
+        is_default=False,
+    )
+    equipment_store.store_profile(profile)
+    equipment_store.set_profile_owner(profile_id, current_user.user_id)
+
+    se = SessionEquipment(session_id=session_id, profile_id=profile_id)
+    equipment_store.store_session_equipment(se)
+    invalidate_physics_cache(session_id)
+
+    # Only persist to DB for authenticated users; anon profiles migrate on claim.
+    if current_user.user_id != "anon":
+        _fire_and_forget(equipment_store.db_persist_profile(profile, user_id=current_user.user_id))
+        _fire_and_forget(equipment_store.db_persist_session_equipment(se))
+
+    return SessionEquipmentResponse(
+        session_id=session_id,
+        profile_id=profile.id,
+        profile_name=profile.name,
+        overrides={},
+        tires=_tire_to_schema(profile.tires),
+        brakes=None,
+        suspension=None,
+        conditions=None,
     )
 
 

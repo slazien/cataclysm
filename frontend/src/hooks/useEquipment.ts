@@ -90,6 +90,30 @@ export function useSessionEquipment(sessionId: string | null) {
   });
 }
 
+export function useAssignEquipmentInline() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      sessionId,
+      body,
+    }: {
+      sessionId: string;
+      body: { compound_category: string; tire_size: string; estimated_mu?: number };
+    }) =>
+      fetchApi<SessionEquipmentResponse>(
+        `/api/equipment/${sessionId}/equipment/inline`,
+        {
+          method: "PUT",
+          body: JSON.stringify(body),
+        },
+      ),
+    onSuccess: (data, variables) => {
+      queryClient.setQueryData(["session-equipment", variables.sessionId], data);
+      queryClient.invalidateQueries({ queryKey: ["session", variables.sessionId] });
+    },
+  });
+}
+
 export function useAssignEquipment() {
   const queryClient = useQueryClient();
   return useMutation({

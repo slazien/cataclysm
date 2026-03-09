@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Pencil, Trash2, Plus, Star } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { useEquipmentProfiles, useDeleteProfile, useUpdateProfile } from '@/hooks/useEquipment';
 import { EquipmentSetupModal } from './EquipmentSetupModal';
 import type { EquipmentProfile } from '@/lib/types';
@@ -14,6 +15,7 @@ const COMPOUND_LABELS: Record<string, string> = {
 };
 
 export function EquipmentProfileList() {
+  const { status: authStatus } = useSession();
   const { data: profilesData, isPending } = useEquipmentProfiles();
   const deleteMutation = useDeleteProfile();
   const updateMutation = useUpdateProfile();
@@ -73,6 +75,9 @@ export function EquipmentProfileList() {
 
     return parts.join(' · ') || 'No equipment configured';
   }
+
+  // Equipment profiles are account-level — don't show the section for anonymous users.
+  if (authStatus === 'unauthenticated') return null;
 
   return (
     <fieldset className="mb-6 min-w-0">

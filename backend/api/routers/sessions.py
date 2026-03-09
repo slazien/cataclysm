@@ -493,6 +493,25 @@ async def claim_anonymous_session(
             logger.warning("Failed to persist CSV bytes on claim for %s", body.session_id)
             await db.rollback()
 
+    # Migrate any anon-owned equipment profile to the new user
+    se = equipment_store.get_session_equipment(body.session_id)
+    if se is not None:
+        profile_owner = equipment_store.get_profile_owner(se.profile_id)
+        if profile_owner == "anon":
+            equipment_store.set_profile_owner(se.profile_id, current_user.user_id)
+            profile = equipment_store.get_profile(se.profile_id)
+            if profile is not None:
+                try:
+                    await equipment_store.db_persist_profile(profile, user_id=current_user.user_id)
+                except Exception:
+                    logger.warning(
+                        "Failed to persist anon equipment profile on claim", exc_info=True
+                    )
+            try:
+                await equipment_store.db_persist_session_equipment(se)
+            except Exception:
+                logger.warning("Failed to persist anon session equipment on claim", exc_info=True)
+
     # Check achievements for the newly claimed session
     try:
         from backend.api.services.achievement_engine import check_achievements

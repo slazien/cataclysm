@@ -3,10 +3,12 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, X, CheckCircle2 } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 import {
   useCreateProfile,
   useAssignEquipment,
+  useAssignEquipmentInline,
   useVehicleSearch,
   useEquipmentProfiles,
 } from '@/hooks/useEquipment';
@@ -36,6 +38,9 @@ const COMPOUND_MU: Record<string, number> = {
 };
 
 export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInterstitialProps) {
+  const { status: authStatus } = useSession();
+  const isAuthenticated = authStatus === 'authenticated';
+
   const { data: profilesData } = useEquipmentProfiles();
   const existingProfiles = profilesData?.items ?? [];
 
@@ -50,6 +55,7 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
 
   const createProfile = useCreateProfile();
   const assignEquipment = useAssignEquipment();
+  const assignEquipmentInline = useAssignEquipmentInline();
 
   const profileName = selectedVehicle
     ? `${selectedVehicle.make} ${selectedVehicle.model} – ${compound || 'Street'}`
@@ -100,25 +106,34 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
     setSaveError(null);
     try {
       const mu = COMPOUND_MU[compound] ?? 0.93;
-      const profile = await createProfile.mutateAsync({
-        name: profileName,
-        tires: {
-          model: 'OEM / Stock',
-          compound_category: compound,
-          size: tireSize.trim(),
-          estimated_mu: mu,
-          mu_source: 'auto',
-          mu_confidence: 'low',
-          treadwear_rating: null,
-          pressure_psi: null,
-          brand: null,
-          age_sessions: null,
-        },
-        vehicle: selectedVehicle ?? null,
-        // Only auto-default when the profiles query has resolved to empty
-        is_default: profilesData !== undefined && existingProfiles.length === 0,
-      });
-      await assignEquipment.mutateAsync({ sessionId, body: { profile_id: profile.id } });
+      if (isAuthenticated) {
+        // Authenticated: create a named persistent profile and assign it
+        const profile = await createProfile.mutateAsync({
+          name: profileName,
+          tires: {
+            model: 'OEM / Stock',
+            compound_category: compound,
+            size: tireSize.trim(),
+            estimated_mu: mu,
+            mu_source: 'auto',
+            mu_confidence: 'low',
+            treadwear_rating: null,
+            pressure_psi: null,
+            brand: null,
+            age_sessions: null,
+          },
+          vehicle: selectedVehicle ?? null,
+          // Only auto-default when the profiles query has resolved to empty
+          is_default: profilesData !== undefined && existingProfiles.length === 0,
+        });
+        await assignEquipment.mutateAsync({ sessionId, body: { profile_id: profile.id } });
+      } else {
+        // Anonymous: inline assignment — no persistent profile, migrated on sign-up
+        await assignEquipmentInline.mutateAsync({
+          sessionId,
+          body: { compound_category: compound, tire_size: tireSize.trim(), estimated_mu: mu },
+        });
+      }
       onComplete();
     } catch {
       setSaving(false);
@@ -131,8 +146,10 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
     tireSize,
     profileName,
     selectedVehicle,
+    isAuthenticated,
     createProfile,
     assignEquipment,
+    assignEquipmentInline,
     sessionId,
     onComplete,
     profilesData,

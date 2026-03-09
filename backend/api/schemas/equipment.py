@@ -175,6 +175,18 @@ class SessionConditionsSchema(BaseModel):
     weather_source: str | None = None
 
 
+class InlineEquipmentSet(BaseModel):
+    """Request body for assigning equipment inline (no named profile required).
+
+    Used by anonymous users during the post-upload interstitial.  On session
+    claim the ephemeral profile is promoted to a persistent one.
+    """
+
+    compound_category: str
+    tire_size: str = Field(..., min_length=3, max_length=30)
+    estimated_mu: float | None = None
+
+
 class SessionEquipmentSet(BaseModel):
     """Request body for assigning equipment to a session."""
 
