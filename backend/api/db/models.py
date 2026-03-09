@@ -6,6 +6,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
@@ -490,6 +491,23 @@ class Track(Base):
     verified_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('draft', 'published', 'archived')",
+            name="ck_tracks_status",
+        ),
+        CheckConstraint(
+            "direction_of_travel IS NULL OR "
+            "direction_of_travel IN ('clockwise', 'counter-clockwise', 'both')",
+            name="ck_tracks_direction_of_travel",
+        ),
+        CheckConstraint(
+            "track_type IS NULL OR "
+            "track_type IN ('circuit', 'hillclimb', 'street', 'oval', 'kart')",
+            name="ck_tracks_track_type",
+        ),
+    )
+
 
 class TrackCornerV2(Base):
     """Per-corner data for a track (normalized rows replacing JSONB blob)."""
@@ -522,6 +540,30 @@ class TrackCornerV2(Base):
     __table_args__ = (
         UniqueConstraint("track_id", "number"),
         Index("ix_track_corners_v2_track_id", "track_id"),
+        CheckConstraint(
+            "character IS NULL OR "
+            "character IN ('hairpin', 'sweeper', 'chicane', 'kink', 'esses', "
+            "'carousel', 'complex')",
+            name="ck_track_corners_v2_character",
+        ),
+        CheckConstraint(
+            "direction IS NULL OR direction IN ('left', 'right')",
+            name="ck_track_corners_v2_direction",
+        ),
+        CheckConstraint(
+            "corner_type IS NULL OR corner_type IN ('brake', 'lift', 'flat', 'acceleration')",
+            name="ck_track_corners_v2_corner_type",
+        ),
+        CheckConstraint(
+            "elevation_trend IS NULL OR "
+            "elevation_trend IN ('uphill', 'downhill', 'flat', 'crest', 'compression')",
+            name="ck_track_corners_v2_elevation_trend",
+        ),
+        CheckConstraint(
+            "camber IS NULL OR "
+            "camber IN ('positive', 'negative', 'off-camber', 'flat', 'transitions')",
+            name="ck_track_corners_v2_camber",
+        ),
     )
 
 
