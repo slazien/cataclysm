@@ -306,7 +306,7 @@ export function StickyManager() {
       <div
         ref={stickyLayerRef}
         data-sticky-layer="true"
-        className="pointer-events-none fixed inset-0 z-40"
+        className="pointer-events-none fixed inset-0 z-10"
       >
         <AnimatePresence>
           {stickies.map((sticky) => (

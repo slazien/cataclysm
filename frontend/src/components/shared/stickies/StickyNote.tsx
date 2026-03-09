@@ -153,6 +153,7 @@ export function StickyNote({
         dragMomentum={false}
         dragControls={dragControls}
         dragListener={false}
+        onDrag={() => { didDragRef.current = true; }}
         onDragEnd={handleDragEnd}
         onPointerDown={() => bringToFront(sticky.id)}
       >
