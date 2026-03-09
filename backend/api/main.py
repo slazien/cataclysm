@@ -229,6 +229,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception:
         logger.warning("Failed to load corner overrides from DB", exc_info=True)
 
+    # Load DB tracks into hybrid cache (DB-first, Python constants fallback)
+    from cataclysm.track_db_hybrid import load_db_tracks
+
+    try:
+        async with _corner_asf() as _tracks_db:
+            n_tracks = await load_db_tracks(_tracks_db)
+            if n_tracks:
+                logger.info("Hybrid track cache seeded with %d DB track(s)", n_tracks)
+    except Exception:
+        logger.warning("Failed to load DB tracks into hybrid cache", exc_info=True)
+
     # Reload CSV session data into memory so GET endpoints don't 404
     # Try database first (survives Railway redeployments), fall back to disk
     n_sessions = await _reload_sessions_from_db()

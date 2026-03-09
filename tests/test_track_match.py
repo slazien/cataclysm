@@ -178,7 +178,7 @@ class TestAMPDetection:
         )
         df = self._make_gps_df(lat=33.5302, lon=-86.6215)
 
-        with patch("cataclysm.track_match.get_all_tracks") as mock_get_all:
+        with patch("cataclysm.track_match.get_all_tracks_hybrid") as mock_get_all:
             from cataclysm.track_db import get_all_tracks as real_get_all
 
             mock_get_all.return_value = [no_coord_track] + list(real_get_all())

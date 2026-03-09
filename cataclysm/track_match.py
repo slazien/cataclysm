@@ -12,7 +12,8 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from cataclysm.track_db import TrackLayout, get_all_tracks, lookup_track
+from cataclysm.track_db import TrackLayout
+from cataclysm.track_db_hybrid import get_all_tracks_hybrid, lookup_track_hybrid
 
 # Minimum GPS points required to compute a reliable centroid.
 _MIN_GPS_POINTS = 50
@@ -82,7 +83,7 @@ def detect_track(
         return None
 
     best: TrackMatch | None = None
-    for layout in get_all_tracks():
+    for layout in get_all_tracks_hybrid():
         if layout.center_lat is None or layout.center_lon is None:
             continue
         dist = haversine(clat, clon, layout.center_lat, layout.center_lon)
@@ -109,4 +110,4 @@ def detect_track_or_lookup(
     match = detect_track(df, threshold_m)
     if match is not None:
         return match.layout
-    return lookup_track(track_name)
+    return lookup_track_hybrid(track_name)

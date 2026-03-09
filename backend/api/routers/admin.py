@@ -123,11 +123,11 @@ class SaveResult(BaseModel):
 async def list_tracks(
     _user: Annotated[AuthenticatedUser, Depends(require_admin)],
 ) -> dict:
-    """List all known track slugs (from track_db.py)."""
-    from cataclysm.track_db import get_all_tracks
+    """List all known track slugs (from DB + constants)."""
+    from cataclysm.track_db_hybrid import get_all_tracks_hybrid
     from cataclysm.track_reference import track_slug_from_layout
 
-    layouts = get_all_tracks()
+    layouts = get_all_tracks_hybrid()
     slugs = sorted({track_slug_from_layout(lay) for lay in layouts})
     return {"tracks": slugs}
 
@@ -140,12 +140,12 @@ async def get_track_editor(
 ) -> EditorResponse:
     """Return track geometry + corners for the editor UI."""
     _validate_slug(slug)
-    from cataclysm.track_db import get_all_tracks
+    from cataclysm.track_db_hybrid import get_all_tracks_hybrid
     from cataclysm.track_reference import track_slug_from_layout
 
     # Find the matching TrackLayout
     layout = None
-    for lay in get_all_tracks():
+    for lay in get_all_tracks_hybrid():
         if track_slug_from_layout(lay) == slug:
             layout = lay
             break
@@ -218,11 +218,11 @@ async def save_corners(
 ) -> SaveResult:
     """Save admin-edited corners for a track."""
     _validate_slug(slug)
-    from cataclysm.track_db import get_all_tracks
+    from cataclysm.track_db_hybrid import get_all_tracks_hybrid
     from cataclysm.track_reference import track_slug_from_layout
 
     # Verify track exists
-    found = any(track_slug_from_layout(lay) == slug for lay in get_all_tracks())
+    found = any(track_slug_from_layout(lay) == slug for lay in get_all_tracks_hybrid())
     if not found:
         raise HTTPException(status_code=404, detail=f"Track '{slug}' not found")
 

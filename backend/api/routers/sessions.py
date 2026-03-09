@@ -935,14 +935,15 @@ async def get_track_guide(
 
     Returns 404 if the session's track is not in the track database.
     """
-    from cataclysm.track_db import get_key_corners, get_peculiarities, lookup_track
+    from cataclysm.track_db import get_key_corners, get_peculiarities
+    from cataclysm.track_db_hybrid import lookup_track_hybrid
 
     sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
     track_name = sd.snapshot.metadata.track_name
-    layout = lookup_track(track_name)
+    layout = lookup_track_hybrid(track_name)
     if layout is not None:
         from cataclysm.track_reference import track_slug_from_layout
 

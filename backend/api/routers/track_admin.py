@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Annotated, Any
 
+from cataclysm.track_db_hybrid import db_track_to_layout, update_db_tracks_cache
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
@@ -138,6 +139,14 @@ async def _get_track_or_404(db: AsyncSession, slug: str) -> Track:
     return track
 
 
+async def _refresh_hybrid_cache(db: AsyncSession, track: Track) -> None:
+    """Rebuild the hybrid cache entry for a track after mutations."""
+    corners = await get_corners_for_track(db, track.id)
+    landmarks = await get_landmarks_for_track(db, track.id)
+    layout = db_track_to_layout(track, corners, landmarks)
+    update_db_tracks_cache(track.slug, layout)
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -174,6 +183,7 @@ async def create_track_endpoint(
             quality_tier=body.quality_tier,
             status=body.status,
         )
+        await _refresh_hybrid_cache(db, track)
         return _track_to_dict(track)
     except IntegrityError:
         raise HTTPException(
@@ -210,6 +220,7 @@ async def update_track_endpoint(
     updated = await update_track(db, slug, **updates)
     if updated is None:
         raise HTTPException(status_code=404, detail=f"Track '{slug}' not found")
+    await _refresh_hybrid_cache(db, updated)
     return _track_to_dict(updated)
 
 
@@ -225,8 +236,9 @@ async def set_corners(
     corner_dicts = [c.model_dump(exclude_unset=False) for c in body]
     await upsert_corners(db, track.id, corner_dicts)
 
-    # Update the in-memory corner cache for the pipeline
+    # Update both caches: legacy corner override + hybrid track cache
     update_corner_cache(slug, corner_dicts)
+    await _refresh_hybrid_cache(db, track)
 
     return {"track_slug": slug, "corners_count": len(body)}
 
@@ -274,6 +286,7 @@ async def set_landmarks(
     track = await _get_track_or_404(db, slug)
     lm_dicts = [lm.model_dump(exclude_unset=False) for lm in body]
     await upsert_landmarks(db, track.id, lm_dicts)
+    await _refresh_hybrid_cache(db, track)
     return {"track_slug": slug, "landmarks_count": len(body)}
 
 

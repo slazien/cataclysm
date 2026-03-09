@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from cataclysm.landmarks import Landmark, LandmarkType
 from cataclysm.track_db import (
@@ -13,6 +13,9 @@ from cataclysm.track_db import (
     get_all_tracks,
     lookup_track,
 )
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -121,3 +124,38 @@ def clear_db_tracks_cache() -> None:
     global _db_loaded  # noqa: PLW0603
     _db_tracks.clear()
     _db_loaded = False
+
+
+async def load_db_tracks(db: AsyncSession) -> int:
+    """Load all DB tracks into the in-memory cache at startup.
+
+    Returns the number of tracks loaded.
+    """
+    global _db_loaded  # noqa: PLW0603
+    from sqlalchemy import select
+
+    from backend.api.db.models import Track, TrackCornerV2, TrackLandmark
+
+    result = await db.execute(select(Track))
+    tracks = result.scalars().all()
+    count = 0
+    for track in tracks:
+        corners_result = await db.execute(
+            select(TrackCornerV2)
+            .where(TrackCornerV2.track_id == track.id)
+            .order_by(TrackCornerV2.number)
+        )
+        corners = list(corners_result.scalars().all())
+        landmarks_result = await db.execute(
+            select(TrackLandmark)
+            .where(TrackLandmark.track_id == track.id)
+            .order_by(TrackLandmark.distance_m)
+        )
+        landmarks = list(landmarks_result.scalars().all())
+        layout = db_track_to_layout(track, corners, landmarks)
+        update_db_tracks_cache(track.slug, layout)
+        count += 1
+
+    _db_loaded = True
+    logger.info("Loaded %d track(s) from DB into hybrid cache", count)
+    return count
