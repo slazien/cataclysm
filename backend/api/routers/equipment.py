@@ -73,7 +73,7 @@ def _fire_and_forget(coro: object) -> None:
 
 @router.get("/tires/search")
 async def search_tires(
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     q: str = "",
 ) -> list[TireSpecSchema]:
     """Search curated tire database. Returns matching tires."""
@@ -102,7 +102,7 @@ async def search_tires(
 
 @router.get("/brakes/search")
 async def search_brake_pads(
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     q: str = "",
 ) -> list[BrakePadSearchResult]:
     """Search curated brake pad database. Returns matching pads."""
@@ -164,7 +164,7 @@ def _vehicle_to_search_result(slug: str, v: VehicleSpec) -> VehicleSearchResult:
 
 @router.get("/vehicles/makes")
 async def get_vehicle_makes(
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
 ) -> list[str]:
     """List all available vehicle makes."""
     from cataclysm.vehicle_db import list_makes
@@ -236,7 +236,7 @@ async def get_vehicle_spec(
 
 @router.get("/reference/tire-sizes")
 async def get_reference_tire_sizes(
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
 ) -> list[str]:
     """Return common tire sizes for track days."""
     from cataclysm.tire_db import list_common_tire_sizes
@@ -246,7 +246,7 @@ async def get_reference_tire_sizes(
 
 @router.get("/reference/brake-fluids")
 async def get_reference_brake_fluids(
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
 ) -> list[str]:
     """Return common brake fluid options."""
     from cataclysm.brake_pad_db import COMMON_BRAKE_FLUIDS
