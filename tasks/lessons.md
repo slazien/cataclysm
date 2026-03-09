@@ -16,13 +16,13 @@
 
 **Error signature**: Feature works for returning users (data cached) but never triggers for new users or fresh uploads.
 
-## Don't Set "Already Done" Refs Before Async/Conditional Checks Pass (2026-03-09)
+## useEffect "Retry" With Stable Deps Is a Lie — Use setInterval (2026-03-09)
 
-**Pattern**: In React hooks with retry logic, never set a guard ref (`startedRef.current = true`) before the conditional check succeeds. Set it *after* all preconditions pass. Otherwise, a failed attempt permanently blocks retries.
+**Pattern**: A useEffect with `[enabled, hasSeen, startTour]` deps fires ONCE when `enabled` flips true. If `startTour()` silently fails (DOM timing, overlay race), none of those deps change, so the effect never re-fires. Comments claiming "retry on next render" are wrong — stable useCallback refs + unchanged boolean state = no re-run. Fix: use setInterval inside the effect for real retries with a max-attempt cap.
 
-**Why**: `useTour` set `startedRef.current = true` in the `useEffect` before calling `startTour()`. Inside `startTour()`, DOM validation could fail (elements not yet rendered). But `startedRef` was already `true`, so subsequent renders never retried. Fix: move `startedRef.current = true` inside `startTour()` after DOM + disclaimer checks pass.
+**Why**: `useTour` had `setTimeout(startTour, 800)` in a useEffect. If the single 800ms attempt failed (DOM elements missing, modal blocking), `startedRef` stayed false but the effect never re-ran. Moving the ref inside `startTour()` (prior fix) enabled *theoretical* retry but didn't add the actual retry loop. Adding `setInterval(startTour, 500)` after the first failed attempt provides real retry up to ~4s.
 
-**Error signature**: Feature works on page load when DOM is ready, but silently fails to fire when elements mount after initial render (e.g., after data fetch).
+**Error signature**: Feature fires reliably on direct navigation (data cached, DOM ready) but silently fails on upload flow (data arrives async, transient blocking states).
 
 ## Radix ScrollArea Viewport Is the Real Scroll Container (2026-03-09)
 
