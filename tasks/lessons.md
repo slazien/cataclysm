@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## staleTime:Infinity Admin Mutation Blind Spot (2026-03-09)
+
+**Pattern**: When session queries use `staleTime: Infinity` (IMMUTABLE) and an admin action changes the underlying data, the admin mutation's `onSuccess` must explicitly invalidate all affected query keys. React Query will never refetch on its own.
+
+**Why**: TrackEditor save only invalidated its own admin query key. All session-scoped analysis queries (`corners`, `all-lap-corners`, `gg-diagram`, `optimal-comparison`, `delta`, `degradation`, `track-guide`) stayed cached forever. Backend returned correct data via `ensure_corners_current`, but frontend never asked.
+
+**Error signature**: Admin edits data (e.g., track corners) → some downstream effects work (coaching regenerates, no IMMUTABLE) → other views show stale data (track map unchanged, same corner positions). Backend logs show correct re-computation; frontend network tab shows no refetch.
+
 ## Zustand + React Query: Guard Hydration, Don't Invalidate on Mutations (2026-03-09)
 
 **Pattern**: When a Zustand store is the runtime source of truth (positions, local state) but React Query provides initial data, guard the hydration effect with a `hydrated` flag and never invalidate the query on mutations. Mutations update the store directly — query invalidation triggers refetch → hydration re-runs → replaces all client-side state with recalculated values.
@@ -982,3 +990,11 @@ el.getBoundingClientRect().right > window.innerWidth
 **Why**: `CornerInput.elevation_trend` was `Literal["flat", "uphill", "downhill", "crest"]` but `OfficialCorner` in `track_db.py` also uses `"compression"`. Similarly, `camber` missed `"off-camber"` and `corner_type` missed `"chicane"`. The editor loaded these values from the source, the user edited other fields, and on save the backend rejected the untouched fields with 422. User reported this twice — first misdiagnosed as stale browser cache.
 
 **Error signature**: `422 Unprocessable Entity` on PUT/POST where the payload contains a value the user never changed — the value came from the backend's own GET response.
+
+## Curvature-Aware Zone Walk Needs Minimum Width Fallback (2026-03-09)
+
+**Pattern**: When computing spatial zones by walking a signal outward from an anchor point, always enforce a minimum zone width. If the signal is below threshold at the anchor, the walk stops immediately → zone width ≈ 1 sample (~0.7m). After rounding + `np.searchsorted`, both boundaries map to the same index → downstream consumers drop the item.
+
+**Why**: `locate_official_corners` was changed to walk the heading-rate signal instead of using midpoint boundaries. For 13/16 Barber corners, heading rate at the apex was below the 1.0 deg/m threshold → 0.7m zones → `extract_corner_kpis_for_lap` dropped them. Since `_reload_sessions_from_db()` re-runs the full pipeline on restart, this retroactively affected ALL sessions. Fix: if zone < 2m, fall back to midpoint boundaries.
+
+**Error signature**: Features disappear from the UI after a backend restart, despite no frontend changes. Items that existed before a code change vanish retroactively because the backend re-processes stored data with the new (broken) logic on every startup.

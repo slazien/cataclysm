@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from httpx import AsyncClient
 
-from backend.api.dependencies import AuthenticatedUser, get_current_user
+from backend.api.dependencies import AuthenticatedUser, get_current_user, get_user_or_anon
 from backend.api.main import app
 
 
@@ -152,17 +152,21 @@ class TestUserIsolation:
         create = await client.post("/api/stickies", json=sticky_payload)
         assert create.status_code == 201
 
-        # Switch to a different user
+        # Switch to a different user — must override both get_current_user and get_user_or_anon
+        # because list_stickies uses get_user_or_anon (not get_current_user)
         other = AuthenticatedUser(user_id="other-user", email="other@test.com", name="Other")
         app.dependency_overrides[get_current_user] = lambda: other
+        app.dependency_overrides[get_user_or_anon] = lambda: other
         try:
             resp = await client.get("/api/stickies")
             assert resp.json()["total"] == 0
         finally:
             # Restore original user
-            app.dependency_overrides[get_current_user] = lambda: AuthenticatedUser(
+            original = AuthenticatedUser(
                 user_id="test-user-123", email="test@example.com", name="Test Driver"
             )
+            app.dependency_overrides[get_current_user] = lambda: original
+            app.dependency_overrides[get_user_or_anon] = lambda: original
 
     async def test_other_user_cannot_update(
         self, client: AsyncClient, sticky_payload: dict

@@ -446,7 +446,7 @@ class TestCoachingStoreMissingLines:
 
         clear_all_coaching()
         result = get_estimated_duration_s()
-        assert result == 20.0  # _DEFAULT_ESTIMATE_S
+        assert result == 60.0  # _DEFAULT_ESTIMATE_S
 
     def test_get_regen_remaining_after_exhaustion(self) -> None:
         """get_regen_remaining returns 0 when all regens used (line 226)."""
