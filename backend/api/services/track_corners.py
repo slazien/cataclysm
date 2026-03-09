@@ -12,10 +12,14 @@ import logging
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
+from cataclysm.consistency import compute_session_consistency
+from cataclysm.corner_line import analyze_corner_lines
 from cataclysm.corners import Corner, extract_corner_kpis_for_lap
 from cataclysm.elevation import compute_corner_elevation, enrich_corners_with_elevation
+from cataclysm.gains import estimate_gains
 from cataclysm.track_db import OfficialCorner, TrackLayout, locate_official_corners
 from cataclysm.track_reference import track_slug_from_layout
+from cataclysm.trends import build_session_snapshot
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -125,6 +129,83 @@ def reapply_corner_overrides_if_stale(sd: SessionData) -> bool:
     except (ValueError, KeyError, IndexError):
         logger.warning(
             "Failed elevation during corner reapply for %s",
+            sd.session_id,
+            exc_info=True,
+        )
+
+    # Corner line re-analysis (if GPS data available)
+    if sd.gps_traces and sd.reference_centerline:
+        try:
+            sd.corner_line_profiles = analyze_corner_lines(
+                sd.gps_traces,
+                sd.reference_centerline,
+                new_best_corners,
+                resampled_laps=sd.processed.resampled_laps,
+                coaching_laps=sd.coaching_laps,
+            )
+        except (ValueError, KeyError, IndexError):
+            logger.warning(
+                "Failed corner line re-analysis for %s",
+                sd.session_id,
+                exc_info=True,
+            )
+
+    # Re-derive consistency (corner_consistency depends on all_lap_corners)
+    if len(sd.coaching_laps) >= 2:
+        try:
+            sd.consistency = compute_session_consistency(
+                sd.processed.lap_summaries,
+                new_all_lap_corners,
+                sd.processed.resampled_laps,
+                sd.processed.best_lap,
+                sd.anomalous_laps,
+            )
+        except (ValueError, KeyError, IndexError):
+            logger.warning(
+                "Failed consistency recomputation for %s",
+                sd.session_id,
+                exc_info=True,
+            )
+
+    # Re-estimate gains (uses corners as segment boundaries)
+    if len(sd.coaching_laps) >= 2:
+        try:
+            sd.gains = estimate_gains(
+                sd.processed.resampled_laps,
+                new_best_corners,
+                sd.processed.lap_summaries,
+                sd.coaching_laps,
+                sd.processed.best_lap,
+            )
+        except (ValueError, KeyError, IndexError):
+            logger.warning(
+                "Failed gains recomputation for %s",
+                sd.session_id,
+                exc_info=True,
+            )
+
+    # Rebuild snapshot with updated corner_metrics, corner_consistency,
+    # theoretical_best_s, composite_best_s
+    try:
+        lap_consistency = (
+            sd.consistency.lap_consistency if sd.consistency else sd.snapshot.lap_consistency
+        )
+        corner_consistency = sd.consistency.corner_consistency if sd.consistency else []
+        sd.snapshot = build_session_snapshot(
+            metadata=sd.parsed.metadata,
+            summaries=sd.processed.lap_summaries,
+            lap_consistency=lap_consistency,
+            corner_consistency=corner_consistency,
+            gains=sd.gains,
+            all_lap_corners=new_all_lap_corners,
+            anomalous_laps=sd.anomalous_laps,
+            file_key=sd.session_id,
+            gps_quality_score=sd.snapshot.gps_quality_score,
+            gps_quality_grade=sd.snapshot.gps_quality_grade,
+        )
+    except (ValueError, KeyError, IndexError, AttributeError):
+        logger.warning(
+            "Failed snapshot rebuild for %s",
             sd.session_id,
             exc_info=True,
         )
