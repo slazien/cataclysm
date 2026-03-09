@@ -299,7 +299,7 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
     # 4. Detect corners (track_db lookup first, fallback to detect_corners)
     best_lap_df = processed.resampled_laps[processed.best_lap]
     layout = detect_track_or_lookup(parsed.data, parsed.metadata.track_name)
-    corner_version: int | None = None
+    corner_version: str | None = None
     if layout is not None:
         # Check for admin-edited corner overrides (DB → in-memory cache)
         slug = track_slug_from_layout(layout)

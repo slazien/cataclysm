@@ -60,8 +60,8 @@ class SessionData:
     corner_line_profiles: list[CornerLineProfile] = field(default_factory=list)
     # Track layout detected during processing (None for unknown tracks)
     layout: TrackLayout | None = None
-    # Corner override version from track_corners cache (None = no override or pre-versioning)
-    corner_override_version: int | None = None
+    # Corner override content hash (None = no override or pre-versioning)
+    corner_override_version: str | None = None
     # Raw CSV bytes retained for anonymous sessions so they can be persisted on claim
     csv_bytes: bytes | None = field(default=None, repr=False)
 

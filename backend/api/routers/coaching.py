@@ -608,6 +608,7 @@ async def download_pdf_report(
     sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+    await ensure_corners_current(sd)
 
     coaching_response = await get_any_coaching_report(session_id)
     if coaching_response is None or coaching_response.status != "ready":

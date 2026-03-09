@@ -6,11 +6,13 @@ DB-edited corners without async DB access.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
-from cataclysm.corners import extract_corner_kpis_for_lap
+from cataclysm.corners import Corner, extract_corner_kpis_for_lap
 from cataclysm.elevation import compute_corner_elevation, enrich_corners_with_elevation
 from cataclysm.track_db import OfficialCorner, TrackLayout, locate_official_corners
 from cataclysm.track_reference import track_slug_from_layout
@@ -28,8 +30,13 @@ logger = logging.getLogger(__name__)
 # In-memory cache: track_slug → list[dict] (raw JSON from DB)
 # ---------------------------------------------------------------------------
 _corner_overrides: dict[str, list[dict]] = {}
-_corner_override_versions: dict[str, int] = {}
+_corner_override_hashes: dict[str, str] = {}
 _cache_loaded: bool = False
+
+
+def _corners_content_hash(corners_json: list[dict]) -> str:
+    """Deterministic hash of corner JSON for restart-safe staleness detection."""
+    return hashlib.sha256(json.dumps(corners_json, sort_keys=True).encode()).hexdigest()[:16]
 
 
 def _db_dict_to_official(c: dict) -> OfficialCorner:
@@ -58,9 +65,13 @@ def get_corner_override_sync(track_slug: str) -> list[OfficialCorner] | None:
     return [_db_dict_to_official(c) for c in corners_json]
 
 
-def get_corner_override_version(track_slug: str) -> int | None:
-    """Return the current version counter for a track's corner override, or None."""
-    return _corner_override_versions.get(track_slug)
+def get_corner_override_version(track_slug: str) -> str | None:
+    """Return the content hash for a track's corner override, or None.
+
+    Uses a content hash (not a counter) so the version is restart-safe — the same
+    DB corners produce the same hash regardless of process lifetime.
+    """
+    return _corner_override_hashes.get(track_slug)
 
 
 def override_layout_corners(
@@ -98,7 +109,7 @@ def reapply_corner_overrides_if_stale(sd: SessionData) -> bool:
     skeletons = locate_official_corners(best_lap_df, new_layout)
     new_best_corners = extract_corner_kpis_for_lap(best_lap_df, skeletons)
 
-    new_all_lap_corners: dict[int, list] = {}
+    new_all_lap_corners: dict[int, list[Corner]] = {}
     for lap_num in sd.coaching_laps:
         if lap_num == sd.processed.best_lap:
             new_all_lap_corners[lap_num] = new_best_corners
@@ -170,10 +181,10 @@ async def load_all_corner_overrides(db: AsyncSession) -> None:
     result = await db.execute(select(TrackCornerConfig))
     configs = result.scalars().all()
     _corner_overrides.clear()
-    _corner_override_versions.clear()
+    _corner_override_hashes.clear()
     for cfg in configs:
         _corner_overrides[cfg.track_slug] = cfg.corners_json
-        _corner_override_versions[cfg.track_slug] = 1
+        _corner_override_hashes[cfg.track_slug] = _corners_content_hash(cfg.corners_json)
     _cache_loaded = True
     logger.info("Loaded %d track corner override(s) from DB", len(_corner_overrides))
 
@@ -181,5 +192,5 @@ async def load_all_corner_overrides(db: AsyncSession) -> None:
 def update_corner_cache(track_slug: str, corners_json: list[dict]) -> None:
     """Update the in-memory cache after admin saves corners."""
     _corner_overrides[track_slug] = corners_json
-    _corner_override_versions[track_slug] = _corner_override_versions.get(track_slug, 0) + 1
+    _corner_override_hashes[track_slug] = _corners_content_hash(corners_json)
     logger.info("Corner cache updated for %s (%d corners)", track_slug, len(corners_json))
