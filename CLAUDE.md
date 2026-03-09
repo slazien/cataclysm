@@ -63,6 +63,7 @@ All must pass before commit:
 Check: text clip, horiz overflow, touch targets ≥44px, chart scale.
 **Fixed-position rule**: Before adding any `position:fixed` element, grep for ALL existing `fixed` elements → verify no overlap at every breakpoint.
 **Tooltip rule**: Never use Radix `Tooltip` (hover-only) for interactive content. Always use `Popover` — tap-to-open stays open until dismissed. `Tooltip` fires enter+leave in rapid succession on touch → immediately disappears.
+**Scroll container rule**: Views using Radix ScrollArea (SessionReport, ProgressView) have actual scroller at `[data-slot="scroll-area-viewport"]` inside the `overflow-y:auto` wrapper. DeepDive/Debrief scroll on the wrapper directly. Any scroll listener must check for the viewport element first: `wrapper.querySelector('[data-slot="scroll-area-viewport"]') ?? wrapper`.
 
 ## Deployment
 

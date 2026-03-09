@@ -1,5 +1,21 @@
 # Lessons Learned
 
+## Radix ScrollArea Viewport Is the Real Scroll Container (2026-03-09)
+
+**Pattern**: When attaching scroll listeners or tracking `scrollTop`, find the actual scrollable element — not the CSS `overflow-y: auto` wrapper. Views using Radix ScrollArea have the real scroller at `[data-slot="scroll-area-viewport"]` nested inside the wrapper. The wrapper's `scrollHeight === clientHeight` because the inner viewport captures all overflow. Always check: `wrapper.querySelector('[data-slot="scroll-area-viewport"]') ?? wrapper`.
+
+**Why**: The sticky notes system tracked `[data-scroll-container="main"]` but SessionReport and ProgressView wrap content in Radix ScrollArea. The wrapper never overflowed, so `scrollTop` was always 0 and stickies never moved with content. Required runtime DOM inspection (`scrollHeight === clientHeight`) to diagnose — the CSS classes looked correct.
+
+**Error signature**: `scrollTop` stays at 0 after assignment on an element with `overflow-y: auto`. Element's `scrollHeight === clientHeight` despite visible scrollbar elsewhere on page.
+
+## Framer Motion onDragEnd Fires After onClick — Use onDrag for Flags (2026-03-09)
+
+**Pattern**: When combining drag and click on the same element in Framer Motion, set `didDragRef = true` in `onDrag` (fires during drag), NOT in `onDragEnd`. The browser `click` event fires between drag end and Framer's `onDragEnd` callback, so a flag set in `onDragEnd` is too late to prevent the click handler.
+
+**Why**: Collapsed sticky pins had drag-to-move + click-to-open. The `onClick` handler checked `didDragRef` to skip toggle after drag, but `onDragEnd` set the flag AFTER `onClick` already fired → every drag also opened the sticky and snapped it back to the old position.
+
+**Error signature**: Element both moves AND triggers its click action on drag-release. `didDragRef` is `false` inside `onClick` despite drag having occurred.
+
 ## Track Reference Turns: Curvature Peaks First, Labels Second (2026-03-08)
 
 **Pattern**: When fixing track reference data (fractions, directions, names), ALWAYS (1) load the `.npz` curvature data, (2) find curvature peaks with `scipy.signal.find_peaks`, (3) map official turns to peaks by topology, (4) extract fraction and direction from the curvature sign (positive=LEFT, negative=RIGHT). Never change surface attributes (direction labels, names) without first verifying the underlying fraction maps to the correct curvature peak. Build the full verification pipeline BEFORE making any code changes.
@@ -926,3 +942,11 @@ el.getBoundingClientRect().right > window.innerWidth
 **Why**: `canSave = tireSize.trim().length > 0` allowed "255" to pass — not a crash bug since tire size is stored as display-only, but confusing data in the equipment badge and a sign of poor UX. User had to point out "wouldn't this cause bugs?" Similarly, selecting RE-71RS (200TW) then manually switching to R-Comp would silently use the wrong mu (1.35 vs 1.10) — user caught this scenario.
 
 **Error signature**: A free-text field that accepts domain-specific data passes validation with a partial/malformed value (e.g. "255" instead of "255/40R17").
+
+## Pydantic Literal Types Must Cover All Source Data Values (2026-03-09)
+
+**Pattern**: When adding `Literal[...]` validation to a Pydantic model that accepts data originating from an existing source (dataclass, DB, JSON), grep the source for ALL distinct values of that field BEFORE writing the Literal. Never hand-pick values from memory.
+
+**Why**: `CornerInput.elevation_trend` was `Literal["flat", "uphill", "downhill", "crest"]` but `OfficialCorner` in `track_db.py` also uses `"compression"`. Similarly, `camber` missed `"off-camber"` and `corner_type` missed `"chicane"`. The editor loaded these values from the source, the user edited other fields, and on save the backend rejected the untouched fields with 422. User reported this twice — first misdiagnosed as stale browser cache.
+
+**Error signature**: `422 Unprocessable Entity` on PUT/POST where the payload contains a value the user never changed — the value came from the backend's own GET response.
