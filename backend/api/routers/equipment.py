@@ -669,7 +669,7 @@ async def set_session_equipment_inline(
         else CATEGORY_MU_DEFAULTS.get(category, 0.93)
     )
     tire_schema = TireSpecSchema(
-        model="OEM / Stock",
+        model=body.tire_model or "OEM / Stock",
         compound_category=body.compound_category,
         size=body.tire_size.strip(),
         estimated_mu=mu,

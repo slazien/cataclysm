@@ -16,6 +16,8 @@ vi.mock('@/hooks/useEquipment', () => ({
   useAssignEquipmentInline: () => ({ mutateAsync: mockAssignEquipmentInline, isPending: false }),
   useVehicleSearch: (q: string) => mockVehicleSearch(q),
   useEquipmentProfiles: () => mockEquipmentProfiles(),
+  useTireSearch: () => ({ data: [], isLoading: false }),
+  useCommonTireSizes: () => ({ data: ['205/50R16', '225/45R17', '245/40R18'], isLoading: false }),
 }));
 
 vi.mock('next-auth/react', () => ({

@@ -11,6 +11,8 @@ import {
   useAssignEquipmentInline,
   useVehicleSearch,
   useEquipmentProfiles,
+  useTireSearch,
+  useCommonTireSizes,
 } from '@/hooks/useEquipment';
 import { getVehicleSpec } from '@/lib/api';
 import type { VehicleSpec, VehicleSearchResult, EquipmentProfile } from '@/lib/types';
@@ -47,9 +49,14 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
   const { data: vehicleResults = [] } = useVehicleSearch(vehicleQuery);
 
   const [compound, setCompound] = useState<string>('');
+  const [tireModel, setTireModel] = useState('');
   const [tireSize, setTireSize] = useState('');
+  const [tireSizeFocused, setTireSizeFocused] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  const { data: tireResults = [] } = useTireSearch(tireModel.length >= 2 ? tireModel : '');
+  const { data: commonTireSizes = [] } = useCommonTireSizes();
 
   const createProfile = useCreateProfile();
   const assignEquipment = useAssignEquipment();
@@ -104,16 +111,17 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
     setSaveError(null);
     try {
       const mu = COMPOUND_MU[compound] ?? 0.93;
+      const model = tireModel.trim() || 'OEM / Stock';
       if (isAuthenticated) {
         // Authenticated: create a named persistent profile and assign it
         const profile = await createProfile.mutateAsync({
           name: profileName,
           tires: {
-            model: 'OEM / Stock',
+            model,
             compound_category: compound,
             size: tireSize.trim(),
             estimated_mu: mu,
-            mu_source: 'auto',
+            mu_source: 'formula_estimate',
             mu_confidence: 'low',
             treadwear_rating: null,
             pressure_psi: null,
@@ -129,7 +137,12 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
         // Anonymous: inline assignment — no persistent profile, migrated on sign-up
         await assignEquipmentInline.mutateAsync({
           sessionId,
-          body: { compound_category: compound, tire_size: tireSize.trim(), estimated_mu: mu },
+          body: {
+            compound_category: compound,
+            tire_size: tireSize.trim(),
+            tire_model: model !== 'OEM / Stock' ? model : undefined,
+            estimated_mu: mu,
+          },
         });
       }
       onComplete();
@@ -141,6 +154,7 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
     canSave,
     saving,
     compound,
+    tireModel,
     tireSize,
     profileName,
     selectedVehicle,
@@ -328,8 +342,52 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
           </div>
         </div>
 
+        {/* Tire model (optional) */}
+        <div className="mt-4 relative">
+          <label className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">
+            Tire model <span className="text-[var(--text-muted)]">(optional)</span>
+          </label>
+          <input
+            type="text"
+            value={tireModel}
+            onChange={(e) => setTireModel(e.target.value)}
+            placeholder="e.g. RE-71RS, RT660, RS4"
+            className="w-full rounded-md border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--cata-accent)]/60 focus:outline-none"
+          />
+          <AnimatePresence>
+            {tireResults.length > 0 && tireModel.length >= 2 && (
+              <motion.ul
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.15 }}
+                className="absolute left-0 right-0 z-10 mt-1 max-h-32 overflow-y-auto rounded-md border border-[var(--cata-border)] bg-[var(--bg-elevated)] shadow-lg"
+              >
+                {tireResults.slice(0, 6).map((tire, i) => (
+                  <li key={`${tire.model}-${i}`}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTireModel(tire.model);
+                        if (tire.compound_category) setCompound(tire.compound_category);
+                        if (tire.size && tire.size !== 'varies' && !tireSize) setTireSize(tire.size);
+                      }}
+                      className="w-full px-3 py-1.5 text-left text-sm hover:bg-[var(--bg-surface)]"
+                    >
+                      <span className="font-medium text-[var(--text-primary)]">{tire.model}</span>
+                      {tire.treadwear_rating ? (
+                        <span className="ml-1.5 text-xs text-[var(--text-muted)]">TW {tire.treadwear_rating}</span>
+                      ) : null}
+                    </button>
+                  </li>
+                ))}
+              </motion.ul>
+            )}
+          </AnimatePresence>
+        </div>
+
         {/* Tire size */}
-        <div className="mt-4">
+        <div className="mt-4 relative">
           <label className="mb-1.5 block text-xs font-medium text-[var(--text-secondary)]">
             Tire size <span className="text-red-400">*</span>
           </label>
@@ -337,9 +395,30 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
             type="text"
             value={tireSize}
             onChange={(e) => setTireSize(e.target.value)}
+            onFocus={() => setTireSizeFocused(true)}
+            onBlur={() => setTimeout(() => setTireSizeFocused(false), 150)}
             placeholder="e.g. 205/50R16"
             className="w-full rounded-md border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--cata-accent)]/60 focus:outline-none"
           />
+          {tireSizeFocused && commonTireSizes.length > 0 && (
+            <ul className="absolute left-0 right-0 z-10 mt-1 max-h-32 overflow-y-auto rounded-md border border-[var(--cata-border)] bg-[var(--bg-elevated)] shadow-lg">
+              {commonTireSizes
+                .filter((s) => !tireSize || s.toLowerCase().includes(tireSize.toLowerCase()))
+                .slice(0, 8)
+                .map((size) => (
+                  <li key={size}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => { setTireSize(size); setTireSizeFocused(false); }}
+                      className="w-full px-3 py-1.5 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface)]"
+                    >
+                      {size}
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          )}
           {selectedVehicle?.stock_tire_size_rear &&
             selectedVehicle.stock_tire_size_rear !== selectedVehicle.stock_tire_size_front && (
               <p className="mt-1 text-xs text-[var(--text-muted)]">

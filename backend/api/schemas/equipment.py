@@ -184,6 +184,7 @@ class InlineEquipmentSet(BaseModel):
 
     compound_category: str
     tire_size: str = Field(..., min_length=3, max_length=30)
+    tire_model: str | None = Field(None, max_length=100)
     estimated_mu: float | None = None
 
 
