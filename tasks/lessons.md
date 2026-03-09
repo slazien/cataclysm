@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## Zustand + React Query: Guard Hydration, Don't Invalidate on Mutations (2026-03-09)
+
+**Pattern**: When a Zustand store is the runtime source of truth (positions, local state) but React Query provides initial data, guard the hydration effect with a `hydrated` flag and never invalidate the query on mutations. Mutations update the store directly — query invalidation triggers refetch → hydration re-runs → replaces all client-side state with recalculated values.
+
+**Why**: Every sticky position sync, content change, and tone change invalidated the stickies query. Each refetch re-ran `hydrateFromApi`, which replaced all stickies from scratch with fresh obstacle-avoidance calculations. This caused "ghost" stickies (existing ones jumping to new positions) and undid drag positions. Fix: `if (hydrated) return;` in the hydration effect + remove `onSuccess: invalidateQueries` from mutations.
+
+**Error signature**: Creating/moving/editing item A causes item B to visibly jump. Or: an item appears to "duplicate" — really it's the same item at two different calculated positions during the hydration race.
+
 ## Never Gate UI Features on Slow Async Data When Faster Alternatives Exist (2026-03-09)
 
 **Pattern**: When enabling a UI feature (tour, tooltip, animation), gate it on the fastest-available signal, not the richest. If session + laps data is available in <1s but coaching report takes 5-30s, gate on session + laps. Target DOM elements that render with the fast data, not elements that only appear after the slow data arrives.
