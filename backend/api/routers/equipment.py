@@ -673,7 +673,7 @@ async def set_session_equipment_inline(
         compound_category=body.compound_category,
         size=body.tire_size.strip(),
         estimated_mu=mu,
-        mu_source="auto",
+        mu_source="formula_estimate",
         mu_confidence="low",
     )
     profile_id = f"eq_{uuid.uuid4().hex[:12]}"

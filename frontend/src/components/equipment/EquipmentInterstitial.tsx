@@ -22,19 +22,17 @@ interface EquipmentInterstitialProps {
 
 const COMPOUND_OPTIONS = [
   { value: 'street', label: 'Street' },
-  { value: 'performance street', label: 'Perf. Street' },
-  { value: 'ultra high performance', label: 'UHP' },
-  { value: 'track/r-compound', label: 'R-Compound' },
+  { value: 'super_200tw', label: '200TW' },
+  { value: 'r_comp', label: 'R-Comp' },
   { value: 'slick', label: 'Slick' },
 ] as const;
 
-// Estimated mu values per compound category (mirrors backend tire_db.py defaults)
+// Estimated mu values per compound category (mirrors backend CATEGORY_MU_DEFAULTS)
 const COMPOUND_MU: Record<string, number> = {
-  'street': 0.82,
-  'performance street': 0.93,
-  'ultra high performance': 1.02,
-  'track/r-compound': 1.15,
-  'slick': 1.35,
+  street: 0.85,
+  super_200tw: 1.10,
+  r_comp: 1.35,
+  slick: 1.50,
 };
 
 export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInterstitialProps) {
