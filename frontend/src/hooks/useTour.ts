@@ -62,7 +62,7 @@ export function useTour(
       return document.querySelector(step.element as string) !== null;
     });
     if (!allPresent) {
-      // Targets not in DOM — skip gracefully
+      // Targets not in DOM — skip gracefully, allow retry on next render
       return;
     }
 
@@ -70,6 +70,9 @@ export function useTour(
     // DisclaimerModal is in DOM only before user accepts (returns null after).
     // Check localStorage directly — more reliable than class selectors.
     if (!localStorage.getItem('cataclysm-disclaimer-accepted')) return;
+
+    // All checks passed — prevent duplicate starts
+    startedRef.current = true;
 
     // Dynamic import — zero bundle cost for returning users
     // CSS is loaded globally via globals.css @import
@@ -93,10 +96,11 @@ export function useTour(
     driverInstance.drive();
   }, [markSeen]);
 
-  // Auto-trigger when enabled becomes true and tour not yet seen
+  // Auto-trigger when enabled becomes true and tour not yet seen.
+  // startedRef is set inside startTour after DOM validation passes,
+  // so a failed attempt (missing elements) can retry on the next render.
   useEffect(() => {
     if (!enabled || hasSeen || startedRef.current) return;
-    startedRef.current = true;
 
     const timer = setTimeout(() => {
       startTour();

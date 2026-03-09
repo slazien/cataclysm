@@ -36,7 +36,7 @@ export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced, 
   const optimalDelta = bestLap != null && optimalLap != null ? bestLap - optimalLap : null;
 
   return (
-    <div>
+    <div id="metrics-grid">
       <h3 className="mb-3 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Session Metrics</h3>
       <m.div
         className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4"

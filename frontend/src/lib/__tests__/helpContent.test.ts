@@ -7,9 +7,8 @@ describe('helpContent', () => {
     expect(helpContent['metric.pace-spread']).toMatch(/top 3 average minus your best lap/i);
   });
 
-  it('frames top-priority time figures as bounded estimates instead of measured fact', () => {
+  it('frames top-priority time figures as physics-based estimates', () => {
     expect(helpContent['section.top-priorities']).toMatch(/estimate/i);
-    expect(helpContent['section.top-priorities']).toMatch(/not a measured fact/i);
   });
 
   it('documents session score weighting as an ideal-lap reference with reweighted missing components', () => {

@@ -175,10 +175,8 @@ export function SessionReport() {
 
   const patternCount = report ? report.patterns.length + report.drills.length : 0;
 
-  // Tour: trigger when report has data (priority corners + corner grades present)
-  const hasTourTargets = Boolean(
-    report?.priority_corners?.length && report?.corner_grades?.length,
-  );
+  // Tour: trigger when session + laps are loaded (no coaching dependency)
+  const hasTourTargets = Boolean(session && laps?.length);
   useTour('report', hasTourTargets, () => getReportSteps(skillLevel));
 
   return (

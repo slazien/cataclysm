@@ -37,28 +37,24 @@ function getVisibleTabBarSelector(): string {
 // Report tour
 // ---------------------------------------------------------------------------
 
-export function getReportSteps(skillLevel: SkillLevel): DriveStep[] {
-  const priorityDescription =
-    skillLevel === 'novice'
-      ? 'Your biggest opportunity this session. The coach explains what happened and how to improve.'
-      : 'Your highest-leverage improvement. Data-backed coaching with specific action items.';
-
+export function getReportSteps(_skillLevel: SkillLevel): DriveStep[] {
   return [
     {
-      element: '#priority-improvements',
+      element: '#metrics-grid',
       popover: {
-        title: 'Start Here',
-        description: priorityDescription,
+        title: 'Your Session at a Glance',
+        description:
+          'Best lap, consistency score, and gap to your optimal target — all in one place.',
         side: 'bottom' as const,
       },
     },
     {
-      element: '#corner-grades-table',
+      element: '#hero-track-map',
       popover: {
-        title: 'Corner Grades',
+        title: 'Your Track',
         description:
-          'Tap any corner to see your speed analysis and coaching for that turn.',
-        side: 'top' as const,
+          'Corners are color-coded by how much time you can gain. Tap any corner to dive deeper.',
+        side: 'bottom' as const,
       },
     },
     {

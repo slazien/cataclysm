@@ -9,22 +9,21 @@ vi.mock('@/hooks/useSkillLevel', () => ({
   useSkillLevel: () => mockUseSkillLevel(),
 }));
 
-// Tooltip primitives from shadcn/ui use Radix under the hood which needs a real
+// Popover primitives from shadcn/ui use Radix under the hood which needs a real
 // DOM — stub them out with lightweight wrappers that still render children and
-// the tooltip content inline so we can assert on it.
-vi.mock('@/components/ui/tooltip', () => ({
-  TooltipProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  TooltipTrigger: ({
+// the popover content inline so we can assert on it.
+vi.mock('@/components/ui/popover', () => ({
+  Popover: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  PopoverTrigger: ({
     children,
     asChild,
     ...rest
   }: {
     children: React.ReactNode;
     asChild?: boolean;
-  }) => <span data-testid="tooltip-trigger" {...rest}>{children}</span>,
-  TooltipContent: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="tooltip-content">{children}</div>
+  }) => <span data-testid="popover-trigger" {...rest}>{children}</span>,
+  PopoverContent: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="popover-content">{children}</div>
   ),
 }));
 
@@ -77,7 +76,7 @@ describe('GlossaryTerm', () => {
           <span>some text</span>
         </GlossaryTerm>,
       );
-      expect(screen.queryByTestId('tooltip-trigger')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('popover-trigger')).not.toBeInTheDocument();
     });
   });
 
@@ -90,7 +89,7 @@ describe('GlossaryTerm', () => {
         </GlossaryTerm>,
       );
       expect(screen.getByText('Apex')).toBeInTheDocument();
-      expect(screen.queryByTestId('tooltip-trigger')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('popover-trigger')).not.toBeInTheDocument();
     });
   });
 
@@ -101,7 +100,7 @@ describe('GlossaryTerm', () => {
           <span>Apex</span>
         </GlossaryTerm>,
       );
-      expect(screen.getByTestId('tooltip-trigger')).toBeInTheDocument();
+      expect(screen.getByTestId('popover-trigger')).toBeInTheDocument();
       expect(screen.getByText('Apex')).toBeInTheDocument();
     });
 
@@ -111,8 +110,8 @@ describe('GlossaryTerm', () => {
           <span>Apex</span>
         </GlossaryTerm>,
       );
-      // tooltip-content is always rendered in our stub
-      expect(screen.getByTestId('tooltip-content')).toBeInTheDocument();
+      // popover-content is always rendered in our stub
+      expect(screen.getByTestId('popover-content')).toBeInTheDocument();
       // For intermediate, definition (not noviceExplanation) is shown
       expect(
         screen.getByText(/innermost point of your line/i),
@@ -128,14 +127,13 @@ describe('GlossaryTerm', () => {
       expect(screen.queryByText(/Example:/i)).not.toBeInTheDocument();
     });
 
-    it('applies a muted dotted border to the trigger span', () => {
+    it('applies a muted dotted border to the trigger button', () => {
       render(
         <GlossaryTerm term={KNOWN_TERM}>Apex</GlossaryTerm>,
       );
-      const trigger = screen.getByTestId('tooltip-trigger');
-      // The inner span rendered by TooltipTrigger asChild should carry the class
-      const innerSpan = trigger.querySelector('span') ?? trigger;
-      expect(innerSpan.className).toContain('border-dotted');
+      const trigger = screen.getByTestId('popover-trigger');
+      const inner = trigger.querySelector('button') ?? trigger;
+      expect(inner.className).toContain('border-dotted');
     });
   });
 
@@ -168,9 +166,9 @@ describe('GlossaryTerm', () => {
       render(
         <GlossaryTerm term={KNOWN_TERM}>Apex</GlossaryTerm>,
       );
-      const trigger = screen.getByTestId('tooltip-trigger');
-      const innerSpan = trigger.querySelector('span') ?? trigger;
-      expect(innerSpan.className).toContain('border-[var(--cata-accent)]');
+      const trigger = screen.getByTestId('popover-trigger');
+      const inner = trigger.querySelector('button') ?? trigger;
+      expect(inner.className).toContain('border-[var(--cata-accent)]');
     });
   });
 });

@@ -76,6 +76,10 @@ function makeCanvasCtx() {
     fill: vi.fn(),
     rect: vi.fn(),
     roundRect: vi.fn(),
+    measureText: vi.fn().mockReturnValue({ width: 60 }),
+    save: vi.fn(),
+    restore: vi.fn(),
+    clip: vi.fn(),
     fillStyle: '',
     font: '',
     textAlign: '',
@@ -480,8 +484,8 @@ describe('OptimalGapChart', () => {
 
     render(<OptimalGapChart sessionId="s1" />);
 
-    // Both bars should be drawn
-    expect(ctx.beginPath).toHaveBeenCalledTimes(2);
+    // 2 bar paths + 1 clip rect for outside label = 3 beginPath calls
+    expect(ctx.beginPath).toHaveBeenCalledTimes(3);
     // 2 corner labels + 2 value labels = 4 fillText calls
     expect(ctx.fillText).toHaveBeenCalledTimes(4);
   });

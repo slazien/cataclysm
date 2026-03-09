@@ -488,7 +488,7 @@ describe('useUploadSessions', () => {
     }
   });
 
-  it('sets active session on successful upload', async () => {
+  it('sets upload state to done on successful upload', async () => {
     const uploadResult = { session_ids: ['new-session-1'] };
     mockUploadSessions.mockResolvedValue(uploadResult);
     mockFetchApi.mockResolvedValue({ session_id: 'new-session-1', track_name: 'Barber' });
@@ -503,8 +503,9 @@ describe('useUploadSessions', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    // The store should have the active session set
-    expect(useSessionStore.getState().activeSessionId).toBe('new-session-1');
+    // Hook sets state to done; session activation is the caller's responsibility
+    // (WelcomeScreen delays for skill picker / equipment interstitial)
+    expect(useSessionStore.getState().uploadProgress).toBe(100);
   });
 });
 
