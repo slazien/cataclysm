@@ -348,4 +348,41 @@ describe('CornerSpeedGapPanel', () => {
     // The component should still render without errors
     expect(screen.getByText(/T5/)).toBeTruthy();
   });
+
+  it('shows straights row when residual gap exceeds 0.1s', () => {
+    mockUseOptimalComparison.mockReturnValue({
+      data: {
+        session_id: 's1',
+        actual_lap_time_s: 90,
+        optimal_lap_time_s: 87,
+        total_gap_s: 3.0,
+        is_valid: true,
+        corner_opportunities: [makeCornerOpportunity(3, 5.0, 1.2)],
+      },
+      isLoading: false,
+    });
+
+    render(<CornerSpeedGapPanel sessionId="s1" selectedCorner={null} />);
+
+    expect(screen.getByText('Str.')).toBeTruthy();
+    expect(screen.getByText(/straights/i)).toBeTruthy();
+  });
+
+  it('does not show straights row when residual is negligible', () => {
+    mockUseOptimalComparison.mockReturnValue({
+      data: {
+        session_id: 's1',
+        actual_lap_time_s: 90,
+        optimal_lap_time_s: 88.8,
+        total_gap_s: 1.2,
+        is_valid: true,
+        corner_opportunities: [makeCornerOpportunity(3, 5.0, 1.15)],
+      },
+      isLoading: false,
+    });
+
+    render(<CornerSpeedGapPanel sessionId="s1" selectedCorner={null} />);
+
+    expect(screen.queryByText('Str.')).toBeNull();
+  });
 });

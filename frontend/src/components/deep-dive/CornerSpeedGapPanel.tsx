@@ -277,12 +277,21 @@ export function CornerSpeedGapPanel({ sessionId, selectedCorner, onDrillDown }: 
       .sort((a, b) => b.time_cost_s - a.time_cost_s);
   }, [comparison]);
 
-  const maxTimeCost = useMemo(
-    () => Math.max(...opportunities.map((o) => o.time_cost_s), 0),
-    [opportunities],
-  );
-
   const totalGapS = Math.max(comparison?.total_gap_s ?? 0, 0);
+
+  const straightsGapS = useMemo(() => {
+    if (!comparison?.corner_opportunities || !comparison?.total_gap_s || comparison.total_gap_s <= 0)
+      return 0;
+    if (!comparison.is_valid) return 0;
+    const allCornerCost = comparison.corner_opportunities.reduce((s, o) => s + o.time_cost_s, 0);
+    const residual = comparison.total_gap_s - allCornerCost;
+    return residual > 0.1 ? residual : 0;
+  }, [comparison]);
+
+  const maxTimeCost = useMemo(
+    () => Math.max(...opportunities.map((o) => o.time_cost_s), straightsGapS, 0),
+    [opportunities, straightsGapS],
+  );
 
   // Find the focused opportunity for selectedCorner — search ALL corner data,
   // not just the filtered opportunities list, so corners where the driver is
@@ -333,7 +342,7 @@ export function CornerSpeedGapPanel({ sessionId, selectedCorner, onDrillDown }: 
             <InfoTooltip helpKey="chart.speed-gap" />
           </h3>
           <p className="text-[11px] text-[var(--text-secondary)]">
-            Per-corner time cost from speed deficit
+            Time cost from speed deficit
           </p>
         </div>
         {totalGapS > 0 && (
@@ -386,6 +395,31 @@ export function CornerSpeedGapPanel({ sessionId, selectedCorner, onDrillDown }: 
                   speedUnit={speedUnit}
                 />
               ))}
+              {straightsGapS > 0 && (
+                <div className="flex w-full items-center gap-2 rounded-md px-2 py-1.5">
+                  <span className="w-7 shrink-0 text-right text-xs font-medium tabular-nums text-slate-500">
+                    Str.
+                  </span>
+                  <div className="relative flex h-5 flex-1 items-center">
+                    <motion.div
+                      className="absolute inset-y-0 left-0 rounded-sm bg-slate-500/30"
+                      initial={{ width: 0 }}
+                      animate={{
+                        width: `${Math.max(maxTimeCost > 0 ? (straightsGapS / maxTimeCost) * 100 : 0, 2)}%`,
+                      }}
+                      transition={{ duration: 0.4, ease: 'easeOut', delay: 0.05 }}
+                    />
+                    <span
+                      className="relative z-10 whitespace-nowrap text-[11px] font-medium tabular-nums text-slate-500"
+                      style={{
+                        paddingLeft: `calc(${Math.max(maxTimeCost > 0 ? (straightsGapS / maxTimeCost) * 100 : 0, 2)}% + 6px)`,
+                      }}
+                    >
+                      ~{straightsGapS.toFixed(2)}s straights
+                    </span>
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
