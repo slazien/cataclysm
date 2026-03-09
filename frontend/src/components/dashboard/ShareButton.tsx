@@ -25,6 +25,7 @@ export function ShareButton({ sessionId }: ShareButtonProps) {
 
   return (
     <Button
+      id="share-button"
       variant="ghost"
       size="sm"
       onClick={handleShare}

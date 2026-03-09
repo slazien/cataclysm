@@ -167,7 +167,10 @@ export default function PublicViewPage() {
         )}
       </div>
 
-      <SignUpCTA />
+      <SignUpCTA
+        headline="Get your own AI race engineer"
+        subline="Corner-by-corner coaching, progress tracking, and lap comparisons — free"
+      />
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Upload, MapPin, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, MapPin, AlertCircle, Loader2, Calendar, Timer } from 'lucide-react';
 import { getShareMetadata, uploadToShare } from '@/lib/api';
 import { formatLapTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
@@ -122,7 +122,10 @@ export default function SharePage() {
             token={token}
           />
         </div>
-        <SignUpCTA />
+        <SignUpCTA
+          headline="Get your own AI race engineer"
+          subline="Corner-by-corner coaching, progress tracking, and lap comparisons — free"
+        />
       </div>
     );
   }
@@ -134,27 +137,42 @@ export default function SharePage() {
         {/* Header */}
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-[var(--text-primary)]">
-            Compare Your Laps
+            Think you&apos;re faster?
           </h1>
           <p className="mt-2 text-sm text-[var(--text-secondary)]">
             <span className="font-medium text-[var(--text-primary)]">{meta.inviter_name}</span>{' '}
-            wants to compare sessions with you
+            challenged you to a lap comparison
           </p>
         </div>
 
         {/* Session Info Card */}
         <div className="w-full rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-5">
-          <div className="flex items-center gap-3">
-            <MapPin className="h-5 w-5 text-[var(--text-secondary)]" />
-            <div>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <MapPin className="h-5 w-5 shrink-0 text-[var(--text-secondary)]" />
               <p className="font-medium text-[var(--text-primary)]">{meta.track_name}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pl-8">
               {meta.best_lap_time_s !== null && (
-                <p className="text-sm text-[var(--text-secondary)]">
-                  Their best lap:{' '}
-                  <span className="font-mono font-semibold text-[var(--text-primary)]">
+                <div className="flex items-center gap-2">
+                  <Timer className="h-4 w-4 text-[var(--text-secondary)]" />
+                  <span className="text-sm text-[var(--text-secondary)]">Best lap</span>
+                  <span className="font-mono text-sm font-semibold text-[var(--text-primary)]">
                     {formatLapTime(meta.best_lap_time_s)}
                   </span>
-                </p>
+                </div>
+              )}
+              {meta.created_at && (
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-[var(--text-secondary)]" />
+                  <span className="text-sm text-[var(--text-secondary)]">
+                    {new Date(meta.created_at).toLocaleDateString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </span>
+                </div>
               )}
             </div>
           </div>
@@ -200,12 +218,12 @@ export default function SharePage() {
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3">
-              <Upload className="h-8 w-8 text-[var(--text-secondary)]" />
+              <Upload className="h-8 w-8 text-[var(--color-throttle)]" />
               <p className="text-sm font-medium text-[var(--text-primary)]">
-                Drop your RaceChrono CSV here
+                Upload your session to compare
               </p>
               <p className="text-xs text-[var(--text-secondary)]">
-                or click to browse
+                Drop a RaceChrono CSV or click to browse
               </p>
             </div>
           )}
@@ -217,7 +235,10 @@ export default function SharePage() {
           </div>
         )}
       </div>
-      <SignUpCTA />
+      <SignUpCTA
+        headline="Get your own AI race engineer"
+        subline="Corner-by-corner coaching, progress tracking, and lap comparisons — free"
+      />
     </div>
   );
 }
