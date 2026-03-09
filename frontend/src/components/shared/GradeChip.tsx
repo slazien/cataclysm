@@ -4,6 +4,8 @@ import { motion as m } from 'motion/react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { motion as motionTokens } from '@/lib/design-tokens';
+import { useUnits } from '@/hooks/useUnits';
+import { resolveSpeedMarkers } from '@/lib/textUtils';
 
 type Grade = 'A' | 'B' | 'C' | 'D' | 'F';
 
@@ -62,9 +64,13 @@ function ChipContent({ grade, className }: { grade: string; className?: string }
 }
 
 export function GradeChip({ grade, reason, className }: GradeChipProps) {
+  const { isMetric } = useUnits();
+
   if (!reason) {
     return <ChipContent grade={grade} className={className} />;
   }
+
+  const resolvedReason = resolveSpeedMarkers(reason, isMetric);
 
   return (
     <Popover>
@@ -82,7 +88,7 @@ export function GradeChip({ grade, reason, className }: GradeChipProps) {
         sideOffset={6}
         className="max-w-[220px] border-[var(--cata-border)] bg-[var(--bg-surface)] px-3 py-1.5 text-xs leading-relaxed text-[var(--text-primary)]"
       >
-        {reason}
+        {resolvedReason}
       </PopoverContent>
     </Popover>
   );

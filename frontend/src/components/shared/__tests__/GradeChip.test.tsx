@@ -22,19 +22,22 @@ vi.mock('@/lib/design-tokens', () => ({
   },
 }));
 
-// Mock the tooltip UI primitives — Radix portals don't work in jsdom
-vi.mock('@/components/ui/tooltip', () => ({
-  TooltipProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  TooltipTrigger: ({
+// useUnits — default imperial (isMetric: false)
+vi.mock('@/hooks/useUnits', () => ({
+  useUnits: () => ({ isMetric: false }),
+}));
+
+// Mock Radix Popover primitives — portals don't work in jsdom
+vi.mock('@/components/ui/popover', () => ({
+  Popover: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  PopoverTrigger: ({
     children,
     asChild,
-    ...rest
   }: {
     children: React.ReactNode;
     asChild?: boolean;
   }) => <>{children}</>,
-  TooltipContent: ({
+  PopoverContent: ({
     children,
     ...rest
   }: {
@@ -42,7 +45,7 @@ vi.mock('@/components/ui/tooltip', () => ({
     side?: string;
     sideOffset?: number;
     className?: string;
-  }) => <div data-testid="tooltip-content">{children}</div>,
+  }) => <div data-testid="popover-content">{children}</div>,
 }));
 
 describe('GradeChip', () => {
@@ -164,9 +167,16 @@ describe('GradeChip', () => {
       expect(button.className).toContain('cursor-help');
     });
 
-    it('renders the reason text in the tooltip content', () => {
+    it('renders the reason text in the popover content', () => {
       render(<GradeChip grade="C" reason="Needs more throttle commitment" />);
       expect(screen.getByText('Needs more throttle commitment')).toBeInTheDocument();
+    });
+
+    it('resolves {{speed:N}} markers using the current unit setting', () => {
+      render(<GradeChip grade="C" reason="Min speed varies {{speed:5.6}} (31.1-36.5 mph); early apex laps arrive slower." />);
+      const content = screen.getByTestId('popover-content');
+      expect(content.textContent).toContain('5.6 mph');
+      expect(content.textContent).not.toContain('{{speed:');
     });
 
     it('still displays the grade letter when reason is present', () => {
