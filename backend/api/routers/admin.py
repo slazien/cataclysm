@@ -235,7 +235,7 @@ async def save_corners(
 
     corners_data = [c.model_dump() for c in payload.corners]
 
-    # Upsert
+    # Legacy: upsert TrackCornerConfig (kept for backward compat during migration)
     result = await db.execute(select(TrackCornerConfig).where(TrackCornerConfig.track_slug == slug))
     existing = result.scalar_one_or_none()
 
@@ -251,9 +251,28 @@ async def save_corners(
             )
         )
 
-    await db.commit()
+    # New: also write to TrackCornerV2 + refresh hybrid cache (single source of truth)
+    from cataclysm.track_db_hybrid import db_track_to_layout, update_db_tracks_cache
 
-    # Update in-memory cache so the pipeline uses DB corners immediately
+    from backend.api.services.track_store import (
+        get_corners_for_track,
+        get_landmarks_for_track,
+        get_track_by_slug,
+        upsert_corners,
+    )
+
+    track = await get_track_by_slug(db, slug)
+    if track is not None:
+        await upsert_corners(db, track.id, corners_data)
+        await db.commit()
+        corners_rows = await get_corners_for_track(db, track.id)
+        landmarks_rows = await get_landmarks_for_track(db, track.id)
+        layout = db_track_to_layout(track, corners_rows, landmarks_rows)
+        update_db_tracks_cache(track.slug, layout)
+    else:
+        await db.commit()
+
+    # Update corner version hash for staleness detection
     from backend.api.services.track_corners import update_corner_cache
 
     update_corner_cache(slug, corners_data)

@@ -80,11 +80,7 @@ from backend.api.services.db_physics_cache import (
     db_set_cached_by_track,
 )
 from backend.api.services.session_store import SessionData, store_session
-from backend.api.services.track_corners import (
-    get_corner_override_sync,
-    get_corner_override_version,
-    override_layout_corners,
-)
+from backend.api.services.track_corners import get_corner_override_version
 
 logger = logging.getLogger(__name__)
 
@@ -301,13 +297,10 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
     layout = detect_track_or_lookup(parsed.data, parsed.metadata.track_name)
     corner_version: str | None = None
     if layout is not None:
-        # Check for admin-edited corner overrides (DB → in-memory cache)
+        # Hybrid cache already has the correct corners (DB-first + Python fallback).
+        # Capture version hash for staleness detection by ensure_corners_current().
         slug = track_slug_from_layout(layout)
-        db_corners = get_corner_override_sync(slug)
-        if db_corners is not None:
-            layout = override_layout_corners(layout, db_corners)
-            corner_version = get_corner_override_version(slug)
-            logger.info("Using %d admin-edited corners for %s", len(db_corners), slug)
+        corner_version = get_corner_override_version(slug)
         skeletons = locate_official_corners(best_lap_df, layout)
         corners: list[Corner] = extract_corner_kpis_for_lap(best_lap_df, skeletons)
     else:

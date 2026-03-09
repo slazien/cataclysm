@@ -219,18 +219,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 "Loaded %d equipment profile(s), %d session assignment(s) from disk", n_eq, n_se
             )
 
-    # Load admin-edited corner overrides so the pipeline uses them
-    from backend.api.db.database import async_session_factory as _corner_asf
-    from backend.api.services.track_corners import load_all_corner_overrides
-
-    try:
-        async with _corner_asf() as _corners_db:
-            await load_all_corner_overrides(_corners_db)
-    except Exception:
-        logger.warning("Failed to load corner overrides from DB", exc_info=True)
-
     # Load DB tracks into hybrid cache (DB-first, Python constants fallback)
     from cataclysm.track_db_hybrid import load_db_tracks
+
+    from backend.api.db.database import async_session_factory as _corner_asf
 
     try:
         async with _corner_asf() as _tracks_db:
@@ -239,6 +231,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 logger.info("Hybrid track cache seeded with %d DB track(s)", n_tracks)
     except Exception:
         logger.warning("Failed to load DB tracks into hybrid cache", exc_info=True)
+
+    # Migrate legacy TrackCornerConfig → TrackCornerV2 (one-time per startup)
+    from backend.api.services.track_corners import (
+        compute_all_corner_hashes,
+        migrate_legacy_corner_configs,
+    )
+
+    try:
+        async with _corner_asf() as _migrate_db:
+            migrated = await migrate_legacy_corner_configs(_migrate_db)
+            if migrated:
+                logger.info("Migrated %d legacy corner config(s) to TrackCornerV2", migrated)
+    except Exception:
+        logger.warning("Failed to migrate legacy corner configs", exc_info=True)
+
+    # Compute corner version hashes for staleness detection
+    compute_all_corner_hashes()
 
     # Reload CSV session data into memory so GET endpoints don't 404
     # Try database first (survives Railway redeployments), fall back to disk

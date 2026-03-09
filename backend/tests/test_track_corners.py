@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from cataclysm.track_db import TrackLayout
 
 import backend.api.services.track_corners as tc_module
 from backend.api.services.track_corners import (
-    _corner_override_hashes,
-    _corner_overrides,
+    _corner_hashes,
     _corners_content_hash,
     get_corner_override_version,
     update_corner_cache,
@@ -32,8 +33,7 @@ def _make_stale_sd(
         coaching_laps = [3, 5]
 
     sd = MagicMock()
-    sd.layout = MagicMock()
-    sd.layout.name = "Barber Motorsports Park"
+    sd.layout = TrackLayout(name="Barber Motorsports Park", corners=[])
     sd.corner_override_version = old_hash
     sd.processed.best_lap = coaching_laps[0]
     sd.coaching_laps = coaching_laps
@@ -56,10 +56,50 @@ def _make_stale_sd(
     return sd
 
 
+def _reapply_patches(*, lookup_layout: MagicMock | None = None) -> ExitStack:
+    """Context manager for all mocks needed by reapply_corner_overrides_if_stale."""
+    stack = ExitStack()
+
+    # Mock hybrid cache lookup (the source of corners after retirement)
+    mock_layout = lookup_layout or MagicMock()
+    stack.enter_context(
+        patch("cataclysm.track_db_hybrid.lookup_track_hybrid", return_value=mock_layout)
+    )
+    stack.enter_context(
+        patch(
+            "backend.api.services.track_corners.locate_official_corners", return_value=[MagicMock()]
+        )
+    )
+    stack.enter_context(
+        patch(
+            "backend.api.services.track_corners.extract_corner_kpis_for_lap",
+            return_value=[MagicMock()],
+        )
+    )
+    stack.enter_context(
+        patch("backend.api.services.track_corners.compute_corner_elevation", return_value=None)
+    )
+    stack.enter_context(
+        patch("backend.api.services.track_corners.analyze_corner_lines", return_value=[])
+    )
+    stack.enter_context(
+        patch(
+            "backend.api.services.track_corners.compute_session_consistency",
+            return_value=MagicMock(),
+        )
+    )
+    stack.enter_context(
+        patch("backend.api.services.track_corners.estimate_gains", return_value=MagicMock())
+    )
+    stack.enter_context(
+        patch("backend.api.services.track_corners.build_session_snapshot", return_value=MagicMock())
+    )
+    return stack
+
+
 class TestCornerOverrideVersioning:
     def setup_method(self) -> None:
-        _corner_overrides.clear()
-        _corner_override_hashes.clear()
+        _corner_hashes.clear()
 
     def test_initial_version_is_none(self) -> None:
         assert get_corner_override_version("barber-motorsports-park") is None
@@ -82,8 +122,7 @@ class TestCornerOverrideVersioning:
         update_corner_cache("barber-motorsports-park", _CORNERS_A)
         v1 = get_corner_override_version("barber-motorsports-park")
         # Simulate restart: clear and reload same data
-        _corner_overrides.clear()
-        _corner_override_hashes.clear()
+        _corner_hashes.clear()
         update_corner_cache("barber-motorsports-park", _CORNERS_A)
         v2 = get_corner_override_version("barber-motorsports-park")
         assert v1 == v2
@@ -100,9 +139,7 @@ class TestCornerOverrideVersioning:
 
 class TestReapplyCornerOverrides:
     def setup_method(self) -> None:
-        tc_module._corner_overrides.clear()
-        tc_module._corner_override_hashes.clear()
-        tc_module._cache_loaded = False
+        tc_module._corner_hashes.clear()
 
     def test_no_layout_returns_false(self) -> None:
         sd = MagicMock()
@@ -114,7 +151,7 @@ class TestReapplyCornerOverrides:
         sd.layout = MagicMock()
         sd.layout.name = "Barber Motorsports Park"
         sd.corner_override_version = None
-        # No override in cache -> version is None -> return False
+        # No hash in cache -> version is None -> return False
         assert tc_module.reapply_corner_overrides_if_stale(sd) is False
 
     def test_same_version_returns_false(self) -> None:
@@ -124,7 +161,7 @@ class TestReapplyCornerOverrides:
         sd.layout = MagicMock()
         sd.layout.name = "Barber Motorsports Park"
         sd.corner_override_version = h
-        tc_module._corner_override_hashes["barber-motorsports-park"] = h
+        tc_module._corner_hashes["barber-motorsports-park"] = h
         assert tc_module.reapply_corner_overrides_if_stale(sd) is False
 
     def test_stale_version_triggers_reextraction(self) -> None:
@@ -136,18 +173,15 @@ class TestReapplyCornerOverrides:
             old_hash=_corners_content_hash(corners_old),
         )
 
-        tc_module._corner_override_hashes["barber-motorsports-park"] = _corners_content_hash(
-            corners_new
-        )
-        tc_module._corner_overrides["barber-motorsports-park"] = corners_new
-        tc_module._cache_loaded = True
+        tc_module._corner_hashes["barber-motorsports-park"] = _corners_content_hash(corners_new)
 
-        mock_new_layout = MagicMock()
+        mock_layout = MagicMock()
+        mock_layout.corners = [MagicMock()]
         mock_skeletons = [MagicMock()]
         with (
             patch(
-                "backend.api.services.track_corners.override_layout_corners",
-                return_value=mock_new_layout,
+                "cataclysm.track_db_hybrid.lookup_track_hybrid",
+                return_value=mock_layout,
             ),
             patch(
                 "backend.api.services.track_corners.locate_official_corners",
@@ -157,22 +191,13 @@ class TestReapplyCornerOverrides:
                 "backend.api.services.track_corners.extract_corner_kpis_for_lap",
                 return_value=mock_skeletons,
             ),
-            patch(
-                "backend.api.services.track_corners.compute_corner_elevation",
-                return_value=None,
-            ),
-            patch(
-                "backend.api.services.track_corners.analyze_corner_lines",
-                return_value=[],
-            ),
+            patch("backend.api.services.track_corners.compute_corner_elevation", return_value=None),
+            patch("backend.api.services.track_corners.analyze_corner_lines", return_value=[]),
             patch(
                 "backend.api.services.track_corners.compute_session_consistency",
                 return_value=MagicMock(),
             ),
-            patch(
-                "backend.api.services.track_corners.estimate_gains",
-                return_value=MagicMock(),
-            ),
+            patch("backend.api.services.track_corners.estimate_gains", return_value=MagicMock()),
             patch(
                 "backend.api.services.track_corners.build_session_snapshot",
                 return_value=MagicMock(),
@@ -183,7 +208,6 @@ class TestReapplyCornerOverrides:
         assert result is True
         assert sd.corner_override_version == _corners_content_hash(corners_new)
         assert sd.corners == mock_skeletons
-        assert sd.layout == mock_new_layout
 
     def test_version_none_to_hash_triggers_reextraction(self) -> None:
         """Sessions processed before versioning (version=None) pick up overrides."""
@@ -191,48 +215,11 @@ class TestReapplyCornerOverrides:
 
         sd = _make_stale_sd(coaching_laps=[3], old_hash=None)
 
-        tc_module._corner_override_hashes["barber-motorsports-park"] = _corners_content_hash(
-            corners
-        )
-        tc_module._corner_overrides["barber-motorsports-park"] = corners
-        tc_module._cache_loaded = True
+        tc_module._corner_hashes["barber-motorsports-park"] = _corners_content_hash(corners)
 
-        mock_new_layout = MagicMock()
-        mock_corners = [MagicMock()]
-        with (
-            patch(
-                "backend.api.services.track_corners.override_layout_corners",
-                return_value=mock_new_layout,
-            ),
-            patch(
-                "backend.api.services.track_corners.locate_official_corners",
-                return_value=mock_corners,
-            ),
-            patch(
-                "backend.api.services.track_corners.extract_corner_kpis_for_lap",
-                return_value=mock_corners,
-            ),
-            patch(
-                "backend.api.services.track_corners.compute_corner_elevation",
-                return_value=None,
-            ),
-            patch(
-                "backend.api.services.track_corners.analyze_corner_lines",
-                return_value=[],
-            ),
-            patch(
-                "backend.api.services.track_corners.compute_session_consistency",
-                return_value=MagicMock(),
-            ),
-            patch(
-                "backend.api.services.track_corners.estimate_gains",
-                return_value=MagicMock(),
-            ),
-            patch(
-                "backend.api.services.track_corners.build_session_snapshot",
-                return_value=MagicMock(),
-            ),
-        ):
+        mock_layout = MagicMock()
+        mock_layout.corners = [MagicMock()]
+        with _reapply_patches(lookup_layout=mock_layout):
             result = tc_module.reapply_corner_overrides_if_stale(sd)
 
         assert result is True
@@ -250,18 +237,16 @@ class TestReapplyCornerOverrides:
         sd.gps_traces = [MagicMock()]
         sd.reference_centerline = MagicMock()
 
-        tc_module._corner_override_hashes["barber-motorsports-park"] = _corners_content_hash(
-            corners_new
-        )
-        tc_module._corner_overrides["barber-motorsports-park"] = corners_new
-        tc_module._cache_loaded = True
+        tc_module._corner_hashes["barber-motorsports-park"] = _corners_content_hash(corners_new)
 
         mock_line_profiles = [MagicMock()]
+        mock_layout = MagicMock()
+        mock_layout.corners = [MagicMock()]
         mock_corners = [MagicMock()]
         with (
             patch(
-                "backend.api.services.track_corners.override_layout_corners",
-                return_value=MagicMock(),
+                "cataclysm.track_db_hybrid.lookup_track_hybrid",
+                return_value=mock_layout,
             ),
             patch(
                 "backend.api.services.track_corners.locate_official_corners",
@@ -271,10 +256,7 @@ class TestReapplyCornerOverrides:
                 "backend.api.services.track_corners.extract_corner_kpis_for_lap",
                 return_value=mock_corners,
             ),
-            patch(
-                "backend.api.services.track_corners.compute_corner_elevation",
-                return_value=None,
-            ),
+            patch("backend.api.services.track_corners.compute_corner_elevation", return_value=None),
             patch(
                 "backend.api.services.track_corners.analyze_corner_lines",
                 return_value=mock_line_profiles,
@@ -283,10 +265,7 @@ class TestReapplyCornerOverrides:
                 "backend.api.services.track_corners.compute_session_consistency",
                 return_value=MagicMock(),
             ),
-            patch(
-                "backend.api.services.track_corners.estimate_gains",
-                return_value=MagicMock(),
-            ),
+            patch("backend.api.services.track_corners.estimate_gains", return_value=MagicMock()),
             patch(
                 "backend.api.services.track_corners.build_session_snapshot",
                 return_value=MagicMock(),
@@ -307,22 +286,19 @@ class TestReapplyCornerOverrides:
             coaching_laps=[3, 5],
             old_hash=_corners_content_hash(corners_old),
         )
-        # Disable corner line analysis to isolate consistency test
         sd.gps_traces = []
         sd.reference_centerline = None
 
-        tc_module._corner_override_hashes["barber-motorsports-park"] = _corners_content_hash(
-            corners_new
-        )
-        tc_module._corner_overrides["barber-motorsports-park"] = corners_new
-        tc_module._cache_loaded = True
+        tc_module._corner_hashes["barber-motorsports-park"] = _corners_content_hash(corners_new)
 
         mock_consistency = MagicMock()
+        mock_layout = MagicMock()
+        mock_layout.corners = [MagicMock()]
         mock_corners = [MagicMock()]
         with (
             patch(
-                "backend.api.services.track_corners.override_layout_corners",
-                return_value=MagicMock(),
+                "cataclysm.track_db_hybrid.lookup_track_hybrid",
+                return_value=mock_layout,
             ),
             patch(
                 "backend.api.services.track_corners.locate_official_corners",
@@ -332,22 +308,13 @@ class TestReapplyCornerOverrides:
                 "backend.api.services.track_corners.extract_corner_kpis_for_lap",
                 return_value=mock_corners,
             ),
-            patch(
-                "backend.api.services.track_corners.compute_corner_elevation",
-                return_value=None,
-            ),
-            patch(
-                "backend.api.services.track_corners.analyze_corner_lines",
-                return_value=[],
-            ),
+            patch("backend.api.services.track_corners.compute_corner_elevation", return_value=None),
+            patch("backend.api.services.track_corners.analyze_corner_lines", return_value=[]),
             patch(
                 "backend.api.services.track_corners.compute_session_consistency",
                 return_value=mock_consistency,
             ) as mock_csc,
-            patch(
-                "backend.api.services.track_corners.estimate_gains",
-                return_value=MagicMock(),
-            ),
+            patch("backend.api.services.track_corners.estimate_gains", return_value=MagicMock()),
             patch(
                 "backend.api.services.track_corners.build_session_snapshot",
                 return_value=MagicMock(),
@@ -358,7 +325,6 @@ class TestReapplyCornerOverrides:
         assert result is True
         mock_csc.assert_called_once()
         assert sd.consistency == mock_consistency
-        # Verify new corners were passed (not stale sd.all_lap_corners)
         _, all_laps_arg, *_ = mock_csc.call_args[0]
         assert all_laps_arg == {3: mock_corners, 5: mock_corners}
 
@@ -372,18 +338,16 @@ class TestReapplyCornerOverrides:
             old_hash=_corners_content_hash(corners_old),
         )
 
-        tc_module._corner_override_hashes["barber-motorsports-park"] = _corners_content_hash(
-            corners_new
-        )
-        tc_module._corner_overrides["barber-motorsports-park"] = corners_new
-        tc_module._cache_loaded = True
+        tc_module._corner_hashes["barber-motorsports-park"] = _corners_content_hash(corners_new)
 
         mock_gains = MagicMock()
+        mock_layout = MagicMock()
+        mock_layout.corners = [MagicMock()]
         mock_corners = [MagicMock()]
         with (
             patch(
-                "backend.api.services.track_corners.override_layout_corners",
-                return_value=MagicMock(),
+                "cataclysm.track_db_hybrid.lookup_track_hybrid",
+                return_value=mock_layout,
             ),
             patch(
                 "backend.api.services.track_corners.locate_official_corners",
@@ -393,21 +357,14 @@ class TestReapplyCornerOverrides:
                 "backend.api.services.track_corners.extract_corner_kpis_for_lap",
                 return_value=mock_corners,
             ),
-            patch(
-                "backend.api.services.track_corners.compute_corner_elevation",
-                return_value=None,
-            ),
-            patch(
-                "backend.api.services.track_corners.analyze_corner_lines",
-                return_value=[],
-            ),
+            patch("backend.api.services.track_corners.compute_corner_elevation", return_value=None),
+            patch("backend.api.services.track_corners.analyze_corner_lines", return_value=[]),
             patch(
                 "backend.api.services.track_corners.compute_session_consistency",
                 return_value=MagicMock(),
             ),
             patch(
-                "backend.api.services.track_corners.estimate_gains",
-                return_value=mock_gains,
+                "backend.api.services.track_corners.estimate_gains", return_value=mock_gains
             ) as mock_eg,
             patch(
                 "backend.api.services.track_corners.build_session_snapshot",
@@ -419,7 +376,6 @@ class TestReapplyCornerOverrides:
         assert result is True
         mock_eg.assert_called_once()
         assert sd.gains == mock_gains
-        # Verify new corners were passed (not stale sd.corners)
         _, corners_arg, *_ = mock_eg.call_args[0]
         assert corners_arg is mock_corners
 
@@ -432,22 +388,17 @@ class TestReapplyCornerOverrides:
             coaching_laps=[3, 5],
             old_hash=_corners_content_hash(corners_old),
         )
-        sd.parsed.metadata = MagicMock()
-        sd.snapshot.gps_quality_score = 95.0
-        sd.snapshot.gps_quality_grade = "A"
 
-        tc_module._corner_override_hashes["barber-motorsports-park"] = _corners_content_hash(
-            corners_new
-        )
-        tc_module._corner_overrides["barber-motorsports-park"] = corners_new
-        tc_module._cache_loaded = True
+        tc_module._corner_hashes["barber-motorsports-park"] = _corners_content_hash(corners_new)
 
         mock_snapshot = MagicMock()
+        mock_layout = MagicMock()
+        mock_layout.corners = [MagicMock()]
         mock_corners = [MagicMock()]
         with (
             patch(
-                "backend.api.services.track_corners.override_layout_corners",
-                return_value=MagicMock(),
+                "cataclysm.track_db_hybrid.lookup_track_hybrid",
+                return_value=mock_layout,
             ),
             patch(
                 "backend.api.services.track_corners.locate_official_corners",
@@ -457,22 +408,13 @@ class TestReapplyCornerOverrides:
                 "backend.api.services.track_corners.extract_corner_kpis_for_lap",
                 return_value=mock_corners,
             ),
-            patch(
-                "backend.api.services.track_corners.compute_corner_elevation",
-                return_value=None,
-            ),
-            patch(
-                "backend.api.services.track_corners.analyze_corner_lines",
-                return_value=[],
-            ),
+            patch("backend.api.services.track_corners.compute_corner_elevation", return_value=None),
+            patch("backend.api.services.track_corners.analyze_corner_lines", return_value=[]),
             patch(
                 "backend.api.services.track_corners.compute_session_consistency",
                 return_value=MagicMock(),
             ),
-            patch(
-                "backend.api.services.track_corners.estimate_gains",
-                return_value=MagicMock(),
-            ),
+            patch("backend.api.services.track_corners.estimate_gains", return_value=MagicMock()),
             patch(
                 "backend.api.services.track_corners.build_session_snapshot",
                 return_value=mock_snapshot,
@@ -487,9 +429,7 @@ class TestReapplyCornerOverrides:
 
 class TestIntegrationReapply:
     def setup_method(self) -> None:
-        tc_module._corner_overrides.clear()
-        tc_module._corner_override_hashes.clear()
-        tc_module._cache_loaded = True  # simulate startup load
+        tc_module._corner_hashes.clear()
 
     def test_full_round_trip(self) -> None:
         """Admin saves corners -> existing session picks them up on next read."""
@@ -521,8 +461,23 @@ class TestIntegrationReapply:
         ]
         tc_module.update_corner_cache("test-track", new_corners)
 
+        # Build a TrackLayout with the updated corners for the hybrid cache mock
+        updated_layout = TrackLayout(
+            name="Test Track",
+            country="US",
+            length_m=3000,
+            corners=[
+                OfficialCorner(number=1, name="T1-moved", fraction=0.15),
+                OfficialCorner(number=2, name="T2-new", fraction=0.5),
+            ],
+        )
+
         mock_skeletons = [MagicMock(), MagicMock()]
         with (
+            patch(
+                "cataclysm.track_db_hybrid.lookup_track_hybrid",
+                return_value=updated_layout,
+            ),
             patch(
                 "backend.api.services.track_corners.locate_official_corners",
                 return_value=mock_skeletons,
@@ -531,22 +486,13 @@ class TestIntegrationReapply:
                 "backend.api.services.track_corners.extract_corner_kpis_for_lap",
                 return_value=mock_skeletons,
             ),
-            patch(
-                "backend.api.services.track_corners.compute_corner_elevation",
-                return_value=None,
-            ),
-            patch(
-                "backend.api.services.track_corners.analyze_corner_lines",
-                return_value=[],
-            ),
+            patch("backend.api.services.track_corners.compute_corner_elevation", return_value=None),
+            patch("backend.api.services.track_corners.analyze_corner_lines", return_value=[]),
             patch(
                 "backend.api.services.track_corners.compute_session_consistency",
                 return_value=MagicMock(),
             ),
-            patch(
-                "backend.api.services.track_corners.estimate_gains",
-                return_value=MagicMock(),
-            ),
+            patch("backend.api.services.track_corners.estimate_gains", return_value=MagicMock()),
             patch(
                 "backend.api.services.track_corners.build_session_snapshot",
                 return_value=MagicMock(),
@@ -577,13 +523,16 @@ class TestIntegrationReapply:
             session_id="cache-test",
         )
 
-        tc_module._corner_override_hashes["barber-motorsports-park"] = _corners_content_hash(
-            corners_new
-        )
-        tc_module._corner_overrides["barber-motorsports-park"] = corners_new
+        tc_module._corner_hashes["barber-motorsports-park"] = _corners_content_hash(corners_new)
 
+        mock_layout = MagicMock()
+        mock_layout.corners = [MagicMock()]
         mock_corners = [MagicMock()]
         with (
+            patch(
+                "cataclysm.track_db_hybrid.lookup_track_hybrid",
+                return_value=mock_layout,
+            ),
             patch(
                 "backend.api.services.track_corners.locate_official_corners",
                 return_value=mock_corners,
@@ -592,33 +541,18 @@ class TestIntegrationReapply:
                 "backend.api.services.track_corners.extract_corner_kpis_for_lap",
                 return_value=mock_corners,
             ),
-            patch(
-                "backend.api.services.track_corners.compute_corner_elevation",
-                return_value=None,
-            ),
-            patch(
-                "backend.api.services.track_corners.override_layout_corners",
-                return_value=sd.layout,
-            ),
-            patch(
-                "backend.api.services.track_corners.analyze_corner_lines",
-                return_value=[],
-            ),
+            patch("backend.api.services.track_corners.compute_corner_elevation", return_value=None),
+            patch("backend.api.services.track_corners.analyze_corner_lines", return_value=[]),
             patch(
                 "backend.api.services.track_corners.compute_session_consistency",
                 return_value=MagicMock(),
             ),
-            patch(
-                "backend.api.services.track_corners.estimate_gains",
-                return_value=MagicMock(),
-            ),
+            patch("backend.api.services.track_corners.estimate_gains", return_value=MagicMock()),
             patch(
                 "backend.api.services.track_corners.build_session_snapshot",
                 return_value=MagicMock(),
             ),
-            patch(
-                "backend.api.services.pipeline.invalidate_physics_cache",
-            ) as mock_physics,
+            patch("backend.api.services.pipeline.invalidate_physics_cache") as mock_physics,
             patch(
                 "backend.api.services.coaching_store.clear_coaching_data",
                 new_callable=AsyncMock,

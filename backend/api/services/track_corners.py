@@ -1,7 +1,8 @@
-"""Load track corner configs from PostgreSQL (admin-edited overrides).
+"""Track corner version tracking and staleness detection.
 
-Maintains an in-memory cache so the synchronous pipeline thread can look up
-DB-edited corners without async DB access.
+The hybrid cache (track_db_hybrid) is the single source of truth for corners.
+Legacy TrackCornerConfig entries are migrated to TrackCornerV2 at startup.
+A content-hash cache enables the pipeline to detect stale corners and reapply.
 """
 
 from __future__ import annotations
@@ -20,22 +21,19 @@ from cataclysm.gains import estimate_gains
 from cataclysm.track_db import OfficialCorner, TrackLayout, locate_official_corners
 from cataclysm.track_reference import track_slug_from_layout
 from cataclysm.trends import build_session_snapshot
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from backend.api.db.models import TrackCornerConfig
 
 if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
     from backend.api.services.session_store import SessionData
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# In-memory cache: track_slug → list[dict] (raw JSON from DB)
+# Version hash cache: track_slug → content hash of corners
+# Used by ensure_corners_current() to detect admin edits after upload.
 # ---------------------------------------------------------------------------
-_corner_overrides: dict[str, list[dict]] = {}
-_corner_override_hashes: dict[str, str] = {}
-_cache_loaded: bool = False
+_corner_hashes: dict[str, str] = {}
 
 
 def _corners_content_hash(corners_json: list[dict]) -> str:
@@ -43,41 +41,34 @@ def _corners_content_hash(corners_json: list[dict]) -> str:
     return hashlib.sha256(json.dumps(corners_json, sort_keys=True).encode()).hexdigest()[:16]
 
 
-def _db_dict_to_official(c: dict) -> OfficialCorner:
-    """Convert a single DB corner dict to an OfficialCorner."""
-    return OfficialCorner(
-        number=c["number"],
-        name=c["name"],
-        fraction=c["fraction"],
-        character=c.get("character"),
-        direction=c.get("direction"),
-        corner_type=c.get("corner_type"),
-        elevation_trend=c.get("elevation_trend"),
-        camber=c.get("camber"),
-        blind=c.get("blind", False),
-        coaching_notes=c.get("coaching_notes") or c.get("coaching_note"),
-        lat=c.get("lat"),
-        lon=c.get("lon"),
-    )
-
-
-def get_corner_override_sync(track_slug: str) -> list[OfficialCorner] | None:
-    """Sync getter for the pipeline thread.  Returns None if no DB override."""
-    if not _cache_loaded:
-        return None
-    corners_json = _corner_overrides.get(track_slug)
-    if corners_json is None:
-        return None
-    return [_db_dict_to_official(c) for c in corners_json]
+def _official_corners_to_dicts(corners: list[OfficialCorner]) -> list[dict]:
+    """Convert OfficialCorner list to JSON-serializable dicts for hashing."""
+    return [
+        {
+            "number": c.number,
+            "name": c.name,
+            "fraction": c.fraction,
+            "character": c.character,
+            "direction": c.direction,
+            "corner_type": c.corner_type,
+            "elevation_trend": c.elevation_trend,
+            "camber": c.camber,
+            "blind": c.blind,
+            "coaching_notes": c.coaching_notes,
+            "lat": c.lat,
+            "lon": c.lon,
+        }
+        for c in corners
+    ]
 
 
 def get_corner_override_version(track_slug: str) -> str | None:
-    """Return the content hash for a track's corner override, or None.
+    """Return the content hash for a track's corners, or None.
 
     Uses a content hash (not a counter) so the version is restart-safe — the same
-    DB corners produce the same hash regardless of process lifetime.
+    corners produce the same hash regardless of process lifetime.
     """
-    return _corner_override_hashes.get(track_slug)
+    return _corner_hashes.get(track_slug)
 
 
 def override_layout_corners(
@@ -88,8 +79,95 @@ def override_layout_corners(
     return replace(layout, corners=db_corners)
 
 
+def update_corner_hash(track_slug: str, corners_json: list[dict]) -> None:
+    """Update the version hash after admin saves corners.
+
+    Called by both admin.py and track_admin.py after corner mutations.
+    """
+    _corner_hashes[track_slug] = _corners_content_hash(corners_json)
+    logger.info("Corner hash updated for %s (%d corners)", track_slug, len(corners_json))
+
+
+# Legacy alias — callers that still use the old name
+update_corner_cache = update_corner_hash
+
+
+def compute_all_corner_hashes() -> None:
+    """Compute content hashes for all tracks in the hybrid cache.
+
+    Called at startup after the hybrid cache is fully populated.
+    """
+    from cataclysm.track_db_hybrid import get_all_tracks_hybrid
+
+    _corner_hashes.clear()
+    for layout in get_all_tracks_hybrid():
+        if not layout.corners:
+            continue
+        slug = track_slug_from_layout(layout)
+        dicts = _official_corners_to_dicts(layout.corners)
+        _corner_hashes[slug] = _corners_content_hash(dicts)
+    logger.info("Computed corner hashes for %d track(s)", len(_corner_hashes))
+
+
+async def migrate_legacy_corner_configs(db: AsyncSession) -> int:
+    """Migrate TrackCornerConfig entries to TrackCornerV2 rows.
+
+    For each legacy entry, if the track exists in the DB but has no TrackCornerV2
+    rows, create them from the JSONB blob. Returns the number migrated.
+    """
+    from cataclysm.track_db_hybrid import db_track_to_layout, update_db_tracks_cache
+    from sqlalchemy import select
+
+    from backend.api.db.models import Track, TrackCornerConfig, TrackCornerV2
+    from backend.api.services.track_store import upsert_corners
+
+    result = await db.execute(select(TrackCornerConfig))
+    configs = result.scalars().all()
+    migrated = 0
+
+    for cfg in configs:
+        # Find matching Track row
+        track_result = await db.execute(select(Track).where(Track.slug == cfg.track_slug))
+        track = track_result.scalar_one_or_none()
+        if track is None:
+            logger.debug("No Track row for legacy config '%s' — skipping migration", cfg.track_slug)
+            continue
+
+        # Check if TrackCornerV2 rows already exist
+        v2_result = await db.execute(
+            select(TrackCornerV2.id).where(TrackCornerV2.track_id == track.id).limit(1)
+        )
+        if v2_result.scalar_one_or_none() is not None:
+            continue  # Already migrated
+
+        # Migrate JSONB corners → TrackCornerV2 rows
+        await upsert_corners(db, track.id, cfg.corners_json)
+        await db.commit()
+
+        # Refresh hybrid cache with the migrated corners
+        from backend.api.services.track_store import get_corners_for_track, get_landmarks_for_track
+
+        corners = await get_corners_for_track(db, track.id)
+        landmarks = await get_landmarks_for_track(db, track.id)
+        layout = db_track_to_layout(track, corners, landmarks)
+        update_db_tracks_cache(track.slug, layout)
+
+        migrated += 1
+        logger.info(
+            "Migrated legacy corners for '%s' → TrackCornerV2 (%d corners)",
+            cfg.track_slug,
+            len(cfg.corners_json),
+        )
+
+    return migrated
+
+
 def reapply_corner_overrides_if_stale(sd: SessionData) -> bool:
-    """Re-extract corners if the session's corner override version is stale.
+    """Re-extract corners if the session's corner version is stale.
+
+    Compares the hash captured at upload time against the current hash in
+    _corner_hashes. If they differ, the admin edited corners after upload,
+    so we re-derive all corner-dependent analytics.
 
     Mutates sd.corners, sd.all_lap_corners, sd.layout, sd.corner_override_version
     in place. Returns True if corners were updated, False if no change needed.
@@ -105,12 +183,14 @@ def reapply_corner_overrides_if_stale(sd: SessionData) -> bool:
     if sd.corner_override_version == current_version:
         return False
 
-    # Session is stale — re-extract corners from updated DB override
-    db_corners = get_corner_override_sync(slug)
-    if db_corners is None:
+    # Session is stale — fetch updated corners from hybrid cache
+    from cataclysm.track_db_hybrid import lookup_track_hybrid
+
+    updated_layout = lookup_track_hybrid(slug)
+    if updated_layout is None or not updated_layout.corners:
         return False
 
-    new_layout = override_layout_corners(sd.layout, db_corners)
+    new_layout = replace(sd.layout, corners=updated_layout.corners)
     best_lap_df = sd.processed.resampled_laps[sd.processed.best_lap]
     skeletons = locate_official_corners(best_lap_df, new_layout)
     new_best_corners = extract_corner_kpis_for_lap(best_lap_df, skeletons)
@@ -186,11 +266,7 @@ def reapply_corner_overrides_if_stale(sd: SessionData) -> bool:
                 exc_info=True,
             )
 
-    # Rebuild snapshot with updated corner_metrics, corner_consistency,
-    # theoretical_best_s, composite_best_s.
-    # Note: pipeline.py uses _fallback_lap_consistency() when consistency is None,
-    # but here we preserve the original snapshot's lap_consistency since it doesn't
-    # depend on corner positions — only corner_consistency does.
+    # Rebuild snapshot
     try:
         lap_consistency = (
             sd.consistency.lap_consistency if sd.consistency else sd.snapshot.lap_consistency
@@ -237,46 +313,3 @@ async def ensure_corners_current(sd: SessionData) -> None:
 
         invalidate_physics_cache(sd.session_id)
         await clear_coaching_data(sd.session_id)
-
-
-# ---------------------------------------------------------------------------
-# Async DB operations
-# ---------------------------------------------------------------------------
-
-
-async def get_track_corners(
-    track_slug: str,
-    db: AsyncSession,
-) -> list[dict] | None:
-    """Load corners from DB if available, else return None.
-
-    Caller falls back to ``track_db.py`` hardcoded corners when None.
-    """
-    result = await db.execute(
-        select(TrackCornerConfig).where(TrackCornerConfig.track_slug == track_slug)
-    )
-    config = result.scalar_one_or_none()
-    if config is None:
-        return None
-    return config.corners_json  # type: ignore[return-value]
-
-
-async def load_all_corner_overrides(db: AsyncSession) -> None:
-    """Load all DB corner overrides into the in-memory cache."""
-    global _cache_loaded  # noqa: PLW0603
-    result = await db.execute(select(TrackCornerConfig))
-    configs = result.scalars().all()
-    _corner_overrides.clear()
-    _corner_override_hashes.clear()
-    for cfg in configs:
-        _corner_overrides[cfg.track_slug] = cfg.corners_json
-        _corner_override_hashes[cfg.track_slug] = _corners_content_hash(cfg.corners_json)
-    _cache_loaded = True
-    logger.info("Loaded %d track corner override(s) from DB", len(_corner_overrides))
-
-
-def update_corner_cache(track_slug: str, corners_json: list[dict]) -> None:
-    """Update the in-memory cache after admin saves corners."""
-    _corner_overrides[track_slug] = corners_json
-    _corner_override_hashes[track_slug] = _corners_content_hash(corners_json)
-    logger.info("Corner cache updated for %s (%d corners)", track_slug, len(corners_json))
