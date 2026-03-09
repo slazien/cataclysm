@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any, Literal
 
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
@@ -52,17 +53,35 @@ def require_admin(
 # ---------------------------------------------------------------------------
 
 
+_SLUG_RE = re.compile(r"[a-z0-9-]+")
+
+
+def _validate_slug(slug: str) -> str:
+    """Reject slugs that aren't simple lowercase-alphanum-dash."""
+    if not _SLUG_RE.fullmatch(slug):
+        raise HTTPException(status_code=400, detail="Invalid track slug")
+    return slug
+
+
 class CornerInput(BaseModel):
     """A single corner definition submitted by the admin."""
 
     number: int
     name: str
     fraction: float
-    direction: str
-    corner_type: str
-    elevation_trend: str | None = None
-    camber: str | None = None
+    direction: Literal["left", "right"]
+    corner_type: Literal["sweeper", "hairpin", "kink", "esses"]
+    elevation_trend: Literal["flat", "uphill", "downhill", "crest"] | None = None
+    camber: Literal["flat", "positive", "negative"] | None = None
     coaching_note: str | None = None
+
+    @field_validator("number")
+    @classmethod
+    def number_positive(cls, v: int) -> int:
+        if v < 1:
+            msg = "number must be >= 1"
+            raise ValueError(msg)
+        return v
 
     @field_validator("fraction")
     @classmethod
@@ -84,8 +103,8 @@ class EditorResponse(BaseModel):
 
     track_slug: str
     track_length_m: float
-    geometry: dict
-    corners: list[dict]
+    geometry: dict[str, Any]
+    corners: list[dict[str, Any]]
 
 
 class SaveResult(BaseModel):
@@ -120,6 +139,7 @@ async def get_track_editor(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> EditorResponse:
     """Return track geometry + corners for the editor UI."""
+    _validate_slug(slug)
     from cataclysm.track_db import get_all_tracks
     from cataclysm.track_reference import track_slug_from_layout
 
@@ -163,7 +183,7 @@ async def get_track_editor(
 
     corners: list[dict]
     if db_config is not None:
-        corners = db_config.corners_json  # type: ignore[assignment]
+        corners = db_config.corners_json
     else:
         corners = [
             {
@@ -197,6 +217,7 @@ async def save_corners(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> SaveResult:
     """Save admin-edited corners for a track."""
+    _validate_slug(slug)
     from cataclysm.track_db import get_all_tracks
     from cataclysm.track_reference import track_slug_from_layout
 
@@ -219,13 +240,13 @@ async def save_corners(
     existing = result.scalar_one_or_none()
 
     if existing is not None:
-        existing.corners_json = corners_data  # type: ignore[assignment]
+        existing.corners_json = corners_data
         existing.updated_by = user.email
     else:
         db.add(
             TrackCornerConfig(
                 track_slug=slug,
-                corners_json=corners_data,  # type: ignore[arg-type]
+                corners_json=corners_data,
                 updated_by=user.email,
             )
         )

@@ -10,7 +10,7 @@ export interface TrackCorner {
   number: number;
   name: string;
   fraction: number;
-  direction: "Left" | "Right";
+  direction: "left" | "right";
   corner_type: string;
   elevation_trend?: string;
   camber?: string;

@@ -21,10 +21,10 @@ import {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const CORNER_TYPES = ["Sweeper", "Hairpin", "Kink", "Esses"] as const;
+const CORNER_TYPES = ["sweeper", "hairpin", "kink", "esses"] as const;
 const ELEVATIONS = ["flat", "uphill", "downhill", "crest"] as const;
 const CAMBERS = ["flat", "positive", "negative"] as const;
-const DIRECTIONS = ["Left", "Right"] as const;
+const DIRECTIONS = ["left", "right"] as const;
 
 const COLOR_LEFT = "#2dd4bf";
 const COLOR_RIGHT = "#fb923c";
@@ -58,15 +58,15 @@ function findNearestTrackPoint(
 
 function autoDetectDirection(
   curvature: number,
-): "Left" | "Right" {
-  return curvature >= 0 ? "Left" : "Right";
+): "left" | "right" {
+  return curvature >= 0 ? "left" : "right";
 }
 
 function autoDetectCornerType(curvature: number): string {
   const abs = Math.abs(curvature);
-  if (abs > 0.02) return "Hairpin";
-  if (abs > 0.01) return "Sweeper";
-  return "Kink";
+  if (abs > 0.02) return "hairpin";
+  if (abs > 0.01) return "sweeper";
+  return "kink";
 }
 
 function curvatureColor(curv: number): string {
@@ -242,7 +242,7 @@ function TrackCanvas({
         const cx = geometry.x[ptIdx];
         const cy = -geometry.y[ptIdx]; // flip y
         const isSelected = selectedCornerIdx === idx;
-        const color = corner.direction === "Left" ? COLOR_LEFT : COLOR_RIGHT;
+        const color = corner.direction === "left" ? COLOR_LEFT : COLOR_RIGHT;
         const r = isSelected ? markerRadius * 1.5 : markerRadius;
 
         return (
@@ -349,7 +349,7 @@ function CornerPanel({ corner, onChange }: CornerPanelProps) {
       {field(
         "Direction",
         corner.direction,
-        (v) => onChange({ ...corner, direction: v as "Left" | "Right" }),
+        (v) => onChange({ ...corner, direction: v as "left" | "right" }),
         "select",
         DIRECTIONS,
       )}
@@ -540,6 +540,8 @@ export function TrackEditor() {
   // ── Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (e.key === "Delete" && selectedCornerIdx !== null) {
         e.preventDefault();
         setDeleteDialogOpen(true);
@@ -568,7 +570,14 @@ export function TrackEditor() {
         {/* Track selector */}
         <select
           value={selectedSlug ?? ""}
-          onChange={(e) => setSelectedSlug(e.target.value || null)}
+          onChange={(e) => {
+            if (
+              hasUnsavedChanges &&
+              !window.confirm("You have unsaved changes. Discard and switch tracks?")
+            )
+              return;
+            setSelectedSlug(e.target.value || null);
+          }}
           className="rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         >
           <option value="">Select track...</option>
