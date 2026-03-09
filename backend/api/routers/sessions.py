@@ -943,6 +943,19 @@ async def get_track_guide(
 
     track_name = sd.snapshot.metadata.track_name
     layout = lookup_track(track_name)
+    if layout is not None:
+        from cataclysm.track_reference import track_slug_from_layout
+
+        from backend.api.services.track_corners import (
+            get_corner_override_sync,
+            override_layout_corners,
+        )
+
+        slug = track_slug_from_layout(layout)
+        db_corners = get_corner_override_sync(slug)
+        if db_corners is not None:
+            layout = override_layout_corners(layout, db_corners)
+
     if layout is None:
         raise HTTPException(status_code=404, detail=f"Track '{track_name}' not in database")
 
