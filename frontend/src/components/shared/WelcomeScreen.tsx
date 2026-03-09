@@ -3,6 +3,7 @@
 import { useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Upload, ChevronDown, Target, Check, BookOpen, TrendingDown, MessageSquare } from 'lucide-react';
+import { useSession as useAuthSession } from 'next-auth/react';
 import { useSessionStore, useUiStore } from '@/stores';
 import { useUploadSessions } from '@/hooks/useSession';
 import { useIsMobile } from '@/hooks/useMediaQuery';
@@ -40,6 +41,8 @@ const SAMPLE_GRADES = [
 ] as const;
 
 export function WelcomeScreen() {
+  const { status: authStatus } = useAuthSession();
+  const isAuthenticated = authStatus === 'authenticated';
   const uploadMutation = useUploadSessions();
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const toggleHowItWorks = useUiStore((s) => s.toggleHowItWorks);
@@ -82,25 +85,34 @@ export function WelcomeScreen() {
               setTimeout(() => {
                 setShowSkillPicker(true);
               }, 800);
-            } else {
-              // Skip skill picker — go straight to equipment interstitial
+            } else if (isAuthenticated) {
+              // Skip skill picker — go straight to equipment interstitial (auth only)
               setPendingSessionId(sessionId);
               setTimeout(() => {
                 setShowEquipmentInterstitial(true);
+              }, 800);
+            } else {
+              // Anonymous user — skip equipment interstitial, go straight to session
+              setTimeout(() => {
+                setActiveSession(sessionId);
               }, 800);
             }
           }
         },
       });
     },
-    [uploadMutation, setActiveSession],
+    [uploadMutation, setActiveSession, isAuthenticated],
   );
 
   const handleSkillPickerComplete = useCallback(() => {
     setShowSkillPicker(false);
-    // After skill picker, always show equipment interstitial
-    setShowEquipmentInterstitial(true);
-  }, []);
+    if (isAuthenticated) {
+      setShowEquipmentInterstitial(true);
+    } else {
+      // Anonymous user — skip equipment interstitial
+      if (pendingSessionId) setActiveSession(pendingSessionId);
+    }
+  }, [isAuthenticated, pendingSessionId, setActiveSession]);
 
   const handleEquipmentInterstitialComplete = useCallback(() => {
     setShowEquipmentInterstitial(false);

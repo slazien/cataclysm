@@ -174,7 +174,7 @@ async def get_vehicle_makes(
 
 @router.get("/vehicles/search")
 async def search_vehicles_endpoint(
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     q: str = "",
 ) -> list[VehicleSearchResult]:
     """Search vehicles by make, model, or generation."""
@@ -201,7 +201,7 @@ async def search_vehicles_endpoint(
 @router.get("/vehicles/{make}/models")
 async def get_vehicle_models(
     make: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
 ) -> list[str]:
     """List all models for a given make."""
     from cataclysm.vehicle_db import list_models
@@ -213,7 +213,7 @@ async def get_vehicle_models(
 async def get_vehicle_spec(
     make: str,
     model: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     generation: str | None = None,
 ) -> VehicleSpecSchema:
     """Get vehicle spec by make/model, optionally filtered by generation."""
