@@ -90,9 +90,8 @@ export function useUploadSessions() {
 
       store().setUploadProgress(100);
       store().setUploadState('done');
-      // Immediately activate the first uploaded session so the dashboard
-      // appears right away instead of waiting for the sessions refetch.
-      store().setActiveSession(data.session_ids[0]);
+      // Session activation is handled by each call-site's onSuccess callback
+      // (WelcomeScreen delays for skill picker, TopBar/SessionDrawer activate immediately).
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       // Brief pause to show 100% check, then auto-dismiss
       setTimeout(() => {

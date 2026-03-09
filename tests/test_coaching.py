@@ -12,6 +12,7 @@ from cataclysm.coaching import (
     CoachingContext,
     CoachingReport,
     _build_coaching_prompt,
+    _corner_label,
     _format_all_laps_corners,
     _format_corner_analysis,
     _format_corner_priorities,
@@ -2944,3 +2945,19 @@ class TestResolveSpeedMarkersValueErrorPaths:
             result = resolve_speed_markers("{{speed:notanumber}} target")
         # float("notanumber") raises ValueError → returns "notanumber"
         assert "notanumber" in result
+
+
+class TestCornerLabel:
+    """Tests for _corner_label helper that formats corner names."""
+
+    def test_with_name(self) -> None:
+        assert _corner_label(5, "Carousel") == "Carousel (T5)"
+
+    def test_without_name(self) -> None:
+        assert _corner_label(5, None) == "T5"
+
+    def test_with_empty_name(self) -> None:
+        assert _corner_label(3, "") == "T3"
+
+    def test_corner_number_formatting(self) -> None:
+        assert _corner_label(12, "Esses") == "Esses (T12)"
