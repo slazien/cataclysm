@@ -918,3 +918,11 @@ el.getBoundingClientRect().right > window.innerWidth
 **Why**: 3 routers (trends.py, leaderboards.py, progress.py) still used `get_current_user` after the initial migration pass, each discovered only during QA — requiring 3 separate fix-deploy-reupload cycles.
 
 **Error signature**: QA shows spinner or error state in Progress/Leaderboard section. Console shows 401 on a GET endpoint that should be anon-accessible.
+
+## Validate Domain-Specific Input Formats, Not Just Length (2026-03-09)
+
+**Pattern**: When a text field has a known domain format (tire sizes = `width/aspectRdiameter`, lap times = `m:ss.xxx`, etc.), validate the FORMAT with a regex — never rely on `min_length` alone. Validate on both frontend (`canSave` gate) and backend (Pydantic `field_validator`). Also: when a curated-DB selection auto-fills related fields, track the original value so you can warn on manual override (e.g. compound mismatch).
+
+**Why**: `canSave = tireSize.trim().length > 0` allowed "255" to pass — not a crash bug since tire size is stored as display-only, but confusing data in the equipment badge and a sign of poor UX. User had to point out "wouldn't this cause bugs?" Similarly, selecting RE-71RS (200TW) then manually switching to R-Comp would silently use the wrong mu (1.35 vs 1.10) — user caught this scenario.
+
+**Error signature**: A free-text field that accepts domain-specific data passes validation with a partial/malformed value (e.g. "255" instead of "255/40R17").
