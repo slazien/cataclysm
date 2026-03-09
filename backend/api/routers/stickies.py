@@ -84,7 +84,7 @@ async def list_stickies(
 ) -> StickiesList:
     """List stickies for the current user."""
     if current_user.user_id == "anon":
-        return StickiesList(items=[])
+        return StickiesList(items=[], total=0)
     q = select(StickyDB).where(StickyDB.user_id == current_user.user_id)
 
     if view_scope is not None:
