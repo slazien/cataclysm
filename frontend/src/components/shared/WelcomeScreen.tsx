@@ -42,7 +42,10 @@ const SAMPLE_GRADES = [
 
 export function WelcomeScreen() {
   const { status: authStatus } = useAuthSession();
-  const isAuthenticated = authStatus === 'authenticated';
+  // Treat 'loading' as potentially-authenticated (fail-closed):
+  // if auth hasn't resolved yet, default to showing the interstitial so authenticated
+  // users don't skip it on a fast upload. Anon users can always click Skip.
+  const isAuthenticated = authStatus !== 'unauthenticated';
   const uploadMutation = useUploadSessions();
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const toggleHowItWorks = useUiStore((s) => s.toggleHowItWorks);
