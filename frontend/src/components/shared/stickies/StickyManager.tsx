@@ -36,7 +36,11 @@ function getSafeAreaInsetTop() {
 const OBSTACLE_SELECTOR =
   'main canvas, main svg, main table, main [data-sticky-obstacle="true"]';
 
-function collectStickyObstacles(): StickyObstacle[] {
+/**
+ * Collect obstacles from the DOM, converting viewport-relative rects
+ * to page-relative coordinates by adding scrollTop.
+ */
+function collectStickyObstacles(scrollTop: number = 0): StickyObstacle[] {
   if (typeof window === 'undefined') return [];
 
   const elements = Array.from(document.querySelectorAll<HTMLElement>(OBSTACLE_SELECTOR));
@@ -48,9 +52,9 @@ function collectStickyObstacles(): StickyObstacle[] {
     if (rect.width < 220 || rect.height < 120) continue;
     obstacles.push({
       left: rect.left,
-      top: rect.top,
+      top: rect.top + scrollTop,
       right: rect.right,
-      bottom: rect.bottom,
+      bottom: rect.bottom + scrollTop,
     });
   }
 
@@ -77,6 +81,11 @@ export function StickyManager() {
   const tempIdMap = useRef<Map<string, string>>(new Map());
   const syncTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
+  // Scroll tracking — uses refs to avoid React re-renders on every scroll frame
+  const scrollTopRef = useRef(0);
+  const stickyLayerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLElement | null>(null);
+
   /** Resolve a store ID to the real API ID (handles temp IDs). */
   const resolveApiId = useCallback((storeId: string): string | null => {
     return tempIdMap.current.get(storeId) ?? storeId;
@@ -101,6 +110,43 @@ export function StickyManager() {
     };
   }, []);
 
+  // Track the inner scroll container and apply transform to the sticky layer
+  useEffect(() => {
+    let currentContainer: HTMLElement | null = null;
+
+    const handleScroll = () => {
+      if (!currentContainer) return;
+      scrollTopRef.current = currentContainer.scrollTop;
+      if (stickyLayerRef.current) {
+        stickyLayerRef.current.style.transform =
+          `translateY(${-currentContainer.scrollTop}px)`;
+      }
+    };
+
+    const findContainer = () => {
+      const el = document.querySelector<HTMLElement>('[data-scroll-container="main"]');
+      if (el && el !== currentContainer) {
+        currentContainer?.removeEventListener('scroll', handleScroll);
+        currentContainer = el;
+        scrollContainerRef.current = el;
+        el.addEventListener('scroll', handleScroll, { passive: true });
+        handleScroll();
+      }
+    };
+
+    findContainer();
+    const observer = new MutationObserver(findContainer);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      currentContainer?.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  /** Get current scrollY — stable callback for StickyNote handlers. */
+  const getScrollY = useCallback(() => scrollTopRef.current, []);
+
   const viewport: StickyViewport = useMemo(
     () => ({
       width: viewportSize.width,
@@ -115,27 +161,30 @@ export function StickyManager() {
   // Hydrate store from API data once viewport is ready
   useEffect(() => {
     if (!apiData?.items || !viewport.width || !viewport.height) return;
-    const obstacles = collectStickyObstacles();
-    hydrateFromApi(apiData.items, viewport, obstacles);
+    const scrollY = scrollTopRef.current;
+    const obstacles = collectStickyObstacles(scrollY);
+    hydrateFromApi(apiData.items, { ...viewport, scrollY }, obstacles);
   }, [apiData, viewport, hydrateFromApi]);
 
-  // Re-clamp stickies on viewport resize (after initial hydration)
+  // Re-clamp stickies on viewport resize (X only — page-relative Y stays)
   useEffect(() => {
     if (!hydrated || !viewport.width || !viewport.height) return;
-    const obstacles = collectStickyObstacles();
+    const scrollY = scrollTopRef.current;
+    const obstacles = collectStickyObstacles(scrollY);
     for (const sticky of useStickyStore.getState().stickies) {
       useStickyStore.getState().moveSticky(
         sticky.id,
         { x: sticky.x, y: sticky.y },
-        viewport,
+        { ...viewport, scrollY },
         { avoidObstacles: obstacles },
       );
     }
   }, [hydrated, viewport]);
 
   const handleAdd = useCallback(() => {
-    const obstacles = collectStickyObstacles();
-    const newSticky = addSticky(viewport, obstacles);
+    const scrollY = scrollTopRef.current;
+    const obstacles = collectStickyObstacles(scrollY);
+    const newSticky = addSticky({ ...viewport, scrollY }, obstacles);
     const tempId = newSticky.id;
 
     createMutation.mutate({
@@ -249,7 +298,11 @@ export function StickyManager() {
 
   return (
     <>
-      <div data-sticky-layer="true" className="pointer-events-none fixed inset-0 z-40">
+      <div
+        ref={stickyLayerRef}
+        data-sticky-layer="true"
+        className="pointer-events-none fixed inset-0 z-40"
+      >
         <AnimatePresence>
           {stickies.map((sticky) => (
             <StickyNote
@@ -257,7 +310,8 @@ export function StickyManager() {
               sticky={sticky}
               viewport={viewport}
               isMobile={isMobile}
-              resolveObstacles={collectStickyObstacles}
+              getScrollY={getScrollY}
+              resolveObstacles={() => collectStickyObstacles(scrollTopRef.current)}
               onPositionChange={syncPosition}
               onContentChange={syncContent}
               onToneChange={syncTone}

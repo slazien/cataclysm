@@ -14,7 +14,7 @@ class StickyCreate(BaseModel):
     """Request body for creating a sticky note."""
 
     pos_x: float = Field(..., ge=0.0, le=1.0)
-    pos_y: float = Field(..., ge=0.0, le=1.0)
+    pos_y: float = Field(..., ge=0.0)
     content: str = Field("", max_length=2000)
     tone: StickyTone = "amber"
     collapsed: bool = True
@@ -25,7 +25,7 @@ class StickyUpdate(BaseModel):
     """Request body for updating a sticky (partial)."""
 
     pos_x: float | None = Field(None, ge=0.0, le=1.0)
-    pos_y: float | None = Field(None, ge=0.0, le=1.0)
+    pos_y: float | None = Field(None, ge=0.0)
     content: str | None = Field(None, max_length=2000)
     tone: StickyTone | None = None
     collapsed: bool | None = None

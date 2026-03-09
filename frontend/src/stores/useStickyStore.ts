@@ -250,7 +250,8 @@ export const useStickyStore = create<StickyState>()((set, get) => ({
     if (!sticky || viewport.width === 0 || viewport.height === 0) return null;
     return {
       pos_x: Math.max(0, Math.min(1, sticky.x / viewport.width)),
-      pos_y: Math.max(0, Math.min(1, sticky.y / viewport.height)),
+      // Page-relative Y can exceed viewport height — pos_y > 1 is valid
+      pos_y: Math.max(0, sticky.y / viewport.height),
     };
   },
 

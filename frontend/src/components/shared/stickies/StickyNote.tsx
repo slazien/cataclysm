@@ -23,6 +23,8 @@ interface StickyNoteProps {
   sticky: Sticky;
   viewport: StickyViewport;
   isMobile: boolean;
+  /** Returns current scroll offset for page-relative coordinate conversion. */
+  getScrollY: () => number;
   resolveObstacles: () => StickyObstacle[];
   onPositionChange: (stickyId: string) => void;
   onContentChange: (stickyId: string, content: string) => void;
@@ -66,6 +68,7 @@ export function StickyNote({
   sticky,
   viewport,
   isMobile,
+  getScrollY,
   resolveObstacles,
   onPositionChange,
   onContentChange,
@@ -98,13 +101,14 @@ export function StickyNote({
     info: PanInfo,
   ) => {
     didDragRef.current = true;
+    const vp = { ...viewport, scrollY: getScrollY() };
     moveSticky(
       sticky.id,
       {
         x: sticky.x + info.offset.x,
         y: sticky.y + info.offset.y,
       },
-      viewport,
+      vp,
       { avoidObstacles: resolveObstacles() },
     );
     onPositionChange(sticky.id);
@@ -115,7 +119,8 @@ export function StickyNote({
 
   const handleToggleCollapsed = () => {
     const nextCollapsed = !sticky.collapsed;
-    toggleCollapsed(sticky.id, viewport, resolveObstacles());
+    const vp = { ...viewport, scrollY: getScrollY() };
+    toggleCollapsed(sticky.id, vp, resolveObstacles());
     bringToFront(sticky.id);
     onCollapsedChange(sticky.id, nextCollapsed);
   };
@@ -298,10 +303,11 @@ export function StickyNote({
         placeholder="Write a note…"
         className="min-h-[100px] w-full resize-none bg-transparent px-3 py-2 text-sm leading-relaxed text-[var(--text-primary)]/85 placeholder:text-[var(--text-muted)] focus:outline-none"
         onBlur={() => {
+          const vp = { ...viewport, scrollY: getScrollY() };
           moveSticky(
             sticky.id,
             { x: sticky.x, y: sticky.y },
-            viewport,
+            vp,
             { avoidObstacles: resolveObstacles() },
           );
           onPositionChange(sticky.id);

@@ -4,6 +4,8 @@ export interface StickyViewport {
   isMobile: boolean;
   safeAreaTop?: number;
   safeAreaBottom?: number;
+  /** Scroll offset of the content container — positions are page-relative. */
+  scrollY?: number;
 }
 
 export interface StickyObstacle {
@@ -48,12 +50,11 @@ export function clampStickyPosition(
   const insets = getInsets(viewport);
   const minX = insets.left;
   const maxX = Math.max(insets.left, viewport.width - size.width - insets.right);
-  const minY = insets.top;
-  const maxY = Math.max(insets.top, viewport.height - size.height - insets.bottom);
 
   return {
     x: Math.min(maxX, Math.max(minX, position.x)),
-    y: Math.min(maxY, Math.max(minY, position.y)),
+    // Page-relative: only enforce y >= 0, no upper bound (page can be any height)
+    y: Math.max(0, position.y),
   };
 }
 
@@ -64,10 +65,11 @@ export function snapStickyToRail(
 ): StickyPosition {
   const clamped = clampStickyPosition(position, size, viewport);
   const insets = getInsets(viewport);
+  const scrollY = viewport.scrollY ?? 0;
   const leftX = insets.left;
   const rightX = Math.max(insets.left, viewport.width - size.width - insets.right);
-  const topY = insets.top;
-  const bottomY = Math.max(insets.top, viewport.height - size.height - insets.bottom);
+  const topY = scrollY + insets.top;
+  const bottomY = Math.max(topY, scrollY + viewport.height - size.height - insets.bottom);
 
   const distances = viewport.isMobile
     ? ([
@@ -103,10 +105,11 @@ export function getSpawnPosition(
   viewport: StickyViewport,
 ): StickyPosition {
   const insets = getInsets(viewport);
+  const scrollY = viewport.scrollY ?? 0;
   const stackOffset = (index % 6) * 72;
   const leftRailX = insets.left;
   const rightRailX = Math.max(insets.left, viewport.width - size.width - insets.right);
-  const y = insets.top + 16 + stackOffset;
+  const y = scrollY + insets.top + 16 + stackOffset;
   const base = {
     x: index % 2 === 0 ? rightRailX : leftRailX,
     y,
@@ -235,10 +238,11 @@ function clampObstacleToViewport(
   obstacle: StickyObstacle,
   viewport: StickyViewport,
 ): StickyObstacle {
+  const scrollY = viewport.scrollY ?? 0;
   return {
     left: Math.max(0, Math.min(viewport.width, obstacle.left)),
-    top: Math.max(0, Math.min(viewport.height, obstacle.top)),
+    top: Math.max(0, Math.min(scrollY + viewport.height, obstacle.top)),
     right: Math.max(0, Math.min(viewport.width, obstacle.right)),
-    bottom: Math.max(0, Math.min(viewport.height, obstacle.bottom)),
+    bottom: Math.max(0, Math.min(scrollY + viewport.height, obstacle.bottom)),
   };
 }

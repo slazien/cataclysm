@@ -22,7 +22,7 @@ describe('stickyLayout', () => {
     safeAreaBottom: 34,
   };
 
-  it('clamps positions so sticky cards stay inside viewport bounds', () => {
+  it('clamps X to viewport bounds, allows page-relative Y beyond viewport', () => {
     const clamped = clampStickyPosition(
       { x: -120, y: 1200 },
       { width: 280, height: 220 },
@@ -32,7 +32,8 @@ describe('stickyLayout', () => {
     expect(clamped.x).toBeGreaterThanOrEqual(0);
     expect(clamped.y).toBeGreaterThanOrEqual(0);
     expect(clamped.x).toBeLessThanOrEqual(desktopViewport.width - 280);
-    expect(clamped.y).toBeLessThanOrEqual(desktopViewport.height - 220);
+    // Y is page-relative — can exceed viewport height (sticky scrolls with content)
+    expect(clamped.y).toBe(1200);
   });
 
   it('snaps centered sticky positions to an edge rail to avoid central data obstruction', () => {
@@ -59,11 +60,11 @@ describe('stickyLayout', () => {
     expect(first.y).toBeGreaterThan(48);
   });
 
-  it('spawns mobile stickies above bottom tabs and safe area', () => {
+  it('spawns mobile stickies within visible area', () => {
     const first = getSpawnPosition(0, { width: 272, height: 208 }, mobileViewport);
-    const maxY = mobileViewport.height - 208 - 34 - 70;
 
-    expect(first.y).toBeLessThanOrEqual(maxY);
+    // Spawns with Y >= header reserve
+    expect(first.y).toBeGreaterThan(48);
     expect(first.x).toBeGreaterThanOrEqual(0);
     expect(first.x).toBeLessThanOrEqual(mobileViewport.width - 272);
   });
