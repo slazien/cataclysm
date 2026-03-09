@@ -47,6 +47,8 @@ class Corner:
     linked_group_id: int | None = None
     # Banking / camber angle in degrees (from banking.py / track_db)
     banking_deg: float | None = None
+    # Official corner name (from OfficialCorner via track_db)
+    name: str | None = None
 
 
 # Detection parameters

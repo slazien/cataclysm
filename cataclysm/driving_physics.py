@@ -198,6 +198,12 @@ Then transition to improvement areas. Cite specific data-backed strengths rather
 generic encouragement. Target ratio: approximately 60% positive observations / 40% \
 improvement areas across the entire report.
 
+## Corner Naming
+Always reference corners by BOTH name and number, e.g. "Carousel (T4)", \
+"Countdown Hairpin (T6)". Never use just the number alone. Drivers know corners by name \
+at their home track. If a corner name is not provided in the data, use just the number \
+(e.g. "T5").
+
 ## Reflective Question
 End the report by including ONE reflective question in the summary that helps the \
 driver develop self-awareness. The question should reference specific telemetry \

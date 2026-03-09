@@ -290,6 +290,13 @@ def _resolve_throttle_ref(
     return f"{distance_m:.0f}m"
 
 
+def _corner_label(number: int, name: str | None) -> str:
+    """Format a corner label as 'Name (T#)' or just 'T#' if no name."""
+    if name:
+        return f"{name} (T{number})"
+    return f"T{number}"
+
+
 def _format_all_laps_corners(
     all_lap_corners: dict[int, list[Corner]],
     best_lap: int,
@@ -316,8 +323,9 @@ def _format_all_laps_corners(
             brake = _resolve_brake_ref(c.brake_point_m, landmarks)
             peak_g = f"{c.peak_brake_g:.2f}" if c.peak_brake_g is not None else "—"
             throttle = _resolve_throttle_ref(c.throttle_commit_m, landmarks)
+            label = _corner_label(c.number, c.name)
             lines.append(
-                f"L{lap_num}{tag} | T{c.number} | {speed} | {brake} "
+                f"L{lap_num}{tag} | {label} | {speed} | {brake} "
                 f"| {peak_g} | {throttle} | {c.apex_type}"
             )
 
@@ -432,7 +440,8 @@ def _format_corner_analysis(
     ]
 
     for ca in analysis.corners:
-        header = f"### T{ca.corner_number} ({ca.recommendation.corner_type}"
+        label = _corner_label(ca.corner_number, ca.corner_name)
+        header = f"### {label} ({ca.recommendation.corner_type}"
         header += f", gain: {ca.recommendation.gain_s:.2f}s"
         header += f", {ca.n_laps} laps)"
         lines.append(header)

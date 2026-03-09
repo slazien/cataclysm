@@ -89,6 +89,7 @@ class CornerAnalysis:
     recommendation: CornerRecommendation
     time_value: TimeValue | None
     correlations: list[CornerCorrelation] = field(default_factory=list)
+    corner_name: str | None = None
 
 
 @dataclass
@@ -383,6 +384,7 @@ def compute_corner_analysis(
                 recommendation=recommendation,
                 time_value=time_value,
                 correlations=correlations,
+                corner_name=best_lap_corner.name,
             )
         )
 

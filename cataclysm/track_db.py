@@ -956,6 +956,7 @@ def locate_official_corners(
                 camber=oc.camber,
                 blind=oc.blind,
                 coaching_notes=oc.coaching_notes,
+                name=oc.name,
             )
         )
 
