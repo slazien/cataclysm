@@ -9,6 +9,8 @@ import type { CoachingReport } from '@/lib/types';
 
 interface UseAutoReportResult {
   report: CoachingReport | undefined;
+  /** Raw report data including "generating" status — used for progress/timeout UI. */
+  generatingReport: Pick<CoachingReport, 'status' | 'summary' | 'primary_focus' | 'generation_started_at' | 'generation_estimated_s'> | null;
   isLoading: boolean;
   isGenerating: boolean;
   isError: boolean;
@@ -89,6 +91,7 @@ export function useAutoReport(sessionId: string | null): UseAutoReportResult {
 
   return {
     report: isReady ? report : undefined,
+    generatingReport: isGenerating && report ? report : null,
     // Show loading state during: initial fetch, mutation pending, refetching, or generating
     isLoading: isLoading || generateReport.isPending || isGenerating || (isFetching && !isReady),
     isGenerating,

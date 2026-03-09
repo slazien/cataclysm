@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { MarkdownText } from '@/components/shared/MarkdownText';
 import { useUnits } from '@/hooks/useUnits';
@@ -9,6 +9,7 @@ import type { CoachingReport } from '@/lib/types';
 
 interface CoachingSummaryHeroProps {
   report: Pick<CoachingReport, 'status' | 'summary' | 'primary_focus' | 'generation_started_at' | 'generation_estimated_s'> | null;
+  onRetry?: () => void;
 }
 
 /** Split summary into a prominent first sentence and the rest. */
@@ -20,20 +21,31 @@ function splitSummary(text: string): { lead: string; rest: string } {
   return { lead: text, rest: '' };
 }
 
-function GeneratingProgress({ startedAt, estimatedS }: { startedAt?: string | null; estimatedS?: number | null }) {
+const GENERATION_TIMEOUT_S = 45;
+
+function GeneratingProgress({ startedAt, estimatedS, onRetry }: { startedAt?: string | null; estimatedS?: number | null; onRetry?: () => void }) {
   const [progress, setProgress] = useState(0);
+  const [timedOut, setTimedOut] = useState(false);
+  const mountedAt = useRef(Date.now());
 
   useEffect(() => {
-    if (!startedAt || !estimatedS || estimatedS <= 0) return;
-
-    const startMs = new Date(startedAt).getTime();
-    if (Number.isNaN(startMs)) return;
+    const startMs = startedAt ? new Date(startedAt).getTime() : NaN;
+    const hasValidStart = !Number.isNaN(startMs);
 
     const tick = () => {
-      const elapsedS = (Date.now() - startMs) / 1000;
-      // Asymptotic: approaches 95% but never reaches 100%
-      const pct = Math.min(95, (elapsedS / estimatedS) * 90);
-      setProgress(Math.max(0, pct));
+      // Timeout: use server start time if available, otherwise time since mount
+      const elapsedS = hasValidStart
+        ? (Date.now() - startMs) / 1000
+        : (Date.now() - mountedAt.current) / 1000;
+
+      if (elapsedS > GENERATION_TIMEOUT_S) {
+        setTimedOut(true);
+      }
+
+      if (hasValidStart && estimatedS && estimatedS > 0) {
+        const pct = Math.min(95, (elapsedS / estimatedS) * 90);
+        setProgress(Math.max(0, pct));
+      }
     };
 
     tick();
@@ -42,6 +54,25 @@ function GeneratingProgress({ startedAt, estimatedS }: { startedAt?: string | nu
   }, [startedAt, estimatedS]);
 
   const hasEta = startedAt && estimatedS && estimatedS > 0;
+
+  if (timedOut) {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm text-[var(--text-secondary)]">
+          Coaching generation is taking longer than expected.
+        </p>
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="rounded-md border border-[var(--cata-accent)]/40 bg-[var(--cata-accent)]/10 px-3 py-1.5 text-xs font-medium text-[var(--cata-accent)] transition-colors hover:bg-[var(--cata-accent)]/20"
+          >
+            Retry
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2">
@@ -68,7 +99,7 @@ function GeneratingProgress({ startedAt, estimatedS }: { startedAt?: string | nu
   );
 }
 
-export function CoachingSummaryHero({ report }: CoachingSummaryHeroProps) {
+export function CoachingSummaryHero({ report, onRetry }: CoachingSummaryHeroProps) {
   const isLoading = !report || report.status === 'generating';
   const { resolveSpeed } = useUnits();
   const summary = report?.summary ? formatCoachingText(resolveSpeed(report.summary)) : report?.summary;
@@ -87,6 +118,7 @@ export function CoachingSummaryHero({ report }: CoachingSummaryHeroProps) {
         <GeneratingProgress
           startedAt={report?.generation_started_at}
           estimatedS={report?.generation_estimated_s}
+          onRetry={onRetry}
         />
       ) : report?.status === 'error' ? (
         <p className="text-sm text-[var(--text-secondary)]">{summary ?? 'Coaching report unavailable.'}</p>
