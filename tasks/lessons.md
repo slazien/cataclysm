@@ -108,6 +108,14 @@
 
 **Error signature**: `IntegrityError: duplicate key value violates unique constraint` during bulk FK migration, followed by sessions/data still pointing at the old user_id for tables that were never reached.
 
+## Debug "Feature Doesn't Trigger" by Checking One-Shot localStorage Flags First (2026-03-09)
+
+**Pattern**: When a one-shot feature (tour, onboarding, first-run animation) "doesn't work," FIRST check if the localStorage seen/done flag is already set from a prior test or session. Clear storage and retest before investigating code. One-shot features gate on `localStorage.getItem(key) === '1'` — if set, the feature is permanently suppressed regardless of code correctness.
+
+**Why**: Spent an entire session debugging the Driver.js tour not appearing for "anonymous upload flow." Added retry mechanisms, diagnostic logging, deployed twice. The code was working correctly the whole time — the user's browser had `cataclysm-tour-report = "1"` from a previous test visit. A `localStorage.clear()` + fresh test would have confirmed this in 2 minutes.
+
+**Error signature**: Feature works in Playwright (fresh browser) but "doesn't work" when user tests manually. Or: feature worked once but never again after dismissal.
+
 ## Playwright `browser_evaluate` Requires `function` Parameter (2026-03-08)
 
 **Pattern**: When calling `browser_evaluate` in Playwright MCP, always use the `function` parameter with the format `"() => { ... }"`. Do NOT use a `script` parameter — it doesn't exist.
