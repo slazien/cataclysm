@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { EquipmentInterstitial } from '../EquipmentInterstitial';
+import { getVehicleSpec } from '@/lib/api';
 
 // Mock hooks
 const mockCreateProfile = vi.fn();
@@ -122,5 +123,81 @@ describe('EquipmentInterstitial', () => {
     fireEvent.change(screen.getByPlaceholderText(/search vehicle/i), { target: { value: 'Miata' } });
     await waitFor(() => expect(screen.getByText(/MX-5 Miata/)).toBeInTheDocument());
     expect(screen.getByText(/181hp/)).toBeInTheDocument();
+  });
+
+  it('shows vehicle chip after selecting a vehicle (spec fetch success)', async () => {
+    const mockSpec = vi.mocked(getVehicleSpec);
+    mockSpec.mockResolvedValue({
+      make: 'Mazda', model: 'MX-5 Miata', generation: 'ND',
+      year_range: [2016, 2023], weight_kg: 1050, wheelbase_m: 2.31,
+      track_width_front_m: 1.49, track_width_rear_m: 1.5, cg_height_m: 0.46,
+      weight_dist_front_pct: 0.52, drivetrain: 'RWD', hp: 181, torque_nm: 205,
+      has_aero: false, stock_tire_size_front: '205/45R17', stock_tire_size_rear: '205/45R17',
+      notes: null,
+    });
+    mockVehicleSearch.mockReturnValue({
+      data: [{ slug: 'mazda_miata_nd', make: 'Mazda', model: 'MX-5 Miata', generation: 'ND', hp: 181, weight_kg: 1050, drivetrain: 'RWD', year_range: [2016, 2023] }],
+      isLoading: false,
+    });
+    render(<EquipmentInterstitial sessionId="sess-1" onComplete={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText(/search vehicle/i), { target: { value: 'Miata' } });
+    await waitFor(() => expect(screen.getByText(/MX-5 Miata/)).toBeInTheDocument());
+    fireEvent.click(screen.getAllByText(/MX-5 Miata/)[0]);
+    await waitFor(() => expect(screen.getByPlaceholderText(/e\.g\. 205/i)).toHaveValue('205/45R17'));
+  });
+
+  it('shows vehicle chip even when spec fetch fails (fallback to search result)', async () => {
+    const mockSpec = vi.mocked(getVehicleSpec);
+    mockSpec.mockRejectedValue(new Error('network error'));
+    mockVehicleSearch.mockReturnValue({
+      data: [{ slug: 'mazda_miata_nd', make: 'Mazda', model: 'MX-5 Miata', generation: 'ND', hp: 181, weight_kg: 1050, drivetrain: 'RWD', year_range: [2016, 2023] }],
+      isLoading: false,
+    });
+    render(<EquipmentInterstitial sessionId="sess-1" onComplete={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText(/search vehicle/i), { target: { value: 'Miata' } });
+    await waitFor(() => expect(screen.getByText(/MX-5 Miata/)).toBeInTheDocument());
+    fireEvent.click(screen.getAllByText(/MX-5 Miata/)[0]);
+    // Chip should appear even on spec failure (fallback spec built from search result)
+    await waitFor(() => expect(screen.getByText(/181hp/)).toBeInTheDocument());
+  });
+
+  it('does not invoke assignEquipment twice when quick-pick is clicked rapidly', async () => {
+    mockEquipmentProfiles.mockReturnValue({
+      data: {
+        items: [
+          {
+            id: 'p1',
+            name: 'Miata – Street',
+            tires: { model: 'RE-71RS', compound_category: 'track/r-compound', size: '205/50R16', estimated_mu: 1.1, mu_source: 'curated', mu_confidence: 'high', treadwear_rating: null, pressure_psi: null, brand: null, age_sessions: null },
+            is_default: true,
+          },
+        ],
+      },
+      isLoading: false,
+    });
+    // Never resolves during test — keeps saving=true so second click is blocked
+    mockAssignEquipment.mockReturnValue(new Promise(() => {}));
+    render(<EquipmentInterstitial sessionId="sess-1" onComplete={vi.fn()} />);
+    const btn = screen.getByText('Miata – Street');
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    await waitFor(() => expect(mockAssignEquipment).toHaveBeenCalledTimes(1));
+  });
+
+  it('shows error message when save fails', async () => {
+    mockCreateProfile.mockRejectedValue(new Error('server error'));
+    render(<EquipmentInterstitial sessionId="sess-1" onComplete={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: /^street$/i }));
+    fireEvent.change(screen.getByPlaceholderText(/e\.g\. 205/i), { target: { value: '205/50R16' } });
+    fireEvent.click(screen.getByRole('button', { name: /save.*continue/i }));
+    await waitFor(() => expect(screen.getByText(/failed to save/i)).toBeInTheDocument());
+  });
+
+  it('calls onComplete when Escape key is pressed', () => {
+    const onComplete = vi.fn();
+    render(<EquipmentInterstitial sessionId="sess-1" onComplete={onComplete} />);
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    expect(onComplete).toHaveBeenCalledOnce();
   });
 });

@@ -46,6 +46,7 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
   const [compound, setCompound] = useState<string>('');
   const [tireSize, setTireSize] = useState('');
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const createProfile = useCreateProfile();
   const assignEquipment = useAssignEquipment();
@@ -74,7 +75,20 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
           setTireSize(spec.stock_tire_size_front);
         }
       } catch {
-        // Failed to fetch spec — allow manual entry
+        // Fall back to lightweight data if full spec fetch fails
+        setSelectedVehicle({
+          ...result,
+          wheelbase_m: 0,
+          track_width_front_m: 0,
+          track_width_rear_m: 0,
+          cg_height_m: 0,
+          weight_dist_front_pct: 0,
+          torque_nm: 0,
+          has_aero: false,
+          stock_tire_size_front: null,
+          stock_tire_size_rear: null,
+          notes: null,
+        });
       }
     },
     [tireSize],
@@ -83,6 +97,7 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
   const handleSave = useCallback(async () => {
     if (!canSave || saving) return;
     setSaving(true);
+    setSaveError(null);
     try {
       const mu = COMPOUND_MU[compound] ?? 0.93;
       const profile = await createProfile.mutateAsync({
@@ -100,12 +115,14 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
           age_sessions: null,
         },
         vehicle: selectedVehicle ?? null,
-        is_default: existingProfiles.length === 0,
+        // Only auto-default when the profiles query has resolved to empty
+        is_default: profilesData !== undefined && existingProfiles.length === 0,
       });
       await assignEquipment.mutateAsync({ sessionId, body: { profile_id: profile.id } });
       onComplete();
     } catch {
       setSaving(false);
+      setSaveError('Failed to save. Please try again or skip for now.');
     }
   }, [
     canSave,
@@ -118,20 +135,24 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
     assignEquipment,
     sessionId,
     onComplete,
+    profilesData,
     existingProfiles.length,
   ]);
 
   const handleQuickPick = useCallback(
     async (profile: EquipmentProfile) => {
+      if (saving) return;
       setSaving(true);
+      setSaveError(null);
       try {
         await assignEquipment.mutateAsync({ sessionId, body: { profile_id: profile.id } });
         onComplete();
       } catch {
         setSaving(false);
+        setSaveError('Failed to apply setup. Please try again.');
       }
     },
-    [assignEquipment, sessionId, onComplete],
+    [assignEquipment, sessionId, onComplete, saving],
   );
 
   return (
@@ -144,6 +165,7 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
       role="dialog"
       aria-modal="true"
       aria-label="Car setup"
+      onKeyDown={(e) => { if (e.key === 'Escape') onComplete(); }}
     >
       <motion.div
         className="w-full max-w-sm rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-6 shadow-2xl"
@@ -166,7 +188,7 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
               Use existing setup
             </p>
             <div className="flex flex-col gap-2">
-              {existingProfiles.slice(0, 3).map((p) => (
+              {existingProfiles.slice(0, 2).map((p) => (
                 <button
                   key={p.id}
                   type="button"
@@ -310,6 +332,11 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
               </p>
             )}
         </div>
+
+        {/* Save error */}
+        {saveError && (
+          <p className="mt-3 text-xs text-red-400">{saveError}</p>
+        )}
 
         {/* CTA buttons */}
         <div className="mt-6 flex flex-col gap-2">
