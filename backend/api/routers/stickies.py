@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.db.database import get_db
 from backend.api.db.models import StickyDB
-from backend.api.dependencies import AuthenticatedUser, get_current_user
+from backend.api.dependencies import AuthenticatedUser, get_current_user, get_user_or_anon
 from backend.api.schemas.stickies import (
     StickiesList,
     StickyCreate,
@@ -78,11 +78,13 @@ async def create_sticky(
 
 @router.get("")
 async def list_stickies(
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
     view_scope: Annotated[StickyViewScope | None, Query(description="Filter by view scope")] = None,
 ) -> StickiesList:
     """List stickies for the current user."""
+    if current_user.user_id == "anon":
+        return StickiesList(items=[])
     q = select(StickyDB).where(StickyDB.user_id == current_user.user_id)
 
     if view_scope is not None:

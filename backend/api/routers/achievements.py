@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.db.database import get_db
-from backend.api.dependencies import AuthenticatedUser, get_current_user
+from backend.api.dependencies import AuthenticatedUser, get_current_user, get_user_or_anon
 from backend.api.schemas.achievement import (
     AchievementListResponse,
     AchievementSchema,
@@ -43,10 +43,12 @@ async def list_achievements(
 
 @router.get("/recent", response_model=NewAchievementsResponse)
 async def recent_achievements(
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> NewAchievementsResponse:
     """Return newly unlocked achievements and mark them as seen."""
+    if current_user.user_id == "anon":
+        return NewAchievementsResponse(newly_unlocked=[])
     rows = await get_recent_achievements(db, current_user.user_id)
     return NewAchievementsResponse(
         newly_unlocked=[AchievementSchema(**r) for r in rows],  # type: ignore[arg-type]

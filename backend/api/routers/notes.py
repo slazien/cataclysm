@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.api.db.database import get_db
 from backend.api.db.models import NoteDB
 from backend.api.db.models import Session as SessionModel
-from backend.api.dependencies import AuthenticatedUser, get_current_user
+from backend.api.dependencies import AuthenticatedUser, get_current_user, get_user_or_anon
 from backend.api.schemas.notes import NoteCreate, NoteResponse, NotesList, NoteUpdate
 
 router = APIRouter()
@@ -91,13 +91,15 @@ async def create_note(
 
 @router.get("")
 async def list_notes(
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
     session_id: str | None = Query(None, description="Filter by session ID"),
     global_only: bool = Query(False, description="Only return global (non-session) notes"),
     anchor_type: str | None = Query(None, description="Filter by anchor type"),
 ) -> NotesList:
     """List notes for the current user, optionally filtered."""
+    if current_user.user_id == "anon":
+        return NotesList(items=[], total=0)
     q = select(NoteDB).where(NoteDB.user_id == current_user.user_id)
 
     if session_id is not None:
