@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 # In-memory cache: track_slug → list[dict] (raw JSON from DB)
 # ---------------------------------------------------------------------------
 _corner_overrides: dict[str, list[dict]] = {}
+_corner_override_versions: dict[str, int] = {}
 _cache_loaded: bool = False
 
 
@@ -48,6 +49,11 @@ def get_corner_override_sync(track_slug: str) -> list[OfficialCorner] | None:
     if corners_json is None:
         return None
     return [_db_dict_to_official(c) for c in corners_json]
+
+
+def get_corner_override_version(track_slug: str) -> int | None:
+    """Return the current version counter for a track's corner override, or None."""
+    return _corner_override_versions.get(track_slug)
 
 
 def override_layout_corners(
@@ -86,8 +92,10 @@ async def load_all_corner_overrides(db: AsyncSession) -> None:
     result = await db.execute(select(TrackCornerConfig))
     configs = result.scalars().all()
     _corner_overrides.clear()
+    _corner_override_versions.clear()
     for cfg in configs:
         _corner_overrides[cfg.track_slug] = cfg.corners_json
+        _corner_override_versions[cfg.track_slug] = 1
     _cache_loaded = True
     logger.info("Loaded %d track corner override(s) from DB", len(_corner_overrides))
 
@@ -95,4 +103,5 @@ async def load_all_corner_overrides(db: AsyncSession) -> None:
 def update_corner_cache(track_slug: str, corners_json: list[dict]) -> None:
     """Update the in-memory cache after admin saves corners."""
     _corner_overrides[track_slug] = corners_json
+    _corner_override_versions[track_slug] = _corner_override_versions.get(track_slug, 0) + 1
     logger.info("Corner cache updated for %s (%d corners)", track_slug, len(corners_json))
