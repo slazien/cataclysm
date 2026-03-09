@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## railway.json Overrides Per-Service Config (2026-03-09)
+
+**Pattern**: A shared `railway.json` with `build.builder: DOCKERFILE` overrides service-level `dockerfilePath` to its default (`Dockerfile`), ignoring both `RAILWAY_DOCKERFILE_PATH` env var and GraphQL-set service settings. The file-level config wins over service-level config for any field it implicitly defines.
+
+**Why**: `railway deploy --service frontend` corrupted the service config (null-byte JSON error), wiping `dockerfilePath`. After that, `railway.json` always overwrote it back to default. Fix: remove `railway.json`, set `builder`+`dockerfilePath` per-service via GraphQL `serviceInstanceUpdate` mutation.
+
+**Error signature**: Build log shows `[DBUG] found 'railway.json'` then `couldn't locate a dockerfile at path Dockerfile` — despite service manifest showing correct `dockerfilePath`. Deploy metadata has `configFile` for successful deploys, absent for failures after corruption.
+
 ## staleTime:Infinity Admin Mutation Blind Spot (2026-03-09)
 
 **Pattern**: When session queries use `staleTime: Infinity` (IMMUTABLE) and an admin action changes the underlying data, the admin mutation's `onSuccess` must explicitly invalidate all affected query keys. React Query will never refetch on its own.
