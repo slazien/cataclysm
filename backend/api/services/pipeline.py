@@ -82,6 +82,7 @@ from backend.api.services.db_physics_cache import (
 from backend.api.services.session_store import SessionData, store_session
 from backend.api.services.track_corners import (
     get_corner_override_sync,
+    get_corner_override_version,
     override_layout_corners,
 )
 
@@ -298,12 +299,14 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
     # 4. Detect corners (track_db lookup first, fallback to detect_corners)
     best_lap_df = processed.resampled_laps[processed.best_lap]
     layout = detect_track_or_lookup(parsed.data, parsed.metadata.track_name)
+    corner_version: int | None = None
     if layout is not None:
         # Check for admin-edited corner overrides (DB → in-memory cache)
         slug = track_slug_from_layout(layout)
         db_corners = get_corner_override_sync(slug)
         if db_corners is not None:
             layout = override_layout_corners(layout, db_corners)
+            corner_version = get_corner_override_version(slug)
             logger.info("Using %d admin-edited corners for %s", len(db_corners), slug)
         skeletons = locate_official_corners(best_lap_df, layout)
         corners: list[Corner] = extract_corner_kpis_for_lap(best_lap_df, skeletons)
@@ -437,6 +440,7 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
         reference_centerline=reference_centerline,
         corner_line_profiles=corner_line_profiles,
         layout=layout,
+        corner_override_version=corner_version,
     )
 
 
