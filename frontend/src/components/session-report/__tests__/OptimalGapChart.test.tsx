@@ -212,7 +212,7 @@ describe('OptimalGapChart', () => {
     });
 
     render(<OptimalGapChart sessionId="s1" />);
-    expect(screen.getByText(/per-corner speed gap/i)).toBeTruthy();
+    expect(screen.getByText(/Time gap vs physics-optimal/i)).toBeTruthy();
   });
 
   it('does not show potential badge when total_gap_s is zero', () => {
@@ -309,17 +309,18 @@ describe('OptimalGapChart', () => {
 
     // Canvas should have been cleared and drawn on
     expect(ctx.clearRect).toHaveBeenCalledWith(0, 0, 400, 200);
-    // Two bars drawn => two beginPath + fill pairs
-    expect(ctx.beginPath).toHaveBeenCalledTimes(2);
-    expect(ctx.fill).toHaveBeenCalledTimes(2);
+    // Two corner bars + 1 straights bar (residual = 2.5 - 2.0 = 0.5 > 0.1)
+    expect(ctx.beginPath).toHaveBeenCalledTimes(3);
+    expect(ctx.fill).toHaveBeenCalledTimes(3);
     // roundRect available, so it should be called for each bar
-    expect(ctx.roundRect).toHaveBeenCalledTimes(2);
-    // Corner labels (T3, T7) and value labels (2 bars)
-    expect(ctx.fillText).toHaveBeenCalledTimes(4);
+    expect(ctx.roundRect).toHaveBeenCalledTimes(3);
+    // Corner labels (T3, T7), value labels (2 bars), "Str." label, straights value
+    expect(ctx.fillText).toHaveBeenCalledTimes(6);
     // Check that corner labels were drawn
     const fillTextCalls = ctx.fillText.mock.calls.map((c: unknown[]) => c[0]);
     expect(fillTextCalls).toContain('T3');
     expect(fillTextCalls).toContain('T7');
+    expect(fillTextCalls).toContain('Str.');
   });
 
   it('falls back to ctx.rect when roundRect is not available', () => {
@@ -488,5 +489,150 @@ describe('OptimalGapChart', () => {
     expect(ctx.beginPath).toHaveBeenCalledTimes(3);
     // 2 corner labels + 2 value labels = 4 fillText calls
     expect(ctx.fillText).toHaveBeenCalledTimes(4);
+  });
+
+  it('draws straights bar when residual gap exceeds 0.1s', () => {
+    const ctx = makeCanvasCtx();
+    mockCanvasChartReturn.mockReturnValue({
+      containerRef: { current: null },
+      dataCanvasRef: { current: null },
+      dimensions: {
+        width: 400,
+        height: 200,
+        margins: { top: 4, right: 16, bottom: 4, left: 50 },
+      },
+      getDataCtx: () => ctx,
+    });
+
+    // total_gap_s = 3.0, corner time costs = 1.2 + 0.8 = 2.0
+    // residual = 1.0s (> 0.1 threshold)
+    mockUseOptimalComparison.mockReturnValue({
+      data: {
+        session_id: 's1',
+        actual_lap_time_s: 90,
+        optimal_lap_time_s: 87,
+        total_gap_s: 3.0,
+        is_valid: true,
+        corner_opportunities: [
+          makeCornerOpportunity(3, 5.0, 1.2),
+          makeCornerOpportunity(7, 3.0, 0.8),
+        ],
+      },
+      isLoading: false,
+    });
+
+    render(<OptimalGapChart sessionId="s1" />);
+
+    // 2 corner bars + 1 straights bar = 3 bar shapes
+    expect(ctx.beginPath).toHaveBeenCalledTimes(3);
+    // 2 corner labels + 2 corner values + 1 straights label + 1 straights value = 6
+    const fillTextCalls = ctx.fillText.mock.calls.map((c: unknown[]) => c[0]);
+    expect(fillTextCalls).toContain('Str.');
+  });
+
+  it('does not draw straights bar when residual is negligible', () => {
+    const ctx = makeCanvasCtx();
+    mockCanvasChartReturn.mockReturnValue({
+      containerRef: { current: null },
+      dataCanvasRef: { current: null },
+      dimensions: {
+        width: 400,
+        height: 200,
+        margins: { top: 4, right: 16, bottom: 4, left: 50 },
+      },
+      getDataCtx: () => ctx,
+    });
+
+    // total_gap_s ~ sum of corners -> residual < 0.1
+    mockUseOptimalComparison.mockReturnValue({
+      data: {
+        session_id: 's1',
+        actual_lap_time_s: 90,
+        optimal_lap_time_s: 88,
+        total_gap_s: 2.0,
+        is_valid: true,
+        corner_opportunities: [
+          makeCornerOpportunity(3, 5.0, 1.2),
+          makeCornerOpportunity(7, 3.0, 0.75),
+        ],
+      },
+      isLoading: false,
+    });
+
+    render(<OptimalGapChart sessionId="s1" />);
+
+    // Only 2 corner bars, no straights bar
+    expect(ctx.beginPath).toHaveBeenCalledTimes(2);
+    const fillTextCalls = ctx.fillText.mock.calls.map((c: unknown[]) => c[0]);
+    expect(fillTextCalls).not.toContain('Str.');
+  });
+
+  it('computes residual from ALL corner opportunities, not just filtered ones', () => {
+    const ctx = makeCanvasCtx();
+    mockCanvasChartReturn.mockReturnValue({
+      containerRef: { current: null },
+      dataCanvasRef: { current: null },
+      dimensions: {
+        width: 400,
+        height: 200,
+        margins: { top: 4, right: 16, bottom: 4, left: 50 },
+      },
+      getDataCtx: () => ctx,
+    });
+
+    // Corner 2 has speed_gap_mph=0.3 (below MIN_GAP_MPH=0.5 -> filtered from display)
+    // but its time_cost_s=0.5 should still reduce the straights residual
+    mockUseOptimalComparison.mockReturnValue({
+      data: {
+        session_id: 's1',
+        actual_lap_time_s: 90,
+        optimal_lap_time_s: 87,
+        total_gap_s: 3.0,
+        is_valid: true,
+        corner_opportunities: [
+          makeCornerOpportunity(1, 5.0, 1.0),
+          makeCornerOpportunity(2, 0.3, 0.5), // Filtered from display but counts toward corner total
+        ],
+      },
+      isLoading: false,
+    });
+
+    render(<OptimalGapChart sessionId="s1" />);
+
+    // Only 1 corner bar displayed + 1 straights bar (residual = 3.0 - 1.0 - 0.5 = 1.5)
+    expect(ctx.beginPath).toHaveBeenCalledTimes(2); // 1 corner + 1 straights
+    const fillTextCalls = ctx.fillText.mock.calls.map((c: unknown[]) => c[0]);
+    expect(fillTextCalls).toContain('Str.');
+  });
+
+  it('does not draw straights bar when comparison is invalid', () => {
+    const ctx = makeCanvasCtx();
+    mockCanvasChartReturn.mockReturnValue({
+      containerRef: { current: null },
+      dataCanvasRef: { current: null },
+      dimensions: {
+        width: 400,
+        height: 200,
+        margins: { top: 4, right: 16, bottom: 4, left: 50 },
+      },
+      getDataCtx: () => ctx,
+    });
+
+    mockUseOptimalComparison.mockReturnValue({
+      data: {
+        session_id: 's1',
+        actual_lap_time_s: 100,
+        optimal_lap_time_s: 101,
+        total_gap_s: -1,
+        is_valid: false,
+        corner_opportunities: [makeCornerOpportunity(3, 5.0, 0.4)],
+      },
+      isLoading: false,
+    });
+
+    render(<OptimalGapChart sessionId="s1" />);
+
+    const fillTextCalls = ctx.fillText.mock.calls.map((c: unknown[]) => c[0]);
+    expect(fillTextCalls).not.toContain('Str.');
   });
 });

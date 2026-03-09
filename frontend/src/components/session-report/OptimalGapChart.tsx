@@ -62,6 +62,14 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
 
   const totalGapS = comparison?.total_gap_s ?? null;
 
+  const straightsGapS = useMemo(() => {
+    if (!comparison?.corner_opportunities || !comparison?.total_gap_s || comparison.total_gap_s <= 0) return 0;
+    if (!comparison.is_valid) return 0;
+    const allCornerCost = comparison.corner_opportunities.reduce((s, o) => s + o.time_cost_s, 0);
+    const residual = comparison.total_gap_s - allCornerCost;
+    return residual > 0.1 ? residual : 0;
+  }, [comparison]);
+
   const { containerRef, dataCanvasRef, dimensions, getDataCtx } = useCanvasChart(MARGINS);
 
   // Draw bars
@@ -74,12 +82,13 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
 
     const chartW = width - margins.left - margins.right;
     const chartH = height - margins.top - margins.bottom;
-    const barHeight = Math.min(22, chartH / opportunities.length - 4);
+    const displayCount = opportunities.length + (straightsGapS > 0 ? 1 : 0);
+    const barHeight = Math.min(22, chartH / displayCount - 4);
     const barSpacing =
-      opportunities.length > 1
-        ? (chartH - barHeight * opportunities.length) / (opportunities.length - 1)
+      displayCount > 1
+        ? (chartH - barHeight * displayCount) / (displayCount - 1)
         : 0;
-    const maxTimeCost = Math.max(...opportunities.map((o) => o.time_cost_s));
+    const maxTimeCost = Math.max(...opportunities.map((o) => o.time_cost_s), straightsGapS);
 
     // Build hit regions for click detection
     barRegionsRef.current = opportunities.map((opp, i) => ({
@@ -145,7 +154,38 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
       }
     });
 
-  }, [opportunities, dimensions, getDataCtx, convertSpeed, speedUnit]);
+    // --- Straights residual bar ---
+    if (straightsGapS > 0) {
+      const sIdx = opportunities.length;
+      const sY = margins.top + sIdx * (barHeight + barSpacing);
+      const sBarW = maxTimeCost > 0 ? (straightsGapS / maxTimeCost) * chartW : 0;
+
+      // Muted blue-gray color for non-corner time
+      ctx.fillStyle = 'rgba(148, 163, 184, 0.45)'; // slate-400 at 45%
+      ctx.beginPath();
+      if (ctx.roundRect) {
+        ctx.roundRect(margins.left, sY, sBarW, barHeight, 3);
+      } else {
+        ctx.rect(margins.left, sY, sBarW, barHeight);
+      }
+      ctx.fill();
+
+      // Label: "Str."
+      ctx.fillStyle = 'rgba(148, 163, 184, 0.7)';
+      ctx.font = '11px Inter, system-ui, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Str.', margins.left - 6, sY + barHeight / 2);
+
+      // Value label: "~X.Xs straights"
+      const sLabel = `~${straightsGapS.toFixed(1)}s straights`;
+      ctx.fillStyle = 'rgba(148, 163, 184, 0.6)';
+      ctx.font = '10px Inter, system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(sLabel, margins.left + sBarW + 4, sY + barHeight / 2);
+    }
+
+  }, [opportunities, dimensions, getDataCtx, convertSpeed, speedUnit, straightsGapS]);
 
   // Hit-test helper — reads bar regions at call time (ref is always current)
   const getHitCorner = (e: React.MouseEvent<HTMLCanvasElement>): BarRegion | undefined => {
@@ -182,7 +222,8 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
     );
   }
 
-  const chartHeight = Math.max(120, opportunities.length * 28 + 16);
+  const displayCount = opportunities.length + (straightsGapS > 0 ? 1 : 0);
+  const chartHeight = Math.max(120, displayCount * 28 + 16);
 
   return (
     <div className="rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
@@ -192,7 +233,7 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
             Speed vs Optimal
           </h3>
           <p className="text-[11px] text-[var(--text-secondary)]">
-            Per-corner speed gap vs physics-optimal profile — biggest opportunities first
+            Time gap vs physics-optimal profile — biggest opportunities first
           </p>
         </div>
         {totalGapS !== null && totalGapS > 0 && (
