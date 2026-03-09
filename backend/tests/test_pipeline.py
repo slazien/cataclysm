@@ -157,6 +157,8 @@ class TestRunPipelineSyncErrorPaths:
             patch("backend.api.services.pipeline.estimate_grip_limit") as m_grip,
             patch("backend.api.services.pipeline.build_session_snapshot") as m_snap,
             patch("backend.api.services.pipeline._fallback_lap_consistency") as m_fallback,
+            patch("backend.api.services.pipeline.get_corner_override_sync", return_value=None) as m_corner_override,
+            patch("backend.api.services.pipeline.track_slug_from_layout", return_value="test-track") as m_slug,
         ):
             mocks = {
                 "parse_racechrono_csv": m_parse,
@@ -174,6 +176,8 @@ class TestRunPipelineSyncErrorPaths:
                 "estimate_grip_limit": m_grip,
                 "build_session_snapshot": m_snap,
                 "_fallback_lap_consistency": m_fallback,
+                "get_corner_override_sync": m_corner_override,
+                "track_slug_from_layout": m_slug,
             }
             m_fallback.return_value = MagicMock()
             _apply_base_mocks(mocks, parsed, processed, snap)

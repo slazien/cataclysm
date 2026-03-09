@@ -218,6 +218,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 "Loaded %d equipment profile(s), %d session assignment(s) from disk", n_eq, n_se
             )
 
+    # Load admin-edited corner overrides so the pipeline uses them
+    from backend.api.db.database import async_session_factory as _corner_asf
+    from backend.api.services.track_corners import load_all_corner_overrides
+
+    try:
+        async with _corner_asf() as _corners_db:
+            await load_all_corner_overrides(_corners_db)
+    except Exception:
+        logger.warning("Failed to load corner overrides from DB", exc_info=True)
+
     # Reload CSV session data into memory so GET endpoints don't 404
     # Try database first (survives Railway redeployments), fall back to disk
     n_sessions = await _reload_sessions_from_db()

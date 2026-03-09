@@ -253,4 +253,9 @@ async def save_corners(
 
     await db.commit()
 
+    # Update in-memory cache so the pipeline uses DB corners immediately
+    from backend.api.services.track_corners import update_corner_cache
+
+    update_corner_cache(slug, corners_data)
+
     return SaveResult(saved=True, corner_count=len(payload.corners))

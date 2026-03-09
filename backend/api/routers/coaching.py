@@ -227,9 +227,8 @@ async def _run_generation(
         from cataclysm.coaching import generate_coaching_report
         from cataclysm.corner_analysis import compute_corner_analysis
         from cataclysm.equipment import EquipmentProfile, SessionConditions
-        from cataclysm.track_match import detect_track_or_lookup
 
-        layout = detect_track_or_lookup(sd.parsed.data, sd.parsed.metadata.track_name)
+        layout = sd.layout  # Use the pipeline's layout (includes DB corner overrides)
         landmarks = layout.landmarks if layout else []
 
         coaching_summaries = [
