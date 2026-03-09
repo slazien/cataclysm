@@ -1025,6 +1025,7 @@ def locate_official_corners(
                 blind=oc.blind,
                 coaching_notes=oc.coaching_notes,
                 name=oc.name,
+                nominal_distance_m=round(apex_m, 1),
             )
         )
 

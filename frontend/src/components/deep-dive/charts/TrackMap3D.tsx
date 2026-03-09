@@ -312,7 +312,7 @@ function TrackScene({
   const cornerPositions = useMemo(() => {
     return corners.map((c) => ({
       corner: c,
-      pos: getCornerPosition(c.apex_distance_m, lapData.distance_m, positions),
+      pos: getCornerPosition(c.nominal_distance_m ?? c.apex_distance_m, lapData.distance_m, positions),
     }));
   }, [corners, lapData.distance_m, positions]);
 

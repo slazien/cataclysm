@@ -212,12 +212,14 @@ export function HeroTrackMap({ sessionId, bestLapNumber }: HeroTrackMapProps) {
       report?.corner_grades ?? null,
     );
 
-    // Compute corner label positions at apex
+    // Compute corner label positions — prefer nominal (admin-placed) position
+    // over telemetry-derived apex, so the report map matches the Track Editor.
     const labs: CornerLabel[] = corners.map((c) => {
-      const apexIdx = findSegmentIndex(lapData.distance_m, c.apex_distance_m);
+      const positionM = c.nominal_distance_m ?? c.apex_distance_m;
+      const idx = findSegmentIndex(lapData.distance_m, positionM);
       return {
-        x: proj.x[apexIdx] ?? 0,
-        y: proj.y[apexIdx] ?? 0,
+        x: proj.x[idx] ?? 0,
+        y: proj.y[idx] ?? 0,
         number: c.number,
       };
     });

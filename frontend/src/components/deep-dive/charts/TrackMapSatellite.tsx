@@ -130,7 +130,7 @@ function buildCornerLabels(
   }
 
   return corners.map((c) => {
-    const pos = interpolateLatLon(c.apex_distance_m, lapData);
+    const pos = interpolateLatLon(c.nominal_distance_m ?? c.apex_distance_m, lapData);
     return {
       lon: pos ? pos[0] : 0,
       lat: pos ? pos[1] : 0,

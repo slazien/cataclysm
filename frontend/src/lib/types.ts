@@ -56,6 +56,7 @@ export interface Corner {
   peak_brake_g: number | null;
   throttle_commit_m: number | null;
   apex_type: string;
+  nominal_distance_m?: number | null;
 }
 
 export interface LapConsistency {

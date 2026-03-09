@@ -66,6 +66,7 @@ def _corner_to_schema(c: Any) -> CornerSchema:
         peak_brake_g=c.peak_brake_g,
         throttle_commit_m=c.throttle_commit_m,
         apex_type=c.apex_type,
+        nominal_distance_m=getattr(c, "nominal_distance_m", None),
     )
 
 

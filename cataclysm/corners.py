@@ -49,6 +49,9 @@ class Corner:
     banking_deg: float | None = None
     # Official corner name (from OfficialCorner via track_db)
     name: str | None = None
+    # Nominal position along the track (fraction * track_length from admin/DB)
+    # Differs from apex_distance_m which is the telemetry-derived min-speed point.
+    nominal_distance_m: float | None = None
 
 
 # Detection parameters
@@ -658,6 +661,7 @@ def extract_corner_kpis_for_lap(
                 coaching_notes=ref.coaching_notes,
                 elevation_change_m=ref.elevation_change_m,
                 gradient_pct=ref.gradient_pct,
+                nominal_distance_m=ref.nominal_distance_m,
             )
         )
         prev_exit = exit_idx

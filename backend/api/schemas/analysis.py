@@ -23,6 +23,7 @@ class CornerSchema(BaseModel):
     brake_point_lon: float | None = None
     apex_lat: float | None = None
     apex_lon: float | None = None
+    nominal_distance_m: float | None = None
     landmark_ref: str | None = None
 
 

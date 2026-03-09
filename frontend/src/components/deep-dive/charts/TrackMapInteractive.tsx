@@ -211,7 +211,7 @@ function buildCornerLabels(
   }
 
   return corners.map((c) => {
-    const apexIdx = d3.bisectLeft(lapData.distance_m, c.apex_distance_m);
+    const apexIdx = d3.bisectLeft(lapData.distance_m, c.nominal_distance_m ?? c.apex_distance_m);
     const clampedIdx = Math.min(apexIdx, projected.x.length - 1);
     return {
       x: projected.x[clampedIdx] ?? 0,
