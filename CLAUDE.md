@@ -55,7 +55,7 @@ All must pass before commit:
 4. **Code review**: `superpowers:code-reviewer` (mandatory)
 5. **Frontend TS**: `cd frontend && npx tsc --noEmit` before every push. Incremental cache hides errors Railway's clean build catches; `vitest` alone insufficient.
 6. **Frontend QA**: ANY frontend change → Playwright visual verify on staging post-deploy. **BLOCKING.** Wait ~2-3 min.
-7. **Deploy verify**: `list-deployments --service <svc>` → get ID → `get-logs <id>`. Specify service explicitly (default = linked svc only).
+7. **Deploy verify**: `list-deployments --service <svc>` → get ID → `get-logs <id>`. Specify service explicitly (default = linked svc only). **On FAILED deploy**: get build logs FIRST before attempting any fix — the error message is almost always sufficient.
 
 **CRITICAL: Fix ALL errors incl. pre-existing. Zero means zero.**
 
@@ -75,6 +75,8 @@ Check: text clip, horiz overflow, touch targets ≥44px, chart scale.
 - Hetzner: `main-hetzner` via GH Actions. Dev: `hetzner-migration`.
 - GitHub remote: github.com (not github.intuit.com). Full guide: `docs/deployment.md`.
 - **NEVER `DEV_AUTH_BYPASS=true` on staging.** Bypasses ALL auth → every req as `dev-user` → real sessions hidden. Fix: `railway variables delete DEV_AUTH_BYPASS --service backend` + `railway redeploy --service backend --yes`.
+- **NEVER use `railway deploy --service X`** — uploads local files, can corrupt service build config. Always git push to trigger deploys.
+- **No shared `railway.json`** — removed 2026-03-09. Per-service config set via GraphQL `serviceInstanceUpdate` mutation. Frontend→`Dockerfile.frontend`, backend→`Dockerfile.backend`.
 
 ## Agent Playbook
 

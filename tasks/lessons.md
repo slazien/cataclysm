@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## Deploy Failures: Read Build Logs Before Attempting Fixes (2026-03-09)
+
+**Pattern**: When a Railway deploy fails, ALWAYS `get-logs <deploymentId>` (build type) before attempting any fix. The error message tells you exactly what's wrong.
+
+**Why**: Without logs, you guess — empty commits, CLI redeploys, env var changes — wasting 4+ attempts and 30+ minutes. With logs, the first attempt is targeted. User friction: had to prompt "why don't you get deploy logs."
+
+**Error signature**: Multiple FAILED deploys with no logs checked → user asks "why don't you get deploy logs" → one log read reveals exact cause (e.g., `couldn't locate a dockerfile at path Dockerfile`).
+
 ## railway.json Overrides Per-Service Config (2026-03-09)
 
 **Pattern**: A shared `railway.json` with `build.builder: DOCKERFILE` overrides service-level `dockerfilePath` to its default (`Dockerfile`), ignoring both `RAILWAY_DOCKERFILE_PATH` env var and GraphQL-set service settings. The file-level config wins over service-level config for any field it implicitly defines.
