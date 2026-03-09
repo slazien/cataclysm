@@ -50,6 +50,7 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
 
   const [compound, setCompound] = useState<string>('');
   const [tireModel, setTireModel] = useState('');
+  const [tireModelCompound, setTireModelCompound] = useState<string | null>(null);
   const [tireSize, setTireSize] = useState('');
   const [tireModelFocused, setTireModelFocused] = useState(false);
   const [tireSizeFocused, setTireSizeFocused] = useState(false);
@@ -343,6 +344,13 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
               </button>
             ))}
           </div>
+          {tireModelCompound && compound && compound !== tireModelCompound && (
+            <p className="mt-1.5 text-xs text-amber-400">
+              Selected tire is typically{' '}
+              {COMPOUND_OPTIONS.find((o) => o.value === tireModelCompound)?.label ?? tireModelCompound}
+              . Override if you know your setup differs.
+            </p>
+          )}
         </div>
 
         {/* Tire model (optional) */}
@@ -353,7 +361,7 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
           <input
             type="text"
             value={tireModel}
-            onChange={(e) => { setTireModel(e.target.value); setTireModelFocused(true); }}
+            onChange={(e) => { setTireModel(e.target.value); setTireModelFocused(true); setTireModelCompound(null); }}
             onFocus={() => setTireModelFocused(true)}
             onBlur={() => setTimeout(() => setTireModelFocused(false), 150)}
             placeholder="e.g. RE-71RS, RT660, RS4"
@@ -376,7 +384,10 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
                       onClick={() => {
                         setTireModel(tire.model);
                         setTireModelFocused(false);
-                        if (tire.compound_category) setCompound(tire.compound_category);
+                        if (tire.compound_category) {
+                          setCompound(tire.compound_category);
+                          setTireModelCompound(tire.compound_category);
+                        }
                         if (tire.size && tire.size !== 'varies' && !tireSize) setTireSize(tire.size);
                       }}
                       className="w-full px-3 py-1.5 text-left text-sm hover:bg-[var(--bg-surface)]"
