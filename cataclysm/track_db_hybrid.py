@@ -1,0 +1,119 @@
+"""Hybrid track lookup: DB-first with Python constants fallback."""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from cataclysm.landmarks import Landmark, LandmarkType
+from cataclysm.track_db import (
+    OfficialCorner,
+    TrackLayout,
+    _normalize_name,
+    get_all_tracks,
+    lookup_track,
+)
+
+logger = logging.getLogger(__name__)
+
+# In-memory cache populated at startup from DB
+_db_tracks: dict[str, TrackLayout] = {}
+_db_loaded: bool = False
+
+
+def db_track_to_layout(
+    db_track: Any,
+    db_corners: list[Any],
+    db_landmarks: list[Any],
+) -> TrackLayout:
+    """Convert DB models (Track, TrackCornerV2, TrackLandmark) to TrackLayout."""
+    corners = [
+        OfficialCorner(
+            number=c.number,
+            name=c.name,
+            fraction=c.fraction,
+            lat=c.lat,
+            lon=c.lon,
+            character=c.character,
+            direction=c.direction,
+            corner_type=c.corner_type,
+            elevation_trend=c.elevation_trend,
+            camber=c.camber,
+            blind=c.blind or False,
+            coaching_notes=c.coaching_notes,
+        )
+        for c in db_corners
+    ]
+    landmarks = [
+        Landmark(
+            name=lm.name,
+            distance_m=lm.distance_m,
+            landmark_type=(
+                LandmarkType(lm.landmark_type) if lm.landmark_type else LandmarkType.structure
+            ),
+            description=lm.description or "",
+            lat=lm.lat,
+            lon=lm.lon,
+        )
+        for lm in db_landmarks
+    ]
+    return TrackLayout(
+        name=db_track.name,
+        corners=corners,
+        landmarks=landmarks,
+        center_lat=db_track.center_lat,
+        center_lon=db_track.center_lon,
+        country=db_track.country or "",
+        length_m=db_track.length_m,
+        elevation_range_m=db_track.elevation_range_m,
+    )
+
+
+def lookup_track_hybrid(
+    track_name: str,
+    db_tracks: dict[str, TrackLayout] | None = None,
+) -> TrackLayout | None:
+    """Check DB cache first, fall back to Python constants."""
+    cache = db_tracks if db_tracks is not None else _db_tracks
+    key = _normalize_name(track_name)
+
+    # DB first
+    if key in cache:
+        return cache[key]
+
+    # Fall back to Python constants
+    return lookup_track(track_name)
+
+
+def get_all_tracks_hybrid(
+    db_tracks: dict[str, TrackLayout] | None = None,
+) -> list[TrackLayout]:
+    """Merge DB tracks with Python constants. DB wins on collision."""
+    cache = db_tracks if db_tracks is not None else _db_tracks
+
+    # Start with Python tracks
+    result: dict[str, TrackLayout] = {}
+    for layout in get_all_tracks():
+        key = _normalize_name(layout.name)
+        result[key] = layout
+
+    # DB tracks override
+    for key, layout in cache.items():
+        result[key] = layout
+
+    return list(result.values())
+
+
+def update_db_tracks_cache(slug: str, layout: TrackLayout) -> None:
+    """Update the in-memory cache after DB changes."""
+    _db_tracks[_normalize_name(slug)] = layout
+    # Also key by name for lookup
+    _db_tracks[_normalize_name(layout.name)] = layout
+    logger.info("Hybrid cache updated for %s", slug)
+
+
+def clear_db_tracks_cache() -> None:
+    """Clear the DB tracks cache (for testing)."""
+    global _db_loaded  # noqa: PLW0603
+    _db_tracks.clear()
+    _db_loaded = False
