@@ -39,6 +39,7 @@ from backend.api.routers import (
     sessions,
     sharing,
     stickies,
+    track_admin,
     tracks,
     trends,
     wrapped,
@@ -403,6 +404,7 @@ Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 # -- Routers -----------------------------------------------------------------
 
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+app.include_router(track_admin.router, prefix="/api/track-admin", tags=["track-admin"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(sessions.router, prefix="/api/sessions", tags=["sessions"])
 app.include_router(analysis.router, prefix="/api/sessions", tags=["analysis"])
