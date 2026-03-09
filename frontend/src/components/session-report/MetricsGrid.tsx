@@ -97,7 +97,7 @@ export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced, 
         {isAdvanced && bestLap != null && top3Avg != null && (
           <MetricCard
             label="Top 3 Gap"
-            value={`${((top3Avg - bestLap) * 1000).toFixed(0)}ms`}
+            value={`${(top3Avg - bestLap).toFixed(1)}s`}
             subtitle="Top 3 avg - best lap"
             helpKey="metric.pace-spread"
           />
