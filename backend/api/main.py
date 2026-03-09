@@ -26,6 +26,7 @@ from backend.api.db.database import get_db
 from backend.api.rate_limit import limiter
 from backend.api.routers import (
     achievements,
+    admin,
     analysis,
     auth,
     coaching,
@@ -391,6 +392,7 @@ Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 # -- Routers -----------------------------------------------------------------
 
+app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(sessions.router, prefix="/api/sessions", tags=["sessions"])
 app.include_router(analysis.router, prefix="/api/sessions", tags=["analysis"])

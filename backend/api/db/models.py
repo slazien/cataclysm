@@ -448,6 +448,20 @@ class StickyDB(Base):
     __table_args__ = (Index("ix_stickies_user", "user_id"),)
 
 
+class TrackCornerConfig(Base):
+    """Admin-edited corner positions for a track, stored as JSONB."""
+
+    __tablename__ = "track_corner_configs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    track_slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    corners_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    updated_by: Mapped[str] = mapped_column(String(200), nullable=False)
+
+
 class PhysicsCacheEntry(Base):
     """Persistent cache for physics computation results (optimal profile/comparison).
 
