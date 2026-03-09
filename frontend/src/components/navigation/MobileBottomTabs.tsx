@@ -21,7 +21,7 @@ export function MobileBottomTabs() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
 
   return (
-    <div role="tablist" className="safe-area-bottom flex h-14 shrink-0 items-stretch border-t border-[var(--cata-border)] bg-[var(--bg-surface)] lg:hidden">
+    <div id="tab-bar-mobile" role="tablist" className="safe-area-bottom flex h-14 shrink-0 items-stretch border-t border-[var(--cata-border)] bg-[var(--bg-surface)] lg:hidden">
       {NAV_ITEMS.map((item) => {
         const Icon = item.icon;
         const isActive = activeView === item.view;

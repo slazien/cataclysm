@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect } from 'react';
-import { X, BookOpen } from 'lucide-react';
+import { X, BookOpen, RotateCcw } from 'lucide-react';
 import { useUiStore } from '@/stores';
 import { cn } from '@/lib/utils';
 import { EquipmentProfileList } from '@/components/equipment/EquipmentProfileList';
 import { updateUserProfile } from '@/lib/api';
+import { resetAllTours } from '@/components/tour/tourSteps';
 
 const SKILL_LEVELS = [
   { value: 'novice' as const, label: 'Novice', description: 'New to track days' },
@@ -26,6 +27,7 @@ export function SettingsPanel() {
   const setSkillLevel = useUiStore((s) => s.setSkillLevel);
   const unitPreference = useUiStore((s) => s.unitPreference);
   const setUnitPreference = useUiStore((s) => s.setUnitPreference);
+  const addToast = useUiStore((s) => s.addToast);
 
   // Close on Escape key
   useEffect(() => {
@@ -171,8 +173,8 @@ export function SettingsPanel() {
               ))}
             </div>
           </fieldset>
-          {/* How It Works */}
-          <div className="pt-4 border-t border-[var(--cata-border)]">
+          {/* How It Works + Replay Tour */}
+          <div className="flex flex-col gap-1 pt-4 border-t border-[var(--cata-border)]">
             <button
               type="button"
               onClick={() => { toggle(); toggleHowItWorks(); }}
@@ -180,6 +182,18 @@ export function SettingsPanel() {
             >
               <BookOpen className="h-4 w-4 shrink-0" />
               How it works
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                resetAllTours();
+                toggle();
+                addToast({ message: 'Tours will replay on each tab', type: 'info' });
+              }}
+              className="flex min-h-[44px] w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+            >
+              <RotateCcw className="h-4 w-4 shrink-0" />
+              Replay tour
             </button>
           </div>
         </div>

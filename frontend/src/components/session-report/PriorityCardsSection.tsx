@@ -137,7 +137,7 @@ export function PriorityCardsSection({ priorities, isNovice, cornerGrades, optim
   }
 
   return (
-    <div>
+    <div id="priority-improvements">
       <h3 className="mb-3 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Priority Improvements</h3>
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         {priorities.slice(0, 3).map((p) => {

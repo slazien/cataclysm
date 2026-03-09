@@ -7,6 +7,8 @@ import { useSession, useSessions } from '@/hooks/useSession';
 import { useTrends, useMilestones } from '@/hooks/useTrends';
 import { formatTimeShort, parseSessionDate } from '@/lib/formatters';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
+import { useTour } from '@/hooks/useTour';
+import { getProgressSteps } from '@/components/tour/tourSteps';
 import { AlertTriangle, ChevronDown, TrendingUp, Award, Sparkles } from 'lucide-react';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { AiInsight } from '@/components/shared/AiInsight';
@@ -215,6 +217,10 @@ export function ProgressView() {
   }, [sessionsData?.items, effectiveTrack]);
 
   const showSkillRadar = (trendData?.sessions.length ?? 0) >= 2 && !!latestTrackSessionId;
+
+  // Tour: trigger when 2+ sessions loaded (skip for single session)
+  const hasProgressData = (trendData?.sessions.length ?? 0) >= 2;
+  useTour('progress', hasProgressData, getProgressSteps);
 
   // Loading session or trends
   if (sessionLoading || trendsLoading) {
@@ -503,7 +509,7 @@ export function ProgressView() {
 
         {/* 6. Two-column trend charts */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
+          <div id="progress-trend-chart" className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
             <h3 className="mb-2 flex items-center gap-1.5 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">
               Lap Time Trend
               <InfoTooltip helpKey="chart.lap-time-trend" />

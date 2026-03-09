@@ -8,6 +8,8 @@ import { useAutoReport } from '@/hooks/useAutoReport';
 import { useCorners, useConsistency, useGPSQuality, useOptimalComparison } from '@/hooks/useAnalysis';
 import { useRecentAchievements } from '@/hooks/useAchievements';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
+import { useTour } from '@/hooks/useTour';
+import { getReportSteps } from '@/components/tour/tourSteps';
 import { OptimalGapChart } from './OptimalGapChart';
 import { SessionReportHeader } from './SessionReportHeader';
 import { CoachingSummaryHero } from './CoachingSummaryHero';
@@ -172,6 +174,12 @@ export function SessionReport() {
   }, [laps]);
 
   const patternCount = report ? report.patterns.length + report.drills.length : 0;
+
+  // Tour: trigger when report has data (priority corners + corner grades present)
+  const hasTourTargets = Boolean(
+    report?.priority_corners?.length && report?.corner_grades?.length,
+  );
+  useTour('report', hasTourTargets, () => getReportSteps(skillLevel));
 
   return (
     <>

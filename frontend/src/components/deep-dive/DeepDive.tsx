@@ -7,6 +7,8 @@ import type { DeepDiveMode } from '@/stores/analysisStore';
 import { useSessionLaps } from '@/hooks/useSession';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
+import { useTour } from '@/hooks/useTour';
+import { getDeepDiveSteps } from '@/components/tour/tourSteps';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { SpeedAnalysis } from './SpeedAnalysis';
 import { CornerAnalysis } from './CornerAnalysis';
@@ -44,6 +46,10 @@ export function DeepDive() {
   const showCustom = showFeature('custom_tab');
   const showReplay = showFeature('replay_tab');
 
+  // Tour: trigger once when session + laps are loaded
+  const hasDeepDiveData = Boolean(activeSessionId && laps && laps.length > 0);
+  useTour('deep-dive', hasDeepDiveData, getDeepDiveSteps);
+
   // Fall back to 'speed' if the active tab is hidden by skill level
   useEffect(() => {
     if (
@@ -68,7 +74,7 @@ export function DeepDive() {
   return (
     <div className="flex h-full flex-col">
       {/* Segmented control: Speed | Corner | Custom */}
-      <div className="overflow-x-auto border-b border-[var(--cata-border)] px-4 py-2">
+      <div id="deep-dive-tabs" className="overflow-x-auto border-b border-[var(--cata-border)] px-4 py-2">
         <Tabs value={mode} onValueChange={(v) => setMode(v as DeepDiveMode)} activationMode="manual">
           <TabsList className="!h-11 p-0 whitespace-nowrap"
             onKeyDown={(e) => {

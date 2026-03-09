@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "driver.js/dist/driver.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -246,4 +247,40 @@ body {
 .scroll-fade-right {
   mask-image: linear-gradient(to right, black 85%, transparent 100%);
   -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+}
+
+/* --- Driver.js tour dark theme overrides --- */
+.cataclysm-tour-popover {
+  background: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--cata-border) !important;
+  border-radius: 0.75rem !important;
+  max-width: min(320px, calc(100vw - 2rem)) !important;
+}
+.cataclysm-tour-popover .driver-popover-title {
+  color: var(--text-primary) !important;
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+}
+.cataclysm-tour-popover .driver-popover-description {
+  color: var(--text-secondary) !important;
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+}
+.cataclysm-tour-popover .driver-popover-footer button {
+  background: var(--cata-accent) !important;
+  color: #000 !important;
+  border: none !important;
+  border-radius: 0.5rem !important;
+  padding: 0.5rem 1rem !important;
+  min-height: 44px !important;
+  font-weight: 500 !important;
+}
+.cataclysm-tour-popover .driver-popover-close-btn {
+  color: var(--text-secondary) !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+}
+.cataclysm-tour-popover .driver-popover-progress-text {
+  color: var(--text-secondary) !important;
 }

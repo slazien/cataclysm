@@ -46,7 +46,7 @@ export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
   );
 
   return (
-    <div>
+    <div id="corner-grades-table">
       <h3 className="mb-3 flex items-center gap-1.5 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">
         Corner Grades
         <InfoTooltip helpKey="section.corner-grades" />

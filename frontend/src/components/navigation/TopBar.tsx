@@ -106,7 +106,7 @@ export function TopBar() {
         </div>
 
         {/* Center: View tabs */}
-        <div className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 lg:flex">
+        <div id="tab-bar-desktop" className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 lg:flex">
           {VIEW_TABS.map((tab) => (
             <button
               key={tab.value}
@@ -270,7 +270,7 @@ export function TopBar() {
 
           {/* Right: Lap pills (deep-dive only) */}
           {(activeView === 'session-report' || activeView === 'deep-dive') && (
-            <div className="ml-auto">
+            <div id="lap-picker" className="ml-auto">
               <LapGridSelector />
             </div>
           )}
