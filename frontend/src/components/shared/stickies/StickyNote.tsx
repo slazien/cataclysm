@@ -14,10 +14,7 @@ import {
   type Sticky,
   type StickyTone,
 } from '@/stores/useStickyStore';
-import type {
-  StickyObstacle,
-  StickyViewport,
-} from '@/components/shared/stickies/stickyLayout';
+import type { StickyViewport } from '@/components/shared/stickies/stickyLayout';
 
 interface StickyNoteProps {
   sticky: Sticky;
@@ -25,7 +22,6 @@ interface StickyNoteProps {
   isMobile: boolean;
   /** Returns current scroll offset for page-relative coordinate conversion. */
   getScrollY: () => number;
-  resolveObstacles: () => StickyObstacle[];
   onPositionChange: (stickyId: string) => void;
   onContentChange: (stickyId: string, content: string) => void;
   onToneChange: (stickyId: string, tone: StickyTone) => void;
@@ -69,7 +65,6 @@ export function StickyNote({
   viewport,
   isMobile,
   getScrollY,
-  resolveObstacles,
   onPositionChange,
   onContentChange,
   onToneChange,
@@ -109,7 +104,6 @@ export function StickyNote({
         y: sticky.y + info.offset.y,
       },
       vp,
-      { avoidObstacles: resolveObstacles() },
     );
     onPositionChange(sticky.id);
     if (isMobile && sticky.mobileMoveMode) {
@@ -120,7 +114,7 @@ export function StickyNote({
   const handleToggleCollapsed = () => {
     const nextCollapsed = !sticky.collapsed;
     const vp = { ...viewport, scrollY: getScrollY() };
-    toggleCollapsed(sticky.id, vp, resolveObstacles());
+    toggleCollapsed(sticky.id, vp);
     bringToFront(sticky.id);
     onCollapsedChange(sticky.id, nextCollapsed);
   };
@@ -309,7 +303,6 @@ export function StickyNote({
             sticky.id,
             { x: sticky.x, y: sticky.y },
             vp,
-            { avoidObstacles: resolveObstacles() },
           );
           onPositionChange(sticky.id);
         }}

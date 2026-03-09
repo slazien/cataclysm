@@ -163,25 +163,24 @@ export function StickyManager() {
     [isMobile, viewportSize],
   );
 
-  // Hydrate store from API data once viewport is ready
+  // Hydrate store from API data once on initial load — after that, store owns positions
   useEffect(() => {
+    if (hydrated) return;
     if (!apiData?.items || !viewport.width || !viewport.height) return;
     const scrollY = scrollTopRef.current;
     const obstacles = collectStickyObstacles(scrollY);
     hydrateFromApi(apiData.items, { ...viewport, scrollY }, obstacles);
-  }, [apiData, viewport, hydrateFromApi]);
+  }, [hydrated, apiData, viewport, hydrateFromApi]);
 
-  // Re-clamp stickies on viewport resize (X only — page-relative Y stays)
+  // Re-clamp stickies on viewport resize (X only — no obstacle avoidance)
   useEffect(() => {
     if (!hydrated || !viewport.width || !viewport.height) return;
     const scrollY = scrollTopRef.current;
-    const obstacles = collectStickyObstacles(scrollY);
     for (const sticky of useStickyStore.getState().stickies) {
       useStickyStore.getState().moveSticky(
         sticky.id,
         { x: sticky.x, y: sticky.y },
         { ...viewport, scrollY },
-        { avoidObstacles: obstacles },
       );
     }
   }, [hydrated, viewport]);
@@ -316,7 +315,6 @@ export function StickyManager() {
               viewport={viewport}
               isMobile={isMobile}
               getScrollY={getScrollY}
-              resolveObstacles={() => collectStickyObstacles(scrollTopRef.current)}
               onPositionChange={syncPosition}
               onContentChange={syncContent}
               onToneChange={syncTone}

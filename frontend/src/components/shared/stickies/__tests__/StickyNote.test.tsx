@@ -54,7 +54,6 @@ function StickyHarness({ isMobile }: { isMobile: boolean }) {
       viewport={isMobile ? mobileViewport : desktopViewport}
       isMobile={isMobile}
       getScrollY={() => 0}
-      resolveObstacles={() => []}
       onPositionChange={vi.fn()}
       onContentChange={vi.fn()}
       onToneChange={vi.fn()}

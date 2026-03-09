@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   listStickies,
   createSticky,
@@ -18,17 +18,12 @@ export function useStickies() {
 }
 
 export function useCreateSticky() {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: StickyCreate) => createSticky(body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: STICKIES_KEY });
-    },
   });
 }
 
 export function useUpdateSticky() {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
       stickyId,
@@ -37,18 +32,11 @@ export function useUpdateSticky() {
       stickyId: string;
       body: StickyUpdate;
     }) => updateSticky(stickyId, body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: STICKIES_KEY });
-    },
   });
 }
 
 export function useDeleteSticky() {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (stickyId: string) => deleteSticky(stickyId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: STICKIES_KEY });
-    },
   });
 }
