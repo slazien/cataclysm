@@ -132,6 +132,16 @@ def reapply_corner_overrides_if_stale(sd: SessionData) -> bool:
     return True
 
 
+async def ensure_corners_current(sd: SessionData) -> None:
+    """Re-apply corner overrides if stale, invalidating downstream caches."""
+    if reapply_corner_overrides_if_stale(sd):
+        from backend.api.services.coaching_store import clear_coaching_data
+        from backend.api.services.pipeline import invalidate_physics_cache
+
+        invalidate_physics_cache(sd.session_id)
+        await clear_coaching_data(sd.session_id)
+
+
 # ---------------------------------------------------------------------------
 # Async DB operations
 # ---------------------------------------------------------------------------

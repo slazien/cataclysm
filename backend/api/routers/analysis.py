@@ -49,6 +49,7 @@ from backend.api.services.pipeline import (
     get_optimal_profile_data,
 )
 from backend.api.services.serializers import dataclass_to_dict
+from backend.api.services.track_corners import ensure_corners_current
 
 router = APIRouter()
 
@@ -84,6 +85,7 @@ async def get_corners(
 ) -> CornerResponse:
     """Return corners detected on the best lap."""
     sd = await _get_session_or_404(db, session_id, current_user.user_id)
+    await ensure_corners_current(sd)
     return CornerResponse(
         session_id=session_id,
         lap_number=sd.processed.best_lap,
@@ -102,6 +104,7 @@ async def get_all_laps_corners(
 ) -> AllLapsCornerResponse:
     """Corner KPIs for every lap in the session."""
     sd = await _get_session_or_404(db, session_id, current_user.user_id)
+    await ensure_corners_current(sd)
     laps: dict[str, list[CornerSchema]] = {
         str(lap_num): [_corner_to_schema(c) for c in corners]
         for lap_num, corners in sd.all_lap_corners.items()
@@ -267,6 +270,7 @@ async def get_delta(
 ) -> DeltaResponse:
     """Compute delta-T between two laps at each distance point."""
     sd = await _get_session_or_404(db, session_id, current_user.user_id)
+    await ensure_corners_current(sd)
 
     resampled = sd.processed.resampled_laps
     if ref not in resampled:
@@ -354,6 +358,7 @@ async def get_sectors(
 ) -> SectorResponse:
     """Compute per-lap sector splits with personal bests and composite time."""
     sd = await _get_session_or_404(db, session_id, current_user.user_id)
+    await ensure_corners_current(sd)
     if len(sd.coaching_laps) < 1:
         raise HTTPException(
             status_code=422,
@@ -468,6 +473,7 @@ async def get_degradation(
 ) -> DegradationResponse:
     """Detect brake fade and tire degradation across the session."""
     sd = await _get_session_or_404(db, session_id, current_user.user_id)
+    await ensure_corners_current(sd)
 
     from cataclysm.degradation import detect_degradation
 
@@ -511,6 +517,7 @@ async def get_gg_diagram(
     Optionally filter to a single corner via the ``corner`` query parameter.
     """
     sd = await _get_session_or_404(db, session_id, current_user.user_id)
+    await ensure_corners_current(sd)
 
     best_lap = sd.processed.best_lap
     if best_lap not in sd.processed.resampled_laps:
@@ -570,6 +577,7 @@ async def get_speed_sensitivity(
     car+track-specific number.
     """
     sd = await _get_session_or_404(db, session_id, current_user.user_id)
+    await ensure_corners_current(sd)
 
     from cataclysm.velocity_profile import compute_speed_sensitivity, default_vehicle_params
 

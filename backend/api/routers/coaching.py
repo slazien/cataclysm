@@ -62,6 +62,7 @@ from backend.api.services.coaching_store import (
 )
 from backend.api.services.db_session_store import get_session_for_user_with_db_sync
 from backend.api.services.session_store import SessionData
+from backend.api.services.track_corners import ensure_corners_current
 
 logger = logging.getLogger(__name__)
 
@@ -176,6 +177,7 @@ async def generate_report(
     sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+    await ensure_corners_current(sd)
 
     remaining = get_regen_remaining(current_user.user_id)
 
@@ -498,6 +500,7 @@ async def get_report(
     sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+    await ensure_corners_current(sd)
 
     remaining = get_regen_remaining(current_user.user_id)
 
@@ -639,6 +642,7 @@ async def coaching_chat_http(
     sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+    await ensure_corners_current(sd)
 
     report_response = await get_any_coaching_report(session_id)
     if report_response is None:
@@ -731,6 +735,7 @@ async def coaching_chat(
         )
         await websocket.close()
         return
+    await ensure_corners_current(sd)
 
     report_response = await get_any_coaching_report(session_id)
     if report_response is None:
