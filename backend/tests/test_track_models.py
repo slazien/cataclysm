@@ -263,4 +263,5 @@ class TestTrackEnrichmentLogModel:
         loaded = result.scalar_one()
         assert loaded.step == "osm_import"
         assert loaded.status == "success"
+        assert loaded.details is not None
         assert loaded.details["nodes"] == 142

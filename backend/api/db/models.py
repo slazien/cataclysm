@@ -541,9 +541,7 @@ class TrackCornerV2(Base):
         UniqueConstraint("track_id", "number"),
         Index("ix_track_corners_v2_track_id", "track_id"),
         CheckConstraint(
-            "character IS NULL OR "
-            "character IN ('hairpin', 'sweeper', 'chicane', 'kink', 'esses', "
-            "'carousel', 'complex')",
+            "character IS NULL OR character IN ('flat', 'lift', 'brake')",
             name="ck_track_corners_v2_character",
         ),
         CheckConstraint(
@@ -551,7 +549,9 @@ class TrackCornerV2(Base):
             name="ck_track_corners_v2_direction",
         ),
         CheckConstraint(
-            "corner_type IS NULL OR corner_type IN ('brake', 'lift', 'flat', 'acceleration')",
+            "corner_type IS NULL OR "
+            "corner_type IN ('sweeper', 'hairpin', 'chicane', 'kink', 'esses', "
+            "'carousel', 'complex')",
             name="ck_track_corners_v2_corner_type",
         ),
         CheckConstraint(
