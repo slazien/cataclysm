@@ -51,6 +51,7 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
   const [compound, setCompound] = useState<string>('');
   const [tireModel, setTireModel] = useState('');
   const [tireSize, setTireSize] = useState('');
+  const [tireModelFocused, setTireModelFocused] = useState(false);
   const [tireSizeFocused, setTireSizeFocused] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -350,12 +351,14 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
           <input
             type="text"
             value={tireModel}
-            onChange={(e) => setTireModel(e.target.value)}
+            onChange={(e) => { setTireModel(e.target.value); setTireModelFocused(true); }}
+            onFocus={() => setTireModelFocused(true)}
+            onBlur={() => setTimeout(() => setTireModelFocused(false), 150)}
             placeholder="e.g. RE-71RS, RT660, RS4"
             className="w-full rounded-md border border-[var(--cata-border)] bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--cata-accent)]/60 focus:outline-none"
           />
           <AnimatePresence>
-            {tireResults.length > 0 && tireModel.length >= 2 && (
+            {tireModelFocused && tireResults.length > 0 && tireModel.length >= 2 && (
               <motion.ul
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -367,8 +370,10 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
                   <li key={`${tire.model}-${i}`}>
                     <button
                       type="button"
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
                         setTireModel(tire.model);
+                        setTireModelFocused(false);
                         if (tire.compound_category) setCompound(tire.compound_category);
                         if (tire.size && tire.size !== 'varies' && !tireSize) setTireSize(tire.size);
                       }}
