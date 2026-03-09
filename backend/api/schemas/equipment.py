@@ -35,6 +35,8 @@ class VehicleSpecSchema(BaseModel):
     hp: int
     torque_nm: int
     has_aero: bool
+    stock_tire_size_front: str | None = None
+    stock_tire_size_rear: str | None = None
     notes: str | None = None
 
 

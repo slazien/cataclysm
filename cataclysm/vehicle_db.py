@@ -38,6 +38,8 @@ class VehicleSpec:
     torque_nm: int
     has_aero: bool
     cd_a: float = 0.0  # Cd * frontal_area (m²); 0.0 = unknown
+    stock_tire_size_front: str | None = None  # e.g. "205/45R17"; OEM stock size
+    stock_tire_size_rear: str | None = None  # same as front for square setups
     notes: str | None = None
 
 
@@ -65,6 +67,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=136,
         has_aero=False,
         cd_a=0.65,
+        stock_tire_size_front="185/60R14",
+        stock_tire_size_rear="185/60R14",
         notes="1.6 L B6-ZE. Lightest Miata generation.",
     ),
     "mazda_miata_nb": VehicleSpec(
@@ -83,6 +87,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=162,
         has_aero=False,
         cd_a=0.62,
+        stock_tire_size_front="185/60R14",
+        stock_tire_size_rear="185/60R14",
         notes="1.8 L BP-4W. Refined NA platform.",
     ),
     "mazda_miata_nc": VehicleSpec(
@@ -101,6 +107,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=190,
         has_aero=False,
         cd_a=0.64,
+        stock_tire_size_front="205/50R16",
+        stock_tire_size_rear="205/50R16",
         notes="2.0 L MZR. Larger and heavier than NB.",
     ),
     "mazda_miata_nd": VehicleSpec(
@@ -119,6 +127,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=205,
         has_aero=False,
         cd_a=0.56,
+        stock_tire_size_front="195/50R16",
+        stock_tire_size_rear="195/50R16",
         notes="2.0 L Skyactiv-G. Returns to lightweight roots.",
     ),
     # -----------------------------------------------------------------------
@@ -140,6 +150,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=260,
         has_aero=False,
         cd_a=0.64,
+        stock_tire_size_front="235/40R18",
+        stock_tire_size_rear="235/40R18",
         notes="1.5 L turbo. Popular budget HPDE car.",
     ),
     "honda_civic_type_r_fk8": VehicleSpec(
@@ -158,6 +170,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=400,
         has_aero=True,
         cd_a=0.77,
+        stock_tire_size_front="245/30R20",
+        stock_tire_size_rear="245/30R20",
         notes="2.0 L K20C1 turbo. Functional rear wing.",
     ),
     "honda_civic_type_r_fl5": VehicleSpec(
@@ -176,6 +190,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=420,
         has_aero=True,
         cd_a=0.77,
+        stock_tire_size_front="265/35R19",
+        stock_tire_size_rear="265/35R19",
         notes="2.0 L K20C1 turbo revised. Improved aero.",
     ),
     "honda_s2000_ap1": VehicleSpec(
@@ -194,6 +210,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=208,
         has_aero=False,
         cd_a=0.61,
+        stock_tire_size_front="205/55R16",
+        stock_tire_size_rear="225/50R16",
         notes="2.0 L F20C, 9000 RPM redline.",
     ),
     # -----------------------------------------------------------------------
@@ -215,6 +233,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=205,
         has_aero=False,
         cd_a=0.52,
+        stock_tire_size_front="215/45R17",
+        stock_tire_size_rear="215/45R17",
         notes="2.0 L FA20. Also sold as Subaru BRZ / Scion FR-S.",
     ),
     "toyota_gr86_zn8": VehicleSpec(
@@ -233,6 +253,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=249,
         has_aero=False,
         cd_a=0.54,
+        stock_tire_size_front="215/45R17",
+        stock_tire_size_rear="215/45R17",
         notes="2.4 L FA24. Also sold as Subaru BRZ.",
     ),
     # -----------------------------------------------------------------------
@@ -254,6 +276,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=475,
         has_aero=False,
         cd_a=0.57,
+        stock_tire_size_front="245/45R17",
+        stock_tire_size_rear="275/40R18",
         notes="5.7 L LS1. Budget track car bargain.",
     ),
     "chevrolet_corvette_c6": VehicleSpec(
@@ -272,6 +296,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=575,
         has_aero=False,
         cd_a=0.58,
+        stock_tire_size_front="245/40R18",
+        stock_tire_size_rear="285/35R19",
         notes="6.2 L LS3 (424 lb-ft). Exposed headlights.",
     ),
     "chevrolet_corvette_c7": VehicleSpec(
@@ -290,6 +316,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=624,
         has_aero=False,
         cd_a=0.60,
+        stock_tire_size_front="245/40R18",
+        stock_tire_size_rear="285/35R19",
         notes="6.2 L LT1 (460 lb-ft). Last front-engine Corvette.",
     ),
     "chevrolet_corvette_c8": VehicleSpec(
@@ -308,6 +336,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=637,
         has_aero=False,
         cd_a=0.61,
+        stock_tire_size_front="245/35R19",
+        stock_tire_size_rear="305/30R20",
         notes="6.2 L LT2 Z51 (470 lb-ft). Mid-engine layout.",
     ),
     "chevrolet_corvette_c6_z06": VehicleSpec(
@@ -326,6 +356,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=637,
         has_aero=False,
         cd_a=0.58,
+        stock_tire_size_front="275/35R18",
+        stock_tire_size_rear="325/30R19",
         notes="7.0 L LS7 NA V8 (470 lb-ft). Aluminum frame — lighter than base C6.",
     ),
     "chevrolet_corvette_c6_zr1": VehicleSpec(
@@ -344,6 +376,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=819,
         has_aero=True,
         cd_a=0.64,
+        stock_tire_size_front="285/30R19",
+        stock_tire_size_rear="335/25R20",
         notes="6.2 L LS9 supercharged V8 (604 lb-ft). Carbon hood + splitter standard.",
     ),
     "chevrolet_corvette_c7_z06": VehicleSpec(
@@ -362,6 +396,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=881,
         has_aero=True,
         cd_a=0.71,
+        stock_tire_size_front="285/30R19",
+        stock_tire_size_rear="335/25R20",
         notes="6.2 L LT4 supercharged V8 (650 lb-ft). Z07 aero package adds larger wing.",
     ),
     "chevrolet_corvette_c7_zr1": VehicleSpec(
@@ -380,6 +416,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=969,
         has_aero=True,
         cd_a=0.76,
+        stock_tire_size_front="285/30R19",
+        stock_tire_size_rear="335/25R20",
         notes="6.2 L LT5 supercharged V8 (715 lb-ft). Standard high- or low-wing aero.",
     ),
     "chevrolet_corvette_c8_z06": VehicleSpec(
@@ -398,6 +436,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=637,
         has_aero=True,
         cd_a=0.68,
+        stock_tire_size_front="275/30R20",
+        stock_tire_size_rear="345/25R21",
         notes="5.5 L LT6 flat-plane NA V8 (470 lb-ft). Mid-engine. Z07 adds massive wing.",
     ),
     "chevrolet_corvette_c8_zr1": VehicleSpec(
@@ -416,6 +456,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=1006,
         has_aero=True,
         cd_a=0.80,
+        stock_tire_size_front="275/30R20",
+        stock_tire_size_rear="345/25R21",
         notes="5.5 L LT7 flat-plane twin-turbo V8 (742 lb-ft). Mid-engine. Standard massive wing.",
     ),
     # -----------------------------------------------------------------------
@@ -437,6 +479,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=365,
         has_aero=False,
         cd_a=0.69,
+        stock_tire_size_front="225/45R18",
+        stock_tire_size_rear="255/40R18",
         notes="3.2 L S54 inline-6. Classic track car.",
     ),
     "bmw_m3_f80": VehicleSpec(
@@ -455,6 +499,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=550,
         has_aero=False,
         cd_a=0.73,
+        stock_tire_size_front="255/40R18",
+        stock_tire_size_rear="275/40R18",
         notes="3.0 L S55 twin-turbo inline-6.",
     ),
     "bmw_m3_g80": VehicleSpec(
@@ -473,6 +519,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=550,
         has_aero=False,
         cd_a=0.77,
+        stock_tire_size_front="275/40R18",
+        stock_tire_size_rear="285/35R19",
         notes="3.0 L S58 twin-turbo. Competition RWD (DIN weight).",
     ),
     "bmw_m2_f87": VehicleSpec(
@@ -491,6 +539,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=465,
         has_aero=False,
         cd_a=0.69,
+        stock_tire_size_front="245/35R19",
+        stock_tire_size_rear="265/35R19",
         notes="3.0 L N55 turbo. Base M2 (not Competition).",
     ),
     "bmw_m2_g87": VehicleSpec(
@@ -509,6 +559,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=550,
         has_aero=False,
         cd_a=0.71,
+        stock_tire_size_front="275/35R19",
+        stock_tire_size_rear="285/35R19",
         notes="3.0 L S58 twin-turbo inline-6.",
     ),
     # -----------------------------------------------------------------------
@@ -530,6 +582,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=529,
         has_aero=False,
         cd_a=0.75,
+        stock_tire_size_front="235/50R18",
+        stock_tire_size_rear="235/50R18",
         notes="5.0 L Coyote V8 (2013-14 spec). Solid rear axle.",
     ),
     "ford_mustang_gt_s550": VehicleSpec(
@@ -548,6 +602,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=570,
         has_aero=False,
         cd_a=0.73,
+        stock_tire_size_front="255/40R19",
+        stock_tire_size_rear="275/40R19",
         notes="5.0 L Coyote V8 (420 lb-ft, 2018+ spec). IRS upgrade.",
     ),
     "ford_mustang_gt_s650": VehicleSpec(
@@ -566,6 +622,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=563,
         has_aero=False,
         cd_a=0.73,
+        stock_tire_size_front="255/40R19",
+        stock_tire_size_rear="255/40R19",
         notes="5.0 L Coyote Gen-4 V8 (415 lb-ft).",
     ),
     # -----------------------------------------------------------------------
@@ -587,6 +645,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=340,
         has_aero=False,
         cd_a=0.56,
+        stock_tire_size_front="235/40R18",
+        stock_tire_size_rear="265/40R18",
         notes="3.4 L flat-6 (Cayman S). Mid-engine.",
     ),
     "porsche_cayman_718": VehicleSpec(
@@ -605,6 +665,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=380,
         has_aero=False,
         cd_a=0.59,
+        stock_tire_size_front="235/40R19",
+        stock_tire_size_rear="265/40R19",
         notes="2.0 L turbo flat-4 (base). GTS has 4.0 flat-6.",
     ),
     "porsche_cayman_gt4_718": VehicleSpec(
@@ -623,6 +685,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=420,
         has_aero=True,
         cd_a=0.68,
+        stock_tire_size_front="245/35R20",
+        stock_tire_size_rear="295/30R20",
         notes="4.0 L flat-6 NA (shared with 992 GT3). Fixed rear wing.",
     ),
     "porsche_911_gt3_991": VehicleSpec(
@@ -641,6 +705,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=460,
         has_aero=True,
         cd_a=0.68,
+        stock_tire_size_front="245/35R20",
+        stock_tire_size_rear="305/30R20",
         notes="4.0 L flat-6 NA (500 PS). 991.2 generation. Fixed rear wing.",
     ),
     "porsche_911_gt3_992": VehicleSpec(
@@ -659,6 +725,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=469,
         has_aero=True,
         cd_a=0.68,
+        stock_tire_size_front="255/35R20",
+        stock_tire_size_rear="315/30R21",
         notes="4.0 L flat-6 NA. Swan-neck wing.",
     ),
     # -----------------------------------------------------------------------
@@ -680,6 +748,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=363,
         has_aero=False,
         cd_a=0.62,
+        stock_tire_size_front="225/45R18",
+        stock_tire_size_rear="245/45R18",
         notes="3.5 L VQ35DE/HR V6.",
     ),
     "nissan_370z": VehicleSpec(
@@ -698,6 +768,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=366,
         has_aero=False,
         cd_a=0.62,
+        stock_tire_size_front="225/50R18",
+        stock_tire_size_rear="245/45R18",
         notes="3.7 L VQ37VHR V6 (270 lb-ft).",
     ),
     # -----------------------------------------------------------------------
@@ -719,6 +791,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=393,
         has_aero=True,
         cd_a=0.72,
+        stock_tire_size_front="245/40R18",
+        stock_tire_size_rear="245/40R18",
         notes="2.5 L EJ257 turbo. DCCD AWD system.",
     ),
     # -----------------------------------------------------------------------
@@ -740,6 +814,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=500,
         has_aero=False,
         cd_a=0.64,
+        stock_tire_size_front="255/35R19",
+        stock_tire_size_rear="275/35R19",
         notes="3.0 L B58 turbo inline-6. BMW Z4 platform.",
     ),
     # -----------------------------------------------------------------------
@@ -761,6 +837,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=644,
         has_aero=False,
         cd_a=0.88,
+        stock_tire_size_front="275/40R20",
+        stock_tire_size_rear="275/40R20",
         notes="6.4 L HEMI V8. Heavy muscle car.",
     ),
     # -----------------------------------------------------------------------
@@ -782,6 +860,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=617,
         has_aero=False,
         cd_a=0.73,
+        stock_tire_size_front="245/40R20",
+        stock_tire_size_rear="275/35R20",
         notes="6.2 L LT1 V8. Alpha platform.",
     ),
     "chevrolet_camaro_zl1_6th": VehicleSpec(
@@ -800,6 +880,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=881,
         has_aero=True,
         cd_a=0.79,
+        stock_tire_size_front="285/30R20",
+        stock_tire_size_rear="305/30R20",
         notes="6.2 L LT4 supercharged V8.",
     ),
     # -----------------------------------------------------------------------
@@ -821,6 +903,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=350,
         has_aero=False,
         cd_a=0.67,
+        stock_tire_size_front="225/40R18",
+        stock_tire_size_rear="225/40R18",
         notes="2.0 L EA888 turbo. MQB platform.",
     ),
     "volkswagen_gti_mk8": VehicleSpec(
@@ -839,6 +923,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=370,
         has_aero=False,
         cd_a=0.62,
+        stock_tire_size_front="235/35R19",
+        stock_tire_size_rear="235/35R19",
         notes="2.0 L EA888 Evo4 turbo.",
     ),
     # -----------------------------------------------------------------------
@@ -860,6 +946,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=353,
         has_aero=False,
         cd_a=0.67,
+        stock_tire_size_front="225/40R18",
+        stock_tire_size_rear="225/40R18",
         notes="2.0 L Theta II turbo. eLSD available.",
     ),
     # -----------------------------------------------------------------------
@@ -881,6 +969,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=370,
         has_aero=True,
         cd_a=0.72,
+        stock_tire_size_front="235/40R18",
+        stock_tire_size_rear="235/40R18",
         notes="1.6 L G16E-GTS turbo 3-cyl. GR-Four AWD.",
     ),
     # -----------------------------------------------------------------------
@@ -902,6 +992,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=505,
         has_aero=False,
         cd_a=0.69,
+        stock_tire_size_front="225/40R19",
+        stock_tire_size_rear="255/35R19",
         notes="5.0 L 2UR-GSE V8.",
     ),
     "lexus_rc_f": VehicleSpec(
@@ -920,6 +1012,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=535,
         has_aero=False,
         cd_a=0.72,
+        stock_tire_size_front="255/35R19",
+        stock_tire_size_rear="275/35R19",
         notes="5.0 L 2UR-GSE V8. Track Edition available.",
     ),
     # -----------------------------------------------------------------------
@@ -941,6 +1035,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=180,
         has_aero=False,
         cd_a=0.62,
+        stock_tire_size_front="195/50R16",
+        stock_tire_size_rear="225/45R17",
         notes="1.8 L 2ZZ-GE Toyota. Ultralight.",
     ),
     "lotus_exige_s2": VehicleSpec(
@@ -959,6 +1055,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=224,
         has_aero=True,
         cd_a=0.62,
+        stock_tire_size_front="195/50R16",
+        stock_tire_size_rear="225/45R17",
         notes="1.8 L 2ZZ-GE supercharged (165 lb-ft). Fixed roof + wing.",
     ),
     # -----------------------------------------------------------------------
@@ -980,6 +1078,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=480,
         has_aero=False,
         cd_a=0.70,
+        stock_tire_size_front="255/30R19",
+        stock_tire_size_rear="235/35R19",
         notes="2.5 L TFSI inline-5 turbo. Quattro AWD.",
     ),
     "audi_ttrs_8s": VehicleSpec(
@@ -998,6 +1098,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=480,
         has_aero=False,
         cd_a=0.66,
+        stock_tire_size_front="245/35R19",
+        stock_tire_size_rear="245/35R19",
         notes="2.5 L TFSI inline-5 turbo.",
     ),
     # -----------------------------------------------------------------------
@@ -1019,6 +1121,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=650,
         has_aero=False,
         cd_a=0.69,
+        stock_tire_size_front="255/35R19",
+        stock_tire_size_rear="285/30R19",
         notes="4.0 L M177 twin-turbo V8.",
     ),
     # -----------------------------------------------------------------------
@@ -1040,6 +1144,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=633,
         has_aero=False,
         cd_a=0.60,
+        stock_tire_size_front="255/40R20",
+        stock_tire_size_rear="285/35R20",
         notes="3.8 L VR38DETT twin-turbo V6 (2017+ spec). ATTESA E-TS AWD.",
     ),
     # -----------------------------------------------------------------------
@@ -1061,6 +1167,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=392,
         has_aero=False,
         cd_a=0.63,
+        stock_tire_size_front="235/40R18",
+        stock_tire_size_rear="235/40R18",
         notes="2.0 L Theta III turbo. Spiritual Veloster N successor.",
     ),
     # -----------------------------------------------------------------------
@@ -1082,6 +1190,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=500,
         has_aero=False,
         cd_a=0.71,
+        stock_tire_size_front="245/35R19",
+        stock_tire_size_rear="255/35R19",
         notes="3.0 L B58 turbo inline-6. xDrive AWD.",
     ),
     # -----------------------------------------------------------------------
@@ -1103,6 +1213,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=440,
         has_aero=True,
         cd_a=0.78,
+        stock_tire_size_front="235/35R19",
+        stock_tire_size_rear="235/35R19",
         notes="2.3 L EcoBoost turbo. Twin-clutch rear axle.",
     ),
     # -----------------------------------------------------------------------
@@ -1124,6 +1236,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=380,
         has_aero=False,
         cd_a=0.66,
+        stock_tire_size_front="225/40R18",
+        stock_tire_size_rear="225/40R18",
         notes="2.3 L MZR DISI turbo. Torque steer monster.",
     ),
     # -----------------------------------------------------------------------
@@ -1145,6 +1259,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=420,
         has_aero=True,
         cd_a=0.74,
+        stock_tire_size_front="265/35R19",
+        stock_tire_size_rear="265/35R19",
         notes="2.0 L K20C8 turbo. Functional rear wing. Closest modern FWD sport to Civic Type R.",
     ),
     # -----------------------------------------------------------------------
@@ -1166,6 +1282,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=600,
         has_aero=False,
         cd_a=0.72,
+        stock_tire_size_front="245/35R19",
+        stock_tire_size_rear="285/30R19",
         notes="2.9 L bi-turbo V6 Ferrari-derived. Carbon driveshaft.",
     ),
     # -----------------------------------------------------------------------
@@ -1187,6 +1305,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=271,
         has_aero=False,
         cd_a=0.70,
+        stock_tire_size_front="205/50R17",
+        stock_tire_size_rear="225/45R17",
         notes="3.0 L N52 inline-6. Affordable RWD BMW track car.",
     ),
     "bmw_m3_e36_us": VehicleSpec(
@@ -1205,6 +1325,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=320,
         has_aero=False,
         cd_a=0.66,
+        stock_tire_size_front="225/45R17",
+        stock_tire_size_rear="245/40R17",
         notes="3.2 L S52 inline-6 (US spec). Detuned vs EUR S50B32.",
     ),
     "bmw_m3_e92": VehicleSpec(
@@ -1223,6 +1345,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=400,
         has_aero=False,
         cd_a=0.73,
+        stock_tire_size_front="245/40R18",
+        stock_tire_size_rear="265/40R18",
         notes="4.0 L S65 naturally-aspirated V8. Last NA M3.",
     ),
     "bmw_m4_f82_competition": VehicleSpec(
@@ -1241,6 +1365,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=550,
         has_aero=False,
         cd_a=0.73,
+        stock_tire_size_front="265/30R20",
+        stock_tire_size_rear="285/30R20",
         notes='3.0 L S55 twin-turbo Competition. 19/20" wheels.',
     ),
     # -----------------------------------------------------------------------
@@ -1262,6 +1388,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=617,
         has_aero=True,
         cd_a=0.75,
+        stock_tire_size_front="285/30R20",
+        stock_tire_size_rear="305/30R20",
         notes="6.2 L LT1 V8. Track-tuned suspension, Brembo brakes, aero package.",
     ),
     # -----------------------------------------------------------------------
@@ -1283,6 +1411,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=582,
         has_aero=True,
         cd_a=0.75,
+        stock_tire_size_front="295/35R19",
+        stock_tire_size_rear="305/35R19",
         notes="5.2 L Voodoo flat-plane V8. MagneRide. Track-focused Mustang.",
     ),
     "ford_mustang_mach1_s550": VehicleSpec(
@@ -1301,6 +1431,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=556,
         has_aero=True,
         cd_a=0.74,
+        stock_tire_size_front="255/40R19",
+        stock_tire_size_rear="275/40R19",
         notes="5.0 L Coyote V8 (412 lb-ft). Gurney flap + front splitter.",
     ),
     # -----------------------------------------------------------------------
@@ -1322,6 +1454,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=220,
         has_aero=False,
         cd_a=0.61,
+        stock_tire_size_front="215/45R17",
+        stock_tire_size_rear="245/40R17",
         notes="2.2 L F22C1 inline-4. Lower redline (8200 RPM). Wider power band than AP1.",
     ),
     # -----------------------------------------------------------------------
@@ -1343,6 +1477,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=392,
         has_aero=True,
         cd_a=0.72,
+        stock_tire_size_front="235/45R17",
+        stock_tire_size_rear="235/45R17",
         notes="2.0 L 4G63T. Last 4G63 Evo. MIVEC intake. ACD + AYC AWD.",
     ),
     "mitsubishi_evo_x": VehicleSpec(
@@ -1361,6 +1497,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=366,
         has_aero=True,
         cd_a=0.72,
+        stock_tire_size_front="245/40R18",
+        stock_tire_size_rear="245/40R18",
         notes="2.0 L 4B11T. SST or 5MT. ACD + AYC + ABS Sport AWD.",
     ),
     # -----------------------------------------------------------------------
@@ -1382,6 +1520,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=310,
         has_aero=False,
         cd_a=0.58,
+        stock_tire_size_front="225/40R18",
+        stock_tire_size_rear="265/35R18",
         notes="3.2 L M96/23 flat-6. Mid-engine Porsche entry point.",
     ),
     "porsche_boxster_987s": VehicleSpec(
@@ -1400,6 +1540,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=360,
         has_aero=False,
         cd_a=0.59,
+        stock_tire_size_front="225/40R18",
+        stock_tire_size_rear="265/35R18",
         notes="3.4 L M97/23 DFI flat-6 (987.2 gen).",
     ),
     # -----------------------------------------------------------------------
@@ -1421,6 +1563,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=370,
         has_aero=False,
         cd_a=0.60,
+        stock_tire_size_front="235/35R19",
+        stock_tire_size_rear="265/35R19",
         notes="3.4 L MA1/23 flat-6. Best-balanced Cayman generation.",
     ),
     # -----------------------------------------------------------------------
@@ -1442,6 +1586,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=420,
         has_aero=True,
         cd_a=0.68,
+        stock_tire_size_front="245/35R20",
+        stock_tire_size_rear="295/30R20",
         notes="3.8 L MA1/77 flat-6 NA from 991 Carrera S. GT3-derived suspension. Manual only.",
     ),
     # -----------------------------------------------------------------------
@@ -1463,6 +1609,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=370,
         has_aero=False,
         cd_a=0.60,
+        stock_tire_size_front="225/40R18",
+        stock_tire_size_rear="285/30R18",
         notes="3.4 L M96 flat-6. First water-cooled 911. IMS bearing risk.",
     ),
     "porsche_911_997s": VehicleSpec(
@@ -1481,6 +1629,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=420,
         has_aero=False,
         cd_a=0.62,
+        stock_tire_size_front="235/35R19",
+        stock_tire_size_rear="295/30R19",
         notes="3.8 L M97/75 DFI flat-6. PASM standard. 997.2 revised.",
     ),
     "porsche_911_991s": VehicleSpec(
@@ -1499,6 +1649,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=500,
         has_aero=False,
         cd_a=0.62,
+        stock_tire_size_front="245/35R20",
+        stock_tire_size_rear="295/30R20",
         notes="3.0 L turbocharged flat-6. 991.2 gen. PDK or 7MT.",
     ),
     "porsche_911_992s": VehicleSpec(
@@ -1517,6 +1669,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=530,
         has_aero=False,
         cd_a=0.64,
+        stock_tire_size_front="245/35R20",
+        stock_tire_size_rear="305/30R21",
         notes="3.0 L turbocharged flat-6. Wider body standard.",
     ),
     # -----------------------------------------------------------------------
@@ -1538,6 +1692,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=205,
         has_aero=False,
         cd_a=0.52,
+        stock_tire_size_front="215/45R17",
+        stock_tire_size_rear="215/45R17",
         notes="2.0 L FA20 boxer. Also sold as Toyota 86 / Scion FR-S.",
     ),
     "subaru_brz_zd8": VehicleSpec(
@@ -1556,6 +1712,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=249,
         has_aero=False,
         cd_a=0.54,
+        stock_tire_size_front="215/45R17",
+        stock_tire_size_rear="215/45R17",
         notes="2.4 L FA24 boxer. Also sold as Toyota GR86.",
     ),
     "subaru_wrx_va": VehicleSpec(
@@ -1574,6 +1732,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=350,
         has_aero=False,
         cd_a=0.68,
+        stock_tire_size_front="235/45R17",
+        stock_tire_size_rear="235/45R17",
         notes="2.0 L FA20DIT turbo. Symmetrical AWD. Non-STI model.",
     ),
     # -----------------------------------------------------------------------
@@ -1595,6 +1755,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=171,
         has_aero=False,
         cd_a=0.61,
+        stock_tire_size_front="185/55R15",
+        stock_tire_size_rear="215/45R16",
         notes="1.8 L 1ZZ-FED. Mid-engine open-top. Snap oversteer characteristic.",
     ),
     # -----------------------------------------------------------------------
@@ -1616,6 +1778,8 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         torque_nm=380,
         has_aero=False,
         cd_a=0.67,
+        stock_tire_size_front="225/40R18",
+        stock_tire_size_rear="225/40R18",
         notes="2.0 L EA888 turbo. 4MOTION AWD. Mk7/7.5 combined.",
     ),
 }
