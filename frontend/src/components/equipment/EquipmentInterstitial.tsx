@@ -146,6 +146,7 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
             tire_size: tireSize.trim(),
             tire_model: model !== 'OEM / Stock' ? model : undefined,
             estimated_mu: mu,
+            vehicle: selectedVehicle ?? undefined,
           },
         });
       }

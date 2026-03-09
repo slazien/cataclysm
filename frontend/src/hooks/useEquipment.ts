@@ -98,7 +98,7 @@ export function useAssignEquipmentInline() {
       body,
     }: {
       sessionId: string;
-      body: { compound_category: string; tire_size: string; tire_model?: string; estimated_mu?: number };
+      body: { compound_category: string; tire_size: string; tire_model?: string; estimated_mu?: number; vehicle?: VehicleSpec };
     }) =>
       fetchApi<SessionEquipmentResponse>(
         `/api/equipment/${sessionId}/equipment/inline`,

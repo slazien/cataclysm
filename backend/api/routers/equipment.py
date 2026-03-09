@@ -677,10 +677,12 @@ async def set_session_equipment_inline(
         mu_confidence="low",
     )
     profile_id = f"eq_{uuid.uuid4().hex[:12]}"
+    vehicle = _schema_to_vehicle(body.vehicle) if body.vehicle else None
     profile = EquipmentProfile(
         id=profile_id,
         name="Track Day Setup",
         tires=_schema_to_tire(tire_schema),
+        vehicle=vehicle,
         is_default=False,
     )
     equipment_store.store_profile(profile)
