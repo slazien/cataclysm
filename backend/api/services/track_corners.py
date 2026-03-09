@@ -185,7 +185,10 @@ def reapply_corner_overrides_if_stale(sd: SessionData) -> bool:
             )
 
     # Rebuild snapshot with updated corner_metrics, corner_consistency,
-    # theoretical_best_s, composite_best_s
+    # theoretical_best_s, composite_best_s.
+    # Note: pipeline.py uses _fallback_lap_consistency() when consistency is None,
+    # but here we preserve the original snapshot's lap_consistency since it doesn't
+    # depend on corner positions — only corner_consistency does.
     try:
         lap_consistency = (
             sd.consistency.lap_consistency if sd.consistency else sd.snapshot.lap_consistency

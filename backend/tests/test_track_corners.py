@@ -16,20 +16,6 @@ from backend.api.services.track_corners import (
 _CORNERS_A = [{"number": 1, "name": "T1", "fraction": 0.1}]
 _CORNERS_B = [{"number": 1, "name": "T1", "fraction": 0.15}]
 
-# Common patches for the four new recomputation steps added to reapply_corner_overrides_if_stale.
-# Every test that triggers the stale path must include these to prevent real function calls on
-# MagicMock data.
-_RECOMPUTE_PATCHES = {
-    "backend.api.services.track_corners.analyze_corner_lines": MagicMock(return_value=[]),
-    "backend.api.services.track_corners.compute_session_consistency": MagicMock(
-        return_value=MagicMock()
-    ),
-    "backend.api.services.track_corners.estimate_gains": MagicMock(return_value=MagicMock()),
-    "backend.api.services.track_corners.build_session_snapshot": MagicMock(
-        return_value=MagicMock()
-    ),
-}
-
 
 def _make_stale_sd(
     *,
@@ -372,6 +358,9 @@ class TestReapplyCornerOverrides:
         assert result is True
         mock_csc.assert_called_once()
         assert sd.consistency == mock_consistency
+        # Verify new corners were passed (not stale sd.all_lap_corners)
+        _, all_laps_arg, *_ = mock_csc.call_args[0]
+        assert all_laps_arg == {3: mock_corners, 5: mock_corners}
 
     def test_stale_version_recomputes_gains(self) -> None:
         """estimate_gains is called when >= 2 coaching laps."""
@@ -430,6 +419,9 @@ class TestReapplyCornerOverrides:
         assert result is True
         mock_eg.assert_called_once()
         assert sd.gains == mock_gains
+        # Verify new corners were passed (not stale sd.corners)
+        _, corners_arg, *_ = mock_eg.call_args[0]
+        assert corners_arg is mock_corners
 
     def test_stale_version_rebuilds_snapshot(self) -> None:
         """build_session_snapshot is called to rebuild snapshot with updated data."""
