@@ -177,12 +177,19 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
       ctx.textBaseline = 'middle';
       ctx.fillText('Str.', margins.left - 6, sY + barHeight / 2);
 
-      // Value label: "~X.Xs straights"
+      // Value label: "~X.Xs straights" — clip to canvas right bound
       const sLabel = `~${straightsGapS.toFixed(1)}s straights`;
+      const sLabelX = margins.left + sBarW + 4;
+      const rightBound = width - margins.right;
       ctx.fillStyle = 'rgba(148, 163, 184, 0.6)';
       ctx.font = '10px Inter, system-ui, sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(sLabel, margins.left + sBarW + 4, sY + barHeight / 2);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(sLabelX, sY, rightBound - sLabelX, barHeight + 2);
+      ctx.clip();
+      ctx.fillText(sLabel, sLabelX, sY + barHeight / 2);
+      ctx.restore();
     }
 
   }, [opportunities, dimensions, getDataCtx, convertSpeed, speedUnit, straightsGapS]);

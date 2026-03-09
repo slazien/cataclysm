@@ -395,31 +395,30 @@ export function CornerSpeedGapPanel({ sessionId, selectedCorner, onDrillDown }: 
                   speedUnit={speedUnit}
                 />
               ))}
-              {straightsGapS > 0 && (
-                <div className="flex w-full items-center gap-2 rounded-md px-2 py-1.5">
-                  <span className="w-7 shrink-0 text-right text-xs font-medium tabular-nums text-slate-500">
-                    Str.
-                  </span>
-                  <div className="relative flex h-5 flex-1 items-center">
-                    <motion.div
-                      className="absolute inset-y-0 left-0 rounded-sm bg-slate-500/30"
-                      initial={{ width: 0 }}
-                      animate={{
-                        width: `${Math.max(maxTimeCost > 0 ? (straightsGapS / maxTimeCost) * 100 : 0, 2)}%`,
-                      }}
-                      transition={{ duration: 0.4, ease: 'easeOut', delay: 0.05 }}
-                    />
-                    <span
-                      className="relative z-10 whitespace-nowrap text-[11px] font-medium tabular-nums text-slate-500"
-                      style={{
-                        paddingLeft: `calc(${Math.max(maxTimeCost > 0 ? (straightsGapS / maxTimeCost) * 100 : 0, 2)}% + 6px)`,
-                      }}
-                    >
-                      ~{straightsGapS.toFixed(2)}s straights
+              {straightsGapS > 0 && (() => {
+                const widthPct = Math.max(maxTimeCost > 0 ? (straightsGapS / maxTimeCost) * 100 : 0, 2);
+                return (
+                  <div className="flex w-full items-center gap-2 rounded-md px-2 py-1.5">
+                    <span className="w-7 shrink-0 text-right text-xs font-medium tabular-nums text-[var(--text-muted)]">
+                      Str.
                     </span>
+                    <div className="relative flex h-5 flex-1 items-center">
+                      <motion.div
+                        className="absolute inset-y-0 left-0 rounded-sm bg-slate-500/30"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${widthPct}%` }}
+                        transition={{ duration: 0.4, ease: 'easeOut', delay: 0.05 }}
+                      />
+                      <span
+                        className="relative z-10 whitespace-nowrap text-[11px] font-medium tabular-nums text-[var(--text-muted)]"
+                        style={{ paddingLeft: `calc(${widthPct}% + 6px)` }}
+                      >
+                        ~{straightsGapS.toFixed(2)}s straights
+                      </span>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </motion.div>
           )}
         </AnimatePresence>

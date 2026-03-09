@@ -309,8 +309,8 @@ describe('OptimalGapChart', () => {
 
     // Canvas should have been cleared and drawn on
     expect(ctx.clearRect).toHaveBeenCalledWith(0, 0, 400, 200);
-    // Two corner bars + 1 straights bar (residual = 2.5 - 2.0 = 0.5 > 0.1)
-    expect(ctx.beginPath).toHaveBeenCalledTimes(3);
+    // Two corner bars + 1 straights bar + 1 straights label clip = 4
+    expect(ctx.beginPath).toHaveBeenCalledTimes(4);
     expect(ctx.fill).toHaveBeenCalledTimes(3);
     // roundRect available, so it should be called for each bar
     expect(ctx.roundRect).toHaveBeenCalledTimes(3);
@@ -523,8 +523,8 @@ describe('OptimalGapChart', () => {
 
     render(<OptimalGapChart sessionId="s1" />);
 
-    // 2 corner bars + 1 straights bar = 3 bar shapes
-    expect(ctx.beginPath).toHaveBeenCalledTimes(3);
+    // 2 corner bars + 1 straights bar + 1 straights label clip = 4
+    expect(ctx.beginPath).toHaveBeenCalledTimes(4);
     // 2 corner labels + 2 corner values + 1 straights label + 1 straights value = 6
     const fillTextCalls = ctx.fillText.mock.calls.map((c: unknown[]) => c[0]);
     expect(fillTextCalls).toContain('Str.');
@@ -599,8 +599,8 @@ describe('OptimalGapChart', () => {
 
     render(<OptimalGapChart sessionId="s1" />);
 
-    // Only 1 corner bar displayed + 1 straights bar (residual = 3.0 - 1.0 - 0.5 = 1.5)
-    expect(ctx.beginPath).toHaveBeenCalledTimes(2); // 1 corner + 1 straights
+    // 1 corner bar + 1 straights bar + 1 straights label clip = 3
+    expect(ctx.beginPath).toHaveBeenCalledTimes(3);
     const fillTextCalls = ctx.fillText.mock.calls.map((c: unknown[]) => c[0]);
     expect(fillTextCalls).toContain('Str.');
   });
