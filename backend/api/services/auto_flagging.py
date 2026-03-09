@@ -22,6 +22,7 @@ IMPROVEMENT_PB_CHECK = True
 PRAISE_MIN_GRADE = "B"
 
 _PASSING_GRADES = {"A+", "A", "A-", "B+", "B"}
+_NA_GRADES = {"N/A", "NA", "—", "-", ""}
 
 
 async def auto_flag_session(
@@ -100,10 +101,13 @@ async def auto_flag_session(
     if report_json:
         corner_grades = report_json.get("corner_grades", [])
 
-        # Praise: all corner grades B or above
+        # Praise: all corner grades B or above (N/A grades are skipped)
         if corner_grades and all(
-            cg.get("braking", "C") in _PASSING_GRADES
-            and cg.get("trail_braking", "C") in _PASSING_GRADES
+            (cg.get("braking", "C") in _PASSING_GRADES or cg.get("braking", "C") in _NA_GRADES)
+            and (
+                cg.get("trail_braking", "C") in _PASSING_GRADES
+                or cg.get("trail_braking", "C") in _NA_GRADES
+            )
             for cg in corner_grades
         ):
             db.add(

@@ -1,4 +1,5 @@
 import type { CornerGrade } from './types';
+import { isNAGrade } from './gradeUtils';
 
 const GRADE_SCORES: Record<string, number> = {
   A: 100,
@@ -17,32 +18,25 @@ export interface SkillDimensions {
 
 export const SKILL_AXES = ['Braking', 'Trail Braking', 'Throttle', 'Line'] as const;
 
-function gradeToScore(grade: string): number {
-  const letter = grade?.charAt(0)?.toUpperCase();
+function gradeToScore(grade: string): number | null {
+  if (!grade || isNAGrade(grade)) return null;
+  const letter = grade.charAt(0).toUpperCase();
   return GRADE_SCORES[letter] ?? 50;
+}
+
+function avg(scores: (number | null)[]): number {
+  const valid = scores.filter((s): s is number => s !== null);
+  return valid.length > 0 ? valid.reduce((a, b) => a + b, 0) / valid.length : 50;
 }
 
 export function computeSkillDimensions(grades: CornerGrade[]): SkillDimensions | null {
   if (!grades || grades.length === 0) return null;
 
-  let brakingSum = 0;
-  let trailSum = 0;
-  let throttleSum = 0;
-  let lineSum = 0;
-
-  for (const g of grades) {
-    brakingSum += gradeToScore(g.braking);
-    trailSum += gradeToScore(g.trail_braking);
-    throttleSum += gradeToScore(g.throttle);
-    lineSum += gradeToScore(g.min_speed);
-  }
-
-  const n = grades.length;
   return {
-    braking: brakingSum / n,
-    trailBraking: trailSum / n,
-    throttle: throttleSum / n,
-    line: lineSum / n,
+    braking: avg(grades.map((g) => gradeToScore(g.braking))),
+    trailBraking: avg(grades.map((g) => gradeToScore(g.trail_braking))),
+    throttle: avg(grades.map((g) => gradeToScore(g.throttle))),
+    line: avg(grades.map((g) => gradeToScore(g.min_speed))),
   };
 }
 

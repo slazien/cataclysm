@@ -352,7 +352,11 @@ async def _check_all_grades(
     if not corner_grades:
         return False
 
-    return all(cg.get(dimension, "C") in passing_grades for cg in corner_grades)
+    na_values = {"N/A", "NA", "—", "-", ""}
+    return all(
+        cg.get(dimension, "C") in passing_grades or cg.get(dimension, "C") in na_values
+        for cg in corner_grades
+    )
 
 
 async def get_user_achievements(db: AsyncSession, user_id: str) -> list[dict[str, object]]:

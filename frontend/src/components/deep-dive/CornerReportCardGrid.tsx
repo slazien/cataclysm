@@ -7,7 +7,7 @@ import { useCorners, useAllLapCorners } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { GradeChip } from '@/components/shared/GradeChip';
 import { cn } from '@/lib/utils';
-import { worstGrade } from '@/lib/gradeUtils';
+import { worstGrade, isNAGrade } from '@/lib/gradeUtils';
 import { useUnits } from '@/hooks/useUnits';
 import { motion as motionTokens } from '@/lib/design-tokens';
 import type { Corner, CornerGrade, PriorityCorner } from '@/lib/types';
@@ -46,7 +46,7 @@ function buildCardData(
         cornerGrade.trail_braking,
         cornerGrade.min_speed,
         cornerGrade.throttle,
-      ].filter(Boolean);
+      ].filter((g) => Boolean(g) && !isNAGrade(g));
       if (gradeLetters.length > 0) {
         overallGrade = worstGrade(gradeLetters);
       }

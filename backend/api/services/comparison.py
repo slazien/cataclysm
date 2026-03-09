@@ -22,6 +22,7 @@ LAYOUT_LENGTH_TOLERANCE = 0.03
 
 # Map letter grades to numeric scores for skill dimension aggregation
 GRADE_SCORES: dict[str, float] = {"A": 100, "B": 80, "C": 60, "D": 40, "F": 20}
+_NA_VALUES = frozenset({"N/A", "NA", "—", "-", ""})
 
 
 def _compute_skill_dims(grades: list[CornerGradeSchema]) -> dict[str, float]:
@@ -40,6 +41,8 @@ def _compute_skill_dims(grades: list[CornerGradeSchema]) -> dict[str, float]:
             ("line", "min_speed"),
         ]:
             letter = getattr(g, grade_field, "C")
+            if letter.upper().strip() in _NA_VALUES:
+                continue
             score = GRADE_SCORES.get(letter, 60.0)
             dims[dim_key].append(score)
     return {k: round(sum(v) / len(v), 1) if v else 60.0 for k, v in dims.items()}

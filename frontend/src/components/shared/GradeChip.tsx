@@ -21,6 +21,7 @@ const gradeColors: Record<string, string> = {
   C: 'bg-[var(--grade-c)]/15 text-[var(--grade-c)] border-[var(--grade-c)]/30',
   D: 'bg-[var(--grade-d)]/15 text-[var(--grade-d)] border-[var(--grade-d)]/30',
   F: 'bg-[var(--grade-f)]/15 text-[var(--grade-f)] border-[var(--grade-f)]/30',
+  'N/A': 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--cata-border)]',
 };
 
 const chipVariants = {
@@ -35,10 +36,16 @@ const gradeIndicators: Record<string, { suffix: string; fontWeight: string }> = 
   C: { suffix: '\u00A0~', fontWeight: 'font-medium' },
   D: { suffix: '\u00A0!', fontWeight: 'font-normal' },
   F: { suffix: '\u00A0\u25BC', fontWeight: 'font-bold' },
+  'N/A': { suffix: '', fontWeight: 'font-normal' },
 };
 
+function isNA(grade: string): boolean {
+  const g = grade.trim().toUpperCase();
+  return g === 'N/A' || g === 'NA' || g === '—' || g === '-';
+}
+
 function ChipContent({ grade, className }: { grade: string; className?: string }) {
-  const normalized = grade.toUpperCase();
+  const normalized = isNA(grade) ? 'N/A' : grade.toUpperCase();
   const colorClass = gradeColors[normalized] ?? gradeColors['C'];
   const indicator = gradeIndicators[normalized] ?? gradeIndicators['C'];
 

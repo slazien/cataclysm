@@ -144,6 +144,23 @@ describe('computeSkillDimensions', () => {
     expect(result!.throttle).toBe(40);
   });
 
+  it('excludes N/A grades from skill dimension averages', () => {
+    const grades = [
+      { corner: 1, braking: 'A', trail_braking: 'N/A', min_speed: 'B', throttle: 'C', notes: '' },
+      { corner: 2, braking: 'N/A', trail_braking: 'A', min_speed: 'A', throttle: 'N/A', notes: '' },
+    ];
+    const result = computeSkillDimensions(grades);
+    expect(result).not.toBeNull();
+    // braking: only corner 1 has A (100) → 100
+    expect(result!.braking).toBe(100);
+    // trailBraking: only corner 2 has A (100) → 100
+    expect(result!.trailBraking).toBe(100);
+    // line: B(80) + A(100) = 180/2 = 90
+    expect(result!.line).toBe(90);
+    // throttle: only corner 1 has C (60) → 60
+    expect(result!.throttle).toBe(60);
+  });
+
   it('handles grade strings like "A+" by taking first character', () => {
     const grades = [
       {

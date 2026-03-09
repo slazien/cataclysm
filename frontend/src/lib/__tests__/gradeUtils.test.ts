@@ -1,4 +1,4 @@
-import { worstGrade } from '../gradeUtils';
+import { worstGrade, isNAGrade } from '../gradeUtils';
 
 // GRADE_ORDER inside the module is ['A', 'B', 'C', 'D', 'F']
 // worstGrade() returns the highest-index (worst) grade from the array,
@@ -96,6 +96,42 @@ describe('worstGrade', () => {
 
     it('returns "A" when list has one valid A and one unknown', () => {
       expect(worstGrade(['A', 'X'])).toBe('A');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // N/A grade handling
+  // -------------------------------------------------------------------------
+  describe('N/A grades', () => {
+    it('ignores "N/A" and returns worst of remaining grades', () => {
+      expect(worstGrade(['A', 'N/A', 'B'])).toBe('B');
+    });
+
+    it('ignores "—" (em dash) variant', () => {
+      expect(worstGrade(['A', '—', 'C'])).toBe('C');
+    });
+
+    it('ignores "NA" variant', () => {
+      expect(worstGrade(['D', 'NA'])).toBe('D');
+    });
+
+    it('returns default "C" when all grades are N/A', () => {
+      expect(worstGrade(['N/A', 'N/A', '—'])).toBe('C');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // isNAGrade utility
+  // -------------------------------------------------------------------------
+  describe('isNAGrade', () => {
+    it('recognizes "N/A"', () => expect(isNAGrade('N/A')).toBe(true));
+    it('recognizes "NA"', () => expect(isNAGrade('NA')).toBe(true));
+    it('recognizes "—"', () => expect(isNAGrade('—')).toBe(true));
+    it('recognizes "-"', () => expect(isNAGrade('-')).toBe(true));
+    it('rejects letter grades', () => {
+      expect(isNAGrade('A')).toBe(false);
+      expect(isNAGrade('B')).toBe(false);
+      expect(isNAGrade('F')).toBe(false);
     });
   });
 

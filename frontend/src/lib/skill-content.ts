@@ -40,6 +40,18 @@ export function gradeExplanation(
 ): string | null {
   if (skillLevel !== 'novice') return null;
 
+  // Handle N/A grades (no data for this category)
+  const normalized = grade.trim().toUpperCase();
+  if (normalized === 'N/A' || normalized === 'NA' || normalized === '—' || normalized === '-') {
+    const naExplanations: Record<string, string> = {
+      braking: 'No braking data for this corner — it\'s a carry-speed turn with no significant braking.',
+      trail_braking: 'Trail braking doesn\'t apply to this corner type (kink or flat transition).',
+      min_speed: 'No minimum speed data available for this corner.',
+      throttle: 'No throttle data recorded for this corner.',
+    };
+    return naExplanations[category] ?? 'Not applicable for this corner.';
+  }
+
   const letter = grade.charAt(0).toUpperCase();
   const explanations: Record<string, Record<string, string>> = {
     A: {

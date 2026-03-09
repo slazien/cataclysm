@@ -964,13 +964,13 @@ referencing specific telemetry patterns.",
   "corner_grades": [
     {{
       "corner": <number>,
-      "braking": "<A-F>",
+      "braking": "<A-F or N/A>",
       "braking_reason": "<10-15 word explanation of WHY this grade, citing one data point>",
-      "trail_braking": "<A-F>",
+      "trail_braking": "<A-F or N/A>",
       "trail_braking_reason": "<10-15 word explanation of WHY this grade, citing one data point>",
       "min_speed": "<A-F>",
       "min_speed_reason": "<10-15 word explanation of WHY this grade, citing one data point>",
-      "throttle": "<A-F>",
+      "throttle": "<A-F or N/A>",
       "throttle_reason": "<10-15 word explanation of WHY this grade, citing one data point>",
       "notes": "<ONE coaching insight about THIS corner — what a trackside coach would \
 actually say. MUST be about what to DO or what's WORKING, with one data point as evidence. \
@@ -1009,13 +1009,15 @@ If fewer corners have meaningful improvement potential, include only those.
 
 Grading criteria (evidence-anchored):
   BRAKING: A = std < 3m + peak G within 0.05G of best |
-    B = std < 6m | C = std < 10m | D = std < 15m | F = std > 15m
+    B = std < 6m | C = std < 10m | D = std < 15m | F = std > 15m |
+    N/A = no braking data (carry-speed corners, kinks, flat/crest transitions)
   TRAIL BRAKING: A = present 90%+ laps | B = 70-89% |
-    C = 50-69% | D = < 50% | N/A = kinks/lifts
+    C = 50-69% | D = < 50% | N/A = kinks/lifts or no braking data
   MIN SPEED: A = std < 1.0 mph + within 1 mph of target |
     B = std < 2.0 | C = std < 3.0 | D = std < 5.0 | F = > 5.0
   THROTTLE: A = commit std < 5m + progressive |
-    B = std < 8m | C = std < 12m | D = std > 12m or abrupt
+    B = std < 8m | C = std < 12m | D = std > 12m or abrupt |
+    N/A = no throttle data recorded
 Grade distribution should approximate a bell curve around B/C for a typical driver. \
 All-A or all-B reports are almost certainly grade-inflated. \
 First cite the evidence (numbers), THEN assign the grade — not the reverse.
