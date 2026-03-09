@@ -235,12 +235,12 @@ export function ProgressView() {
     );
   }
 
-  // No trend data
+  // Single session or no trend data — encouraging empty state
   if (!trendData || trendData.sessions.length === 0) {
     return (
       <EmptyState
-        title="No trend data"
-        message="Upload multiple sessions for the same track to track your improvement journey"
+        title="Your improvement starts here"
+        message="Upload more sessions at this track to unlock lap time trends, consistency tracking, and corner-by-corner progress."
         icon={TrendingUp}
       />
     );

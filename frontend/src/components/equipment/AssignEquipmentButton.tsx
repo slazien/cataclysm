@@ -98,7 +98,7 @@ export function AssignEquipmentButton({ sessionId }: AssignEquipmentButtonProps)
         className="flex min-h-[44px] items-center gap-1.5 rounded-md border border-dashed border-[var(--cata-border)] bg-[var(--bg-surface)] px-2.5 py-1 text-xs text-[var(--text-secondary)] transition-colors hover:border-[var(--text-secondary)] hover:text-[var(--text-secondary)] sm:min-h-0"
       >
         <Settings2 className="h-3 w-3" />
-        Equipment
+        Add car <span className="hidden sm:inline">(optional)</span>
       </button>
 
       {dropdownOpen && (
