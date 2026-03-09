@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.db.database import get_db
 from backend.api.db.models import Session, User
-from backend.api.dependencies import AuthenticatedUser, get_current_user
+from backend.api.dependencies import AuthenticatedUser, get_user_or_anon
 from backend.api.schemas.progress import ProgressEntry, ProgressLeaderboardResponse
 
 router = APIRouter()
@@ -21,7 +21,7 @@ router = APIRouter()
 @router.get("/{track}/improvement", response_model=ProgressLeaderboardResponse)
 async def improvement_leaderboard(
     track: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
     days: Annotated[int, Query(ge=7, le=365)] = 90,
     min_sessions: Annotated[int, Query(ge=2, le=10)] = 3,
