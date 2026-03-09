@@ -80,19 +80,24 @@ class TestPipelineCache:
         """invalidate_physics_cache on unknown session does not raise."""
         pipeline.invalidate_physics_cache("no-such-session")  # should not raise
 
-    def test_invalidate_profile_cache_removes_profile_entries(self) -> None:
+    @pytest.mark.asyncio
+    @patch("backend.api.services.pipeline.db_invalidate_profile", new_callable=AsyncMock)
+    async def test_invalidate_profile_cache_removes_profile_entries(
+        self, mock_db_inv: AsyncMock
+    ) -> None:
         """invalidate_profile_cache clears all entries using a specific profile."""
         # Manually insert cache entries with a profile id
         pipeline._physics_cache[("sess1:optimal", "profile-abc")] = ({"r": 1}, time.time())
         pipeline._physics_cache[("sess2:optimal", "profile-abc")] = ({"r": 2}, time.time())
         pipeline._physics_cache[("sess3:optimal", "profile-xyz")] = ({"r": 3}, time.time())
 
-        pipeline.invalidate_profile_cache("profile-abc")
+        await pipeline.invalidate_profile_cache("profile-abc")
 
         assert ("sess1:optimal", "profile-abc") not in pipeline._physics_cache
         assert ("sess2:optimal", "profile-abc") not in pipeline._physics_cache
         # Unrelated profile entry should remain
         assert ("sess3:optimal", "profile-xyz") in pipeline._physics_cache
+        mock_db_inv.assert_awaited_once_with("profile-abc")
 
     def test_lru_eviction_when_cache_exceeds_max_entries(self) -> None:
         """LRU eviction removes the oldest entry when cache exceeds max size."""

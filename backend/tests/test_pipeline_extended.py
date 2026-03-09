@@ -427,23 +427,31 @@ class TestPhysicsCacheFunctions:
         # Should complete without error and without logging
         invalidate_physics_cache("nonexistent-session")
 
-    def test_invalidate_profile_cache_removes_entries(self) -> None:
+    @pytest.mark.asyncio
+    @patch("backend.api.services.pipeline.db_invalidate_profile", new_callable=AsyncMock)
+    async def test_invalidate_profile_cache_removes_entries(self, mock_db_inv: AsyncMock) -> None:
         """invalidate_profile_cache removes all cache entries for a profile."""
         _set_physics_cached("sess-pc", "profile", {"d": 4}, "prof-target")
         _set_physics_cached("sess-pc2", "comparison", {"e": 5}, "prof-target")
         _set_physics_cached("sess-pc3", "profile", {"f": 6}, "prof-other")
 
-        invalidate_profile_cache("prof-target")
+        await invalidate_profile_cache("prof-target")
 
         assert _get_physics_cached("sess-pc", "profile", "prof-target") is None
         assert _get_physics_cached("sess-pc2", "comparison", "prof-target") is None
         # Different profile untouched
         assert _get_physics_cached("sess-pc3", "profile", "prof-other") is not None
+        mock_db_inv.assert_awaited_once_with("prof-target")
 
-    def test_invalidate_profile_cache_empty_does_not_raise(self) -> None:
+    @pytest.mark.asyncio
+    @patch("backend.api.services.pipeline.db_invalidate_profile", new_callable=AsyncMock)
+    async def test_invalidate_profile_cache_empty_does_not_raise(
+        self, mock_db_inv: AsyncMock
+    ) -> None:
         """invalidate_profile_cache with no matching keys does not raise (line 543)."""
         pipeline_module._physics_cache.clear()  # noqa: SLF001
-        invalidate_profile_cache("no-such-profile")
+        await invalidate_profile_cache("no-such-profile")
+        mock_db_inv.assert_awaited_once_with("no-such-profile")
 
 
 # ===========================================================================

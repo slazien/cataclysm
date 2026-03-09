@@ -147,19 +147,26 @@ def invalidate_physics_cache(session_id: str) -> None:
         asyncio.get_running_loop().create_task(db_invalidate_session(session_id))
 
 
-def invalidate_profile_cache(profile_id: str) -> None:
+async def invalidate_profile_cache(profile_id: str) -> None:
     """Clear all physics cache entries using a specific profile (in-memory + DB)."""
     keys_to_remove = [k for k in _physics_cache if k[1] == profile_id]
     for k in keys_to_remove:
         del _physics_cache[k]
-    if keys_to_remove:
+    # Also clear track-level in-memory cache entries for this profile
+    track_keys_to_remove = [tk for tk in _track_physics_cache if tk[1] == profile_id]
+    for tk in track_keys_to_remove:
+        del _track_physics_cache[tk]
+    total = len(keys_to_remove) + len(track_keys_to_remove)
+    if total:
         logger.info(
-            "Invalidated %d in-memory physics cache entries for profile %s",
-            len(keys_to_remove),
+            "Invalidated %d in-memory physics cache entries for profile %s "
+            "(%d session-level, %d track-level)",
+            total,
             profile_id,
+            len(keys_to_remove),
+            len(track_keys_to_remove),
         )
-    with contextlib.suppress(RuntimeError):
-        asyncio.get_running_loop().create_task(db_invalidate_profile(profile_id))
+    await db_invalidate_profile(profile_id)
 
 
 # ---------------------------------------------------------------------------

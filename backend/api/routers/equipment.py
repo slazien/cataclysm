@@ -545,7 +545,7 @@ async def update_profile(
         is_default=body.is_default,
     )
     equipment_store.store_profile(updated)
-    invalidate_profile_cache(profile_id)
+    await invalidate_profile_cache(profile_id)
 
     # Enforce single-default: unset others if this is marked default
     if updated.is_default:
@@ -571,7 +571,7 @@ async def delete_profile(
     deleted = equipment_store.delete_profile(profile_id)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Profile {profile_id} not found")
-    invalidate_profile_cache(profile_id)
+    await invalidate_profile_cache(profile_id)
     await equipment_store.db_delete_profile(profile_id)
     return {"message": f"Profile {profile_id} deleted"}
 
