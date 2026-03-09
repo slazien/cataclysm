@@ -894,3 +894,27 @@ el.getBoundingClientRect().right > window.innerWidth
 **Why**: Initial apex-window fix used unclamped `apex ± half_window`. For corners near zone boundaries, the window extended into adjacent corner zones, causing T12 to drop 16 mph and T16 to drop 8.5 mph — contamination from neighboring corners' curvature data.
 
 **Error signature**: Metrics that get WORSE after applying a windowed approach, or metrics that change for corners that shouldn't be affected by the fix.
+
+## Playwright MCP Tool Parameters Must Be Numeric Literals, Not Strings (2026-03-09)
+
+**Pattern**: `browser_resize` (width/height) and any other Playwright MCP tool with `"type": "number"` params must receive numeric literals, not strings.
+
+**Why**: Passing `"390"` (string) to `browser_resize` throws `Invalid input: expected number, received string`. The JSON schema type is `"number"` — value must be unquoted.
+
+**Error signature**: `Invalid input: expected number, received string` in tool result.
+
+## Playwright `browser_file_upload` Requires Active File Chooser Modal (2026-03-09)
+
+**Pattern**: `browser_file_upload` must immediately follow the click that opened the file chooser. If any other tool call runs in between, the modal state is gone and you must re-click the trigger first.
+
+**Why**: After the file chooser opens and you call another tool (or the page re-renders), the modal state disappears. `browser_file_upload` fails with "can only be used when there is related modal state present". Always: click → `file_upload` consecutively with nothing in between.
+
+**Error signature**: `Error: The tool "browser_file_upload" can only be used when there is related modal state present.`
+
+## Exhaustive Auth Dependency Audit Requires Grepping ALL Router Files (2026-03-09)
+
+**Pattern**: When migrating endpoints from `get_current_user` → `get_user_or_anon`, grep every router file explicitly: `grep -rn "get_current_user" backend/api/routers/`. Do this BEFORE closing the task.
+
+**Why**: 3 routers (trends.py, leaderboards.py, progress.py) still used `get_current_user` after the initial migration pass, each discovered only during QA — requiring 3 separate fix-deploy-reupload cycles.
+
+**Error signature**: QA shows spinner or error state in Progress/Leaderboard section. Console shows 401 on a GET endpoint that should be anon-accessible.
