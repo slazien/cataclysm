@@ -54,6 +54,9 @@ export function useTour(
   }, [storageKey]);
 
   const startTour = useCallback(async () => {
+    // Guard against concurrent/duplicate calls
+    if (startedRef.current) return;
+
     const steps = getStepsRef.current();
 
     // Verify all target elements exist in DOM before starting
@@ -61,14 +64,9 @@ export function useTour(
       if (!step.element) return true; // non-element steps always ok
       return document.querySelector(step.element as string) !== null;
     });
-    if (!allPresent) {
-      // Targets not in DOM — skip gracefully, allow retry on next render
-      return;
-    }
+    if (!allPresent) return;
 
     // Don't start while a modal overlay is blocking.
-    // DisclaimerModal is in DOM only before user accepts (returns null after).
-    // Check localStorage directly — more reliable than class selectors.
     if (!localStorage.getItem('cataclysm-disclaimer-accepted')) return;
 
     // All checks passed — prevent duplicate starts
@@ -97,16 +95,36 @@ export function useTour(
   }, [markSeen]);
 
   // Auto-trigger when enabled becomes true and tour not yet seen.
-  // startedRef is set inside startTour after DOM validation passes,
-  // so a failed attempt (missing elements) can retry on the next render.
+  // Uses interval-based retry: first attempt at 800ms (settle delay),
+  // then every 500ms up to ~4s total. Handles transient DOM/overlay timing.
   useEffect(() => {
     if (!enabled || hasSeen || startedRef.current) return;
 
+    let attempts = 0;
+    const maxAttempts = 8;
+
     const timer = setTimeout(() => {
       startTour();
+      attempts++;
+      if (startedRef.current || attempts >= maxAttempts) return;
+
+      // First attempt failed — retry periodically
+      intervalId = setInterval(() => {
+        attempts++;
+        if (startedRef.current || attempts >= maxAttempts) {
+          clearInterval(intervalId!);
+          return;
+        }
+        startTour();
+      }, 500);
     }, 800);
 
-    return () => clearTimeout(timer);
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+
+    return () => {
+      clearTimeout(timer);
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [enabled, hasSeen, startTour]);
 
   // Cleanup on unmount
