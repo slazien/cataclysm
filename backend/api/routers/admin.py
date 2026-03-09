@@ -70,9 +70,9 @@ class CornerInput(BaseModel):
     name: str
     fraction: float
     direction: Literal["left", "right"]
-    corner_type: Literal["sweeper", "hairpin", "kink", "esses"]
-    elevation_trend: Literal["flat", "uphill", "downhill", "crest"] | None = None
-    camber: Literal["flat", "positive", "negative"] | None = None
+    corner_type: Literal["sweeper", "hairpin", "kink", "esses", "chicane"]
+    elevation_trend: Literal["flat", "uphill", "downhill", "crest", "compression"] | None = None
+    camber: Literal["flat", "positive", "negative", "off-camber"] | None = None
     coaching_note: str | None = None
 
     @field_validator("number")

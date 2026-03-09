@@ -21,9 +21,9 @@ import {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const CORNER_TYPES = ["sweeper", "hairpin", "kink", "esses"] as const;
-const ELEVATIONS = ["flat", "uphill", "downhill", "crest"] as const;
-const CAMBERS = ["flat", "positive", "negative"] as const;
+const CORNER_TYPES = ["sweeper", "hairpin", "kink", "esses", "chicane"] as const;
+const ELEVATIONS = ["flat", "uphill", "downhill", "crest", "compression"] as const;
+const CAMBERS = ["flat", "positive", "negative", "off-camber"] as const;
 const DIRECTIONS = ["left", "right"] as const;
 
 const COLOR_LEFT = "#2dd4bf";
