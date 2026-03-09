@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+import numpy as np
 import pandas as pd
 
 from cataclysm.corners import Corner
@@ -896,6 +897,38 @@ def get_all_tracks() -> list[TrackLayout]:
 _ZONE_MARGIN_M = 50.0  # entry/exit margin for first/last corners
 
 
+def _find_zone_boundaries(
+    smoothed_rate: np.ndarray,
+    apex_idx: int,
+    threshold: float,
+    max_len: int,
+) -> tuple[int, int]:
+    """Walk outward from *apex_idx* until heading rate drops below *threshold*.
+
+    Returns (entry_idx, exit_idx) — the indices where the corner zone begins
+    and ends based on actual track geometry.
+    """
+    # Walk backward from apex to find entry
+    entry_idx = apex_idx
+    for j in range(apex_idx - 1, -1, -1):
+        if smoothed_rate[j] < threshold:
+            entry_idx = j + 1
+            break
+    else:
+        entry_idx = 0
+
+    # Walk forward from apex to find exit
+    exit_idx = apex_idx
+    for j in range(apex_idx + 1, max_len):
+        if smoothed_rate[j] < threshold:
+            exit_idx = j
+            break
+    else:
+        exit_idx = max_len - 1
+
+    return entry_idx, exit_idx
+
+
 def locate_official_corners(
     lap_df: pd.DataFrame,
     layout: TrackLayout,
@@ -903,40 +936,69 @@ def locate_official_corners(
     """Build Corner skeletons at official positions along a lap.
 
     Each official corner's apex is placed at ``fraction * lap_distance``.
-    Entry/exit boundaries are midpoints between adjacent corners.
+    Entry/exit boundaries are found by walking outward from the apex along
+    the smoothed heading-rate signal until it drops below the detection
+    threshold (same criterion as auto-detection).  Zones are then clamped
+    to midpoints between adjacent apexes so they never overlap.
 
     The returned Corner objects have placeholder KPI values — pass them to
     ``extract_corner_kpis_for_lap`` to fill in real KPIs.
-
-    Parameters
-    ----------
-    lap_df:
-        Resampled lap DataFrame with a lap_distance_m column.
-    layout:
-        Official track layout with corner fractions.
-
-    Returns
-    -------
-    List of Corner skeletons sorted by distance, with official numbers.
     """
     max_dist = float(lap_df["lap_distance_m"].iloc[-1])
+    distance = lap_df["lap_distance_m"].to_numpy()
 
-    # Sort corners by position on track, keeping the full OfficialCorner reference
+    # Compute smoothed heading rate if heading data is available
+    has_heading = "heading_deg" in lap_df.columns
+    smoothed_rate: np.ndarray | None = None
+    if has_heading:
+        from cataclysm.corners import HEADING_RATE_THRESHOLD, SMOOTHING_WINDOW_M
+
+        step_m = float(np.median(np.diff(distance))) if len(distance) > 1 else 0.7
+        heading = lap_df["heading_deg"].to_numpy()
+        diff = np.diff(heading)
+        diff = (diff + 180) % 360 - 180
+        rate = diff / step_m
+        rate = np.append(rate, rate[-1])
+        window_pts = max(2, int(SMOOTHING_WINDOW_M / step_m))
+        kernel = np.ones(window_pts) / window_pts
+        smoothed_rate = np.convolve(np.abs(rate), kernel, mode="same")
+
+    # Sort corners by position on track
     sorted_corners = sorted(layout.corners, key=lambda c: c.fraction)
     apex_positions = [(c, c.fraction * max_dist) for c in sorted_corners]
 
-    # Build skeleton corners with entry/exit at midpoints
+    # For each apex, find geometry-based entry/exit, then clamp to midpoints
     skeletons: list[Corner] = []
     for i, (oc, apex_m) in enumerate(apex_positions):
+        # Midpoint clamps so zones never overlap with neighbours
         if i == 0:
-            entry_m = max(0.0, apex_m - _ZONE_MARGIN_M)
+            midpoint_before = max(0.0, apex_m - _ZONE_MARGIN_M)
         else:
-            entry_m = (apex_positions[i - 1][1] + apex_m) / 2
+            midpoint_before = (apex_positions[i - 1][1] + apex_m) / 2
 
         if i == len(apex_positions) - 1:
-            exit_m = min(max_dist, apex_m + _ZONE_MARGIN_M)
+            midpoint_after = min(max_dist, apex_m + _ZONE_MARGIN_M)
         else:
-            exit_m = (apex_m + apex_positions[i + 1][1]) / 2
+            midpoint_after = (apex_m + apex_positions[i + 1][1]) / 2
+
+        if smoothed_rate is not None:
+            # Curvature-aware: walk outward from apex until heading rate drops
+            apex_idx = int(np.searchsorted(distance, apex_m))
+            apex_idx = min(apex_idx, len(distance) - 1)
+            geo_entry_idx, geo_exit_idx = _find_zone_boundaries(
+                smoothed_rate,
+                apex_idx,
+                HEADING_RATE_THRESHOLD,
+                len(distance),
+            )
+            geo_entry_m = float(distance[geo_entry_idx])
+            geo_exit_m = float(distance[geo_exit_idx])
+            entry_m = max(geo_entry_m, midpoint_before)
+            exit_m = min(geo_exit_m, midpoint_after)
+        else:
+            # Fallback: midpoints only (no heading data)
+            entry_m = midpoint_before
+            exit_m = midpoint_after
 
         skeletons.append(
             Corner(
