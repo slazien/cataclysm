@@ -461,6 +461,21 @@ export function TrackEditor() {
       queryClient.invalidateQueries({
         queryKey: ["admin", "track-editor", selectedSlug],
       });
+      // Invalidate all session-scoped queries that depend on corner positions.
+      // These use staleTime:Infinity so they never refetch without explicit
+      // invalidation.  Backend recomputes via ensure_corners_current on next
+      // read, but the frontend must know to ask for fresh data.
+      for (const key of [
+        "corners",
+        "all-lap-corners",
+        "track-guide",
+        "gg-diagram",
+        "optimal-comparison",
+        "delta",
+        "degradation",
+      ]) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
     },
   });
 

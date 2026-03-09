@@ -136,7 +136,7 @@ def reapply_corner_overrides_if_stale(sd: SessionData) -> bool:
     sd.corner_override_version = current_version
 
     logger.info(
-        "Re-applied corner overrides for session %s (v%d)",
+        "Re-applied corner overrides for session %s (v=%s)",
         sd.session_id,
         current_version,
     )
