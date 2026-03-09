@@ -1,5 +1,21 @@
 # Lessons Learned
 
+## Never Gate UI Features on Slow Async Data When Faster Alternatives Exist (2026-03-09)
+
+**Pattern**: When enabling a UI feature (tour, tooltip, animation), gate it on the fastest-available signal, not the richest. If session + laps data is available in <1s but coaching report takes 5-30s, gate on session + laps. Target DOM elements that render with the fast data, not elements that only appear after the slow data arrives.
+
+**Why**: The Driver.js tour was gated on `report?.priority_corners?.length && report?.corner_grades?.length` — coaching data that takes 5-30s to generate asynchronously. New users uploading their first session never saw the tour because coaching hadn't arrived yet. Changing to `Boolean(session && laps?.length)` and retargeting steps to always-available elements (#metrics-grid, #hero-track-map, tab bar) made the tour fire immediately.
+
+**Error signature**: Feature works for returning users (data cached) but never triggers for new users or fresh uploads.
+
+## Don't Set "Already Done" Refs Before Async/Conditional Checks Pass (2026-03-09)
+
+**Pattern**: In React hooks with retry logic, never set a guard ref (`startedRef.current = true`) before the conditional check succeeds. Set it *after* all preconditions pass. Otherwise, a failed attempt permanently blocks retries.
+
+**Why**: `useTour` set `startedRef.current = true` in the `useEffect` before calling `startTour()`. Inside `startTour()`, DOM validation could fail (elements not yet rendered). But `startedRef` was already `true`, so subsequent renders never retried. Fix: move `startedRef.current = true` inside `startTour()` after DOM + disclaimer checks pass.
+
+**Error signature**: Feature works on page load when DOM is ready, but silently fails to fire when elements mount after initial render (e.g., after data fetch).
+
 ## Radix ScrollArea Viewport Is the Real Scroll Container (2026-03-09)
 
 **Pattern**: When attaching scroll listeners or tracking `scrollTop`, find the actual scrollable element — not the CSS `overflow-y: auto` wrapper. Views using Radix ScrollArea have the real scroller at `[data-slot="scroll-area-viewport"]` nested inside the wrapper. The wrapper's `scrollHeight === clientHeight` because the inner viewport captures all overflow. Always check: `wrapper.querySelector('[data-slot="scroll-area-viewport"]') ?? wrapper`.
