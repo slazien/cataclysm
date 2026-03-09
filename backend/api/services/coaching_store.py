@@ -215,7 +215,7 @@ def clear_all_coaching() -> None:
 
 # Historical generation durations for ETA estimation
 _generation_durations: list[float] = []
-_DEFAULT_ESTIMATE_S: float = 20.0
+_DEFAULT_ESTIMATE_S: float = 60.0
 
 
 def record_generation_duration(duration_s: float) -> None:

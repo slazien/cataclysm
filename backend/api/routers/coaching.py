@@ -11,9 +11,11 @@ from typing import Annotated
 
 from cataclysm.causal_chains import compute_causal_analysis
 from cataclysm.coaching import CoachingReport, CornerGrade
-from cataclysm.driver_archetypes import detect_archetype
+from cataclysm.corners_gained import CornersGainedResult
+from cataclysm.driver_archetypes import ArchetypeResult, detect_archetype
+from cataclysm.flow_lap import FlowLapResult
 from cataclysm.pdf_report import ReportContent, generate_pdf
-from cataclysm.skill_detection import detect_skill_level
+from cataclysm.skill_detection import SkillAssessment, detect_skill_level
 from cataclysm.topic_guardrail import (
     INPUT_TOO_LONG_RESPONSE,
     OFF_TOPIC_RESPONSE,
@@ -211,7 +213,7 @@ async def generate_report(
 
 
 # Limit concurrent coaching API calls to avoid rate-limit storms.
-_coaching_semaphore = asyncio.Semaphore(2)
+_coaching_semaphore = asyncio.Semaphore(3)
 
 # Max retries for rate-limit (429) errors.
 _MAX_RETRIES = 3
@@ -245,80 +247,100 @@ async def _run_generation(
 
         weather = sd.weather
 
-        # Pre-compute corner analysis so the LLM gets stats, not raw numbers
-        corner_analysis = await asyncio.to_thread(
-            compute_corner_analysis,
-            sd.all_lap_corners,
-            sd.gains,
-            sd.consistency.corner_consistency if sd.consistency else None,
-            landmarks or None,
-            sd.processed.best_lap,
+        # -----------------------------------------------------------------
+        # Batch 1: Independent pre-computes — run in parallel
+        # -----------------------------------------------------------------
+        # Prepare flow lap inputs synchronously (cheap list comprehensions)
+        _flow_lap_times: list[float] | None = None
+        _flow_per_lap_speeds: dict[int, list[float]] = {}
+        _flow_best_speeds: list[float] = []
+        if sd.all_lap_corners and coaching_summaries:
+            from cataclysm.constants import MPS_TO_MPH
+
+            _flow_lap_times = [s.lap_time_s for s in coaching_summaries]
+            for lap_num, corners in sd.all_lap_corners.items():
+                _flow_per_lap_speeds[lap_num] = [c.min_speed_mps * MPS_TO_MPH for c in corners]
+            if _flow_per_lap_speeds:
+                n_corners = len(next(iter(_flow_per_lap_speeds.values())))
+                _flow_best_speeds = [
+                    max(
+                        _flow_per_lap_speeds[ln][ci]
+                        for ln in _flow_per_lap_speeds
+                        if ci < len(_flow_per_lap_speeds[ln])
+                    )
+                    for ci in range(n_corners)
+                ]
+
+        async def _compute_flow() -> FlowLapResult | None:
+            if _flow_lap_times is None:
+                return None
+            from cataclysm.flow_lap import detect_flow_laps
+
+            return await asyncio.to_thread(
+                detect_flow_laps,
+                _flow_lap_times,
+                _flow_per_lap_speeds,
+                _flow_best_speeds,
+            )
+
+        corner_analysis, causal_analysis, flow_laps = await asyncio.gather(
+            asyncio.to_thread(
+                compute_corner_analysis,
+                sd.all_lap_corners,
+                sd.gains,
+                sd.consistency.corner_consistency if sd.consistency else None,
+                landmarks or None,
+                sd.processed.best_lap,
+            ),
+            asyncio.to_thread(
+                compute_causal_analysis,
+                sd.all_lap_corners,
+                sd.anomalous_laps,
+            ),
+            _compute_flow(),
         )
 
-        # Compute inter-corner causal chains
-        causal_analysis = await asyncio.to_thread(
-            compute_causal_analysis,
-            sd.all_lap_corners,
-            sd.anomalous_laps,
-        )
+        # -----------------------------------------------------------------
+        # Batch 2: Depends on corner_analysis — run in parallel
+        # -----------------------------------------------------------------
+        async def _compute_archetype() -> ArchetypeResult | None:
+            if not corner_analysis:
+                return None
+            return await asyncio.to_thread(
+                detect_archetype,
+                corner_analysis,
+                sd.all_lap_corners,
+            )
 
-        # Detect driver archetype and auto-assess skill level
-        archetype = (
-            await asyncio.to_thread(detect_archetype, corner_analysis, sd.all_lap_corners)
-            if corner_analysis
-            else None
-        )
-        skill_assessment = (
-            await asyncio.to_thread(
+        async def _compute_skill() -> SkillAssessment | None:
+            if not corner_analysis:
+                return None
+            return await asyncio.to_thread(
                 detect_skill_level,
                 corner_analysis,
                 sd.consistency.lap_consistency if sd.consistency else None,
                 skill_level,
             )
-            if corner_analysis
-            else None
-        )
 
-        # Corners Gained decomposition (gap to target by corner/technique)
-        # Use theoretical best as the target — it represents the driver's own
-        # potential assembled from their best micro-sectors.
-        corners_gained = None
-        if corner_analysis and sd.gains:
+        async def _compute_corners_gained() -> CornersGainedResult | None:
+            if not corner_analysis or not sd.gains:
+                return None
             from cataclysm.corners_gained import compute_corners_gained
 
             best_lap_s = min(s.lap_time_s for s in coaching_summaries)
             target_s = sd.gains.theoretical.theoretical_time_s
-            corners_gained = await asyncio.to_thread(
+            return await asyncio.to_thread(
                 compute_corners_gained,
                 corner_analysis,
                 target_s,
                 best_lap_s,
             )
 
-        # Flow lap detection (peak-performance laps)
-        flow_laps = None
-        if sd.all_lap_corners and coaching_summaries:
-            from cataclysm.constants import MPS_TO_MPH
-            from cataclysm.flow_lap import detect_flow_laps
-
-            lap_times = [s.lap_time_s for s in coaching_summaries]
-            per_lap_speeds: dict[int, list[float]] = {}
-            best_speeds: list[float] = []
-            for lap_num, corners in sd.all_lap_corners.items():
-                per_lap_speeds[lap_num] = [c.min_speed_mps * MPS_TO_MPH for c in corners]
-            if per_lap_speeds:
-                n_corners = len(next(iter(per_lap_speeds.values())))
-                best_speeds = [
-                    max(
-                        per_lap_speeds[ln][ci]
-                        for ln in per_lap_speeds
-                        if ci < len(per_lap_speeds[ln])
-                    )
-                    for ci in range(n_corners)
-                ]
-            flow_laps = await asyncio.to_thread(
-                detect_flow_laps, lap_times, per_lap_speeds, best_speeds
-            )
+        archetype, skill_assessment, corners_gained = await asyncio.gather(
+            _compute_archetype(),
+            _compute_skill(),
+            _compute_corners_gained(),
+        )
 
         # Semaphore + retry with backoff for rate-limit errors
         async with _coaching_semaphore:
