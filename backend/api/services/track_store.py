@@ -40,7 +40,7 @@ async def create_track(
         status=status,
     )
     db.add(track)
-    await db.commit()
+    await db.flush()
     await db.refresh(track)
     return track
 
@@ -61,7 +61,7 @@ async def update_track(db: AsyncSession, slug: str, **kwargs: Any) -> Track | No
         return None
     for key, value in kwargs.items():
         setattr(track, key, value)
-    await db.commit()
+    await db.flush()
     await db.refresh(track)
     return track
 
@@ -70,7 +70,7 @@ async def upsert_corners(db: AsyncSession, track_id: int, corners: list[dict[str
     await db.execute(delete(TrackCornerV2).where(TrackCornerV2.track_id == track_id))
     for c in corners:
         db.add(TrackCornerV2(track_id=track_id, **c))
-    await db.commit()
+    await db.flush()
 
 
 async def get_corners_for_track(db: AsyncSession, track_id: int) -> list[TrackCornerV2]:
@@ -88,7 +88,7 @@ async def upsert_landmarks(
     await db.execute(delete(TrackLandmark).where(TrackLandmark.track_id == track_id))
     for lm in landmarks:
         db.add(TrackLandmark(track_id=track_id, **lm))
-    await db.commit()
+    await db.flush()
 
 
 async def get_landmarks_for_track(db: AsyncSession, track_id: int) -> list[TrackLandmark]:
