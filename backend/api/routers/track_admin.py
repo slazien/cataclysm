@@ -206,10 +206,10 @@ async def update_track_endpoint(
         track = await _get_track_or_404(db, slug)
         return _track_to_dict(track)
 
-    track = await update_track(db, slug, **updates)
-    if track is None:
+    updated = await update_track(db, slug, **updates)
+    if updated is None:
         raise HTTPException(status_code=404, detail=f"Track '{slug}' not found")
-    return _track_to_dict(track)
+    return _track_to_dict(updated)
 
 
 @router.put("/{slug}/corners")
