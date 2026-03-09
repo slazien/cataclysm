@@ -69,7 +69,9 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
       ? `${compound} setup`
       : 'My Setup';
 
-  const canSave = tireSize.trim().length > 0 && compound.length > 0;
+  // Validate tire size format: width/aspectRdiameter (e.g. 205/50R16)
+  const validTireSize = /^\d{3}\/\d{2}R\d{2}$/i.test(tireSize.trim());
+  const canSave = validTireSize && compound.length > 0;
 
   const clearVehicle = useCallback(() => {
     setSelectedVehicle(null);

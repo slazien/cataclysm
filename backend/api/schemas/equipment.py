@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -186,6 +188,15 @@ class InlineEquipmentSet(BaseModel):
     tire_size: str = Field(..., min_length=3, max_length=30)
     tire_model: str | None = Field(None, max_length=100)
     estimated_mu: float | None = None
+
+    @field_validator("tire_size")
+    @classmethod
+    def validate_tire_size_format(cls, v: str) -> str:
+        """Enforce standard tire size format: width/aspectRdiameter (e.g. 205/50R16)."""
+        if not re.match(r"^\d{3}/\d{2}R\d{2}$", v.strip(), re.IGNORECASE):
+            msg = "tire_size must be in format width/aspectRdiameter (e.g. 205/50R16)"
+            raise ValueError(msg)
+        return v.strip()
 
 
 class SessionEquipmentSet(BaseModel):
