@@ -466,6 +466,73 @@ def compute_session_id_from_csv(file_bytes: bytes, filename: str) -> str:
     return _compute_session_id(filename, meta.track_name, meta.session_date)
 
 
+async def _try_auto_discover_track(session_data: SessionData) -> None:
+    """Try to discover an unknown track via OSM and seed the DB for future uploads.
+
+    This is best-effort — failures are logged and swallowed. The current session
+    continues with auto-detected corners; future uploads of the same track will
+    benefit from the discovered layout via GPS detection.
+    """
+    from cataclysm.osm_import import osm_to_track_seed, query_overpass_raceway_sync
+    from cataclysm.track_db_hybrid import db_track_to_layout, update_db_tracks_cache
+    from cataclysm.track_match import compute_session_centroid
+
+    from backend.api.db.database import async_session_factory
+
+    # Compute GPS centroid from the session data
+    try:
+        clat, clon = compute_session_centroid(session_data.parsed.data)
+    except ValueError:
+        return  # Not enough GPS points
+
+    # Query OSM in the thread pool (sync httpx)
+    results = await asyncio.to_thread(query_overpass_raceway_sync, clat, clon)
+    if not results:
+        logger.info("No OSM raceways found near %.4f,%.4f", clat, clon)
+        return
+
+    # Pick the closest result
+    best = min(
+        results,
+        key=lambda r: (float(np.mean(r.lats)) - clat) ** 2 + (float(np.mean(r.lons)) - clon) ** 2,
+    )
+    seed = osm_to_track_seed(best)
+    logger.info("Auto-discovered track: %s (%.0fm) via OSM", seed["name"], seed["length_m"])
+
+    # Create a draft track in the DB
+    try:
+        async with async_session_factory() as db:
+            from backend.api.db.models import Track
+            from backend.api.services.track_store import get_track_by_slug
+
+            # Don't create duplicates
+            existing = await get_track_by_slug(db, seed["slug"])
+            if existing is not None:
+                logger.info("Track %s already exists in DB, skipping", seed["slug"])
+                return
+
+            track = Track(
+                slug=seed["slug"],
+                name=seed["name"],
+                source="osm-auto",
+                center_lat=seed["center_lat"],
+                center_lon=seed["center_lon"],
+                length_m=seed["length_m"],
+                status="draft",
+                quality_tier=1,
+            )
+            db.add(track)
+            await db.commit()
+            await db.refresh(track)
+
+            # Seed hybrid cache so GPS detection finds it for future uploads
+            layout = db_track_to_layout(track, [], [])
+            update_db_tracks_cache(track.slug, layout)
+            logger.info("Auto-created draft track: %s", seed["slug"])
+    except Exception:
+        logger.warning("Failed to persist auto-discovered track", exc_info=True)
+
+
 async def process_upload(file_bytes: bytes, filename: str) -> dict[str, object]:
     """Parse a RaceChrono CSV and run the full processing pipeline.
 
@@ -474,6 +541,13 @@ async def process_upload(file_bytes: bytes, filename: str) -> dict[str, object]:
     """
     session_data = await asyncio.to_thread(_run_pipeline_sync, file_bytes, filename)
     store_session(session_data.session_id, session_data)
+
+    # Auto-discovery: if no track was recognized, try OSM import in background
+    if session_data.layout is None:
+        try:
+            await _try_auto_discover_track(session_data)
+        except Exception:
+            logger.warning("Auto-discovery failed for %s", filename, exc_info=True)
 
     snap = session_data.snapshot
     return {
