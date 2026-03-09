@@ -24,6 +24,7 @@ interface EquipmentInterstitialProps {
 
 const COMPOUND_OPTIONS = [
   { value: 'street', label: 'Street' },
+  { value: 'endurance_200tw', label: 'Endurance 200TW' },
   { value: 'super_200tw', label: '200TW' },
   { value: 'r_comp', label: 'R-Comp' },
   { value: 'slick', label: 'Slick' },
@@ -32,7 +33,9 @@ const COMPOUND_OPTIONS = [
 // Estimated mu values per compound category (mirrors backend CATEGORY_MU_DEFAULTS)
 const COMPOUND_MU: Record<string, number> = {
   street: 0.85,
+  endurance_200tw: 1.0,
   super_200tw: 1.10,
+  '100tw': 1.20,
   r_comp: 1.35,
   slick: 1.50,
 };
@@ -51,6 +54,7 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
   const [compound, setCompound] = useState<string>('');
   const [tireModel, setTireModel] = useState('');
   const [tireModelCompound, setTireModelCompound] = useState<string | null>(null);
+  const [selectedTireMu, setSelectedTireMu] = useState<number | null>(null);
   const [tireSize, setTireSize] = useState('');
   const [tireModelFocused, setTireModelFocused] = useState(false);
   const [tireSizeFocused, setTireSizeFocused] = useState(false);
@@ -114,7 +118,7 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
     setSaving(true);
     setSaveError(null);
     try {
-      const mu = COMPOUND_MU[compound] ?? 0.93;
+      const mu = selectedTireMu ?? COMPOUND_MU[compound] ?? 0.93;
       const model = tireModel.trim() || 'OEM / Stock';
       if (isAuthenticated) {
         // Authenticated: create a named persistent profile and assign it
@@ -362,7 +366,7 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
           <input
             type="text"
             value={tireModel}
-            onChange={(e) => { setTireModel(e.target.value); setTireModelFocused(true); setTireModelCompound(null); }}
+            onChange={(e) => { setTireModel(e.target.value); setTireModelFocused(true); setTireModelCompound(null); setSelectedTireMu(null); }}
             onFocus={() => setTireModelFocused(true)}
             onBlur={() => setTimeout(() => setTireModelFocused(false), 150)}
             placeholder="e.g. RE-71RS, RT660, RS4"
@@ -389,6 +393,7 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
                           setCompound(tire.compound_category);
                           setTireModelCompound(tire.compound_category);
                         }
+                        if (tire.estimated_mu) setSelectedTireMu(tire.estimated_mu);
                         if (tire.size && tire.size !== 'varies' && !tireSize) setTireSize(tire.size);
                       }}
                       className="w-full px-3 py-1.5 text-left text-sm hover:bg-[var(--bg-surface)]"
