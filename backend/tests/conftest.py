@@ -242,13 +242,17 @@ def _patch_coaching_db_factory() -> Generator[None, None, None]:
 @pytest.fixture(autouse=True)
 def _mock_auth() -> Generator[None, None, None]:
     """Override the auth dependency so all test requests are authenticated."""
+    from backend.api.routers.admin import require_admin
+
     app.dependency_overrides[get_current_user] = lambda: _TEST_USER
     app.dependency_overrides[get_optional_user] = lambda: _TEST_USER
     app.dependency_overrides[get_user_or_anon] = lambda: _TEST_USER
+    app.dependency_overrides[require_admin] = lambda: _TEST_USER
     yield
     app.dependency_overrides.pop(get_current_user, None)
     app.dependency_overrides.pop(get_optional_user, None)
     app.dependency_overrides.pop(get_user_or_anon, None)
+    app.dependency_overrides.pop(require_admin, None)
 
 
 @pytest_asyncio.fixture(autouse=True)

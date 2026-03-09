@@ -91,15 +91,19 @@ def get_all_tracks_hybrid(
     """Merge DB tracks with Python constants. DB wins on collision."""
     cache = db_tracks if db_tracks is not None else _db_tracks
 
-    # Start with Python tracks
+    # Start with Python tracks keyed by normalized name
     result: dict[str, TrackLayout] = {}
     for layout in get_all_tracks():
         key = _normalize_name(layout.name)
         result[key] = layout
 
-    # DB tracks override
-    for key, layout in cache.items():
-        result[key] = layout
+    # DB tracks override — deduplicate by keying on normalized name only
+    seen_names: set[str] = set()
+    for layout in cache.values():
+        name_key = _normalize_name(layout.name)
+        if name_key not in seen_names:
+            result[name_key] = layout
+            seen_names.add(name_key)
 
     return list(result.values())
 

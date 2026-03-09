@@ -12,7 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.db.database import get_db
 from backend.api.db.models import Track
-from backend.api.dependencies import AuthenticatedUser, get_current_user, get_user_or_anon
+from backend.api.dependencies import AuthenticatedUser, get_user_or_anon
+from backend.api.routers.admin import require_admin
 from backend.api.services.track_corners import update_corner_cache
 from backend.api.services.track_store import (
     create_track,
@@ -64,7 +65,7 @@ class TrackUpdate(BaseModel):
     source: str | None = None
     direction_of_travel: str | None = None
     track_type: str | None = None
-    aliases: dict[str, Any] | None = None
+    aliases: list[str] | None = None
     centerline_geojson: dict[str, Any] | None = None
 
 
@@ -155,7 +156,7 @@ async def list_tracks(
 @router.post("/", status_code=201)
 async def create_track_endpoint(
     body: TrackCreate,
-    _user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    _user: Annotated[AuthenticatedUser, Depends(require_admin)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, Any]:
     """Create a new track."""
@@ -196,7 +197,7 @@ async def get_track(
 async def update_track_endpoint(
     slug: str,
     body: TrackUpdate,
-    _user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    _user: Annotated[AuthenticatedUser, Depends(require_admin)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, Any]:
     """Update track fields."""
@@ -216,7 +217,7 @@ async def update_track_endpoint(
 async def set_corners(
     slug: str,
     body: list[CornerInput],
-    _user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    _user: Annotated[AuthenticatedUser, Depends(require_admin)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, Any]:
     """Replace all corners for a track."""
@@ -266,7 +267,7 @@ async def get_corners(
 async def set_landmarks(
     slug: str,
     body: list[LandmarkInput],
-    _user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    _user: Annotated[AuthenticatedUser, Depends(require_admin)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, Any]:
     """Replace all landmarks for a track."""
