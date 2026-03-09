@@ -12,6 +12,7 @@ from sqlalchemy import (
     Index,
     Integer,
     LargeBinary,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -460,6 +461,34 @@ class TrackCornerConfig(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     updated_by: Mapped[str] = mapped_column(String(200), nullable=False)
+
+
+class Track(Base):
+    """Track metadata — the core of the v2 track data pipeline."""
+
+    __tablename__ = "tracks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    aliases: Mapped[list] = mapped_column(JSONB, server_default="[]", nullable=False)
+    country: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    center_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    center_lon: Mapped[float | None] = mapped_column(Float, nullable=True)
+    length_m: Mapped[float | None] = mapped_column(Float, nullable=True)
+    elevation_range_m: Mapped[float | None] = mapped_column(Float, nullable=True)
+    quality_tier: Mapped[int] = mapped_column(SmallInteger, server_default="1", nullable=False)
+    status: Mapped[str] = mapped_column(String(20), server_default="draft", nullable=False)
+    centerline_geojson: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    source: Mapped[str] = mapped_column(String(50), nullable=False)
+    direction_of_travel: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    track_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    verified_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class PhysicsCacheEntry(Base):
