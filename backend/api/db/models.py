@@ -275,9 +275,7 @@ class SharedSession(Base):
     __tablename__ = "shared_sessions"
 
     token: Mapped[str] = mapped_column(String, primary_key=True)
-    user_id: Mapped[str] = mapped_column(
-        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
+    user_id: Mapped[str] = mapped_column(String, nullable=False)
     session_id: Mapped[str] = mapped_column(
         String, ForeignKey("sessions.session_id", ondelete="CASCADE"), nullable=False
     )
@@ -286,7 +284,6 @@ class SharedSession(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     # Relationships
-    user: Mapped[User] = relationship()
     session: Mapped[Session] = relationship()
     comparison_reports: Mapped[list[ShareComparisonReport]] = relationship(
         back_populates="shared_session", cascade="all, delete-orphan"

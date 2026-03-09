@@ -12,11 +12,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from backend.api.config import Settings
 from backend.api.db.database import get_db
-from backend.api.db.models import ShareComparisonReport, SharedSession
+from backend.api.db.models import ShareComparisonReport, SharedSession, User
 from backend.api.dependencies import AuthenticatedUser, get_current_user, get_settings
 from backend.api.rate_limit import limiter
 from backend.api.routers.sessions import _compute_session_score
@@ -105,11 +104,7 @@ async def get_share_metadata(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ShareMetadata:
     """Get public metadata for a share link (no auth required)."""
-    result = await db.execute(
-        select(SharedSession)
-        .where(SharedSession.token == token)
-        .options(selectinload(SharedSession.user))
-    )
+    result = await db.execute(select(SharedSession).where(SharedSession.token == token))
     shared = result.scalar_one_or_none()
     if shared is None:
         raise HTTPException(status_code=404, detail="Share link not found")
@@ -121,10 +116,12 @@ async def get_share_metadata(
         else shared.expires_at < now
     )
 
-    # Get inviter name from eagerly-loaded user
+    # Get inviter name from user row (plain lookup — no FK relationship)
     inviter_name = "A driver"
-    if shared.user:
-        inviter_name = shared.user.name or shared.user.email
+    user_result = await db.execute(select(User).where(User.id == shared.user_id))
+    user = user_result.scalar_one_or_none()
+    if user:
+        inviter_name = user.name or user.email or "A driver"
 
     # Get best lap time from in-memory session
     best_lap: float | None = None
@@ -151,11 +148,7 @@ async def get_public_view(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> PublicSessionView:
     """Get rich public view data for a shared session (no auth required)."""
-    result = await db.execute(
-        select(SharedSession)
-        .where(SharedSession.token == token)
-        .options(selectinload(SharedSession.user))
-    )
+    result = await db.execute(select(SharedSession).where(SharedSession.token == token))
     shared = result.scalar_one_or_none()
     if shared is None:
         raise HTTPException(status_code=404, detail="Share link not found")
@@ -167,9 +160,12 @@ async def get_public_view(
         else shared.expires_at < now
     )
 
+    # Get driver name from user row (plain lookup — no FK relationship)
     driver_name = "A driver"
-    if shared.user:
-        driver_name = shared.user.name or "A driver"
+    user_result = await db.execute(select(User).where(User.id == shared.user_id))
+    user = user_result.scalar_one_or_none()
+    if user:
+        driver_name = user.name or "A driver"
 
     # Short-circuit for expired links — avoid expensive computation
     if is_expired:
