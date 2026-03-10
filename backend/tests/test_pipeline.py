@@ -17,6 +17,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from cataclysm.corners import Corner
 
 from backend.api.services import equipment_store
 from backend.api.services import pipeline as pipeline_module
@@ -471,3 +472,35 @@ class TestProcessUpload:
             assert "session_id" in result
         finally:
             Path(tmp_path).unlink(missing_ok=True)
+
+
+def _mk_corner(number: int) -> Corner:
+    return Corner(
+        number=number,
+        entry_distance_m=number * 10.0,
+        exit_distance_m=number * 10.0 + 5.0,
+        apex_distance_m=number * 10.0 + 2.5,
+        min_speed_mps=20.0,
+        brake_point_m=None,
+        peak_brake_g=None,
+        throttle_commit_m=None,
+        apex_type="mid",
+    )
+
+
+class TestPropagateCornerMetadata:
+    def test_aligns_by_corner_number_not_position(self) -> None:
+        ref_1 = _mk_corner(1)
+        ref_1.character = "flat"
+        ref_2 = _mk_corner(2)
+        ref_2.character = "brake"
+        reference = [ref_1, ref_2]
+
+        lap_1 = _mk_corner(1)
+        lap_3 = _mk_corner(3)
+        lap = [lap_1, lap_3]  # Missing corner 2 should not shift metadata onto corner 3.
+
+        pipeline_module._propagate_corner_metadata(reference, lap)  # noqa: SLF001
+
+        assert lap_1.character == "flat"
+        assert lap_3.character is None

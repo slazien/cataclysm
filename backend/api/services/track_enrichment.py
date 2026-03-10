@@ -107,6 +107,25 @@ def _build_centerline_df(
     )
 
 
+def _integrated_heading_change_deg(
+    distance_m: np.ndarray,
+    heading_deg: np.ndarray,
+    entry_distance_m: float,
+    exit_distance_m: float,
+) -> float:
+    """Return absolute integrated heading change through a corner zone."""
+    entry_idx = int(np.searchsorted(distance_m, entry_distance_m))
+    exit_idx = int(np.searchsorted(distance_m, exit_distance_m))
+    entry_idx = max(0, min(entry_idx, len(heading_deg) - 1))
+    exit_idx = max(0, min(exit_idx, len(heading_deg) - 1))
+    if exit_idx <= entry_idx:
+        return 0.0
+
+    diff = np.diff(heading_deg[entry_idx : exit_idx + 1])
+    diff = (diff + 180.0) % 360.0 - 180.0
+    return float(abs(np.sum(diff)))
+
+
 def _corner_to_official(
     corner: Corner,
     track_length_m: float,
@@ -232,13 +251,16 @@ async def enrich_track(
     # --- Step 2: Corner classification ---
     classifications: dict[int, tuple[str, float]] = {}
     try:
+        distance_arr = df["lap_distance_m"].to_numpy(dtype=float)
+        heading_arr = df["heading_deg"].to_numpy(dtype=float)
         for c in corners:
             if c.peak_curvature is not None:
-                heading_change = abs(
-                    (c.exit_distance_m - c.entry_distance_m) * (c.peak_curvature or 0)
+                heading_deg = _integrated_heading_change_deg(
+                    distance_arr,
+                    heading_arr,
+                    c.entry_distance_m,
+                    c.exit_distance_m,
                 )
-                # Approximate heading change from arc length * curvature (radians -> degrees)
-                heading_deg = float(np.degrees(heading_change))
                 arc_length = c.exit_distance_m - c.entry_distance_m
                 cls = classify_corner(
                     peak_curvature=c.peak_curvature,
