@@ -219,10 +219,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 "Loaded %d equipment profile(s), %d session assignment(s) from disk", n_eq, n_se
             )
 
+    # Seed hardcoded tracks into DB (idempotent — skips existing slugs)
+    from backend.api.db.database import async_session_factory as _corner_asf
+    from backend.api.services.track_seed import seed_tracks_from_hardcoded
+
+    try:
+        async with _corner_asf() as _seed_db:
+            n_seeded = await seed_tracks_from_hardcoded(_seed_db)
+            await _seed_db.commit()
+            if n_seeded:
+                logger.info("Seeded %d hardcoded track(s) into DB", n_seeded)
+    except Exception:
+        logger.warning("Failed to seed hardcoded tracks into DB", exc_info=True)
+
     # Load DB tracks into hybrid cache (DB-first, Python constants fallback)
     from cataclysm.track_db_hybrid import load_db_tracks
-
-    from backend.api.db.database import async_session_factory as _corner_asf
 
     try:
         async with _corner_asf() as _tracks_db:
