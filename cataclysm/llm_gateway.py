@@ -73,6 +73,34 @@ _ROUTING_ENABLED_OVERRIDE: bool | None = None
 _ROUTING_SOURCE: str = "default"
 _ROUTING_UPDATED_AT: str | None = None
 
+# ── Per-task route cache (synced from DB) ────────────────────────────
+_TASK_ROUTE_LOCK = threading.Lock()
+_TASK_ROUTE_CACHE: dict[str, list[dict[str, str]]] = {}
+
+
+def set_task_route_cache(routes: dict[str, list[dict[str, str]]]) -> None:
+    """Replace the in-memory per-task route cache (called by sync worker)."""
+    global _TASK_ROUTE_CACHE
+    with _TASK_ROUTE_LOCK:
+        _TASK_ROUTE_CACHE = dict(routes)
+
+
+def get_task_route_chain(
+    task: str, default_provider: Provider, default_model: str
+) -> list[tuple[Provider, str]]:
+    """Return the full provider/model chain for a task (primary + fallbacks)."""
+    with _TASK_ROUTE_LOCK:
+        chain_raw = _TASK_ROUTE_CACHE.get(task)
+    if not chain_raw:
+        return [(default_provider, default_model)]
+    return [
+        (
+            _normalize_provider(entry.get("provider"), default_provider),
+            entry.get("model", default_model),
+        )
+        for entry in chain_raw
+    ]
+
 
 def _env_bool(name: str, default: bool = False) -> bool:
     raw = os.environ.get(name)
@@ -149,11 +177,19 @@ def _route_for_task(
 ) -> tuple[Provider, str]:
     """Resolve provider/model route for a task.
 
-    Routing behavior:
-    - If LLM_ROUTING_ENABLED=false: use supplied defaults.
-    - If LLM_ROUTING_ENABLED=true: use per-task env overrides when provided,
-      otherwise default to cheap model tiers if keys are available.
+    Priority: DB config > env vars > caller defaults.
     """
+    # 1. DB-backed per-task config (highest priority)
+    with _TASK_ROUTE_LOCK:
+        chain_raw = _TASK_ROUTE_CACHE.get(task)
+    if chain_raw:
+        entry = chain_raw[0]
+        return (
+            _normalize_provider(entry.get("provider"), default_provider),
+            entry.get("model", default_model),
+        )
+
+    # 2. Legacy env-var routing (only when routing enabled)
     if not routing_enabled(False):
         return default_provider, default_model
 
@@ -468,11 +504,19 @@ def call_text_completion(
     resolved_max_retries = (
         max_retries if max_retries is not None else _env_int("LLM_MAX_RETRIES", 3)
     )
-    primary_provider, primary_model = _route_for_task(task, default_provider, default_model)
-    fallback_provider, fallback_model = _fallback_for_task(task, default_provider, default_model)
-    attempts = [(primary_provider, primary_model)]
-    if (fallback_provider, fallback_model) != (primary_provider, primary_model):
-        attempts.append((fallback_provider, fallback_model))
+    # Build attempt chain: DB config (full chain) or legacy (primary+fallback)
+    with _TASK_ROUTE_LOCK:
+        has_db_config = task in _TASK_ROUTE_CACHE
+    if has_db_config:
+        attempts = get_task_route_chain(task, default_provider, default_model)
+    else:
+        primary_provider, primary_model = _route_for_task(task, default_provider, default_model)
+        fallback_provider, fallback_model = _fallback_for_task(
+            task, default_provider, default_model
+        )
+        attempts = [(primary_provider, primary_model)]
+        if (fallback_provider, fallback_model) != (primary_provider, primary_model):
+            attempts.append((fallback_provider, fallback_model))
 
     last_error: Exception | None = None
     for provider, model in attempts:
