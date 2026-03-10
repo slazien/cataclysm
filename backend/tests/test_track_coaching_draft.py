@@ -77,6 +77,31 @@ class TestGenerateCoachingDrafts:
                 os.environ["ANTHROPIC_API_KEY"] = old
 
     @pytest.mark.asyncio
+    async def test_router_mode_does_not_require_anthropic_key(self) -> None:
+        corners = [{"number": 1, "name": "T1"}]
+        routed = MagicMock(text=json.dumps([{"number": 1, "note": "Brake in a straight line."}]))
+
+        with (
+            patch.dict(
+                "os.environ",
+                {"LLM_ROUTING_ENABLED": "1", "OPENAI_API_KEY": "sk-openai"},
+                clear=True,
+            ),
+            patch("backend.api.services.track_coaching_draft.is_task_available", return_value=True),
+            patch(
+                "backend.api.services.track_coaching_draft.call_text_completion",
+                return_value=routed,
+            ),
+            patch(_PATCH_ANTHROPIC) as mock_mod,
+        ):
+            drafts = await generate_coaching_drafts(corners, track_name="Test")
+
+        assert len(drafts) == 1
+        assert drafts[0].corner_number == 1
+        assert "Brake" in drafts[0].coaching_note
+        mock_mod.AsyncAnthropic.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_api_error_returns_empty(self) -> None:
         client = AsyncMock()
         client.messages.create = AsyncMock(side_effect=Exception("API error"))

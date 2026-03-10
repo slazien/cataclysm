@@ -8,9 +8,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.config import Settings
 from backend.api.db.database import get_db
 from backend.api.db.models import User
-from backend.api.dependencies import AuthenticatedUser, get_current_user
+from backend.api.dependencies import AuthenticatedUser, get_current_user, get_settings
 from backend.api.schemas.user import UserSchema, UserUpdateSchema
 
 router = APIRouter()
@@ -52,6 +53,7 @@ async def update_me(
     body: UserUpdateSchema,
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> User:
     """Update the current user's profile (e.g. skill_level)."""
     from fastapi import HTTPException
@@ -71,8 +73,9 @@ async def update_me(
         old_level = user.skill_level
         user.skill_level = body.skill_level
 
-        # Queue coaching reports for the new skill level so they're ready
-        if body.skill_level != old_level:
+        # Queue coaching reports for the new skill level so they're ready,
+        # unless lazy-generation mode is enabled.
+        if body.skill_level != old_level and not settings.llm_lazy_generation_enabled:
             import logging
 
             from backend.api.routers.coaching import trigger_auto_coaching

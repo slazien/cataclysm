@@ -5,8 +5,9 @@ const SPEED_RANGE_LEGACY_RE = /(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)\s*mph/gi;
 const SPEED_SINGLE_LEGACY_RE = /(\d+(?:\.\d+)?)\s*mph/gi;
 const SPEED_RANGE_KMH_LEGACY_RE = /(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)\s*km\/h/gi;
 const SPEED_SINGLE_KMH_LEGACY_RE = /(\d+(?:\.\d+)?)\s*km\/h/gi;
-const DISTANCE_M_WORD_LEGACY_RE = /(\d+(?:\.\d+)?)\s*m(?:eters?|etres?)\b/gi;
-const DISTANCE_M_SINGLE_LEGACY_RE = /(\d+(?:\.\d+)?)\s*m\b(?!\s*\/)/gi;
+const DISTANCE_M_WORD_LEGACY_RE = /(\d+(?:\.\d+)?)\s*meters?\b/gi;
+const DISTANCE_METRE_WORD_LEGACY_RE = /(\d+(?:\.\d+)?)\s*metres?\b/gi;
+const DISTANCE_M_SINGLE_LEGACY_RE = /(\d+(?:\.\d+)?)\s*m\b(?!\/s)/gi;
 const DISTANCE_FT_SINGLE_LEGACY_RE = /(\d+(?:\.\d+)?)\s*ft\b/gi;
 const DISTANCE_FEET_WORD_LEGACY_RE = /(\d+(?:\.\d+)?)\s*feet\b/gi;
 const DISTANCE_FOOT_WORD_LEGACY_RE = /(\d+(?:\.\d+)?)\s*foot\b/gi;
@@ -17,9 +18,9 @@ const MPH_TO_KMH = 1.60934;
 const M_TO_FT = 3.28084;
 const FT_TO_M = 0.3048;
 
-function _preserve_decimals(raw: string, converted: number): string {
-  const dec = raw.includes('.') ? raw.split('.')[1].length : 0;
-  return converted.toFixed(dec);
+function preserveDecimals(value: number, source: string): string {
+  const decimals = source.includes('.') ? source.split('.')[1].length : 0;
+  return value.toFixed(decimals);
 }
 
 /**
@@ -71,18 +72,18 @@ export function resolveSpeedMarkers(text: string, isMetric: boolean): string {
       const dec = n.includes('.') ? n.split('.')[1].length : 0;
       return `${kmh.toFixed(dec)} km/h`;
     });
-    // Metric: convert bare imperial distances back to meters.
+    // Metric: convert bare imperial distances ("N ft"/"N feet"/"N foot") → m
     result = result.replace(DISTANCE_FT_SINGLE_LEGACY_RE, (_, n: string) => {
       const meters = parseFloat(n) * FT_TO_M;
-      return `${_preserve_decimals(n, meters)} m`;
+      return `${preserveDecimals(meters, n)} m`;
     });
     result = result.replace(DISTANCE_FEET_WORD_LEGACY_RE, (_, n: string) => {
       const meters = parseFloat(n) * FT_TO_M;
-      return `${_preserve_decimals(n, meters)} m`;
+      return `${preserveDecimals(meters, n)} m`;
     });
     result = result.replace(DISTANCE_FOOT_WORD_LEGACY_RE, (_, n: string) => {
       const meters = parseFloat(n) * FT_TO_M;
-      return `${_preserve_decimals(n, meters)} m`;
+      return `${preserveDecimals(meters, n)} m`;
     });
   } else {
     // Imperial: convert bare "N km/h" → mph (LLM drift or reports cached before backend fix)
@@ -96,14 +97,19 @@ export function resolveSpeedMarkers(text: string, isMetric: boolean): string {
       const dec = n.includes('.') ? n.split('.')[1].length : 0;
       return `${mph.toFixed(dec)} mph`;
     });
-    // Imperial: convert meter distances to feet in coaching text.
+    // Imperial: convert bare metric distances ("Nm"/"N meters"/"N metres") → ft.
+    // Skip m/s values via DISTANCE_M_SINGLE_LEGACY_RE negative lookahead.
     result = result.replace(DISTANCE_M_WORD_LEGACY_RE, (_, n: string) => {
       const feet = parseFloat(n) * M_TO_FT;
-      return `${_preserve_decimals(n, feet)} ft`;
+      return `${preserveDecimals(feet, n)} ft`;
+    });
+    result = result.replace(DISTANCE_METRE_WORD_LEGACY_RE, (_, n: string) => {
+      const feet = parseFloat(n) * M_TO_FT;
+      return `${preserveDecimals(feet, n)} ft`;
     });
     result = result.replace(DISTANCE_M_SINGLE_LEGACY_RE, (_, n: string) => {
       const feet = parseFloat(n) * M_TO_FT;
-      return `${_preserve_decimals(n, feet)} ft`;
+      return `${preserveDecimals(feet, n)} ft`;
     });
     // Imperial: convert bare "N°C" → °F and "Nmm" → in
     result = result.replace(TEMP_C_LEGACY_RE, (_, n: string) =>

@@ -321,7 +321,7 @@ export function WelcomeScreen() {
                 #1 Focus — 0.4s available
               </p>
               <p className="mt-1 text-sm leading-relaxed text-[var(--text-primary)]">
-                Brake slightly later at Turn 5. Your brake trace shows early entry — move your
+                Brake slightly later at Turn 5. Your brake trace shows early entry. Move your
                 reference point to the next brake board and carry more speed to the apex.
               </p>
             </div>

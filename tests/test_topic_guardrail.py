@@ -6,6 +6,7 @@ import sys
 from unittest.mock import MagicMock, patch
 
 from cataclysm.topic_guardrail import (
+    _CLASSIFIER_TIMEOUT_S,
     INPUT_TOO_LONG_RESPONSE,
     MAX_MESSAGE_LENGTH,
     OFF_TOPIC_RESPONSE,
@@ -144,6 +145,23 @@ class TestClassifyTopic:
         call_kwargs = mock.Anthropic.return_value.messages.create.call_args
         prompt_text = call_kwargs.kwargs["messages"][0]["content"]
         assert "trail braking" in prompt_text
+
+    def test_router_mode_uses_fast_fail_settings(self) -> None:
+        with (
+            patch.dict(
+                "os.environ",
+                {"LLM_ROUTING_ENABLED": "1", "OPENAI_API_KEY": "sk-openai"},
+                clear=True,
+            ),
+            patch("cataclysm.topic_guardrail.call_text_completion") as mock_call,
+        ):
+            mock_call.return_value = MagicMock(text='{"on_topic": true}')
+            result = classify_topic("How should I trail brake for turn 5?")
+
+        assert result.on_topic is True
+        call_kwargs = mock_call.call_args.kwargs
+        assert call_kwargs["timeout_s"] == _CLASSIFIER_TIMEOUT_S
+        assert call_kwargs["max_retries"] == 1
 
 
 # ---------------------------------------------------------------------------

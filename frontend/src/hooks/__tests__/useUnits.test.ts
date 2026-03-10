@@ -307,6 +307,20 @@ describe('useUnits', () => {
       expect(result.current.resolveSpeed(text)).toContain(`${kmh} km/h`);
     });
 
+    it('converts metric distance text to feet in imperial mode', () => {
+      useUiStore.setState({ unitPreference: 'imperial' });
+      const { result } = renderHook(() => useUnits());
+      const text = 'Try braking at 98m past the bridge.';
+      expect(result.current.resolveSpeed(text)).toBe('Try braking at 322 ft past the bridge.');
+    });
+
+    it('converts feet distance text to meters in metric mode', () => {
+      useUiStore.setState({ unitPreference: 'metric' });
+      const { result } = renderHook(() => useUnits());
+      const text = 'Brake at 322 ft before turn-in.';
+      expect(result.current.resolveSpeed(text)).toBe('Brake at 98 m before turn-in.');
+    });
+
     it('leaves legacy "N mph" text unchanged in imperial mode', () => {
       useUiStore.setState({ unitPreference: 'imperial' });
       const { result } = renderHook(() => useUnits());

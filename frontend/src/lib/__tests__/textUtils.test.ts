@@ -233,6 +233,30 @@ describe('resolveSpeedMarkers', () => {
     });
   });
 
+  describe('distance conversion (legacy)', () => {
+    it('converts compact metric distance to feet in imperial mode', () => {
+      expect(resolveSpeedMarkers('Try braking at 98m past the bridge.', false)).toBe(
+        'Try braking at 322 ft past the bridge.',
+      );
+    });
+
+    it('converts word-form metric distance to feet in imperial mode', () => {
+      expect(resolveSpeedMarkers('Brake 10 meters later.', false)).toBe(
+        'Brake 33 ft later.',
+      );
+    });
+
+    it('converts feet to meters in metric mode', () => {
+      expect(resolveSpeedMarkers('Brake at 322 ft.', true)).toBe('Brake at 98 m.');
+    });
+
+    it('does not convert m/s values as distance markers', () => {
+      const text = 'Apex speed change was 2 m/s lap to lap.';
+      expect(resolveSpeedMarkers(text, false)).toBe(text);
+      expect(resolveSpeedMarkers(text, true)).toBe(text);
+    });
+  });
+
   describe('mixed markers + legacy', () => {
     it('resolves both in same string', () => {
       const input = '{{speed:50}} at entry, then 42 mph at exit';
