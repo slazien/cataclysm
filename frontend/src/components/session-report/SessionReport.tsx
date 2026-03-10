@@ -177,6 +177,10 @@ export function SessionReport() {
 
   // Tour: trigger when session + laps are loaded (no coaching dependency)
   const hasTourTargets = Boolean(session && laps?.length);
+  if (hasTourTargets && !localStorage.getItem('cataclysm-tour-report')) {
+    // Always log when tour SHOULD trigger — visible in prod builds too
+    console.warn('[tour:report] enabled=true, hasSeen=false — tour should auto-trigger');
+  }
   useTour('report', hasTourTargets, () => getReportSteps(skillLevel));
 
   return (

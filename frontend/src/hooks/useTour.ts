@@ -55,49 +55,67 @@ export function useTour(
 
   const startTour = useCallback(async () => {
     // Guard against concurrent/duplicate calls
-    if (startedRef.current) return;
+    if (startedRef.current) {
+      if (process.env.NODE_ENV !== 'production') console.debug(`[tour:${tourName}] skip: already started`);
+      return;
+    }
 
     const steps = getStepsRef.current();
 
     // Verify all target elements exist in DOM before starting
-    const allPresent = steps.every((step) => {
-      if (!step.element) return true; // non-element steps always ok
-      return document.querySelector(step.element as string) !== null;
-    });
-    if (!allPresent) return;
+    const missing = steps
+      .filter((step) => step.element && !document.querySelector(step.element as string))
+      .map((step) => step.element);
+    if (missing.length > 0) {
+      // Always log missing elements — this is the most common failure cause
+      console.warn(`[tour:${tourName}] skip: missing elements`, missing);
+      return;
+    }
 
     // Don't start while a modal overlay is blocking.
-    if (!localStorage.getItem('cataclysm-disclaimer-accepted')) return;
+    if (!localStorage.getItem('cataclysm-disclaimer-accepted')) {
+      console.warn(`[tour:${tourName}] skip: disclaimer not accepted`);
+      return;
+    }
 
     // All checks passed — prevent duplicate starts
     startedRef.current = true;
 
-    // Dynamic import — zero bundle cost for returning users
-    // CSS is loaded globally via globals.css @import
-    const { driver } = await import('driver.js');
+    try {
+      // Dynamic import — zero bundle cost for returning users
+      // CSS is loaded globally via globals.css @import
+      const { driver } = await import('driver.js');
 
-    const driverInstance = driver({
-      showProgress: true,
-      popoverClass: 'cataclysm-tour-popover',
-      nextBtnText: 'Next',
-      prevBtnText: 'Back',
-      doneBtnText: 'Got it',
-      onDestroyStarted: () => {
-        // Mark as seen whether they complete or dismiss
-        markSeen();
-        driverInstance.destroy();
-      },
-      steps,
-    });
+      const driverInstance = driver({
+        showProgress: true,
+        popoverClass: 'cataclysm-tour-popover',
+        nextBtnText: 'Next',
+        prevBtnText: 'Back',
+        doneBtnText: 'Got it',
+        onDestroyStarted: () => {
+          // Mark as seen whether they complete or dismiss
+          markSeen();
+          driverInstance.destroy();
+        },
+        steps,
+      });
 
-    driverRef.current = driverInstance;
-    driverInstance.drive();
+      driverRef.current = driverInstance;
+      driverInstance.drive();
+    } catch (err) {
+      // Reset so retries can work — import or driver init failed
+      startedRef.current = false;
+      console.warn(`[tour:${tourName}] driver.js failed:`, err);
+    }
   }, [markSeen]);
 
   // Auto-trigger when enabled becomes true and tour not yet seen.
   // Uses interval-based retry: first attempt at 800ms (settle delay),
   // then every 500ms up to ~4s total. Handles transient DOM/overlay timing.
   useEffect(() => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug(`[tour:${tourName}] effect: enabled=${enabled} hasSeen=${hasSeen} started=${startedRef.current}`);
+    }
     if (!enabled || hasSeen || startedRef.current) return;
 
     let attempts = 0;
@@ -106,12 +124,20 @@ export function useTour(
     const timer = setTimeout(() => {
       startTour();
       attempts++;
-      if (startedRef.current || attempts >= maxAttempts) return;
+      if (startedRef.current || attempts >= maxAttempts) {
+        if (!startedRef.current && attempts >= maxAttempts) {
+          console.warn(`[tour:${tourName}] gave up after ${maxAttempts} attempts`);
+        }
+        return;
+      }
 
       // First attempt failed — retry periodically
       intervalId = setInterval(() => {
         attempts++;
         if (startedRef.current || attempts >= maxAttempts) {
+          if (!startedRef.current && attempts >= maxAttempts) {
+            console.warn(`[tour:${tourName}] gave up after ${maxAttempts} attempts`);
+          }
           clearInterval(intervalId!);
           return;
         }
