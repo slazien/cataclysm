@@ -157,12 +157,13 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
       ctx.textBaseline = 'middle';
       ctx.fillText(`T${opp.corner_number}`, margins.left - 6, y + barHeight / 2);
 
-      // Value label
+      // Value label — always show speed gap + total time for consistency
       const gapDisplay = convertSpeed(opp.speed_gap_mph).toFixed(1);
+      const totalDisplay = totalImpact.toFixed(1);
       const label =
-        exitCost > 0
-          ? `~${opp.time_cost_s.toFixed(1)}s corner · ${exitCost.toFixed(1)}s exit`
-          : `+${gapDisplay} ${speedUnit}  ~${opp.time_cost_s.toFixed(1)}s`;
+        exitCost > 0.05
+          ? `+${gapDisplay} ${speedUnit}  ~${opp.time_cost_s.toFixed(1)}s corner · ${exitCost.toFixed(1)}s exit`
+          : `+${gapDisplay} ${speedUnit}  ~${totalDisplay}s`;
       if (totalBarW > 140) {
         ctx.fillStyle = '#fff';
         ctx.font = 'bold 10px Inter, system-ui, sans-serif';
