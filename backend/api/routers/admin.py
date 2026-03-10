@@ -195,10 +195,25 @@ MODEL_REGISTRY = [
 ]
 
 
+class ChainEntry(BaseModel):
+    """Single provider/model pair in a routing chain."""
+
+    provider: Literal["anthropic", "openai", "google"]
+    model: str
+
+
 class TaskRoutePayload(BaseModel):
     """PUT body for per-task LLM routing configuration."""
 
-    chain: list[dict[str, str]]  # [{"provider": "...", "model": "..."}]
+    chain: list[ChainEntry]
+
+    @field_validator("chain")
+    @classmethod
+    def chain_non_empty(cls, v: list[ChainEntry]) -> list[ChainEntry]:
+        if not v:
+            msg = "chain must have at least one entry"
+            raise ValueError(msg)
+        return v
 
 
 @router.get("/me")
@@ -509,7 +524,8 @@ async def upsert_task_route(
     if task not in KNOWN_TASKS:
         raise HTTPException(400, f"Unknown task: {task}")
 
-    config_json = json.dumps({"chain": payload.chain})
+    chain_dicts = [{"provider": e.provider, "model": e.model} for e in payload.chain]
+    config_json = json.dumps({"chain": chain_dicts})
     row = await db.get(LlmTaskRoute, task)
     if row is None:
         row = LlmTaskRoute(task=task, config_json=config_json, updated_by=user.email)
@@ -521,7 +537,7 @@ async def upsert_task_route(
 
     # Immediately apply to gateway cache
     await sync_task_routes_once()
-    return {"task": task, "config": {"chain": payload.chain}}
+    return {"task": task, "config": {"chain": chain_dicts}}
 
 
 @router.delete("/llm-routing/tasks/{task}")
@@ -531,6 +547,8 @@ async def delete_task_route(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, str]:
     """Remove per-task routing config (revert to caller defaults)."""
+    if task not in KNOWN_TASKS:
+        raise HTTPException(400, f"Unknown task: {task}")
     row = await db.get(LlmTaskRoute, task)
     if row is not None:
         await db.delete(row)

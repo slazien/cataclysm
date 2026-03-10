@@ -513,7 +513,7 @@ def call_text_completion(
     # Build attempt chain: DB config (full chain) or legacy (primary+fallback)
     with _TASK_ROUTE_LOCK:
         chain_raw = _TASK_ROUTE_CACHE.get(task)
-    if chain_raw is not None:
+    if chain_raw:
         attempts = [
             (
                 _normalize_provider(e.get("provider"), default_provider),
