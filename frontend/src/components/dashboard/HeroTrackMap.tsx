@@ -283,8 +283,19 @@ export function HeroTrackMap({ sessionId, bestLapNumber }: HeroTrackMapProps) {
           className="h-auto w-full"
           preserveAspectRatio="xMidYMid meet"
         >
-          {/* Draw track segments */}
+          {/* Base track outline — continuous, eliminates gaps between segments */}
+          <polyline
+            points={projected.x.map((px, j) => `${px},${projected.y[j]}`).join(' ')}
+            fill="none"
+            stroke={colors.text.muted}
+            strokeWidth={3.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.35}
+          />
+          {/* Colored corner segments on top */}
           {segments.map((seg, i) => {
+            if (seg.cornerNumber === undefined) return null;
             const points: string[] = [];
             for (let j = seg.startIdx; j <= seg.endIdx && j < projected.x.length; j++) {
               points.push(`${projected.x[j]},${projected.y[j]}`);
@@ -299,7 +310,6 @@ export function HeroTrackMap({ sessionId, bestLapNumber }: HeroTrackMapProps) {
                 strokeWidth={3.5}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                opacity={seg.cornerNumber !== undefined ? 1 : 0.4}
               />
             );
           })}
