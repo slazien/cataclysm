@@ -11,6 +11,7 @@ Create Date: 2026-03-10 00:00:00.000000
 
 from __future__ import annotations
 
+import sqlalchemy as sa
 from alembic import op
 
 revision = "g7c8d9e0f1a2"
@@ -20,6 +21,10 @@ depends_on = None
 
 
 def upgrade() -> None:
+    inspector = sa.inspect(op.get_bind())
+    if "track_corners_v2" not in inspector.get_table_names():
+        return
+
     # Drop the wrong constraint (if it exists)
     op.execute(
         "ALTER TABLE track_corners_v2 DROP CONSTRAINT IF EXISTS ck_track_corners_v2_corner_type"
@@ -34,6 +39,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    inspector = sa.inspect(op.get_bind())
+    if "track_corners_v2" not in inspector.get_table_names():
+        return
+
     op.execute(
         "ALTER TABLE track_corners_v2 DROP CONSTRAINT IF EXISTS ck_track_corners_v2_corner_type"
     )
