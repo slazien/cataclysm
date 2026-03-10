@@ -116,3 +116,55 @@ export async function setLlmRoutingStatus(enabled: boolean): Promise<LlmRoutingS
 export async function getLlmDashboard(days: number): Promise<LlmDashboardData> {
   return fetchApi(`/api/admin/llm-usage/dashboard?days=${days}`);
 }
+
+// ── Per-task routing config types ────────────────────────────────────
+
+export interface LlmModelInfo {
+  provider: string;
+  model: string;
+  display: string;
+  cost_in: number;
+  cost_out: number;
+}
+
+export interface LlmRouteEntry {
+  provider: string;
+  model: string;
+}
+
+export interface LlmModelsResponse {
+  models: LlmModelInfo[];
+  tasks: string[];
+  available_providers: string[];
+}
+
+export interface LlmTaskRoutesResponse {
+  task_routes: Record<string, { chain: LlmRouteEntry[] }>;
+  tasks: string[];
+}
+
+export async function getLlmModels(): Promise<LlmModelsResponse> {
+  return fetchApi("/api/admin/llm-routing/models");
+}
+
+export async function getLlmTaskRoutes(): Promise<LlmTaskRoutesResponse> {
+  return fetchApi("/api/admin/llm-routing/tasks");
+}
+
+export async function setLlmTaskRoute(
+  task: string,
+  chain: LlmRouteEntry[],
+): Promise<{ task: string; config: { chain: LlmRouteEntry[] } }> {
+  return fetchApi(`/api/admin/llm-routing/tasks/${task}`, {
+    method: "PUT",
+    body: JSON.stringify({ chain }),
+  });
+}
+
+export async function deleteLlmTaskRoute(
+  task: string,
+): Promise<{ status: string; task: string }> {
+  return fetchApi(`/api/admin/llm-routing/tasks/${task}`, {
+    method: "DELETE",
+  });
+}
