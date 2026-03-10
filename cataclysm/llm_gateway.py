@@ -235,10 +235,15 @@ def _provider_api_key(provider: Provider) -> str:
 
 def is_task_available(task: str, default_provider: Provider = "anthropic") -> bool:
     """Return True if a routed provider has an API key configured."""
-    chain = get_task_route_chain(task, default_provider, "")
-    if any(_provider_api_key(p) for p, _m in chain):
+    with _TASK_ROUTE_LOCK:
+        has_db_config = task in _TASK_ROUTE_CACHE
+    if has_db_config:
+        chain = get_task_route_chain(task, default_provider, "")
+        return any(_provider_api_key(p) for p, _m in chain)
+    # Legacy: use env-var routing (primary + fallback)
+    provider, _ = _route_for_task(task, default_provider, "")
+    if _provider_api_key(provider):
         return True
-    # If no DB config, also check legacy env-var fallback
     fb_provider, _ = _fallback_for_task(task, default_provider, "")
     return bool(_provider_api_key(fb_provider))
 
