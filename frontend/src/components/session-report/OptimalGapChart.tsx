@@ -105,21 +105,50 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
       const y = margins.top + i * (barHeight + barSpacing);
       const totalImpact = totalImpactS(opp);
       const exitCost = opp.exit_straight_time_cost_s ?? 0;
-      const barW = maxTimeCost > 0 ? (totalImpact / maxTimeCost) * chartW : 0;
+      const totalBarW = maxTimeCost > 0 ? (totalImpact / maxTimeCost) * chartW : 0;
 
       // Color gradient: green for small relative cost, red for large
       const intensity = maxTimeCost > 0 ? totalImpact / maxTimeCost : 0;
       const barColor = lerpColor(COLOR_GREEN, COLOR_RED, intensity);
 
-      // Bar
-      ctx.fillStyle = barColor + 'd9'; // ~85% opacity
-      ctx.beginPath();
-      if (ctx.roundRect) {
-        ctx.roundRect(margins.left, y, barW, barHeight, 3);
+      // Stacked bar: corner segment (solid) + optional straight segment (faded)
+      if (exitCost > 0 && totalBarW > 4) {
+        const gap = 1;
+        const usableW = totalBarW - gap;
+        const cornerW = (opp.time_cost_s / totalImpact) * usableW;
+        const straightW = (exitCost / totalImpact) * usableW;
+
+        // Corner segment — rounded left corners only
+        ctx.fillStyle = barColor + 'd9';
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(margins.left, y, cornerW, barHeight, [3, 0, 0, 3]);
+        } else {
+          ctx.rect(margins.left, y, cornerW, barHeight);
+        }
+        ctx.fill();
+
+        // Straight segment — rounded right corners only, lower opacity
+        const straightX = margins.left + cornerW + gap;
+        ctx.fillStyle = barColor + '5c';
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(straightX, y, straightW, barHeight, [0, 3, 3, 0]);
+        } else {
+          ctx.rect(straightX, y, straightW, barHeight);
+        }
+        ctx.fill();
       } else {
-        ctx.rect(margins.left, y, barW, barHeight);
+        // Single bar — no exit straight or bar too narrow to split
+        ctx.fillStyle = barColor + 'd9';
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(margins.left, y, totalBarW, barHeight, 3);
+        } else {
+          ctx.rect(margins.left, y, totalBarW, barHeight);
+        }
+        ctx.fill();
       }
-      ctx.fill();
 
       // Corner name label (left of bar)
       ctx.fillStyle = 'rgba(200, 200, 210, 0.8)';
@@ -128,31 +157,30 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
       ctx.textBaseline = 'middle';
       ctx.fillText(`T${opp.corner_number}`, margins.left - 6, y + barHeight / 2);
 
-      // Value label: "+X.X mph potential  ~0.Xs"
+      // Value label
       const gapDisplay = convertSpeed(opp.speed_gap_mph).toFixed(1);
       const label =
         exitCost > 0
-          ? `~${opp.time_cost_s.toFixed(1)}s corner + ${exitCost.toFixed(1)}s exit = ${totalImpact.toFixed(1)}s`
+          ? `~${opp.time_cost_s.toFixed(1)}s corner · ${exitCost.toFixed(1)}s exit`
           : `+${gapDisplay} ${speedUnit}  ~${opp.time_cost_s.toFixed(1)}s`;
-      if (barW > 140) {
+      if (totalBarW > 140) {
         ctx.fillStyle = '#fff';
         ctx.font = 'bold 10px Inter, system-ui, sans-serif';
         ctx.textAlign = 'left';
         ctx.fillText(label, margins.left + 6, y + barHeight / 2);
       } else {
         ctx.font = '10px Inter, system-ui, sans-serif';
-        const labelX = margins.left + barW + 4;
+        const labelX = margins.left + totalBarW + 4;
         const textW = ctx.measureText(label).width;
         const rightBound = width - margins.right;
-        if (labelX + textW > rightBound && barW >= 50) {
+        if (labelX + textW > rightBound && totalBarW >= 50) {
           // Not enough space outside — draw inside bar, right-aligned
           ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
           ctx.textAlign = 'right';
-          ctx.fillText(label, margins.left + barW - 4, y + barHeight / 2);
+          ctx.fillText(label, margins.left + totalBarW - 4, y + barHeight / 2);
         } else {
           ctx.fillStyle = 'rgba(200, 200, 210, 0.6)';
           ctx.textAlign = 'left';
-          // Clip to right bound to avoid any overflow
           ctx.save();
           ctx.beginPath();
           ctx.rect(labelX, y, rightBound - labelX, barHeight + 2);
