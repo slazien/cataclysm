@@ -297,7 +297,9 @@ export function HeroTrackMap({ sessionId, bestLapNumber }: HeroTrackMapProps) {
           {segments.map((seg, i) => {
             if (seg.cornerNumber === undefined) return null;
             const points: string[] = [];
-            for (let j = seg.startIdx; j <= seg.endIdx && j < projected.x.length; j++) {
+            const lo = Math.max(0, seg.startIdx - 3);
+            const hi = Math.min(projected.x.length - 1, seg.endIdx + 3);
+            for (let j = lo; j <= hi; j++) {
               points.push(`${projected.x[j]},${projected.y[j]}`);
             }
             if (points.length < 2) return null;
