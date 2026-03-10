@@ -1,8 +1,10 @@
-"""Merge branch heads and fix corner_type check constraint.
+"""Merge branch heads and fix swapped CHECK constraints on track_corners_v2.
 
-The e9f0a1b2c3d4 branch applied the wrong CHECK constraint to
-track_corners_v2.corner_type (used character values instead of shape values).
-This migration merges both heads and corrects the constraint.
+The e9f0a1b2c3d4 migration accidentally swapped the constraint values:
+- ck_track_corners_v2_character got corner_type shape values (hairpin/sweeper/...)
+- ck_track_corners_v2_corner_type got character values (brake/lift/flat/acceleration)
+
+Both constraints are corrected here unconditionally (DROP IF EXISTS + re-create).
 
 Revision ID: h8d9e0f1a2b3
 Revises: e9f0a1b2c3d4, g7c8d9e0f1a2
@@ -20,10 +22,16 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # After merging both branches the constraint may be in the wrong state
-    # (from e9f0a1b2c3d4 which incorrectly set corner_type to brake/lift/flat/acceleration).
-    # g7c8d9e0f1a2 already fixed it on its own branch; this migration re-applies
-    # the correct constraint unconditionally so both upgrade paths end up consistent.
+    # Fix character constraint (was accidentally set to corner_type shape values)
+    op.execute(
+        "ALTER TABLE track_corners_v2 DROP CONSTRAINT IF EXISTS ck_track_corners_v2_character"
+    )
+    op.create_check_constraint(
+        "ck_track_corners_v2_character",
+        "track_corners_v2",
+        "character IS NULL OR character IN ('flat', 'lift', 'brake')",
+    )
+    # Fix corner_type constraint (was accidentally set to character values)
     op.execute(
         "ALTER TABLE track_corners_v2 DROP CONSTRAINT IF EXISTS ck_track_corners_v2_corner_type"
     )
@@ -36,5 +44,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Cannot meaningfully un-merge, just leave constraint in correct state
+    # Cannot meaningfully un-merge; leave constraints in correct state
     pass
