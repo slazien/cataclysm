@@ -1,5 +1,21 @@
 # Lessons Learned
 
+## Check Railway Logs FIRST When Debugging Deployed Bugs (2026-03-10)
+
+**Pattern**: When a user reports a bug on staging/prod, ALWAYS check Railway runtime logs first — filter for `"Unhandled exception"`, `"ERROR"`, or the specific endpoint path. Don't trace code paths theoretically; the logs show the exact exception in seconds.
+
+**Why**: User reported "track editor save returns 500." Instead of immediately checking staging logs (which would have shown `TypeError: 'coaching_note' is an invalid keyword argument for TrackCornerV2` in one step), time was spent tracing the data flow through multiple files. The user had to suggest "why don't you simply check the staging logs?" Logs are always the shortest path for deployed bugs.
+
+**Error signature**: User reports a 500/error on a deployed environment → you start reading source code instead of checking Railway logs → user asks "did you check the logs?"
+
+## Pydantic model_dump() → ORM **kwargs: Field Names Must Match Exactly (2026-03-10)
+
+**Pattern**: When a Pydantic `model_dump()` dict is passed via `**c` to an ORM constructor (`Model(**c)`), every key in the dict MUST match a column name. A single mismatch crashes with `TypeError: '<field>' is an invalid keyword argument`. Also: Pydantic v2 silently drops unknown fields (default `extra='ignore'`), so if the input model is missing columns that the ORM has, those columns get NULL — and if the upsert pattern is delete-all+recreate, the missing data is permanently lost.
+
+**Why**: `CornerInput` had `coaching_note` (singular) but `TrackCornerV2` has `coaching_notes` (plural). Every editor save crashed since the feature was deployed. Additionally, `lat`, `lon`, `character` weren't in `CornerInput`, so every save would have silently stripped GPS coordinates. Both bugs were invisible until someone actually tried saving.
+
+**Error signature**: `TypeError: '<field_name>' is an invalid keyword argument for <Model>` in backend logs. Or: data silently disappearing after save (field present in GET, absent after PUT+GET round-trip).
+
 ## Deploy Failures: Read Build Logs Before Attempting Fixes (2026-03-09)
 
 **Pattern**: When a Railway deploy fails, ALWAYS `get-logs <deploymentId>` (build type) before attempting any fix. The error message tells you exactly what's wrong.

@@ -20,7 +20,7 @@ Ask clarifying Qs before implementing. Concise, action-oriented.
 3. **Self-improve** — After any correction: `tasks/lessons.md`. **Rule-writing standard**: CLAUDE.md entries = action only, no "why" prose, use symbols (→ · ≥ ≠), abbreviate freely, merge related bullets. lessons.md = Pattern+Why+Error triplet, tight sentences, no padding. Never duplicate info between files. If a rule needs more than 2 lines in CLAUDE.md, the "why" belongs in lessons.md only.
 4. **Verify** — Proof before done (tests/logs). Always `superpowers:code-reviewer` post-impl.
 5. **Elegance** — Non-trivial: "simpler way?" Skip for quick fixes.
-6. **Bugs** — Fix autonomously. Complex → `debugging-toolkit:debugger`.
+6. **Bugs** — Fix autonomously. Complex → `debugging-toolkit:debugger`. **Deployed bugs**: ALWAYS check Railway logs first (`get-logs <deploymentId>` or filter for `"Unhandled exception"`/`"ERROR"`) — logs reveal the exact error faster than tracing code paths theoretically. Use staging logs for staging branch, prod logs for main.
 7. **No hedging** — Never say "ambitious." Implement everything.
 8. **Domain research** — Physics/coaching feature: WebSearch first (SAE, MoTeC, YourDataDriven, TrailBrake, Driver61). Never invent algorithms from coding intuition.
 9. **Task tracking** — Plan → `tasks/todo.md`, mark complete, capture lessons.
@@ -44,6 +44,7 @@ Arch → `docs/architecture.md` | Setup → `docs/developer-guide.md` | **Always
 - All files: `from __future__ import annotations`
 - Constants: UPPER_SNAKE_CASE · Structured data: dataclasses not dicts
 - DB `user_id` columns: plain `String`, NEVER `ForeignKey("users.id")` — OAuth/JWT users may lack rows in `users` table. Removing a FK → also remove its `relationship()` (orphan poisons ALL mappers).
+- Pydantic→ORM `**dict` expansion: field names MUST exactly match column names. `model_dump()` dicts used in `Model(**c)` will crash on any mismatch. Also: Pydantic v2 silently drops unknown fields — if input model feeds a delete-all+recreate upsert, ALL columns that must survive the round-trip MUST be in the input model. Keep Literal values synced with DB CHECK constraints.
 
 ## Quality Gates
 
