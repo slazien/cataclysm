@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
 
 from cataclysm.constants import MPS_TO_MPH
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -567,11 +570,14 @@ def detect_corners(
     List of detected Corner objects, numbered sequentially.
     """
     if method == "heading_rate":
-        return _detect_heading_rate(lap_df, step_m, threshold)
-    if method in ("spline", "pelt", "css", "asc"):
-        return _detect_advanced(lap_df, step_m, method)
-    msg = f"Unknown detection method: {method!r}"
-    raise ValueError(msg)
+        result = _detect_heading_rate(lap_df, step_m, threshold)
+    elif method in ("spline", "pelt", "css", "asc"):
+        result = _detect_advanced(lap_df, step_m, method)
+    else:
+        msg = f"Unknown detection method: {method!r}"
+        raise ValueError(msg)
+    logger.info("Detected %d corners via %s", len(result), method)
+    return result
 
 
 def extract_corner_kpis_for_lap(

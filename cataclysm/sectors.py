@@ -6,12 +6,15 @@ heavy lifting — this module adds the analysis/presentation layer on top.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 import pandas as pd
 
 from cataclysm.corners import Corner
 from cataclysm.gains import SegmentDefinition, build_segments, compute_segment_times
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass

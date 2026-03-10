@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -11,6 +12,8 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.signal import find_peaks
 
 from cataclysm.curvature import CurvatureResult
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Constants

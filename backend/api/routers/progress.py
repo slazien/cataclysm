@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
@@ -14,6 +15,8 @@ from backend.api.db.database import get_db
 from backend.api.db.models import Session, User
 from backend.api.dependencies import AuthenticatedUser, get_user_or_anon
 from backend.api.schemas.progress import ProgressEntry, ProgressLeaderboardResponse
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -31,6 +34,7 @@ async def improvement_leaderboard(
     Returns users ranked by how fast they are improving (seconds per session).
     More negative = improving faster.
     """
+    logger.debug("Improvement leaderboard: track=%s days=%d", track, days)
     cutoff = datetime.now(tz=UTC) - timedelta(days=days)
 
     # Fetch all sessions at this track within the time window that have a best lap

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import logging.config
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Annotated, cast
@@ -44,6 +45,45 @@ from backend.api.routers import (
     trends,
     wrapped,
 )
+
+
+def _configure_logging() -> None:
+    """Configure root logger with timestamp, level, and module context."""
+    import os
+
+    log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
+    logging.config.dictConfig(
+        {
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {
+                "default": {
+                    "format": "%(asctime)s %(levelname)-8s %(name)s:%(lineno)d %(message)s",
+                    "datefmt": "%Y-%m-%dT%H:%M:%S",
+                },
+            },
+            "handlers": {
+                "console": {
+                    "class": "logging.StreamHandler",
+                    "formatter": "default",
+                    "stream": "ext://sys.stdout",
+                },
+            },
+            "root": {
+                "handlers": ["console"],
+                "level": log_level,
+            },
+            "loggers": {
+                "uvicorn.access": {"level": "WARNING"},
+                "sqlalchemy.engine": {"level": "WARNING"},
+                "httpx": {"level": "WARNING"},
+                "anthropic": {"level": "WARNING"},
+            },
+        }
+    )
+
+
+_configure_logging()
 
 logger = logging.getLogger(__name__)
 
@@ -192,8 +232,6 @@ async def _reload_sessions_from_disk() -> int:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Manage application startup and shutdown lifecycle."""
-    logging.basicConfig(level=logging.INFO)
-
     # Coaching reports are now persisted in PostgreSQL with lazy DB fallback —
     # no startup loading needed.
 
@@ -389,6 +427,33 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    """Log every HTTP request with method, path, status, and duration."""
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        if request.scope.get("type") == "websocket":
+            return await call_next(request)
+
+        import time
+
+        start = time.perf_counter()
+        response = await call_next(request)
+        duration_ms = (time.perf_counter() - start) * 1000
+
+        # Skip noisy health/metrics polling
+        path = request.url.path
+        if path not in ("/health", "/metrics"):
+            logger.info(
+                "%s %s %d %.0fms",
+                request.method,
+                path,
+                response.status_code,
+                duration_ms,
+            )
+
+        return response
+
+
 # -- Exception handlers --------------------------------------------------------
 
 
@@ -418,6 +483,7 @@ async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse
 
 # -- Middleware (order matters: last added = first executed) ------------------
 
+app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(CacheControlMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(

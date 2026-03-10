@@ -19,6 +19,7 @@ speed, aerodynamic grip boost at high speed.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -28,6 +29,8 @@ from cataclysm.velocity_profile import VehicleParams
 
 if TYPE_CHECKING:
     from cataclysm.corners import Corner
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Constants

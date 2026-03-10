@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -20,6 +21,8 @@ from backend.api.services.achievement_engine import (
     get_user_achievements,
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 
@@ -33,6 +36,7 @@ async def list_achievements(
     Re-evaluates criteria first so achievements earned before the system
     was introduced (or between uploads) are caught up.
     """
+    logger.debug("Checking achievements for user %s", current_user.user_id)
     await check_achievements(db, current_user.user_id)
     await db.commit()
     rows = await get_user_achievements(db, current_user.user_id)

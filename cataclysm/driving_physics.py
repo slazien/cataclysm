@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 DRIVING_PHYSICS_REFERENCE = """\
 ## Vehicle Dynamics Reference
 

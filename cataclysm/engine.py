@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
+
+logger = logging.getLogger(__name__)
 
 RESAMPLE_STEP_M = 0.7
 MIN_LAP_FRACTION = 0.80  # discard laps shorter than 80% of reference distance
@@ -271,6 +274,13 @@ def process_session(df: pd.DataFrame) -> ProcessedSession:
 
     summaries.sort(key=lambda s: s.lap_time_s)
     best_lap = summaries[0].lap_number
+
+    logger.info(
+        "Processed %d laps, best=%d (%.3fs)",
+        len(summaries),
+        best_lap,
+        summaries[0].lap_time_s,
+    )
 
     return ProcessedSession(
         lap_summaries=summaries,

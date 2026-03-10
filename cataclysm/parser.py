@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import io
+import logging
 import re
 from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 # RaceChrono CSV v3 column positions (0-indexed). Names are duplicated in the
 # header row, so we must use positional indexing.
@@ -156,5 +159,12 @@ def parse_racechrono_csv(source: str | io.IOBase) -> ParsedSession:
     # values and gracefully skips missing channels.
 
     df = df.reset_index(drop=True)
+
+    logger.info(
+        "Parsed CSV: track=%s rows=%d (raw=%d)",
+        metadata.track_name,
+        len(df),
+        len(raw_df),
+    )
 
     return ParsedSession(metadata=metadata, data=df, raw_data=raw_df)

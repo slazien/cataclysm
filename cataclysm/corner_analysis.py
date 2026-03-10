@@ -6,6 +6,7 @@ structured facts that the LLM can narrate without doing its own arithmetic.
 
 from __future__ import annotations
 
+import logging
 from collections import Counter
 from dataclasses import dataclass, field
 
@@ -21,6 +22,8 @@ from cataclysm.landmarks import (
     LandmarkReference,
     find_nearest_landmark,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass

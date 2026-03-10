@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Annotated, Any
 
 from cataclysm.constants import MPS_TO_MPH
@@ -50,6 +51,8 @@ from backend.api.services.pipeline import (
 )
 from backend.api.services.serializers import dataclass_to_dict
 from backend.api.services.track_corners import ensure_corners_current
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -247,6 +250,7 @@ async def get_optimal_comparison(
     where the driver is leaving the most time on the table.
     """
     sd = await _get_session_or_404(db, session_id, current_user.user_id)
+    logger.debug("Computing optimal comparison for session %s", session_id)
     result = await get_optimal_comparison_data(sd)
     opps = result["corner_opportunities"]
     assert isinstance(opps, list)

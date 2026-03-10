@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -31,6 +32,8 @@ from backend.api.services.instructor_store import (
     remove_student,
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 
@@ -51,6 +54,7 @@ async def list_students(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> StudentListResponse:
     """List all linked students for the current instructor."""
+    logger.debug("Listing students for instructor %s", instructor_id)
     rows = await get_students(db, instructor_id)
     return StudentListResponse(
         students=[StudentSummary(**r) for r in rows],  # type: ignore[arg-type]

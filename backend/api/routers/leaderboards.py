@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
@@ -17,6 +18,8 @@ from backend.api.services.leaderboard_store import (
     get_corner_leaderboard,
     get_kings,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -34,6 +37,7 @@ async def corner_leaderboard(
     ] = "sector_time",
 ) -> LeaderboardResponse:
     """Get per-corner rankings for a track."""
+    logger.debug("Leaderboard query: track=%s corner=%d category=%s", track, corner, category)
     entries = await get_corner_leaderboard(db, track, corner, limit=limit, category=category)
     return LeaderboardResponse(
         track_name=track,

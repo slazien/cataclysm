@@ -11,11 +11,14 @@ for a given track curvature and vehicle friction model.  The solver:
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 import numpy as np
 
 from cataclysm.curvature import CurvatureResult
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Constants

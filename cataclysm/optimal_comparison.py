@@ -6,6 +6,7 @@ to quantify where the driver is leaving the most time on the table.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -14,6 +15,8 @@ import pandas as pd
 from cataclysm.constants import MPS_TO_MPH
 from cataclysm.corners import Corner
 from cataclysm.velocity_profile import OptimalProfile
+
+logger = logging.getLogger(__name__)
 
 # Search window before a corner entry for matching optimal brake points
 _BRAKE_SEARCH_BEFORE_M = 200.0

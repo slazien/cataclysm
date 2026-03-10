@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -33,6 +34,8 @@ from backend.api.services.org_store import (
     remove_member,
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 
@@ -43,6 +46,7 @@ async def create_organization(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> OrgSummary:
     """Create a new organization. The creator becomes the owner."""
+    logger.debug("Creating org %r for user %s", body.name, current_user.user_id)
     org_id = await create_org(
         db, body.name, body.slug, current_user.user_id, body.logo_url, body.brand_color
     )

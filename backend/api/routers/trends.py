@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Annotated
 
 from cataclysm.trends import SessionSnapshot
@@ -12,6 +13,8 @@ from backend.api.dependencies import AuthenticatedUser, get_user_or_anon
 from backend.api.schemas.trends import MilestoneResponse, MilestoneSchema, TrendAnalysisResponse
 from backend.api.services import session_store
 from backend.api.services.serializers import dataclass_to_dict
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -48,6 +51,7 @@ async def get_trends(
     """Get cross-session trend analysis for a track."""
     from cataclysm.trends import compute_trend_analysis
 
+    logger.debug("Computing trends for track %s", track_name)
     snapshots = _collect_snapshots_for_track(track_name)
 
     # Filter out grade-F sessions by default

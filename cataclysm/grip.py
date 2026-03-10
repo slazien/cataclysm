@@ -9,12 +9,15 @@ Combines four estimation approaches with accuracy-weighted blending:
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
 from scipy.optimize import least_squares
 from scipy.spatial import ConvexHull, QhullError
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Dataclasses
