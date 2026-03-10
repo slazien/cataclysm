@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import TaskRoutingConfig from "./TaskRoutingConfig";
 
 function formatUsd(value: number): string {
   return `$${value.toFixed(value >= 1 ? 2 : 4)}`;
@@ -482,6 +483,18 @@ export function LlmCostDashboard() {
             <span>Updated at: {routing.updated_at ? new Date(routing.updated_at).toLocaleString() : "n/a"}</span>
           </div>
         </header>
+
+        <section>
+          <Card className="border-slate-700/40 bg-slate-900/70 py-4">
+            <CardHeader className="px-4 pb-2">
+              <CardTitle className="text-base">Task Routing Configuration</CardTitle>
+              <CardDescription>Configure primary model and fallback chain per task.</CardDescription>
+            </CardHeader>
+            <CardContent className="px-4">
+              <TaskRoutingConfig />
+            </CardContent>
+          </Card>
+        </section>
 
         <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <KpiCard label="Total Cost" value={formatUsd(kpis.total_cost_usd)} hint={`${days}-day window`} />
