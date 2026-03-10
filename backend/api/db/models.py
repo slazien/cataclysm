@@ -713,3 +713,17 @@ class RuntimeSetting(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class LlmTaskRoute(Base):
+    """Per-task LLM routing configuration persisted in Postgres."""
+
+    __tablename__ = "llm_task_routes"
+
+    task: Mapped[str] = mapped_column(String(100), primary_key=True)
+    config_json: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
