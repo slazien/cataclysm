@@ -263,6 +263,7 @@ def _propagate_corner_metadata(
         if (not lap_corner.blind) and ref_corner.blind:
             lap_corner.blind = True
 
+
 def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Great-circle distance in meters between two coordinates."""
     earth_radius_m = 6_371_000.0

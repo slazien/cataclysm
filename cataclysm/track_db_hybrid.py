@@ -119,6 +119,19 @@ def update_db_tracks_cache(slug: str, layout: TrackLayout) -> None:
     logger.info("Hybrid cache updated for %s", slug)
 
 
+def update_db_tracks_cache_with_aliases(
+    slug: str,
+    layout: TrackLayout,
+    aliases: list[str] | None = None,
+) -> None:
+    """Update cache for slug/name and any caller-provided aliases."""
+    update_db_tracks_cache(slug, layout)
+    for alias in aliases or []:
+        alias_key = _normalize_name(alias)
+        if alias_key:
+            _db_tracks[alias_key] = layout
+
+
 def clear_db_tracks_cache() -> None:
     """Clear the DB tracks cache (for testing)."""
     global _db_loaded  # noqa: PLW0603
