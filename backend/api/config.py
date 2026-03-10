@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     llm_lazy_generation_enabled: bool = True
     llm_usage_telemetry_enabled: bool = True
     llm_usage_retention_days: int = 90
-    llm_report_max_tokens: int = 4096
+    llm_report_max_tokens: int = 8192
     llm_followup_max_tokens: int = 768
 
     # CORS — stored as raw string to avoid pydantic-settings' strict JSON
