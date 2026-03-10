@@ -1595,6 +1595,7 @@ async def test_upload_inner_csv_bytes_persist_path() -> None:
     mock_db.execute = AsyncMock(
         return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=None))
     )
+    mock_db.add = MagicMock()
     mock_db.flush = AsyncMock()
     mock_db.commit = AsyncMock()
     mock_db.merge = AsyncMock()
@@ -1654,6 +1655,7 @@ async def test_upload_inner_csv_bytes_sqlalchemy_error_path() -> None:
     mock_db.execute = AsyncMock(
         return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=None))
     )
+    mock_db.add = MagicMock()
     mock_db.flush = AsyncMock()
     mock_db.commit = AsyncMock()
     mock_db.merge = AsyncMock(side_effect=SQLAlchemyError("disk full"))
@@ -1700,6 +1702,7 @@ async def test_upload_inner_coaching_value_error_path() -> None:
     mock_db.execute = AsyncMock(
         return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=None))
     )
+    mock_db.add = MagicMock()
     mock_db.flush = AsyncMock()
     mock_db.commit = AsyncMock()
     mock_db.merge = AsyncMock()

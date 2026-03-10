@@ -64,7 +64,10 @@ class TestGenerateCoachingDrafts:
                 [{"number": 1, "name": "T1"}], track_name="Test"
             )
 
-        assert drafts == []
+        assert len(drafts) == 1
+        assert drafts[0].corner_number == 1
+        assert drafts[0].corner_name == "T1"
+        assert drafts[0].coaching_note
         mock_call.assert_not_called()
 
     @pytest.mark.asyncio
@@ -80,7 +83,6 @@ class TestGenerateCoachingDrafts:
                 {"LLM_ROUTING_ENABLED": "1", "OPENAI_API_KEY": "sk-openai"},
                 clear=True,
             ),
-            patch(_PATCH_IS_TASK_AVAILABLE, return_value=True),
             patch(_PATCH_CALL_TEXT_COMPLETION, return_value=response) as mock_call,
         ):
             drafts = await generate_coaching_drafts(corners, track_name="Test")
@@ -88,6 +90,7 @@ class TestGenerateCoachingDrafts:
         assert len(drafts) == 1
         assert drafts[0].corner_number == 1
         assert "Brake" in drafts[0].coaching_note
+        assert mock_call.call_count == 1
         assert mock_call.call_args.kwargs["default_provider"] == "anthropic"
 
     @pytest.mark.asyncio
@@ -99,7 +102,10 @@ class TestGenerateCoachingDrafts:
             drafts = await generate_coaching_drafts(
                 [{"number": 1, "name": "T1"}], track_name="Test"
             )
-        assert drafts == []
+        assert len(drafts) == 1
+        assert drafts[0].corner_number == 1
+        assert drafts[0].corner_name == "T1"
+        assert drafts[0].coaching_note
 
     @pytest.mark.asyncio
     async def test_handles_markdown_json_code_block(self) -> None:
@@ -192,3 +198,66 @@ class TestGenerateCoachingDrafts:
 
         assert len(drafts) == 1
         assert drafts[0].corner_name == "T7"
+
+    @pytest.mark.asyncio
+    async def test_stringified_corner_number_maps_to_existing_corner_name(self) -> None:
+        corners = [{"number": 1, "name": "Turn One"}]
+        response = _make_completion_response(
+            json.dumps([{"number": "1.0", "note": "Hold a tight line at apex."}])
+        )
+
+        with (
+            patch(_PATCH_IS_TASK_AVAILABLE, return_value=True),
+            patch(_PATCH_CALL_TEXT_COMPLETION, return_value=response),
+        ):
+            drafts = await generate_coaching_drafts(corners, track_name="Test")
+
+        assert len(drafts) == 1
+        assert drafts[0].corner_number == 1
+        assert drafts[0].corner_name == "Turn One"
+
+    @pytest.mark.asyncio
+    async def test_invalid_corner_number_item_is_skipped_without_dropping_valid_entries(
+        self,
+    ) -> None:
+        corners = [{"number": 1, "name": "T1"}, {"number": 2, "name": "T2"}]
+        response = _make_completion_response(
+            json.dumps(
+                [
+                    {"number": "bad-value", "note": "Ignore this malformed item."},
+                    {"number": 2, "note": "Brake in a straight line, then release smoothly."},
+                ]
+            )
+        )
+
+        with (
+            patch(_PATCH_IS_TASK_AVAILABLE, return_value=True),
+            patch(_PATCH_CALL_TEXT_COMPLETION, return_value=response),
+        ):
+            drafts = await generate_coaching_drafts(corners, track_name="Test")
+
+        assert len(drafts) == 2
+        assert drafts[0].corner_number == 1
+        assert drafts[0].corner_name == "T1"
+        assert drafts[0].coaching_note
+        assert drafts[1].corner_number == 2
+        assert drafts[1].corner_name == "T2"
+        assert "Brake in a straight line" in drafts[1].coaching_note
+
+    @pytest.mark.asyncio
+    async def test_missing_llm_entry_is_backfilled_to_preserve_one_note_per_corner(self) -> None:
+        corners = [{"number": 1, "name": "T1"}, {"number": 2, "name": "T2"}]
+        response = _make_completion_response(json.dumps([{"number": 1, "note": "Brake late."}]))
+
+        with (
+            patch(_PATCH_IS_TASK_AVAILABLE, return_value=True),
+            patch(_PATCH_CALL_TEXT_COMPLETION, return_value=response),
+        ):
+            drafts = await generate_coaching_drafts(corners, track_name="Test")
+
+        assert len(drafts) == 2
+        assert drafts[0].corner_number == 1
+        assert drafts[0].coaching_note == "Brake late."
+        assert drafts[1].corner_number == 2
+        assert drafts[1].corner_name == "T2"
+        assert drafts[1].coaching_note

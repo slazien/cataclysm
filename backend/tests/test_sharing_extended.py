@@ -407,7 +407,9 @@ class TestGetOrGenerateAiComparison:
         mock_report.ai_comparison_text = "Already cached"
         mock_report.report_json = {}
 
-        mock_db = AsyncMock()
+        mock_db = MagicMock()
+        mock_db.add = MagicMock()
+        mock_db.flush = AsyncMock()
 
         with patch(
             "backend.api.routers.sharing._call_haiku_comparison",
@@ -425,7 +427,9 @@ class TestGetOrGenerateAiComparison:
         mock_report.ai_comparison_text = None  # cache miss
         mock_report.report_json = {"session_a_best_lap": 90.0}
 
-        mock_db = AsyncMock()
+        mock_db = MagicMock()
+        mock_db.add = MagicMock()
+        mock_db.flush = AsyncMock()
 
         with patch(
             "backend.api.routers.sharing._call_haiku_comparison",
@@ -446,7 +450,9 @@ class TestGetOrGenerateAiComparison:
         mock_report.ai_comparison_text = ""  # treat as miss
         mock_report.report_json = {}
 
-        mock_db = AsyncMock()
+        mock_db = MagicMock()
+        mock_db.add = MagicMock()
+        mock_db.flush = AsyncMock()
 
         with patch(
             "backend.api.routers.sharing._call_haiku_comparison",

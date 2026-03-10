@@ -32,7 +32,9 @@ async def test_ai_comparison_generates_on_miss() -> None:
         "session_b_best_lap": 90.1,
         "corner_deltas": [{"corner_number": 1, "speed_diff_mph": 2.3}],
     }
-    mock_db = AsyncMock()
+    mock_db = MagicMock()
+    mock_db.add = MagicMock()
+    mock_db.flush = AsyncMock()
 
     with patch("backend.api.routers.sharing._call_haiku_comparison") as mock_haiku:
         mock_haiku.return_value = "Alex is faster because..."
@@ -54,7 +56,9 @@ async def test_ai_comparison_generates_on_empty_string() -> None:
         "session_b_best_lap": 90.1,
         "corner_deltas": [],
     }
-    mock_db = AsyncMock()
+    mock_db = MagicMock()
+    mock_db.add = MagicMock()
+    mock_db.flush = AsyncMock()
 
     with patch("backend.api.routers.sharing._call_haiku_comparison") as mock_haiku:
         mock_haiku.return_value = "Generated narrative"

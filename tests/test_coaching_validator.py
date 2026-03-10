@@ -159,6 +159,13 @@ def test_parse_validation_fail() -> None:
     assert rec.violations == ["wrong physics"]
 
 
+def test_parse_validation_fail_with_string_bool() -> None:
+    text = '{"passed": "false", "violations": ["wrong physics"]}'
+    rec = CoachingValidator._parse_validation(text, "2024-01-01T00:00:00Z")
+    assert rec.passed is False
+    assert rec.violations == ["wrong physics"]
+
+
 def test_parse_validation_markdown_fenced() -> None:
     text = '```json\n{"passed": true, "violations": []}\n```'
     rec = CoachingValidator._parse_validation(text, "2024-01-01T00:00:00Z")
@@ -379,6 +386,7 @@ def test_save_exception_cleans_temp_file(state_path: Path) -> None:
     """_save should clean up temp file and re-raise on write failure."""
     v = CoachingValidator(state_path=state_path)
     v.state.total_outputs = 10
+    before_tmp_files = set(state_path.parent.glob("*.tmp"))
 
     with (
         patch("json.dump", side_effect=OSError("Disk full")),
@@ -386,4 +394,5 @@ def test_save_exception_cleans_temp_file(state_path: Path) -> None:
     ):
         v._save()
 
-
+    after_tmp_files = set(state_path.parent.glob("*.tmp"))
+    assert after_tmp_files == before_tmp_files

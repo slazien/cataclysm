@@ -184,6 +184,24 @@ class CoachingValidator:
         return self._parse_validation(text, now, skill_level=skill_level)
 
     @staticmethod
+    def _coerce_passed_value(value: Any) -> bool:
+        """Coerce legacy 'passed' values to bool with fail-open default."""
+        if isinstance(value, bool):
+            return value
+
+        if isinstance(value, (int, float)) and value in (0, 1):
+            return bool(value)
+
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"true", "1", "yes"}:
+                return True
+            if normalized in {"false", "0", "no"}:
+                return False
+
+        return True
+
+    @staticmethod
     def _parse_validation(
         text: str,
         timestamp: str,
@@ -222,7 +240,7 @@ class CoachingValidator:
             violations = data.get("violations", [])
             return ValidationRecord(
                 timestamp=timestamp,
-                passed=bool(data.get("passed", True)),
+                passed=CoachingValidator._coerce_passed_value(data.get("passed", True)),
                 violations=violations if isinstance(violations, list) else [],
                 skill_level_checked=skill_level,
             )

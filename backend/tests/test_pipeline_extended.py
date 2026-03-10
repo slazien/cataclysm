@@ -493,7 +493,8 @@ class TestTryLidarElevation:
         sd.processed.resampled_laps = {1: df}
 
         with patch(
-            "backend.api.services.pipeline.asyncio.wait_for",
+            "cataclysm.elevation_service.fetch_lidar_elevations",
+            new_callable=AsyncMock,
             side_effect=TimeoutError("timed out"),
         ):
             result = await _try_lidar_elevation(sd)
@@ -516,7 +517,8 @@ class TestTryLidarElevation:
         sd.processed.resampled_laps = {1: df}
 
         with patch(
-            "backend.api.services.pipeline.asyncio.wait_for",
+            "cataclysm.elevation_service.fetch_lidar_elevations",
+            new_callable=AsyncMock,
             side_effect=RuntimeError("service unavailable"),
         ):
             result = await _try_lidar_elevation(sd)
@@ -543,7 +545,7 @@ class TestTryLidarElevation:
         mock_result.altitude_m = np.array([200.0, 201.0])
 
         with patch(
-            "backend.api.services.pipeline.asyncio.wait_for",
+            "cataclysm.elevation_service.fetch_lidar_elevations",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
@@ -572,7 +574,7 @@ class TestTryLidarElevation:
         mock_result.altitude_m = expected_alt
 
         with patch(
-            "backend.api.services.pipeline.asyncio.wait_for",
+            "cataclysm.elevation_service.fetch_lidar_elevations",
             new_callable=AsyncMock,
             return_value=mock_result,
         ):
