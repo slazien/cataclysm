@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import TYPE_CHECKING, Any
 
 from cataclysm.landmarks import Landmark, LandmarkType
@@ -22,6 +23,11 @@ logger = logging.getLogger(__name__)
 # In-memory cache populated at startup from DB
 _db_tracks: dict[str, TrackLayout] = {}
 _db_loaded: bool = False
+
+
+def _db_only_mode() -> bool:
+    """When true, disable Python constant fallback and use DB tracks only."""
+    return os.environ.get("TRACK_DB_ONLY") == "true"
 
 
 def db_track_to_layout(
@@ -84,6 +90,9 @@ def lookup_track_hybrid(
     if key in cache:
         return cache[key]
 
+    if _db_only_mode():
+        return None
+
     # Fall back to Python constants
     return lookup_track(track_name)
 
@@ -94,11 +103,12 @@ def get_all_tracks_hybrid(
     """Merge DB tracks with Python constants. DB wins on collision."""
     cache = db_tracks if db_tracks is not None else _db_tracks
 
-    # Start with Python tracks keyed by normalized name
     result: dict[str, TrackLayout] = {}
-    for layout in get_all_tracks():
-        key = _normalize_name(layout.name)
-        result[key] = layout
+    if not _db_only_mode():
+        # Start with Python tracks keyed by normalized name
+        for layout in get_all_tracks():
+            key = _normalize_name(layout.name)
+            result[key] = layout
 
     # DB tracks override — deduplicate by keying on normalized name only
     seen_names: set[str] = set()
