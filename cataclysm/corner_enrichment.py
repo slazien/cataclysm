@@ -205,7 +205,7 @@ def _auto_detect_character(
         has_decel = bool(np.min(seg_long_g) <= -0.08)
         decel_distance_m = _masked_distance(seg_dist, seg_long_g <= CHAR_BRAKE_LONG_G_THRESHOLD)
         has_sustained_decel = decel_distance_m >= CHAR_BRAKE_DURATION_M
-    brake_channel_missing = bool(np.max(brake) < CHAR_BRAKE_PCT_THRESHOLD)
+    brake_channel_missing = bool(np.max(seg_brake) < CHAR_BRAKE_PCT_THRESHOLD)
 
     if (max_brake >= CHAR_BRAKE_PCT_THRESHOLD and has_sustained_braking) or (
         brake_channel_missing and has_sustained_decel
@@ -738,13 +738,38 @@ def _build_altitude_profile(
                 continue
             if len(lap_distance) < 3 or len(lap_altitude) != len(lap_distance):
                 continue
-            interp_alt = np.interp(distance, lap_distance, lap_altitude)
+            finite_mask = np.isfinite(lap_distance) & np.isfinite(lap_altitude)
+            if int(np.sum(finite_mask)) < 3:
+                continue
+            lap_distance_finite = lap_distance[finite_mask]
+            lap_altitude_finite = lap_altitude[finite_mask]
+            if not np.all(np.diff(lap_distance_finite) > 0):
+                continue
+            interp_alt = np.interp(
+                distance,
+                lap_distance_finite,
+                lap_altitude_finite,
+                left=np.nan,
+                right=np.nan,
+            )
             altitude_samples.append(interp_alt)
 
     if len(altitude_samples) >= ELEVATION_MIN_LAPS_FOR_MEDIAN:
-        altitude_profile = np.median(np.vstack(altitude_samples), axis=0)
+        altitude_profile = np.nanmedian(np.vstack(altitude_samples), axis=0)
     else:
         altitude_profile = altitude
+    altitude_profile = np.asarray(altitude_profile, dtype=float)
+    if not np.all(np.isfinite(altitude_profile)):
+        finite_mask = np.isfinite(altitude_profile)
+        if int(np.sum(finite_mask)) < 3:
+            return None
+        altitude_profile = np.interp(
+            distance,
+            distance[finite_mask],
+            altitude_profile[finite_mask],
+            left=float(altitude_profile[finite_mask][0]),
+            right=float(altitude_profile[finite_mask][-1]),
+        )
     return _smooth_altitude(
         np.asarray(altitude_profile, dtype=float), distance, ELEVATION_SAVGOL_WINDOW_M
     )

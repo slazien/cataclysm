@@ -459,7 +459,6 @@ def _apply_layout_to_session(
         for lap_num in session_data.coaching_laps:
             all_laps_arrays[lap_num] = _build_corner_enrichment_arrays(
                 session_data.processed.resampled_laps[lap_num],
-                include_altitude=False,
                 include_throttle=False,
                 include_longitudinal=False,
             )
@@ -717,7 +716,6 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
         for lap_num in coaching_laps:
             all_laps_arrays[lap_num] = _build_corner_enrichment_arrays(
                 processed.resampled_laps[lap_num],
-                include_altitude=False,
                 include_throttle=False,
                 include_longitudinal=False,
             )
