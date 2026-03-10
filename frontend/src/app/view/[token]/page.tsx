@@ -8,6 +8,7 @@ import { formatLapTime } from '@/lib/formatters';
 import { RadarChart } from '@/components/shared/RadarChart';
 import { TrackOutlineSVG } from '@/components/shared/TrackOutlineSVG';
 import { SignUpCTA } from '@/components/shared/SignUpCTA';
+import { useUnits } from '@/hooks/useUnits';
 
 export function getPublicScoreDisplay(score: number) {
   return {
@@ -19,6 +20,7 @@ export function getPublicScoreDisplay(score: number) {
 export default function PublicViewPage() {
   const params = useParams<{ token: string }>();
   const token = params.token;
+  const { formatSpeed, resolveSpeed } = useUnits();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['public-view', token],
@@ -122,7 +124,7 @@ export default function PublicViewPage() {
             <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4 text-center">
               <Gauge className="mx-auto mb-1 h-5 w-5 text-[var(--text-secondary)]" />
               <p className="font-mono text-lg font-bold text-[var(--text-primary)]">
-                {Math.round(data.top_speed_mph)} mph
+                {formatSpeed(data.top_speed_mph, 0)}
               </p>
               <p className="text-xs text-[var(--text-secondary)]">Top Speed</p>
             </div>
@@ -161,7 +163,7 @@ export default function PublicViewPage() {
               AI Coaching Summary
             </h2>
             <blockquote className="border-l-2 border-[#6366f1] pl-3 text-sm italic text-[var(--text-primary)]">
-              {data.coaching_summary}
+              {resolveSpeed(data.coaching_summary)}
             </blockquote>
           </div>
         )}

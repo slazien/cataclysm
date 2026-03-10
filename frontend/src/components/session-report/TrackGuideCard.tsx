@@ -105,7 +105,7 @@ function StatCard({ icon: Icon, label, value }: { icon: React.ComponentType<{ cl
 }
 
 function KeyCornerCard({ corner }: { corner: KeyCorner }) {
-  const { formatDistance } = useUnits();
+  const { formatDistance, resolveSpeed } = useUnits();
   return (
     <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-3">
       <div className="flex items-center gap-2">
@@ -141,7 +141,7 @@ function KeyCornerCard({ corner }: { corner: KeyCorner }) {
 
       {corner.coaching_notes && (
         <p className="mt-2 text-xs leading-relaxed text-[var(--text-secondary)]">
-          {corner.coaching_notes}
+          {resolveSpeed(corner.coaching_notes)}
         </p>
       )}
     </div>
@@ -150,6 +150,7 @@ function KeyCornerCard({ corner }: { corner: KeyCorner }) {
 
 function CornerRow({ corner }: { corner: TrackGuideCorner }) {
   const [expanded, setExpanded] = useState(false);
+  const { resolveSpeed } = useUnits();
 
   return (
     <>
@@ -188,7 +189,7 @@ function CornerRow({ corner }: { corner: TrackGuideCorner }) {
         <tr className="border-b border-[var(--cata-border)]/50 bg-[var(--bg-surface)]">
           <td colSpan={5} className="px-2 py-2 text-xs leading-relaxed text-[var(--text-secondary)]">
             <span className="font-medium text-[var(--text-primary)]">T{corner.number} {corner.name}:</span>{' '}
-            {corner.coaching_notes}
+            {resolveSpeed(corner.coaching_notes)}
           </td>
         </tr>
       )}

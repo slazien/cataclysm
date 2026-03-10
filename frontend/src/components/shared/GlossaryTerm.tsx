@@ -3,6 +3,7 @@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { glossary } from '@/lib/glossary';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
+import { useUnits } from '@/hooks/useUnits';
 
 interface GlossaryTermProps {
   term: string;
@@ -11,8 +12,12 @@ interface GlossaryTermProps {
 
 export function GlossaryTerm({ term, children }: GlossaryTermProps) {
   const { isNovice, isAdvanced } = useSkillLevel();
+  const { resolveSpeed } = useUnits();
   const entry = glossary[term];
   if (!entry) return <>{children}</>;
+
+  const contentText = isNovice ? entry.noviceExplanation : entry.definition;
+  const exampleText = entry.example ? resolveSpeed(entry.example) : '';
 
   // Advanced users: no underline, no tooltip — clean UI
   if (isAdvanced) return <>{children}</>;
@@ -33,11 +38,11 @@ export function GlossaryTerm({ term, children }: GlossaryTermProps) {
         className="max-w-xs border-[var(--cata-border)] bg-[var(--bg-surface)] p-3 text-sm"
       >
         <p className="font-medium text-[var(--text-primary)]">
-          {isNovice ? entry.noviceExplanation : entry.definition}
+          {resolveSpeed(contentText)}
         </p>
         {isNovice && entry.example && (
           <p className="mt-1 text-xs text-[var(--text-secondary)] italic">
-            Example: {entry.example}
+            Example: {exampleText}
           </p>
         )}
       </PopoverContent>
