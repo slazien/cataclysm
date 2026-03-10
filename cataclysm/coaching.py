@@ -1088,6 +1088,10 @@ def _parse_coaching_response(text: str) -> CoachingReport:
                 data = json.loads(text[start : end + 1])
 
     if data is None:
+        logger.error(
+            "Could not parse coaching JSON. First 500 chars: %s",
+            text[:500] if text else "<empty>",
+        )
         return CoachingReport(
             summary="Could not parse AI coaching response.",
             priority_corners=[],
@@ -1248,6 +1252,12 @@ def generate_coaching_report(
                 system=system,
                 messages=[{"role": "user", "content": prompt}],
             )
+            if msg.stop_reason == "max_tokens":
+                logger.warning(
+                    "Coaching response TRUNCATED (max_tokens=%s, usage=%s)",
+                    os.environ.get("LLM_REPORT_MAX_TOKENS", "4096"),
+                    msg.usage,
+                )
             blk = msg.content[0]
             text = blk.text if hasattr(blk, "text") else str(blk)
         return text, _parse_coaching_response(text)
