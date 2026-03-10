@@ -1237,7 +1237,7 @@ def generate_coaching_report(
                 task="coaching_report",
                 user_content=prompt,
                 system=system,
-                max_tokens=int(os.environ.get("LLM_REPORT_MAX_TOKENS", "4096")),
+                max_tokens=int(os.environ.get("LLM_REPORT_MAX_TOKENS", "8192")),
                 temperature=0.3,
                 default_provider="anthropic",
                 default_model="claude-haiku-4-5-20251001",
@@ -1247,7 +1247,7 @@ def generate_coaching_report(
             assert client is not None
             msg = client.messages.create(
                 model="claude-haiku-4-5-20251001",
-                max_tokens=int(os.environ.get("LLM_REPORT_MAX_TOKENS", "4096")),
+                max_tokens=int(os.environ.get("LLM_REPORT_MAX_TOKENS", "8192")),
                 temperature=0.3,
                 system=system,
                 messages=[{"role": "user", "content": prompt}],
@@ -1255,7 +1255,7 @@ def generate_coaching_report(
             if msg.stop_reason == "max_tokens":
                 logger.warning(
                     "Coaching response TRUNCATED (max_tokens=%s, usage=%s)",
-                    os.environ.get("LLM_REPORT_MAX_TOKENS", "4096"),
+                    os.environ.get("LLM_REPORT_MAX_TOKENS", "8192"),
                     msg.usage,
                 )
             blk = msg.content[0]
