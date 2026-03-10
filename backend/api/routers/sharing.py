@@ -455,6 +455,29 @@ async def _call_haiku_comparison(prompt: str) -> str:
     import asyncio
 
     import anthropic
+    from cataclysm.llm_gateway import call_text_completion, is_task_available, routing_enabled
+
+    use_router = routing_enabled(False)
+    if use_router:
+        if not is_task_available("share_comparison", default_provider="anthropic"):
+            return (
+                "AI comparison is unavailable (no API key configured). "
+                "Please check ANTHROPIC_API_KEY / OPENAI_API_KEY / GOOGLE_API_KEY."
+            )
+
+        def _call_router() -> str:
+            result = call_text_completion(
+                task="share_comparison",
+                user_content=prompt,
+                system=None,
+                max_tokens=_HAIKU_MAX_TOKENS,
+                temperature=0.3,
+                default_provider="anthropic",
+                default_model=_HAIKU_MODEL,
+            )
+            return result.text
+
+        return await asyncio.to_thread(_call_router)
 
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     if not api_key:

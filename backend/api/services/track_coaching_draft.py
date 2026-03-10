@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
 from dataclasses import dataclass
 
 import anthropic
+from cataclysm.llm_gateway import call_text_completion, is_task_available, routing_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +40,19 @@ async def generate_coaching_drafts(
     if not corners:
         return []
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        logger.warning("ANTHROPIC_API_KEY not set — skipping coaching draft generation")
-        return []
-
-    client = anthropic.AsyncAnthropic(api_key=api_key)
+    use_router = routing_enabled(False)
+    client: anthropic.AsyncAnthropic | None
+    if use_router:
+        if not is_task_available("track_draft", default_provider="anthropic"):
+            logger.warning("No LLM key configured for track draft generation")
+            return []
+        client = None
+    else:
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            logger.warning("ANTHROPIC_API_KEY not set - skipping coaching draft generation")
+            return []
+        client = anthropic.AsyncAnthropic(api_key=api_key)
 
     # Build a single prompt for all corners (batch for efficiency)
     corner_descriptions: list[str] = []
@@ -75,15 +84,30 @@ async def generate_coaching_drafts(
     user_prompt += f"\n\nCorners:\n{corners_text}\n\nGenerate coaching notes for each corner."
 
     try:
-        response = await client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=1024,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_prompt}],
-        )
+        if use_router:
+            result = await asyncio.to_thread(
+                call_text_completion,
+                task="track_draft",
+                user_content=user_prompt,
+                system=system_prompt,
+                max_tokens=1024,
+                temperature=0.3,
+                default_provider="anthropic",
+                default_model="claude-haiku-4-5-20251001",
+            )
+            text = result.text
+        else:
+            assert client is not None
+            response = await client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=1024,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_prompt}],
+            )
 
-        block = response.content[0]
-        text: str = block.text  # type: ignore[union-attr]
+            block = response.content[0]
+            text = str(block.text)  # type: ignore[union-attr]
+
         # Handle markdown code blocks
         if "```json" in text:
             text = text.split("```json")[1].split("```")[0]

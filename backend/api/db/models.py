@@ -670,3 +670,46 @@ class PhysicsCacheEntry(Base):
         Index("ix_physics_cache_profile", "profile_id"),
         Index("ix_physics_cache_track_slug", "track_slug"),
     )
+
+
+class LLMUsageEvent(Base):
+    """Persisted LLM usage event for cost and reliability analytics."""
+
+    __tablename__ = "llm_usage_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    event_timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    task: Mapped[str] = mapped_column(String(100), nullable=False)
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    model: Mapped[str] = mapped_column(String(128), nullable=False)
+    success: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    input_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    output_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    cached_input_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    cache_creation_input_tokens: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    latency_ms: Mapped[float] = mapped_column(Float, nullable=False, server_default="0")
+    cost_usd: Mapped[float] = mapped_column(Float, nullable=False, server_default="0")
+    error: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("ix_llm_usage_events_event_timestamp", "event_timestamp"),
+        Index("ix_llm_usage_events_task", "task"),
+        Index("ix_llm_usage_events_provider", "provider"),
+    )
+
+
+class RuntimeSetting(Base):
+    """Runtime-tunable application settings persisted in Postgres."""
+
+    __tablename__ = "runtime_settings"
+
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    value: Mapped[str] = mapped_column(String(255), nullable=False)
+    updated_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

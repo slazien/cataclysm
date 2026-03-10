@@ -78,6 +78,8 @@ def _configure_logging() -> None:
                 "sqlalchemy.engine": {"level": "WARNING"},
                 "httpx": {"level": "WARNING"},
                 "anthropic": {"level": "WARNING"},
+                "openai": {"level": "WARNING"},
+                "google": {"level": "WARNING"},
             },
         }
     )
@@ -232,6 +234,47 @@ async def _reload_sessions_from_disk() -> int:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Manage application startup and shutdown lifecycle."""
+    from cataclysm.llm_gateway import set_usage_event_sink
+
+    from backend.api.services.llm_usage_store import (
+        enqueue_llm_usage_event,
+        prune_old_llm_usage_events,
+        start_llm_usage_persistence_worker,
+        stop_llm_usage_persistence_worker,
+    )
+    from backend.api.services.runtime_settings import (
+        start_runtime_settings_sync,
+        stop_runtime_settings_sync,
+    )
+
+    usage_persistence_started = False
+    runtime_settings_started = False
+
+    await start_runtime_settings_sync(default_routing_enabled=bool(settings.llm_routing_enabled))
+    runtime_settings_started = True
+
+    if settings.llm_usage_telemetry_enabled:
+        await start_llm_usage_persistence_worker()
+        set_usage_event_sink(enqueue_llm_usage_event)
+        usage_persistence_started = True
+        try:
+            from backend.api.db.database import async_session_factory as _usage_asf
+
+            async with _usage_asf() as _usage_db:
+                deleted = await prune_old_llm_usage_events(
+                    _usage_db, retention_days=settings.llm_usage_retention_days
+                )
+                if deleted:
+                    logger.info(
+                        "Pruned %d old LLM usage event(s) older than %d day(s)",
+                        deleted,
+                        settings.llm_usage_retention_days,
+                    )
+        except Exception:
+            logger.warning("Failed to prune old LLM usage events", exc_info=True)
+    else:
+        set_usage_event_sink(None)
+
     # Coaching reports are now persisted in PostgreSQL with lazy DB fallback —
     # no startup loading needed.
 
@@ -336,19 +379,34 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.warning("Failed to load user skill levels", exc_info=True)
 
     all_sessions = list_sessions()
-    for sd in all_sessions:
-        if not sd.is_anonymous:
-            skill: SkillLevel = user_skill.get(sd.user_id or "", "intermediate")
-            await trigger_auto_coaching(sd.session_id, sd, skill_level=skill)
-    if all_sessions:
-        logger.info("Checked %d session(s) for missing coaching reports", len(all_sessions))
+    if settings.llm_lazy_generation_enabled:
+        if all_sessions:
+            logger.info(
+                "LLM lazy generation enabled; skipped startup coaching pre-generation "
+                "for %d session(s)",
+                len(all_sessions),
+            )
+    else:
+        for sd in all_sessions:
+            if not sd.is_anonymous:
+                skill: SkillLevel = user_skill.get(sd.user_id or "", "intermediate")
+                await trigger_auto_coaching(sd.session_id, sd, skill_level=skill)
+        if all_sessions:
+            logger.info("Checked %d session(s) for missing coaching reports", len(all_sessions))
 
-    yield
+    try:
+        yield
+    finally:
+        set_usage_event_sink(None)
+        if usage_persistence_started:
+            await stop_llm_usage_persistence_worker()
+        if runtime_settings_started:
+            await stop_runtime_settings_sync()
 
-    # Shutdown: clear in-memory store
-    from backend.api.services.session_store import clear_all
+        # Shutdown: clear in-memory store
+        from backend.api.services.session_store import clear_all
 
-    clear_all()
+        clear_all()
 
 
 load_dotenv()  # Populate os.environ from .env before reading settings

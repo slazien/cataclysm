@@ -36,6 +36,7 @@ from cataclysm.landmarks import (
     find_nearest_landmark,
     format_corner_landmarks,
 )
+from cataclysm.llm_gateway import call_text_completion, is_task_available, routing_enabled
 from cataclysm.optimal_comparison import OptimalComparisonResult
 from cataclysm.skill_detection import SkillAssessment, format_skill_for_prompt
 from cataclysm.topic_guardrail import TOPIC_RESTRICTION_PROMPT
@@ -1144,6 +1145,20 @@ def _create_client() -> Any:
     )
 
 
+def _compact_chat_context(messages: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Bound chat context growth to control token and cost blow-up."""
+    max_messages = 12  # 6 user/assistant turns
+    if len(messages) <= max_messages:
+        return messages
+
+    keep_head: list[dict[str, str]] = []
+    if messages and messages[0].get("role") == "assistant":
+        keep_head = [messages[0]]
+
+    tail_count = max_messages - len(keep_head)
+    return keep_head + messages[-tail_count:]
+
+
 def generate_coaching_report(
     summaries: list[LapSummary],
     all_lap_corners: dict[int, list[Corner]],
@@ -1173,10 +1188,14 @@ def generate_coaching_report(
     Returns a CoachingReport. If the API key is not set, returns a report
     with a message explaining how to enable coaching.
     """
-    client = _create_client()
-    if client is None:
+    use_router = routing_enabled(False)
+    client = _create_client() if not use_router else None
+    if client is None and not is_task_available("coaching_report", default_provider="anthropic"):
         return CoachingReport(
-            summary="Set ANTHROPIC_API_KEY environment variable to enable AI coaching.",
+            summary=(
+                "Set ANTHROPIC_API_KEY (or OPENAI_API_KEY / GOOGLE_API_KEY with routing enabled) "
+                "to enable AI coaching."
+            ),
             priority_corners=[],
             corner_grades=[],
             patterns=[],
@@ -1209,15 +1228,28 @@ def generate_coaching_report(
         system += "\n\n" + kb_context
 
     def _call_coaching_api() -> tuple[str, CoachingReport]:
-        msg = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=16384,
-            temperature=0.3,
-            system=system,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        blk = msg.content[0]
-        text = blk.text if hasattr(blk, "text") else str(blk)
+        if use_router:
+            result = call_text_completion(
+                task="coaching_report",
+                user_content=prompt,
+                system=system,
+                max_tokens=int(os.environ.get("LLM_REPORT_MAX_TOKENS", "4096")),
+                temperature=0.3,
+                default_provider="anthropic",
+                default_model="claude-haiku-4-5-20251001",
+            )
+            text = result.text
+        else:
+            assert client is not None
+            msg = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=int(os.environ.get("LLM_REPORT_MAX_TOKENS", "4096")),
+                temperature=0.3,
+                system=system,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            blk = msg.content[0]
+            text = blk.text if hasattr(blk, "text") else str(blk)
         return text, _parse_coaching_response(text)
 
     response_text, report = _call_coaching_api()
@@ -1277,9 +1309,10 @@ def ask_followup(
 
     Maintains conversation context for multi-turn chat.
     """
-    client = _create_client()
-    if client is None:
-        return "Set ANTHROPIC_API_KEY to enable AI coaching chat."
+    use_router = routing_enabled(False)
+    client = _create_client() if not use_router else None
+    if client is None and not is_task_available("coaching_chat", default_provider="anthropic"):
+        return "Set ANTHROPIC_API_KEY (or OPENAI_API_KEY / GOOGLE_API_KEY) to enable coaching chat."
 
     if not context.messages:
         # First follow-up: include the coaching report as context
@@ -1291,6 +1324,7 @@ def ask_followup(
         )
 
     context.messages.append({"role": "user", "content": question})
+    context.messages = _compact_chat_context(context.messages)
 
     system = _FOLLOWUP_SYSTEM
     weather_ctx = _format_weather_context(weather)
@@ -1302,20 +1336,40 @@ def ask_followup(
             system += "\n\n" + kb_context
 
     try:
-        message = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=1024,
-            system=system,
-            messages=context.messages,  # type: ignore[arg-type]
-        )
+        if use_router:
+            serialized = json.dumps(context.messages, ensure_ascii=False)
+            user_payload = (
+                "Conversation history JSON (oldest→newest):\n"
+                f"{serialized}\n\n"
+                "Reply as the assistant to the latest user message."
+            )
+            result = call_text_completion(
+                task="coaching_chat",
+                user_content=user_payload,
+                system=system,
+                max_tokens=int(os.environ.get("LLM_FOLLOWUP_MAX_TOKENS", "768")),
+                temperature=0.3,
+                default_provider="anthropic",
+                default_model="claude-haiku-4-5-20251001",
+            )
+            response_text = result.text
+        else:
+            assert client is not None
+            message = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=int(os.environ.get("LLM_FOLLOWUP_MAX_TOKENS", "768")),
+                system=system,
+                messages=context.messages,  # type: ignore[arg-type]
+            )
+            followup_block = message.content[0]
+            response_text = (
+                followup_block.text if hasattr(followup_block, "text") else str(followup_block)
+            )
     except Exception as e:
         logger.warning("Follow-up chat API call failed after retries: %s", e)
         return (
             "AI coaching is temporarily unavailable (the service is overloaded). "
             "Please try again in a moment."
         )
-
-    followup_block = message.content[0]
-    response_text = followup_block.text if hasattr(followup_block, "text") else str(followup_block)
     context.messages.append({"role": "assistant", "content": response_text})
     return response_text

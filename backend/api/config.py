@@ -29,6 +29,11 @@ def _parse_cors_origins(raw: str) -> list[str]:
     return [s.strip().strip('"').strip("'") for s in stripped.split(",") if s.strip()]
 
 
+def _parse_csv_list(raw: str) -> list[str]:
+    """Parse a comma-separated list into normalized non-empty strings."""
+    return [s.strip() for s in raw.split(",") if s.strip()]
+
+
 class Settings(BaseSettings):
     """Cataclysm API configuration.
 
@@ -47,6 +52,16 @@ class Settings(BaseSettings):
 
     # External APIs
     anthropic_api_key: str = ""
+    openai_api_key: str = ""
+    google_api_key: str = ""
+
+    # LLM routing and cost controls
+    llm_routing_enabled: bool = False
+    llm_lazy_generation_enabled: bool = False
+    llm_usage_telemetry_enabled: bool = True
+    llm_usage_retention_days: int = 90
+    llm_report_max_tokens: int = 4096
+    llm_followup_max_tokens: int = 768
 
     # CORS — stored as raw string to avoid pydantic-settings' strict JSON
     # parsing of list types, which breaks when Railway strips inner quotes.
@@ -66,6 +81,9 @@ class Settings(BaseSettings):
 
     # Auth
     nextauth_secret: str = ""
+    admin_allowlist_emails_raw: str = (
+        "p.zientala.1995@gmail.com,cataclysm.hpde@gmail.com"
+    )
 
     # Debug mode
     debug: bool = False
@@ -78,3 +96,8 @@ class Settings(BaseSettings):
     def cors_origins(self) -> list[str]:
         """Parse CORS origins from the raw string, tolerating Railway's format quirks."""
         return _parse_cors_origins(self.cors_origins_raw)
+
+    @property
+    def admin_allowlist_emails(self) -> list[str]:
+        """Parse admin allowlist emails from env/config string."""
+        return _parse_csv_list(self.admin_allowlist_emails_raw)

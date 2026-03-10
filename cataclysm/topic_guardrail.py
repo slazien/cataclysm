@@ -25,6 +25,8 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Any
 
+from cataclysm.llm_gateway import call_text_completion, is_task_available, routing_enabled
+
 logger = logging.getLogger(__name__)
 
 # ── Layer 0: System prompt hardening ──────────────────────────────────
@@ -241,26 +243,41 @@ def classify_topic(message: str) -> TopicClassification:
         logger.info("Jailbreak pattern detected in message: %.80s...", message)
         return TopicClassification(on_topic=False, source="jailbreak")
 
-    client = _create_classifier_client()
-    if client is None:
+    use_router = routing_enabled(False)
+    client = _create_classifier_client() if not use_router else None
+    if client is None and not is_task_available("topic_classifier", default_provider="anthropic"):
         # No API key — fall back to permissive (Layer 0 still protects)
         return TopicClassification(on_topic=True, source="no_api_key")
 
     prompt = _CLASSIFIER_PROMPT.format(message=message)
 
     try:
-        response = client.messages.create(
-            model=_CLASSIFIER_MODEL,
-            max_tokens=_CLASSIFIER_MAX_TOKENS,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        if use_router:
+            result = call_text_completion(
+                task="topic_classifier",
+                user_content=prompt,
+                system=None,
+                max_tokens=_CLASSIFIER_MAX_TOKENS,
+                temperature=0.0,
+                default_provider="anthropic",
+                default_model=_CLASSIFIER_MODEL,
+                timeout_s=_CLASSIFIER_TIMEOUT_S,
+                max_retries=1,
+            )
+            text = result.text
+        else:
+            assert client is not None
+            response = client.messages.create(
+                model=_CLASSIFIER_MODEL,
+                max_tokens=_CLASSIFIER_MAX_TOKENS,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            block = response.content[0]
+            text = block.text if hasattr(block, "text") else str(block)
     except Exception:
         logger.warning("Topic classifier API call failed", exc_info=True)
         # Fail open — Layer 0 system prompt still protects
         return TopicClassification(on_topic=True, source="fallback")
-
-    block = response.content[0]
-    text = block.text if hasattr(block, "text") else str(block)
 
     return _parse_classification(text)
 

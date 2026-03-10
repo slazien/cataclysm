@@ -1078,3 +1078,19 @@ el.getBoundingClientRect().right > window.innerWidth
 **Why**: Coaching strings with raw metric distances like `98m` were shown unchanged for imperial users because `resolveSpeedMarkers()` only converted speed/temperature/precipitation. Extending it to convert `m/meters` ↔ `ft/feet` fixed the mismatch without requiring backend regeneration.
 
 **Error signature**: Imperial UI shows recommendations like `Brake 98m past...` or `15m later...` in coaching cards/chat despite unit preference being imperial.
+
+## Dashboard Aggregations Must Handle Empty Windows and Provider Collisions (2026-03-10)
+
+**Pattern**: For analytics endpoints, always guard division by zero and include full dimensional keys (task + provider + model) when building matrix/grouped views.
+
+**Why**: New admin cost dashboard aggregation crashed on empty result windows due to `sum / total_calls` before a zero guard, and task-model matrix grouping risked conflating entries when model names overlap across providers.
+
+**Error signature**: `/api/admin/llm-usage/dashboard` returns 500 on no-data windows, or heatmap rows show incorrect provider attribution for same-named models.
+
+## Frontend Admin Access Should Be Server-Validated, Not Hardcoded (2026-03-10)
+
+**Pattern**: Admin UI routes should gate through a backend auth probe endpoint (`/api/admin/me`) and treat both 401 and 403 as access denial.
+
+**Why**: Removing hardcoded client email checks without replacing them with a server-backed gate allowed signed-in non-admin users into admin screens until API calls failed.
+
+**Error signature**: Admin pages render for non-admin users and then show noisy API failures instead of immediate access-denied UI.

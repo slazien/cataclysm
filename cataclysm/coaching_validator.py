@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from cataclysm.driving_physics import PHYSICS_GUARDRAILS
+from cataclysm.llm_gateway import call_text_completion, is_task_available, routing_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -139,8 +140,11 @@ class CoachingValidator:
         """Run a guardrail compliance check via a lightweight LLM call."""
         now = datetime.now(UTC).isoformat()
 
-        client = self._create_client()
-        if client is None:
+        use_router = routing_enabled(False)
+        client = self._create_client() if not use_router else None
+        if client is None and not is_task_available(
+            "coaching_validator", default_provider="anthropic"
+        ):
             logger.debug("Skipping coaching validation — no API key")
             return ValidationRecord(timestamp=now, passed=True)
 
@@ -150,17 +154,30 @@ class CoachingValidator:
         )
 
         try:
-            message = client.messages.create(
-                model="claude-sonnet-4-6",
-                max_tokens=512,
-                messages=[{"role": "user", "content": prompt}],
-            )
+            if use_router:
+                result = call_text_completion(
+                    task="coaching_validator",
+                    user_content=prompt,
+                    system=None,
+                    max_tokens=512,
+                    temperature=0.0,
+                    default_provider="anthropic",
+                    default_model="claude-sonnet-4-6",
+                )
+                text = result.text
+            else:
+                assert client is not None
+                message = client.messages.create(
+                    model="claude-sonnet-4-6",
+                    max_tokens=512,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                block = message.content[0]
+                text = block.text if hasattr(block, "text") else str(block)
         except Exception:
             logger.warning("Coaching validation API call failed", exc_info=True)
             return ValidationRecord(timestamp=now, passed=True)
 
-        block = message.content[0]
-        text = block.text if hasattr(block, "text") else str(block)
         return self._parse_validation(text, now)
 
     @staticmethod
