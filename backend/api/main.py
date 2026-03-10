@@ -77,6 +77,7 @@ def _configure_logging() -> None:
                 "uvicorn.access": {"level": "WARNING"},
                 "sqlalchemy.engine": {"level": "WARNING"},
                 "httpx": {"level": "WARNING"},
+                "httpcore": {"level": "WARNING"},
                 "anthropic": {"level": "WARNING"},
                 "openai": {"level": "WARNING"},
                 "google": {"level": "WARNING"},
