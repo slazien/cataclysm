@@ -673,14 +673,15 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
     best_lap_df = processed.resampled_laps[processed.best_lap]
     # Use geometry-first matching when supported. Some deployments may run an
     # older detect_track_or_lookup() signature without the allow_name_fallback kwarg.
+    matcher: Any = detect_track_or_lookup
     try:
-        layout = detect_track_or_lookup(
+        layout = matcher(
             parsed.data,
             parsed.metadata.track_name,
             allow_name_fallback=False,
         )
     except TypeError:
-        layout = detect_track_or_lookup(parsed.data, parsed.metadata.track_name)
+        layout = matcher(parsed.data, parsed.metadata.track_name)
     corner_version: str | None = None
     if layout is not None:
         # Hybrid cache already has the correct corners (DB-first + Python fallback).
