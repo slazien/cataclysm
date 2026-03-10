@@ -198,36 +198,24 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
       const sY = margins.top + sIdx * (barHeight + barSpacing);
       const sBarW = maxTimeCost > 0 ? (straightsGapS / maxTimeCost) * chartW : 0;
 
-      // Muted blue-gray color for non-corner time
-      ctx.fillStyle = 'rgba(148, 163, 184, 0.45)'; // slate-400 at 45%
+      // Muted slate bar
+      ctx.fillStyle = 'rgba(148, 163, 184, 0.35)';
       ctx.beginPath();
-      if (ctx.roundRect) {
-        ctx.roundRect(margins.left, sY, sBarW, barHeight, 3);
-      } else {
-        ctx.rect(margins.left, sY, sBarW, barHeight);
-      }
+      ctx.roundRect?.(margins.left, sY, sBarW, barHeight, BAR_RADIUS);
       ctx.fill();
 
-      // Label: "Str."
-      ctx.fillStyle = 'rgba(148, 163, 184, 0.7)';
+      // Left label
+      ctx.fillStyle = 'rgba(148, 163, 184, 0.6)';
       ctx.font = '11px Inter, system-ui, sans-serif';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
-      ctx.fillText('Str.', margins.left - 6, sY + barHeight / 2);
+      ctx.fillText('Str.', margins.left - 8, sY + barHeight / 2);
 
-      // Value label: "~X.Xs straights" — clip to canvas right bound
-      const sLabel = `~${straightsGapS.toFixed(1)}s straights`;
-      const sLabelX = margins.left + sBarW + 4;
-      const rightBound = width - margins.right;
-      ctx.fillStyle = 'rgba(148, 163, 184, 0.6)';
-      ctx.font = '10px Inter, system-ui, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(sLabelX, sY, rightBound - sLabelX, barHeight + 2);
-      ctx.clip();
-      ctx.fillText(sLabel, sLabelX, sY + barHeight / 2);
-      ctx.restore();
+      // Right time column
+      ctx.fillStyle = 'rgba(148, 163, 184, 0.7)';
+      ctx.font = 'bold 11px Inter, system-ui, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(`~${straightsGapS.toFixed(1)}s`, width - margins.right, sY + barHeight / 2);
     }
 
   }, [opportunities, dimensions, getDataCtx, convertSpeed, speedUnit, straightsGapS]);
@@ -268,7 +256,11 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
   }
 
   const displayCount = opportunities.length + (straightsGapS > 0 ? 1 : 0);
-  const chartHeight = Math.max(120, displayCount * (BAR_HEIGHT + BAR_GAP) + 12);
+  const hasExitSplit = opportunities.some((o) => (o.exit_straight_time_cost_s ?? 0) > 0.05);
+  const chartHeight = Math.max(
+    120,
+    displayCount * (BAR_HEIGHT + BAR_GAP) + (hasExitSplit ? 20 : 12),
+  );
 
   return (
     <div className="rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
