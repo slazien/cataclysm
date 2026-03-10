@@ -95,8 +95,6 @@ def _get_validator() -> CoachingValidator:
     return _validator
 
 
-# Anthropic client settings for resilience against transient API errors (429, 529, 5xx)
-
 SkillLevel = str  # "novice", "intermediate", "advanced"
 
 _SKILL_PROMPTS: dict[str, str] = {
@@ -1276,7 +1274,7 @@ def generate_coaching_report(
             task="coaching_report",
             user_content=prompt,
             system=system,
-            max_tokens=int(os.environ.get("LLM_REPORT_MAX_TOKENS", "10000")),
+            max_tokens=int(os.environ.get("LLM_REPORT_MAX_TOKENS", "8192")),
             temperature=0.3,
             default_provider="anthropic",
             default_model="claude-haiku-4-5-20251001",
