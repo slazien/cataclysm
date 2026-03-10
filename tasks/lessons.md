@@ -1070,3 +1070,11 @@ el.getBoundingClientRect().right > window.innerWidth
 **Why**: Staging QA failed with Playwright strict-mode violation because two hidden file inputs matched the same selector. Scoping to a deterministic input fixed the flow and allowed report generation verification.
 
 **Error signature**: `Locator.set_input_files ... strict mode violation ... locator("input[type=\"file\"]") resolved to 2 elements`.
+
+## Coaching Text Unit Resolver Must Handle Distance, Not Only Speed (2026-03-10)
+
+**Pattern**: Any frontend text post-processor used for coaching content must convert both speed and distance legacy literals to the active unit system (`mph/kmh` and `m/ft`), not just speed markers.
+
+**Why**: Coaching strings with raw metric distances like `98m` were shown unchanged for imperial users because `resolveSpeedMarkers()` only converted speed/temperature/precipitation. Extending it to convert `m/meters` ↔ `ft/feet` fixed the mismatch without requiring backend regeneration.
+
+**Error signature**: Imperial UI shows recommendations like `Brake 98m past...` or `15m later...` in coaching cards/chat despite unit preference being imperial.
