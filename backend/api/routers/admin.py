@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-ADMIN_EMAIL = "p.zientala.1995@gmail.com"
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "p.zientala.1995@gmail.com")
 
 # Where canonical track references (NPZ) are stored on disk.
 _TRACK_REF_DIR = Path(
