@@ -5,11 +5,13 @@ from __future__ import annotations
 import logging
 from typing import Annotated, Any
 
+import numpy as np
+from cataclysm.osm_import import osm_to_track_seed, query_overpass_raceway
 from cataclysm.track_db import OfficialCorner
 from cataclysm.track_db_hybrid import db_track_to_layout, update_db_tracks_cache
 from cataclysm.track_validation import validate_track
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +21,7 @@ from backend.api.db.models import Track, TrackElevationProfile
 from backend.api.dependencies import AuthenticatedUser, get_user_or_anon
 from backend.api.routers.admin import require_admin
 from backend.api.services.track_corners import update_corner_cache
+from backend.api.services.track_enrichment import enrich_track
 from backend.api.services.track_store import (
     create_track,
     get_all_tracks_from_db,
@@ -118,6 +121,38 @@ class ValidationResponse(BaseModel):
     is_valid: bool
     issues: list[ValidationIssueResponse]
     quality_score: float
+
+
+class OsmImportRequest(BaseModel):
+    """Request body for importing tracks from OSM Overpass."""
+
+    lat: float
+    lon: float
+    radius_m: float = Field(default=5000.0, gt=0, le=50000)
+
+
+class GeoJsonImportRequest(BaseModel):
+    """Request body for importing a track from GeoJSON."""
+
+    name: str
+    slug: str
+    geojson: dict[str, Any]
+
+
+class ImportResult(BaseModel):
+    """Result of a track import operation."""
+
+    tracks_created: list[str]
+    enrichment_results: list[dict[str, Any]]
+
+
+class EnrichmentResult(BaseModel):
+    """Result of a track enrichment run."""
+
+    corners_detected: int
+    elevation_source: str | None
+    brake_markers: int
+    steps_logged: int
 
 
 # ---------------------------------------------------------------------------
@@ -388,4 +423,210 @@ async def validate_track_endpoint(
         is_valid=vr.is_valid,
         issues=[ValidationIssueResponse(severity=i.severity, message=i.message) for i in vr.issues],
         quality_score=vr.quality_score,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Import endpoints
+# ---------------------------------------------------------------------------
+
+
+def _extract_geojson_coordinates(geojson: dict[str, Any]) -> list[list[float]]:
+    """Extract coordinate pairs from GeoJSON geometry.
+
+    Supports top-level Geometry objects (LineString, Polygon) and
+    Feature/FeatureCollection wrappers.  Returns list of [lon, lat] pairs.
+    Raises HTTPException(422) on unsupported or empty geometries.
+    """
+    geometry = geojson
+
+    # Unwrap FeatureCollection → first Feature
+    if geometry.get("type") == "FeatureCollection":
+        features = geometry.get("features", [])
+        if not features:
+            raise HTTPException(status_code=422, detail="FeatureCollection has no features")
+        geometry = features[0].get("geometry", {})
+
+    # Unwrap Feature → geometry
+    if geometry.get("type") == "Feature":
+        geometry = geometry.get("geometry", {})
+
+    geom_type = geometry.get("type", "")
+    coords = geometry.get("coordinates", [])
+
+    if geom_type == "LineString":
+        if len(coords) < 3:
+            raise HTTPException(
+                status_code=422,
+                detail="LineString must have at least 3 coordinate pairs",
+            )
+        return coords  # type: ignore[no-any-return]
+
+    if geom_type == "Polygon":
+        # Use the exterior ring (first ring)
+        if not coords or len(coords[0]) < 3:
+            raise HTTPException(
+                status_code=422,
+                detail="Polygon exterior ring must have at least 3 coordinate pairs",
+            )
+        return coords[0]  # type: ignore[no-any-return]
+
+    raise HTTPException(
+        status_code=422,
+        detail=f"Unsupported GeoJSON geometry type: '{geom_type}'. Expected LineString or Polygon.",
+    )
+
+
+@router.post("/import/osm", response_model=ImportResult, status_code=201)
+async def import_from_osm(
+    body: OsmImportRequest,
+    _user: Annotated[AuthenticatedUser, Depends(require_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ImportResult:
+    """Import raceways from OSM Overpass near a lat/lon coordinate."""
+    results = await query_overpass_raceway(body.lat, body.lon, radius_m=int(body.radius_m))
+    if not results:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No raceways found within {body.radius_m}m of ({body.lat}, {body.lon})",
+        )
+
+    tracks_created: list[str] = []
+    enrichment_results: list[dict[str, Any]] = []
+
+    for osm_result in results:
+        seed = osm_to_track_seed(osm_result)
+        try:
+            track = await create_track(
+                db,
+                slug=seed["slug"],
+                name=seed["name"],
+                source=seed["source"],
+                center_lat=seed.get("center_lat"),
+                center_lon=seed.get("center_lon"),
+                length_m=seed.get("length_m"),
+            )
+        except IntegrityError:
+            # Track with this slug already exists — skip
+            await db.rollback()
+            logger.info("Skipping OSM import: slug '%s' already exists", seed["slug"])
+            continue
+
+        # Run enrichment on the OSM centerline
+        lats = np.array(osm_result.lats)
+        lons = np.array(osm_result.lons)
+        enrich_result = await enrich_track(
+            db, track.id, lats, lons, track_length_m=osm_result.length_m
+        )
+        await _refresh_hybrid_cache(db, track)
+
+        tracks_created.append(seed["slug"])
+        enrichment_results.append(enrich_result)
+
+    return ImportResult(tracks_created=tracks_created, enrichment_results=enrichment_results)
+
+
+@router.post("/import/geojson", response_model=ImportResult, status_code=201)
+async def import_from_geojson(
+    body: GeoJsonImportRequest,
+    _user: Annotated[AuthenticatedUser, Depends(require_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ImportResult:
+    """Import a track from a GeoJSON geometry (LineString or Polygon ring)."""
+    coords = _extract_geojson_coordinates(body.geojson)
+
+    # GeoJSON coordinates are [lon, lat] — extract to arrays
+    lons = np.array([c[0] for c in coords])
+    lats = np.array([c[1] for c in coords])
+
+    center_lat = float(np.mean(lats))
+    center_lon = float(np.mean(lons))
+
+    # Compute approximate length from coordinate deltas
+    dlat = np.diff(lats) * 111320.0
+    dlon = np.diff(lons) * 111320.0 * np.cos(np.radians(np.mean(lats)))
+    length_m = float(np.sum(np.sqrt(dlat**2 + dlon**2)))
+
+    try:
+        track = await create_track(
+            db,
+            slug=body.slug,
+            name=body.name,
+            source="geojson",
+            center_lat=center_lat,
+            center_lon=center_lon,
+            length_m=length_m,
+        )
+    except IntegrityError:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Track with slug '{body.slug}' already exists",
+        ) from None
+
+    # Store the raw GeoJSON on the track record
+    track.centerline_geojson = body.geojson
+    await db.flush()
+
+    enrich_result = await enrich_track(db, track.id, lats, lons, track_length_m=length_m)
+    await _refresh_hybrid_cache(db, track)
+
+    return ImportResult(
+        tracks_created=[body.slug],
+        enrichment_results=[enrich_result],
+    )
+
+
+# ---------------------------------------------------------------------------
+# Enrichment trigger
+# ---------------------------------------------------------------------------
+
+
+@router.post("/{slug}/enrich", response_model=EnrichmentResult)
+async def trigger_enrichment(
+    slug: str,
+    _user: Annotated[AuthenticatedUser, Depends(require_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> EnrichmentResult:
+    """Re-run the enrichment pipeline on an existing track.
+
+    Extracts the centerline from corners (lat/lon) or the stored
+    centerline_geojson.  Returns 422 if no centerline data is available.
+    """
+    track = await _get_track_or_404(db, slug)
+
+    lats: np.ndarray | None = None
+    lons: np.ndarray | None = None
+
+    # Strategy 1: Stored centerline GeoJSON
+    if track.centerline_geojson is not None:
+        try:
+            coords = _extract_geojson_coordinates(track.centerline_geojson)
+            lons = np.array([c[0] for c in coords])
+            lats = np.array([c[1] for c in coords])
+        except HTTPException:
+            pass  # Fall through to other strategies
+
+    # Strategy 2: Corners with lat/lon
+    if lats is None:
+        corners = await get_corners_for_track(db, track.id)
+        corner_coords = [(c.lat, c.lon) for c in corners if c.lat is not None and c.lon is not None]
+        if len(corner_coords) >= 3:
+            lats = np.array([c[0] for c in corner_coords])
+            lons = np.array([c[1] for c in corner_coords])
+
+    if lats is None or lons is None:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Track '{slug}' has no centerline data. "
+            "Upload GeoJSON or add corners with lat/lon coordinates first.",
+        )
+
+    enrich_result = await enrich_track(db, track.id, lats, lons, track_length_m=track.length_m)
+    await _refresh_hybrid_cache(db, track)
+
+    return EnrichmentResult(
+        corners_detected=enrich_result["corners_detected"],
+        elevation_source=enrich_result.get("elevation_source"),
+        brake_markers=enrich_result["brake_markers"],
+        steps_logged=enrich_result["steps_logged"],
     )
