@@ -129,6 +129,19 @@ def update_db_tracks_cache(slug: str, layout: TrackLayout) -> None:
     logger.info("Hybrid cache updated for %s", slug)
 
 
+def update_db_tracks_cache_with_aliases(
+    slug: str,
+    layout: TrackLayout,
+    aliases: list[str] | None = None,
+) -> None:
+    """Update cache using slug, canonical name, and optional aliases."""
+    update_db_tracks_cache(slug, layout)
+    for alias in aliases or []:
+        key = _normalize_name(alias)
+        if key:
+            _db_tracks[key] = layout
+
+
 def clear_db_tracks_cache() -> None:
     """Clear the DB tracks cache (for testing)."""
     global _db_loaded  # noqa: PLW0603
@@ -163,7 +176,7 @@ async def load_db_tracks(db: AsyncSession) -> int:
         )
         landmarks = list(landmarks_result.scalars().all())
         layout = db_track_to_layout(track, corners, landmarks)
-        update_db_tracks_cache(track.slug, layout)
+        update_db_tracks_cache_with_aliases(track.slug, layout, aliases=track.aliases)
         count += 1
 
     _db_loaded = True

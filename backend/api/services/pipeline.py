@@ -467,7 +467,7 @@ async def _try_auto_discover_track(session_data: SessionData) -> None:
     benefit from the discovered layout via GPS detection.
     """
     from cataclysm.osm_import import osm_to_track_seed, query_overpass_raceway_sync
-    from cataclysm.track_db_hybrid import db_track_to_layout, update_db_tracks_cache
+    from cataclysm.track_db_hybrid import db_track_to_layout, update_db_tracks_cache_with_aliases
     from cataclysm.track_match import compute_session_centroid
 
     from backend.api.db.database import async_session_factory
@@ -491,6 +491,12 @@ async def _try_auto_discover_track(session_data: SessionData) -> None:
     )
     seed = osm_to_track_seed(best)
     logger.info("Auto-discovered track: %s (%.0fm) via OSM", seed["name"], seed["length_m"])
+    session_track_name = session_data.snapshot.metadata.track_name.strip()
+    aliases = (
+        [session_track_name]
+        if session_track_name and session_track_name.casefold() != seed["name"].strip().casefold()
+        else []
+    )
 
     # Create a draft track in the DB
     try:
@@ -513,6 +519,7 @@ async def _try_auto_discover_track(session_data: SessionData) -> None:
                 length_m=seed["length_m"],
                 status="draft",
                 quality_tier=1,
+                aliases=aliases,
             )
             db.add(track)
             await db.commit()
@@ -520,7 +527,7 @@ async def _try_auto_discover_track(session_data: SessionData) -> None:
 
             # Seed hybrid cache so GPS detection finds it for future uploads
             layout = db_track_to_layout(track, [], [])
-            update_db_tracks_cache(track.slug, layout)
+            update_db_tracks_cache_with_aliases(track.slug, layout, aliases=track.aliases)
             logger.info("Auto-created draft track: %s", seed["slug"])
     except Exception:
         logger.warning("Failed to persist auto-discovered track", exc_info=True)
