@@ -1054,3 +1054,19 @@ el.getBoundingClientRect().right > window.innerWidth
 **Why**: A wide-arc hairpin guard fixed a real misclassification, but without edge tests it was easy to create unstable behavior for near-identical telemetry around the cutoff. Adding tests for `arc=80/81` and `heading=94.9/95.1` made the intended transition explicit and protected against accidental regressions.
 
 **Error signature**: Tiny input jitter (1 m arc, <1 deg heading) flips corner type unexpectedly after an otherwise reasonable threshold tweak.
+
+## Start in an Isolated Worktree When Main Tree Is Dirty (2026-03-10)
+
+**Pattern**: Before any implementation, check branch + status. If the current tree has unrelated modified/untracked files, switch to an isolated worktree/branch immediately and do all edits/tests there.
+
+**Why**: Running commands from a heavily dirty shared tree created high risk of touching unrelated work and produced noisy output. Moving to the dedicated feature worktree removed ambiguity and prevented accidental cross-task edits while other agents worked in parallel.
+
+**Error signature**: `git status` shows hundreds/thousands of unrelated paths, and routine commands (`diff`, `status`, format/test runs) become noisy or risky.
+
+## File Upload Flows Need Non-Ambiguous Playwright Locators (2026-03-10)
+
+**Pattern**: For upload automation, never assume a unique `input[type="file"]`. Handle duplicate hidden inputs explicitly (`locator(...).first` or scope to the intended container) before `set_input_files`.
+
+**Why**: Staging QA failed with Playwright strict-mode violation because two hidden file inputs matched the same selector. Scoping to a deterministic input fixed the flow and allowed report generation verification.
+
+**Error signature**: `Locator.set_input_files ... strict mode violation ... locator("input[type=\"file\"]") resolved to 2 elements`.

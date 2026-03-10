@@ -27,6 +27,9 @@ Ask clarifying Qs before implementing. Concise, action-oriented.
 10. **Commit immediately** — After every change. Push `staging`. NEVER push `main` unless user says "deploy to prod."
 12. **Temp branch lifecycle** — After merging `temp/<feature>` → staging, NEVER delete the temp branch. User must approve deletion manually (rollback safety).
 11. **Images** — `curl -sL -o /tmp/f.ext "URL"`, Read tool, delete.
+13. **Worktree hygiene** — Start every session with `git status --short --branch`; if tree is dirty/unrelated or behind remote, switch to isolated worktree before edits/tests.
+14. **Venv in worktrees** — If `.venv` is missing in a worktree, use shared repo venv (`source ../cataclysm/.venv/bin/activate`) for all Python commands.
+15. **Parallel branch safety** — Before pushing to `staging`: `git fetch origin` → verify head vs `origin/staging` → rerun gates on final diff.
 
 ## Core Principles
 
