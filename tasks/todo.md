@@ -11,7 +11,7 @@
 ## Verification
 - [x] 7. Run targeted unit tests for character/classifier/elevation/camber/blind/notes
 - [x] 8. Run full quality gates (ruff, mypy, pytest)
-- [ ] 9. Commit, merge into `staging`, push, and validate in browser on staging
+- [x] 9. Commit, merge into `staging`, push, and validate in browser on staging
 
 # Session TODO — 2026-03-05
 
