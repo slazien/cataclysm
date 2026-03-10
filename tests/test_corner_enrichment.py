@@ -82,8 +82,8 @@ class TestCharacterDetection:
             corner=corner,
             speed_start=40.0,
             speed_end=39.2,
-            throttle_start=100.0,
-            throttle_end=100.0,
+            throttle_start=92.0,
+            throttle_end=92.0,
             brake_pct=0.0,
             long_g=-0.01,
         )
@@ -147,7 +147,38 @@ class TestCharacterDetection:
         lap = _base_lap_data()
 
         auto_enrich_corner_metadata([corner], lap)
-        assert corner.character is None
+        assert corner.character == "flat"
+
+    def test_short_corner_uses_pre_entry_braking_zone(self) -> None:
+        corner = _make_corner(entry=100.0, apex=112.0, exit=145.0)
+        corner.brake_point_m = 90.0
+        lap = _base_lap_data()
+        dist = lap["distance_m"]
+        mask = (dist >= 90.0) & (dist <= 108.0)
+        lap["brake_pct"][mask] = 65.0
+        lap["throttle_pct"][mask] = 10.0
+        lap["speed_mps"][mask] = np.linspace(40.0, 25.0, int(np.sum(mask)))
+        lap["longitudinal_g"][mask] = -0.35
+
+        auto_enrich_corner_metadata([corner], lap)
+        assert corner.character == "brake"
+
+    def test_brake_detected_without_brake_channel(self) -> None:
+        corner = _make_corner(entry=90.0, apex=150.0, exit=210.0)
+        lap = _base_lap_data()
+        _apply_approach_profile(
+            lap,
+            corner=corner,
+            speed_start=40.0,
+            speed_end=26.0,
+            throttle_start=85.0,
+            throttle_end=15.0,
+            brake_pct=0.0,
+            long_g=-0.25,
+        )
+
+        auto_enrich_corner_metadata([corner], lap)
+        assert corner.character == "brake"
 
     def test_preserves_curated_character(self) -> None:
         corner = _make_corner()
@@ -205,6 +236,43 @@ class TestDirectionDetection:
 
         auto_enrich_corner_metadata([corner], lap)
         assert corner.direction == "right"
+
+
+class TestElevationTrendDetection:
+    def test_detects_crest_with_multi_lap_smoothing(self) -> None:
+        corner = _make_corner(entry=60.0, apex=100.0, exit=140.0)
+        lap = _base_lap_data(n=401)
+        dist = lap["distance_m"]
+        base_alt = 100.0 + 2.4 * np.exp(-((dist - 100.0) ** 2) / (2 * 14.0**2))
+        lap["altitude_m"] = base_alt + 0.25 * np.sin(dist * 0.4)
+
+        all_laps: dict[int, dict[str, np.ndarray]] = {}
+        for lap_num, phase in enumerate((0.0, 0.7, 1.4), start=1):
+            lap_i = _base_lap_data(n=401)
+            lap_i["altitude_m"] = base_alt + 0.35 * np.sin(dist * 0.35 + phase)
+            all_laps[lap_num] = lap_i
+
+        auto_enrich_corner_metadata([corner], lap, all_laps)
+        assert corner.elevation_trend == "crest"
+
+    def test_detects_compression(self) -> None:
+        corner = _make_corner(entry=60.0, apex=100.0, exit=140.0)
+        lap = _base_lap_data(n=401)
+        dist = lap["distance_m"]
+        base_alt = 100.0 - 2.8 * np.exp(-((dist - 100.0) ** 2) / (2 * 14.0**2))
+        lap["altitude_m"] = base_alt
+
+        auto_enrich_corner_metadata([corner], lap)
+        assert corner.elevation_trend == "compression"
+
+    def test_gentle_grade_is_flat(self) -> None:
+        corner = _make_corner(entry=60.0, apex=100.0, exit=140.0)
+        lap = _base_lap_data(n=401)
+        dist = lap["distance_m"]
+        lap["altitude_m"] = 100.0 + 0.015 * dist
+
+        auto_enrich_corner_metadata([corner], lap)
+        assert corner.elevation_trend == "flat"
 
 
 class TestCamberDetection:
@@ -339,6 +407,23 @@ class TestBlindCrestDetection:
         auto_enrich_corner_metadata([corner], lap)
         assert corner.blind is False
 
+    def test_altitude_noise_does_not_trigger_blind(self) -> None:
+        corner = _make_corner(entry=60.0, apex=100.0, exit=140.0)
+        corner.brake_point_m = 70.0
+        lap = _base_lap_data(n=401)
+        dist = lap["distance_m"]
+        base_alt = np.full_like(dist, 100.0)
+        lap["altitude_m"] = base_alt + 0.25 * np.sin(dist * 0.8)
+
+        all_laps: dict[int, dict[str, np.ndarray]] = {}
+        for lap_num, phase in enumerate((0.0, 0.9, 1.8), start=1):
+            lap_i = _base_lap_data(n=401)
+            lap_i["altitude_m"] = base_alt + 0.25 * np.sin(dist * 0.75 + phase)
+            all_laps[lap_num] = lap_i
+
+        auto_enrich_corner_metadata([corner], lap, all_laps)
+        assert corner.blind is False
+
     def test_preserves_curated_blind(self) -> None:
         corner = _make_corner()
         corner.blind = True
@@ -361,6 +446,7 @@ class TestCoachingNotes:
 
     def test_offcamber_blind_notes(self) -> None:
         corner = _make_corner()
+        corner.character = "brake"
         corner.camber = "off-camber"
         corner.blind = True
 
@@ -368,6 +454,17 @@ class TestCoachingNotes:
         assert corner.coaching_notes is not None
         assert "Off-camber" in corner.coaching_notes
         assert "Blind apex" in corner.coaching_notes
+
+    def test_no_notes_without_character_signal(self) -> None:
+        corner = _make_corner()
+        corner.camber = "off-camber"
+        corner.blind = True
+        lap = _base_lap_data()
+        lap.pop("throttle_pct")
+        lap.pop("brake_pct")
+
+        auto_enrich_corner_metadata([corner], lap)
+        assert corner.coaching_notes is None
 
     def test_preserves_curated_notes(self) -> None:
         corner = _make_corner()

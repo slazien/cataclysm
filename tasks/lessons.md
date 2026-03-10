@@ -1038,3 +1038,11 @@ el.getBoundingClientRect().right > window.innerWidth
 **Why**: `locate_official_corners` was changed to walk the heading-rate signal instead of using midpoint boundaries. For 13/16 Barber corners, heading rate at the apex was below the 1.0 deg/m threshold → 0.7m zones → `extract_corner_kpis_for_lap` dropped them. Since `_reload_sessions_from_db()` re-runs the full pipeline on restart, this retroactively affected ALL sessions. Fix: if zone < 2m, fall back to midpoint boundaries.
 
 **Error signature**: Features disappear from the UI after a backend restart, despite no frontend changes. Items that existed before a code change vanish retroactively because the backend re-processes stored data with the new (broken) logic on every startup.
+
+## Guardrail Classifier Should Use a Patch-Friendly Wrapper (2026-03-10)
+
+**Pattern**: If tests patch a function through different import paths, route runtime calls through a local wrapper that delegates to the source module at call time.
+
+**Why**: `coaching_chat_http` originally used a function-local import, so patching `backend.api.routers.coaching.classify_topic` had no effect. After switching to a direct module-level import alias, another test patching `cataclysm.topic_guardrail.classify_topic` still didn’t affect the already-bound alias. A lightweight wrapper (`coaching.classify_topic -> topic_guardrail.classify_topic`) made both patch styles deterministic.
+
+**Error signature**: Off-topic chat tests intermittently return fallback API-key messages because the patched classifier is not actually invoked.

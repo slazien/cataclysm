@@ -55,8 +55,8 @@ class TestClassifyCornerHairpin:
         )
         assert result.corner_type != "hairpin"
 
-    def test_hairpin_long_arc_becomes_complex(self) -> None:
-        """Long arc should fail hairpin gating and fall back to complex."""
+    def test_hairpin_long_arc_becomes_sweeper(self) -> None:
+        """Long arc should fail hairpin gating and resolve to sweeper geometry."""
         short = classify_corner(
             peak_curvature=0.035,
             heading_change_deg=130.0,
@@ -65,10 +65,19 @@ class TestClassifyCornerHairpin:
         long = classify_corner(
             peak_curvature=0.035,
             heading_change_deg=130.0,
-            arc_length_m=80.0,
+            arc_length_m=120.0,
         )
         assert short.corner_type == "hairpin"
-        assert long.corner_type == "complex"
+        assert long.corner_type == "sweeper"
+
+    def test_barber_t5_wide_hairpin(self) -> None:
+        """Barber T5-like geometry (wide but tight) should still be hairpin."""
+        result = classify_corner(
+            peak_curvature=0.030,
+            heading_change_deg=100.0,
+            arc_length_m=90.0,
+        )
+        assert result.corner_type == "hairpin"
 
 
 class TestClassifyCornerSweeper:
@@ -83,14 +92,15 @@ class TestClassifyCornerSweeper:
         assert result.corner_type == "sweeper"
         assert result.confidence > 0.5
 
-    def test_sweeper_short_arc(self) -> None:
-        """Arc <= 150m cannot classify as sweeper."""
+    def test_sweeper_short_arc_fallback(self) -> None:
+        """Near-threshold arc should use low-confidence sweeper fallback."""
         result = classify_corner(
             peak_curvature=0.010,
             heading_change_deg=40.0,
-            arc_length_m=150.0,
+            arc_length_m=70.0,
         )
-        assert result.corner_type != "sweeper"
+        assert result.corner_type == "sweeper"
+        assert result.confidence < 0.6
 
     def test_sweeper_long_arc(self) -> None:
         """Very long arc still classified as sweeper."""
@@ -98,6 +108,15 @@ class TestClassifyCornerSweeper:
             peak_curvature=0.008,
             heading_change_deg=50.0,
             arc_length_m=250.0,
+        )
+        assert result.corner_type == "sweeper"
+
+    def test_barber_t3_shorter_sweeper(self) -> None:
+        """Barber T3-like geometry should classify as sweeper, not complex."""
+        result = classify_corner(
+            peak_curvature=0.009,
+            heading_change_deg=45.0,
+            arc_length_m=140.0,
         )
         assert result.corner_type == "sweeper"
 
@@ -191,7 +210,7 @@ class TestClassifyCornerComplex:
         result = classify_corner(
             peak_curvature=0.003,
             heading_change_deg=80.0,
-            arc_length_m=60.0,
+            arc_length_m=40.0,
         )
         assert result.corner_type == "complex"
 

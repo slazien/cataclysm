@@ -28,11 +28,13 @@ KINK_MAX_HEADING_DEG = 25.0
 # ---------------------------------------------------------------------------
 # Arc length thresholds (metres)
 # ---------------------------------------------------------------------------
-HAIRPIN_MAX_ARC_M = 50.0
-SWEEPER_MIN_ARC_M = 150.0
-SWEEPER_MAX_ARC_M = 200.0
+HAIRPIN_MAX_ARC_M = 100.0
+SWEEPER_MIN_ARC_M = 80.0
+SWEEPER_IDEAL_ARC_M = 120.0
+SWEEPER_MAX_ARC_M = 220.0
 KINK_MAX_ARC_M = 30.0
 KINK_MAX_SPEED_LOSS_PCT = 5.0
+HAIRPIN_MIN_HEADING_WITH_CURVATURE_DEG = 45.0
 
 # ---------------------------------------------------------------------------
 # Carousel thresholds
@@ -127,12 +129,15 @@ def classify_corner(
         )
 
     # --- Hairpin: tight corner by high curvature OR large heading on short arc ---
-    if (
-        curv >= HAIRPIN_MIN_CURVATURE or heading >= HAIRPIN_MIN_HEADING_DEG
-    ) and arc <= HAIRPIN_MAX_ARC_M:
+    hairpin_geometry = heading >= HAIRPIN_MIN_HEADING_DEG or (
+        curv >= HAIRPIN_MIN_CURVATURE and heading >= HAIRPIN_MIN_HEADING_WITH_CURVATURE_DEG
+    )
+    if hairpin_geometry and arc <= HAIRPIN_MAX_ARC_M:
         # Confidence increases with curvature/heading evidence and decreases as
-        # arc approaches/exceeds typical tight-corner length.
-        arc_penalty = max(0.0, (arc - HAIRPIN_MAX_ARC_M) / HAIRPIN_MAX_ARC_M) * 0.2
+        # arc extends into wide-hairpin territory.
+        arc_penalty = 0.0
+        if arc > 60.0:
+            arc_penalty = min(0.2, ((arc - 60.0) / 40.0) * 0.2)
         conf = _clamp_confidence(
             0.5
             + 0.2 * min((curv - HAIRPIN_MIN_CURVATURE) / 0.02, 1.0)
@@ -151,13 +156,17 @@ def classify_corner(
     if (
         curv >= SWEEPER_MIN_CURVATURE
         and heading >= SWEEPER_MIN_HEADING_DEG
-        and arc > SWEEPER_MIN_ARC_M
+        and arc >= SWEEPER_MIN_ARC_M
     ):
         # Confidence peaks when arc is in the sweet spot
-        arc_fit = 1.0
-        if arc <= SWEEPER_MIN_ARC_M:
-            arc_fit = arc / SWEEPER_MIN_ARC_M
-        elif arc > SWEEPER_MAX_ARC_M:
+        if arc <= SWEEPER_IDEAL_ARC_M:
+            arc_fit = arc / SWEEPER_IDEAL_ARC_M
+        elif arc <= SWEEPER_MAX_ARC_M:
+            arc_fit = max(
+                0.6,
+                1.0 - (arc - SWEEPER_IDEAL_ARC_M) / (SWEEPER_MAX_ARC_M - SWEEPER_IDEAL_ARC_M),
+            )
+        else:
             arc_fit = max(0.3, 1.0 - (arc - SWEEPER_MAX_ARC_M) / SWEEPER_MAX_ARC_M)
         conf = _clamp_confidence(
             0.4
@@ -171,6 +180,28 @@ def classify_corner(
             reasoning=(
                 f"Moderate curvature ({curv:.4f} 1/m), heading change "
                 f"({heading:.0f} deg), arc {arc:.0f}m"
+            ),
+        )
+
+    # --- Sweeper fallback: avoids overusing "complex" for near-threshold sweepers ---
+    if (
+        curv >= 0.003
+        and heading >= SWEEPER_MIN_HEADING_DEG
+        and 50.0 <= arc < SWEEPER_MIN_ARC_M
+        and speed_loss <= 25.0
+    ):
+        conf = _clamp_confidence(
+            0.35
+            + 0.1 * min(curv / SWEEPER_MIN_CURVATURE, 1.0)
+            + 0.1 * min(heading / 90.0, 1.0)
+            + 0.05 * min(curvature_variation / 2.0, 1.0)
+        )
+        return CornerClassification(
+            corner_type="sweeper",
+            confidence=conf,
+            reasoning=(
+                "Sweeper-like geometry near arc threshold: "
+                f"curvature {curv:.4f} 1/m, heading {heading:.0f} deg, arc {arc:.0f}m"
             ),
         )
 

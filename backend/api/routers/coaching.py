@@ -9,6 +9,7 @@ import math
 from datetime import UTC, datetime
 from typing import Annotated
 
+import cataclysm.topic_guardrail as topic_guardrail
 from cataclysm.causal_chains import compute_causal_analysis
 from cataclysm.coaching import CoachingReport, CornerGrade
 from cataclysm.corners_gained import CornersGainedResult
@@ -19,7 +20,6 @@ from cataclysm.skill_detection import SkillAssessment, detect_skill_level
 from cataclysm.topic_guardrail import (
     INPUT_TOO_LONG_RESPONSE,
     OFF_TOPIC_RESPONSE,
-    classify_topic,
 )
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response
@@ -67,6 +67,16 @@ from backend.api.services.track_corners import ensure_corners_current
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def classify_topic(question: str) -> topic_guardrail.TopicClassification:
+    """Proxy to topic guardrail classifier.
+
+    Kept as a local wrapper so tests can patch either
+    `backend.api.routers.coaching.classify_topic` or
+    `cataclysm.topic_guardrail.classify_topic`.
+    """
+    return topic_guardrail.classify_topic(question)
 
 
 def _generating_response(
@@ -661,7 +671,6 @@ async def coaching_chat_http(
 
     from cataclysm.coaching import CoachingContext, ask_followup
     from cataclysm.coaching import CoachingReport as DomainReport
-    from cataclysm.topic_guardrail import classify_topic
 
     # Layer 1: Off-topic pre-screen
     classification = await asyncio.to_thread(classify_topic, question)
