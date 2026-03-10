@@ -1046,3 +1046,11 @@ el.getBoundingClientRect().right > window.innerWidth
 **Why**: `coaching_chat_http` originally used a function-local import, so patching `backend.api.routers.coaching.classify_topic` had no effect. After switching to a direct module-level import alias, another test patching `cataclysm.topic_guardrail.classify_topic` still didn’t affect the already-bound alias. A lightweight wrapper (`coaching.classify_topic -> topic_guardrail.classify_topic`) made both patch styles deterministic.
 
 **Error signature**: Off-topic chat tests intermittently return fallback API-key messages because the patched classifier is not actually invoked.
+
+## Threshold Guards Need Explicit Boundary Tests (2026-03-10)
+
+**Pattern**: Any classifier rule that introduces a hard threshold (for example arc/heading gates) must ship with tests on both sides of the boundary and at the boundary itself.
+
+**Why**: A wide-arc hairpin guard fixed a real misclassification, but without edge tests it was easy to create unstable behavior for near-identical telemetry around the cutoff. Adding tests for `arc=80/81` and `heading=94.9/95.1` made the intended transition explicit and protected against accidental regressions.
+
+**Error signature**: Tiny input jitter (1 m arc, <1 deg heading) flips corner type unexpectedly after an otherwise reasonable threshold tweak.

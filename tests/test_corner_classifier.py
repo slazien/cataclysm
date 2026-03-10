@@ -120,6 +120,48 @@ class TestClassifyCornerSweeper:
         )
         assert result.corner_type == "sweeper"
 
+    def test_wide_arc_moderate_heading_prefers_sweeper(self) -> None:
+        """Wide-arc 45° corners should not be forced into low-confidence hairpin."""
+        result = classify_corner(
+            peak_curvature=0.020,
+            heading_change_deg=45.0,
+            arc_length_m=100.0,
+        )
+        assert result.corner_type == "sweeper"
+
+    def test_wide_arc_threshold_stable_for_moderate_heading(self) -> None:
+        """Crossing 80m arc threshold should not flip moderate-heading corners."""
+        at_threshold = classify_corner(
+            peak_curvature=0.020,
+            heading_change_deg=45.0,
+            arc_length_m=80.0,
+        )
+        above_threshold = classify_corner(
+            peak_curvature=0.020,
+            heading_change_deg=45.0,
+            arc_length_m=81.0,
+        )
+        assert at_threshold.corner_type == "sweeper"
+        assert above_threshold.corner_type == "sweeper"
+
+    def test_wide_arc_sub_95_heading_prefers_sweeper(self) -> None:
+        """Wide-arc corners below the heading cutoff stay in sweeper class."""
+        result = classify_corner(
+            peak_curvature=0.030,
+            heading_change_deg=94.9,
+            arc_length_m=90.0,
+        )
+        assert result.corner_type == "sweeper"
+
+    def test_wide_arc_above_95_heading_can_be_hairpin(self) -> None:
+        """Tight wide-arc corners above heading cutoff remain hairpins."""
+        result = classify_corner(
+            peak_curvature=0.030,
+            heading_change_deg=95.1,
+            arc_length_m=90.0,
+        )
+        assert result.corner_type == "hairpin"
+
 
 class TestClassifyCornerKink:
     """Low curvature + small heading + short arc -> kink."""

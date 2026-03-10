@@ -35,6 +35,8 @@ SWEEPER_MAX_ARC_M = 220.0
 KINK_MAX_ARC_M = 30.0
 KINK_MAX_SPEED_LOSS_PCT = 5.0
 HAIRPIN_MIN_HEADING_WITH_CURVATURE_DEG = 45.0
+HAIRPIN_WIDE_ARC_M = 80.0
+HAIRPIN_WIDE_ARC_MIN_HEADING_DEG = 95.0
 
 # ---------------------------------------------------------------------------
 # Carousel thresholds
@@ -132,6 +134,8 @@ def classify_corner(
     hairpin_geometry = heading >= HAIRPIN_MIN_HEADING_DEG or (
         curv >= HAIRPIN_MIN_CURVATURE and heading >= HAIRPIN_MIN_HEADING_WITH_CURVATURE_DEG
     )
+    if arc >= HAIRPIN_WIDE_ARC_M and heading < HAIRPIN_WIDE_ARC_MIN_HEADING_DEG:
+        hairpin_geometry = False
     if hairpin_geometry and arc <= HAIRPIN_MAX_ARC_M:
         # Confidence increases with curvature/heading evidence and decreases as
         # arc extends into wide-hairpin territory.

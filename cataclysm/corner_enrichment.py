@@ -509,7 +509,13 @@ def _auto_detect_blind_crest(
     if apex_idx <= turnin_idx + 2:
         return
 
-    crest_blind = _check_crest_blindness(distance, altitude_profile, turnin_idx, apex_idx)
+    crest_blind = _check_crest_blindness(
+        distance,
+        altitude_profile,
+        turnin_idx,
+        apex_idx,
+        already_smoothed=True,
+    )
     horizontal_blind = _check_horizontal_blindness(
         distance, heading, lat, lon, turnin_idx, apex_idx
     )
@@ -620,6 +626,8 @@ def _check_crest_blindness(
     altitude: np.ndarray,
     turnin_idx: int,
     apex_idx: int,
+    *,
+    already_smoothed: bool = False,
 ) -> bool:
     total_dist = float(distance[apex_idx] - distance[turnin_idx])
     if total_dist < 1.0:
@@ -628,7 +636,15 @@ def _check_crest_blindness(
     # Keep altitude smoothing scale proportional on short approaches so we do
     # not fully erase real crests between turn-in and apex.
     smooth_window_m = min(BLIND_ALT_SMOOTH_WINDOW_M, max(10.0, total_dist / 2.0))
-    smooth_alt = _smooth_altitude(altitude, distance, smooth_window_m)
+    smooth_alt = (
+        altitude
+        if already_smoothed
+        else _smooth_altitude(
+            altitude,
+            distance,
+            smooth_window_m,
+        )
+    )
 
     eye_z = float(smooth_alt[turnin_idx] + BLIND_DRIVER_EYE_HEIGHT_M)
     target_z = float(smooth_alt[apex_idx] + BLIND_APEX_TARGET_HEIGHT_M)

@@ -6,7 +6,10 @@ import math
 
 import numpy as np
 
-from cataclysm.corner_enrichment import auto_enrich_corner_metadata
+from cataclysm.corner_enrichment import (
+    _check_crest_blindness,
+    auto_enrich_corner_metadata,
+)
 from cataclysm.corners import Corner
 
 
@@ -431,6 +434,30 @@ class TestBlindCrestDetection:
 
         auto_enrich_corner_metadata([corner], lap)
         assert corner.blind is True
+
+    def test_crest_blindness_respects_already_smoothed_flag(self) -> None:
+        distance = np.linspace(0.0, 200.0, 401)
+        altitude = 100.0 + 1.5 * np.exp(-((distance - 86.0) ** 2) / (2 * 1.0**2))
+        turnin_idx = int(np.searchsorted(distance, 70.0))
+        apex_idx = int(np.searchsorted(distance, 100.0))
+
+        # Narrow crests can be erased by an extra smoothing pass.
+        blind_once = _check_crest_blindness(
+            distance,
+            altitude,
+            turnin_idx,
+            apex_idx,
+            already_smoothed=True,
+        )
+        blind_twice = _check_crest_blindness(
+            distance,
+            altitude,
+            turnin_idx,
+            apex_idx,
+            already_smoothed=False,
+        )
+        assert blind_once is True
+        assert blind_twice is False
 
 
 class TestCoachingNotes:
