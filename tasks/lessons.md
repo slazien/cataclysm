@@ -1,5 +1,21 @@
 # Lessons Learned
 
+## Verify Defaults When Concurrent Agents Edit Same Files (2026-03-10)
+
+**Pattern**: When another agent (Codex/Gemini) edits the same file concurrently, diff the final state against the known-good values before committing. Especially numeric defaults, model names, and feature flags — concurrent edits can silently change values you previously set.
+
+**Why**: Codex changed `LLM_REPORT_MAX_TOKENS` default from `"8192"` to `"10000"` while I was editing `coaching.py` for telemetry decoupling. This contradicted two recent explicit commits (3d80d63, 05d6a62) that set it to 8192. Only caught by code reviewer. Would have increased LLM costs ~22% per coaching report if deployed.
+
+**Error signature**: A default/constant you explicitly set in a prior commit shows a different value in the working tree. No error — just silent cost/behavior change.
+
+## All LLM Calls Must Go Through Gateway (2026-03-10)
+
+**Pattern**: Never create direct `anthropic.Anthropic()` or `anthropic.AsyncAnthropic()` clients in callers. Always use `call_text_completion()` from `llm_gateway.py`. The gateway handles telemetry, retries, timeouts, and multi-provider routing.
+
+**Why**: Five files had dual-path logic: `if routing_enabled(): use gateway else: use direct SDK`. Since `LLM_ROUTING_ENABLED` defaults to `false`, all production LLM calls bypassed the gateway → zero telemetry recorded → `/admin/llm-dashboard` showed $0 total cost. The gateway already handles Anthropic natively via `_call_anthropic()`, making direct SDK paths redundant.
+
+**Error signature**: LLM dashboard shows $0 cost / no data, even though coaching reports generate successfully.
+
 ## Config Flag Reads in Runtime Paths Must Tolerate Test Mocks (2026-03-10)
 
 **Pattern**: When reading newly added config flags in hot runtime paths (e.g. upload flow), use a safe default (`getattr(settings, "flag_name", <default>)`) unless the dependency injection contract guarantees the attribute in every caller and test double.
