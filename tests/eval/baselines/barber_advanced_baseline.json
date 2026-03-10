@@ -1,0 +1,11 @@
+{
+  "min_scores": {
+    "topic_gating": 4,
+    "communication_fit": 4,
+    "data_relevance": 4,
+    "causal_reasoning": 4,
+    "actionability": 3
+  },
+  "must_mention": ["T5", "variance", "micro-sector"],
+  "must_not_say": ["mph of available grip", "press the pedal harder"]
+}

@@ -1,0 +1,11 @@
+{
+  "min_scores": {
+    "topic_gating": 4,
+    "communication_fit": 4,
+    "data_relevance": 3,
+    "causal_reasoning": 3,
+    "actionability": 4
+  },
+  "must_mention": ["T5", "2-board"],
+  "must_not_say": ["mph of available grip", "trail braking", "friction circle"]
+}

@@ -57,10 +57,10 @@ class Settings(BaseSettings):
 
     # LLM routing and cost controls
     llm_routing_enabled: bool = False
-    llm_lazy_generation_enabled: bool = True
+    llm_lazy_generation_enabled: bool = False
     llm_usage_telemetry_enabled: bool = True
     llm_usage_retention_days: int = 90
-    llm_report_max_tokens: int = 8192
+    llm_report_max_tokens: int = 10000
     llm_followup_max_tokens: int = 768
 
     # CORS — stored as raw string to avoid pydantic-settings' strict JSON

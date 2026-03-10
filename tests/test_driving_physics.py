@@ -29,6 +29,11 @@ class TestPhysicsGuardrails:
     def test_liftoff_oversteer_warning(self) -> None:
         assert "snap oversteer" in PHYSICS_GUARDRAILS.lower()
 
+    def test_data_honesty_forbidden_composites(self) -> None:
+        lower = PHYSICS_GUARDRAILS.lower()
+        assert "x mph of grip" in lower
+        assert "x g of speed" in lower
+
 
 class TestCoachingSystemPrompt:
     def test_combines_reference_and_guardrails(self) -> None:
@@ -69,3 +74,12 @@ class TestCoachingSystemPrompt:
         assert "Line Analysis Integration" in COACHING_SYSTEM_PROMPT
         assert "early_apex" in COACHING_SYSTEM_PROMPT
         assert "consistency_tier" in COACHING_SYSTEM_PROMPT
+
+    def test_metric_allow_list_present(self) -> None:
+        assert "Permitted Metrics — Data Honesty" in COACHING_SYSTEM_PROMPT
+        assert "Corner min speed" in COACHING_SYSTEM_PROMPT
+        assert "Speed gap to optimal" in COACHING_SYSTEM_PROMPT
+
+    def test_hallucination_example_present(self) -> None:
+        assert "Hallucination Example" in COACHING_SYSTEM_PROMPT
+        assert "mph of available grip" in COACHING_SYSTEM_PROMPT

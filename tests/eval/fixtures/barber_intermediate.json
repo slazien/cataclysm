@@ -1,0 +1,15 @@
+{
+  "track": "Barber Motorsports Park",
+  "skill_level": "intermediate",
+  "sample_report": "You are braking 15m early at T5 versus your best lap, which aligns with a {{speed:2.1}} exit deficit. Try an A/B experiment: hold the 2-board for three laps and compare T5 exit speed and throttle-commit distance.",
+  "judge_response": {
+    "topic_gating": 4,
+    "communication_fit": 4,
+    "data_relevance": 5,
+    "causal_reasoning": 4,
+    "actionability": 4,
+    "forbidden_pattern_violations": [],
+    "skill_level_checked": "intermediate",
+    "overall_pass": true
+  }
+}

@@ -99,6 +99,7 @@ addopts = "--tb=short -n auto -m 'not slow'"
 asyncio_mode = "auto"
 markers = [
     "slow: marks tests as slow (PDF gen, PELT segmentation, API timeouts)",
+    "eval: rubric-based coaching quality regression tests",
 ]
 
 [tool.coverage.run]

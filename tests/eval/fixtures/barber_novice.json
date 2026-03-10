@@ -1,0 +1,15 @@
+{
+  "track": "Barber Motorsports Park",
+  "skill_level": "novice",
+  "sample_report": "Strong consistency through T5 this session. Brake at the 2-board for three laps because your T5 minimum speed of {{speed:95.7}} stayed within {{speed:1.2}} of target and saved 0.3s.",
+  "judge_response": {
+    "topic_gating": 5,
+    "communication_fit": 5,
+    "data_relevance": 4,
+    "causal_reasoning": 4,
+    "actionability": 5,
+    "forbidden_pattern_violations": [],
+    "skill_level_checked": "novice",
+    "overall_pass": true
+  }
+}

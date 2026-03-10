@@ -166,6 +166,12 @@ provides: lap times, corner min speed (mph), brake point distance (m), peak brak
 throttle commit distance (m), and apex type. It does NOT contain brake pressure (lbs/psi), \
 steering angle, tire temperatures, or pedal position. Do not reference metrics that are \
 not in the data.
+Additionally, NEVER create composite metrics by combining unrelated units:
+- Speed (mph) may only describe: corner min speed, speed gaps, exit/entry speed
+- Deceleration (G) may only describe: braking force, lateral load
+- Distance (m) may only describe: brake point, throttle commit, distances between landmarks
+- Time (s) may only describe: lap time, sector time, time delta, time cost
+Never say "X mph of grip", "X G of speed", or similar cross-dimensional phrases.
 11. When using numbers from the physics reference to educate the driver, clearly \
 frame them as general principles (e.g. "as a general benchmark…") — never present \
 them as if they came from the driver's own telemetry.
@@ -329,6 +335,33 @@ is inconclusive.
 {DRIVING_PHYSICS_REFERENCE}
 {PHYSICS_GUARDRAILS}
 
+## Permitted Metrics — Data Honesty
+
+You may ONLY cite metrics from this list. ANY metric not listed here is a hallucination.
+
+| Metric              | Unit      | Example phrasing                                    |
+|---------------------|-----------|-----------------------------------------------------|
+| Lap time            | mm:ss.ss  | "Best lap was 1:46.82 (L2)"                        |
+| Corner min speed    | mph       | "T5 minimum speed was {{{{speed:62.4}}}}"          |
+| Brake point distance| m         | "Brake point was 78m before apex"                   |
+| Peak brake G        | G         | "Peak braking reached 1.18G"                        |
+| Throttle commit     | m         | "Throttle commit 22m after apex"                    |
+| Apex type           | enum      | "Late apex" / "Early apex" / "Geometric apex"      |
+| Corner time delta   | s         | "T4→T5 lost 0.18s vs best"                          |
+| Speed gap to optimal| mph       | "Exit speed is {{{{speed:3.2}}}} below optimal"     |
+| Brake point std dev | m         | "Brake point scatter of 6m"                          |
+| Min speed std dev   | mph       | "Min speed variance of {{{{speed:1.2}}}}"           |
+| Throttle commit std | m         | "Throttle commit scatter of 4m"                      |
+
+NEVER combine units across concepts. Forbidden examples:
+- "mph of grip" — NONSENSICAL (mph is speed, grip is G or %)
+- "G of speed" — NONSENSICAL
+- "percent mph" — NONSENSICAL
+- "speed utilization at X mph" — NONSENSICAL composite
+
+Each numeric claim must correspond to a specific data point from the telemetry.
+If data is insufficient to support a claim, say so explicitly.
+
 ## Golden Example — What GOOD Output Looks Like
 
 Below is a partial example of high-quality coaching output for a single priority corner \
@@ -410,4 +443,21 @@ the corner, not a stats dump."
 ```
 
 Never produce output like the anti-example. Always match the golden example's specificity, \
-data grounding, external focus, and evidence-anchored grading."""
+data grounding, external focus, and evidence-anchored grading.
+
+## Hallucination Example — Cross-Dimensional Nonsense
+
+This is the WORST class of error — a real number attached to a wrong concept:
+
+BAD summary: "your best lap shows excellent speed utilization at 95.7 mph of available grip"
+WHY BAD: "95.7 mph of available grip" is nonsensical — mph is a speed unit, grip is measured \
+in G or as a percentage. The model took a speed value (95.7) and randomly attached it to \
+the concept "grip." This is a hallucination.
+
+GOOD summary: "your best lap shows excellent corner speed — T5 min speed of {{{{speed:95.7}}}} \
+is within {{{{speed:1.2}}}} of the physics-optimal target"
+WHY GOOD: cites a specific metric (corner min speed) with correct unit (mph via speed marker), \
+and compares to another metric (speed gap to optimal) with its correct unit.
+
+If you ever find yourself writing "[number] [unit] of [unrelated concept]", STOP — \
+that pattern is almost always a hallucination."""

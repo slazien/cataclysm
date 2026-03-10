@@ -90,6 +90,27 @@ class TestGenerateReportMissingLines:
 
         clear_all_coaching()
 
+
+class TestValidationQualityEndpoint:
+    """Coverage for validation quality dashboard endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_returns_validator_dashboard(self, client: AsyncClient) -> None:
+        dashboard = {
+            "summary": {"total_outputs": 10, "total_checks": 2},
+            "failure_types": {"topic_gating score 2 < 3": 1},
+            "grounding_trend": [{"timestamp": "2026-03-10T00:00:00Z", "data_relevance": 4}],
+            "forbidden_composites": {"mph of available grip": 1},
+        }
+        mock_validator = MagicMock()
+        mock_validator.dashboard = dashboard
+
+        with patch("cataclysm.coaching._get_validator", return_value=mock_validator):
+            resp = await client.get("/api/coaching/validation/quality")
+
+        assert resp.status_code == 200
+        assert resp.json() == dashboard
+
     @pytest.mark.asyncio
     async def test_already_generating_returns_generating_status(self, client: AsyncClient) -> None:
         """Line 186: when is_generating() is True, returns generating status immediately."""

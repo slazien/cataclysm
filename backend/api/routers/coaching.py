@@ -102,6 +102,17 @@ _ABSOLUTE_PRIORITY_TIME_CAP_S = 5.0
 _background_tasks: set[asyncio.Task[None]] = set()
 
 
+@router.get("/validation/quality")
+async def get_coaching_validation_quality(
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> dict[str, object]:
+    """Return coaching validation quality aggregates for authenticated users."""
+    del current_user  # Auth gate only
+    from cataclysm.coaching import _get_validator
+
+    return _get_validator().dashboard
+
+
 def _parse_priority_corner_number(value: object) -> int:
     """Coerce AI-emitted corner identifiers into a safe integer."""
     try:

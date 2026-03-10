@@ -1,0 +1,15 @@
+{
+  "track": "Barber Motorsports Park",
+  "skill_level": "advanced",
+  "sample_report": "T5 braking onset is 15m pre-optimal with -{{speed:4.0}} vMin and +12m throttle-commit delay; exit gap remains {{speed:2.1}}. Peak brake G is not limiting, so focus on release profile timing and validate via brake-point variance and micro-sector delta.",
+  "judge_response": {
+    "topic_gating": 5,
+    "communication_fit": 5,
+    "data_relevance": 5,
+    "causal_reasoning": 5,
+    "actionability": 4,
+    "forbidden_pattern_violations": [],
+    "skill_level_checked": "advanced",
+    "overall_pass": true
+  }
+}
