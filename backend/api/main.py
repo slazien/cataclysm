@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import logging.config
+import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Annotated, cast
@@ -261,14 +262,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from backend.api.db.database import async_session_factory as _corner_asf
     from backend.api.services.track_seed import seed_tracks_from_hardcoded
 
-    try:
-        async with _corner_asf() as _seed_db:
-            n_seeded = await seed_tracks_from_hardcoded(_seed_db)
-            await _seed_db.commit()
-            if n_seeded:
-                logger.info("Seeded %d hardcoded track(s) into DB", n_seeded)
-    except Exception:
-        logger.warning("Failed to seed hardcoded tracks into DB", exc_info=True)
+    if os.environ.get("SKIP_TRACK_SEEDING") != "true":
+        try:
+            async with _corner_asf() as _seed_db:
+                n_seeded = await seed_tracks_from_hardcoded(_seed_db)
+                await _seed_db.commit()
+                if n_seeded:
+                    logger.info("Seeded %d hardcoded track(s) into DB", n_seeded)
+        except Exception:
+            logger.warning("Failed to seed hardcoded tracks into DB", exc_info=True)
+    else:
+        logger.info("SKIP_TRACK_SEEDING=true — skipping hardcoded track seed")
 
     # Load DB tracks into hybrid cache (DB-first, Python constants fallback)
     from cataclysm.track_db_hybrid import load_db_tracks
