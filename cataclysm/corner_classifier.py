@@ -1,6 +1,6 @@
 """Auto-classify corner types from curvature and geometry metrics.
 
-Classification uses curvature magnitude, heading change, and arc length
+Classification uses curvature magnitude, heading change, arc length, and speed loss
 to assign one of: hairpin, sweeper, kink, chicane, esses, carousel, complex.
 Sequence analysis detects multi-corner patterns (chicane, esses).
 
@@ -21,23 +21,25 @@ SWEEPER_MIN_CURVATURE = 0.005
 # ---------------------------------------------------------------------------
 # Heading change thresholds (degrees, absolute)
 # ---------------------------------------------------------------------------
-HAIRPIN_MIN_HEADING_DEG = 60.0
+HAIRPIN_MIN_HEADING_DEG = 120.0
 SWEEPER_MIN_HEADING_DEG = 30.0
+KINK_MAX_HEADING_DEG = 25.0
 
 # ---------------------------------------------------------------------------
 # Arc length thresholds (metres)
 # ---------------------------------------------------------------------------
 HAIRPIN_MAX_ARC_M = 50.0
-SWEEPER_MIN_ARC_M = 50.0
+SWEEPER_MIN_ARC_M = 150.0
 SWEEPER_MAX_ARC_M = 200.0
 KINK_MAX_ARC_M = 30.0
+KINK_MAX_SPEED_LOSS_PCT = 5.0
 
 # ---------------------------------------------------------------------------
 # Carousel thresholds
 # ---------------------------------------------------------------------------
 CAROUSEL_MIN_CURVATURE = 0.015
 CAROUSEL_MIN_ARC_M = 100.0
-CAROUSEL_MIN_HEADING_DEG = 120.0
+CAROUSEL_MIN_HEADING_DEG = 180.0
 
 # ---------------------------------------------------------------------------
 # Sequence detection thresholds
@@ -65,6 +67,8 @@ def classify_corner(
     peak_curvature: float,
     heading_change_deg: float,
     arc_length_m: float,
+    speed_loss_pct: float = 0.0,
+    curvature_variation_index: float = 0.0,
 ) -> CornerClassification:
     """Classify a single corner from its geometry metrics.
 
@@ -72,6 +76,8 @@ def classify_corner(
         peak_curvature: Maximum curvature in 1/m (always >= 0).
         heading_change_deg: Absolute heading change through the corner in degrees.
         arc_length_m: Length of the corner arc in metres.
+        speed_loss_pct: Percent speed loss through the corner (0-100).
+        curvature_variation_index: Curvature variation metric for future tuning.
 
     Returns:
         CornerClassification with type, confidence, and reasoning.
@@ -79,13 +85,24 @@ def classify_corner(
     curv = abs(peak_curvature)
     heading = abs(heading_change_deg)
     arc = abs(arc_length_m)
+    speed_loss = abs(speed_loss_pct)
+    curvature_variation = abs(curvature_variation_index)
 
     # Guard: degenerate inputs
     if curv <= 0.0 and heading <= 0.0:
+        if speed_loss < KINK_MAX_SPEED_LOSS_PCT:
+            return CornerClassification(
+                corner_type="kink",
+                confidence=0.3,
+                reasoning="Near-zero curvature and heading change; defaulting to kink",
+            )
         return CornerClassification(
-            corner_type="kink",
-            confidence=0.3,
-            reasoning="Near-zero curvature and heading change; defaulting to kink",
+            corner_type="complex",
+            confidence=0.4,
+            reasoning=(
+                "Near-zero curvature/heading but elevated speed loss "
+                f"({speed_loss:.1f}%) suggests non-kink behavior"
+            ),
         )
 
     # --- Carousel: long, high-curvature, large heading change ---
@@ -109,9 +126,12 @@ def classify_corner(
             ),
         )
 
-    # --- Hairpin: tight, short, large heading change ---
-    if curv >= HAIRPIN_MIN_CURVATURE and heading >= HAIRPIN_MIN_HEADING_DEG:
-        # Confidence increases with curvature and heading, decreases if arc is long
+    # --- Hairpin: tight corner by high curvature OR large heading on short arc ---
+    if (
+        curv >= HAIRPIN_MIN_CURVATURE or heading >= HAIRPIN_MIN_HEADING_DEG
+    ) and arc <= HAIRPIN_MAX_ARC_M:
+        # Confidence increases with curvature/heading evidence and decreases as
+        # arc approaches/exceeds typical tight-corner length.
         arc_penalty = max(0.0, (arc - HAIRPIN_MAX_ARC_M) / HAIRPIN_MAX_ARC_M) * 0.2
         conf = _clamp_confidence(
             0.5
@@ -123,16 +143,19 @@ def classify_corner(
             corner_type="hairpin",
             confidence=conf,
             reasoning=(
-                f"High curvature ({curv:.4f} 1/m) with large heading change "
-                f"({heading:.0f} deg), arc {arc:.0f}m"
+                f"Tight geometry ({curv:.4f} 1/m, {heading:.0f} deg) on short arc {arc:.0f}m"
             ),
         )
 
     # --- Sweeper: moderate curvature, moderate heading, medium arc ---
-    if curv >= SWEEPER_MIN_CURVATURE and heading >= SWEEPER_MIN_HEADING_DEG:
+    if (
+        curv >= SWEEPER_MIN_CURVATURE
+        and heading >= SWEEPER_MIN_HEADING_DEG
+        and arc > SWEEPER_MIN_ARC_M
+    ):
         # Confidence peaks when arc is in the sweet spot
         arc_fit = 1.0
-        if arc < SWEEPER_MIN_ARC_M:
+        if arc <= SWEEPER_MIN_ARC_M:
             arc_fit = arc / SWEEPER_MIN_ARC_M
         elif arc > SWEEPER_MAX_ARC_M:
             arc_fit = max(0.3, 1.0 - (arc - SWEEPER_MAX_ARC_M) / SWEEPER_MAX_ARC_M)
@@ -152,17 +175,23 @@ def classify_corner(
         )
 
     # --- Kink: low curvature, small heading change ---
-    if curv < SWEEPER_MIN_CURVATURE and heading < SWEEPER_MIN_HEADING_DEG:
+    if (
+        curv < SWEEPER_MIN_CURVATURE
+        and heading <= KINK_MAX_HEADING_DEG
+        and speed_loss < KINK_MAX_SPEED_LOSS_PCT
+    ):
         conf = _clamp_confidence(
-            0.5
+            0.45
             + 0.25 * (1.0 - min(curv / SWEEPER_MIN_CURVATURE, 1.0))
-            + 0.25 * (1.0 - min(heading / SWEEPER_MIN_HEADING_DEG, 1.0))
+            + 0.2 * (1.0 - min(heading / KINK_MAX_HEADING_DEG, 1.0))
+            + 0.1 * (1.0 - min(speed_loss / KINK_MAX_SPEED_LOSS_PCT, 1.0))
         )
         return CornerClassification(
             corner_type="kink",
             confidence=conf,
             reasoning=(
-                f"Low curvature ({curv:.4f} 1/m) and small heading change ({heading:.0f} deg)"
+                f"Low curvature ({curv:.4f} 1/m), small heading change ({heading:.0f} deg), "
+                f"and low speed loss ({speed_loss:.1f}%)"
             ),
         )
 
@@ -171,7 +200,9 @@ def classify_corner(
         corner_type="complex",
         confidence=0.4,
         reasoning=(
-            f"Mixed geometry: curvature {curv:.4f} 1/m, heading {heading:.0f} deg, arc {arc:.0f}m"
+            "Mixed geometry: "
+            f"curvature {curv:.4f} 1/m, heading {heading:.0f} deg, arc {arc:.0f}m, "
+            f"speed loss {speed_loss:.1f}%, CVI {curvature_variation:.2f}"
         ),
     )
 

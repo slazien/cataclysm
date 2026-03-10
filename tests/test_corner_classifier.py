@@ -23,7 +23,7 @@ class TestClassifyCornerHairpin:
     def test_classic_hairpin(self) -> None:
         result = classify_corner(
             peak_curvature=0.04,
-            heading_change_deg=90.0,
+            heading_change_deg=130.0,
             arc_length_m=30.0,
         )
         assert result.corner_type == "hairpin"
@@ -33,27 +33,42 @@ class TestClassifyCornerHairpin:
         """Exactly at hairpin curvature and heading thresholds."""
         result = classify_corner(
             peak_curvature=0.02,
-            heading_change_deg=60.0,
+            heading_change_deg=120.0,
             arc_length_m=40.0,
         )
         assert result.corner_type == "hairpin"
         assert result.confidence >= 0.5
 
-    def test_hairpin_long_arc_reduces_confidence(self) -> None:
-        """Hairpin with longer-than-typical arc still classified but lower confidence."""
+    def test_high_curvature_short_arc_hairpin_even_without_120_deg_heading(self) -> None:
+        result = classify_corner(
+            peak_curvature=0.03,
+            heading_change_deg=80.0,
+            arc_length_m=35.0,
+        )
+        assert result.corner_type == "hairpin"
+
+    def test_below_heading_threshold_not_hairpin(self) -> None:
+        result = classify_corner(
+            peak_curvature=0.01,
+            heading_change_deg=119.9,
+            arc_length_m=40.0,
+        )
+        assert result.corner_type != "hairpin"
+
+    def test_hairpin_long_arc_becomes_complex(self) -> None:
+        """Long arc should fail hairpin gating and fall back to complex."""
         short = classify_corner(
             peak_curvature=0.035,
-            heading_change_deg=100.0,
+            heading_change_deg=130.0,
             arc_length_m=25.0,
         )
         long = classify_corner(
             peak_curvature=0.035,
-            heading_change_deg=100.0,
+            heading_change_deg=130.0,
             arc_length_m=80.0,
         )
         assert short.corner_type == "hairpin"
-        assert long.corner_type == "hairpin"
-        assert short.confidence > long.confidence
+        assert long.corner_type == "complex"
 
 
 class TestClassifyCornerSweeper:
@@ -63,19 +78,19 @@ class TestClassifyCornerSweeper:
         result = classify_corner(
             peak_curvature=0.012,
             heading_change_deg=45.0,
-            arc_length_m=120.0,
+            arc_length_m=170.0,
         )
         assert result.corner_type == "sweeper"
         assert result.confidence > 0.5
 
     def test_sweeper_short_arc(self) -> None:
-        """Arc shorter than ideal range still classifies as sweeper with lower confidence."""
+        """Arc <= 150m cannot classify as sweeper."""
         result = classify_corner(
             peak_curvature=0.010,
             heading_change_deg=40.0,
-            arc_length_m=35.0,
+            arc_length_m=150.0,
         )
-        assert result.corner_type == "sweeper"
+        assert result.corner_type != "sweeper"
 
     def test_sweeper_long_arc(self) -> None:
         """Very long arc still classified as sweeper."""
@@ -109,6 +124,24 @@ class TestClassifyCornerKink:
         assert result.corner_type == "kink"
         assert result.confidence > 0.7
 
+    def test_kink_speed_loss_below_threshold(self) -> None:
+        result = classify_corner(
+            peak_curvature=0.003,
+            heading_change_deg=20.0,
+            arc_length_m=20.0,
+            speed_loss_pct=4.9,
+        )
+        assert result.corner_type == "kink"
+
+    def test_kink_speed_loss_at_threshold_not_kink(self) -> None:
+        result = classify_corner(
+            peak_curvature=0.003,
+            heading_change_deg=20.0,
+            arc_length_m=20.0,
+            speed_loss_pct=5.0,
+        )
+        assert result.corner_type != "kink"
+
 
 class TestClassifyCornerCarousel:
     """Long, high-curvature arc with large heading -> carousel."""
@@ -135,7 +168,7 @@ class TestClassifyCornerCarousel:
         """When arc length is long enough, carousel takes priority over hairpin."""
         result = classify_corner(
             peak_curvature=0.025,
-            heading_change_deg=150.0,
+            heading_change_deg=180.0,
             arc_length_m=120.0,
         )
         assert result.corner_type == "carousel"
@@ -144,12 +177,12 @@ class TestClassifyCornerCarousel:
 class TestClassifyCornerComplex:
     """Mixed geometry that doesn't fit standard categories -> complex."""
 
-    def test_high_curvature_low_heading(self) -> None:
-        """High curvature but low heading change -> complex."""
+    def test_high_curvature_low_heading_long_arc(self) -> None:
+        """High curvature with low heading but long arc -> complex."""
         result = classify_corner(
             peak_curvature=0.025,
             heading_change_deg=20.0,
-            arc_length_m=25.0,
+            arc_length_m=80.0,
         )
         assert result.corner_type == "complex"
 
@@ -179,12 +212,12 @@ class TestClassifyCornerEdgeCases:
         """Negative curvature is treated as absolute value."""
         pos = classify_corner(
             peak_curvature=0.03,
-            heading_change_deg=90.0,
+            heading_change_deg=130.0,
             arc_length_m=30.0,
         )
         neg = classify_corner(
             peak_curvature=-0.03,
-            heading_change_deg=90.0,
+            heading_change_deg=130.0,
             arc_length_m=30.0,
         )
         assert pos.corner_type == neg.corner_type
@@ -194,7 +227,7 @@ class TestClassifyCornerEdgeCases:
         """Negative heading change is treated as absolute value."""
         result = classify_corner(
             peak_curvature=0.03,
-            heading_change_deg=-90.0,
+            heading_change_deg=-130.0,
             arc_length_m=30.0,
         )
         assert result.corner_type == "hairpin"
@@ -203,7 +236,7 @@ class TestClassifyCornerEdgeCases:
         """Negative arc length is treated as absolute value."""
         result = classify_corner(
             peak_curvature=0.03,
-            heading_change_deg=90.0,
+            heading_change_deg=130.0,
             arc_length_m=-30.0,
         )
         assert result.corner_type == "hairpin"
@@ -397,7 +430,7 @@ class TestSequenceEdgeCases:
     def test_single_corner(self) -> None:
         results = classify_sequence(
             [
-                _make_corner(peak_curvature=0.03, heading_change_deg=90.0),
+                _make_corner(peak_curvature=0.03, heading_change_deg=120.0),
             ]
         )
         assert len(results) == 1

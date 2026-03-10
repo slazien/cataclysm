@@ -19,6 +19,9 @@ _ALTITUDE_SMOOTH_WINDOW_M = 50.0
 
 # Gradient thresholds for trend classification (percent)
 _FLAT_THRESHOLD_PCT = 1.0  # below this is "flat"
+_UPHILL_THRESHOLD_PCT = 1.5
+_DOWNHILL_THRESHOLD_PCT = -1.5
+_MIN_SHAPE_DELTA_M = 0.5
 
 
 @dataclass
@@ -43,6 +46,7 @@ def _classify_trend(
     entry_idx: int,
     exit_idx: int,
     gradient_pct: float,
+    apex_idx: int | None = None,
 ) -> str:
     """Classify elevation trend within a corner zone.
 
@@ -57,25 +61,56 @@ def _classify_trend(
             return "flat"
         return "uphill" if gradient_pct > 0 else "downhill"
 
+    def _shape_from_pivot(segment_alt: np.ndarray, pivot_idx: int) -> str | None:
+        """Detect crest/compression around a pivot using grade sign change."""
+        if pivot_idx <= 0 or pivot_idx >= len(segment_alt) - 1:
+            return None
+
+        pre_apex = segment_alt[: pivot_idx + 1]
+        post_apex = segment_alt[pivot_idx:]
+        if len(pre_apex) < 2 or len(post_apex) < 2:
+            return None
+
+        pre_delta = float(pre_apex[-1] - pre_apex[0])
+        post_delta = float(post_apex[-1] - post_apex[0])
+        pre_grade_sign = np.sign(np.mean(np.diff(pre_apex)))
+        post_grade_sign = np.sign(np.mean(np.diff(post_apex)))
+
+        if (
+            pre_grade_sign > 0
+            and post_grade_sign < 0
+            and pre_delta > _MIN_SHAPE_DELTA_M
+            and post_delta < -_MIN_SHAPE_DELTA_M
+        ):
+            return "crest"
+        if (
+            pre_grade_sign < 0
+            and post_grade_sign > 0
+            and pre_delta < -_MIN_SHAPE_DELTA_M
+            and post_delta > _MIN_SHAPE_DELTA_M
+        ):
+            return "compression"
+        return None
+
+    if apex_idx is not None and entry_idx < apex_idx < exit_idx:
+        apex_local_idx = apex_idx - entry_idx
+        apex_shape = _shape_from_pivot(segment, apex_local_idx)
+        if apex_shape is not None:
+            return apex_shape
+
     mid_idx = len(segment) // 2
-    first_half = segment[: mid_idx + 1]
-    second_half = segment[mid_idx:]
+    mid_shape = _shape_from_pivot(segment, mid_idx)
+    if mid_shape is not None:
+        return mid_shape
 
-    first_delta = first_half[-1] - first_half[0]
-    second_delta = second_half[-1] - second_half[0]
-
-    # Check for crest/compression before flat — a symmetric crest has ~0% net gradient
-    # Crest: rises then falls (both deltas significant)
-    if first_delta > 0.5 and second_delta < -0.5:
-        return "crest"
-    # Compression: falls then rises
-    if first_delta < -0.5 and second_delta > 0.5:
-        return "compression"
-
+    if gradient_pct > _UPHILL_THRESHOLD_PCT:
+        return "uphill"
+    if gradient_pct < _DOWNHILL_THRESHOLD_PCT:
+        return "downhill"
     if abs(gradient_pct) < _FLAT_THRESHOLD_PCT:
         return "flat"
 
-    return "uphill" if gradient_pct > 0 else "downhill"
+    return "flat"
 
 
 def compute_corner_elevation(
@@ -126,7 +161,10 @@ def compute_corner_elevation(
         horiz_dist = float(distance[exit_idx] - distance[entry_idx])
         gradient = (elev_change / horiz_dist * 100.0) if horiz_dist > 0 else 0.0
 
-        trend = _classify_trend(smoothed, entry_idx, exit_idx, gradient)
+        apex_idx = int(np.searchsorted(distance, corner.apex_distance_m))
+        apex_idx = min(apex_idx, len(smoothed) - 1)
+
+        trend = _classify_trend(smoothed, entry_idx, exit_idx, gradient, apex_idx=apex_idx)
 
         results.append(
             CornerElevation(

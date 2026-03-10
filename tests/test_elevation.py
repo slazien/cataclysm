@@ -92,6 +92,20 @@ class TestCrestClassification:
         assert len(result) == 1
         assert result[0].trend == "crest"
 
+    def test_crest_apex_aware_when_apex_is_early(self) -> None:
+        """Early apex peak should still classify as crest via apex-aware sign change."""
+
+        def alt_fn(d: float) -> float:
+            if d <= 180.0:
+                return 200.0 + (d - 100.0) * 0.12
+            return 209.6 - (d - 180.0) * 0.09
+
+        df = _make_lap_df(n=1600, altitude_fn=alt_fn)
+        corners = [_make_corner(1, 100.0, 600.0, 180.0)]
+        result = compute_corner_elevation(df, corners)
+        assert len(result) == 1
+        assert result[0].trend == "crest"
+
 
 class TestCompressionClassification:
     def test_compression(self) -> None:
@@ -105,6 +119,20 @@ class TestCompressionClassification:
 
         df = _make_lap_df(n=1500, altitude_fn=alt_fn)
         corners = [_make_corner(1, 100.0, 600.0, 350.0)]
+        result = compute_corner_elevation(df, corners)
+        assert len(result) == 1
+        assert result[0].trend == "compression"
+
+    def test_compression_apex_aware_when_apex_is_early(self) -> None:
+        """Early apex dip should still classify as compression via apex-aware sign change."""
+
+        def alt_fn(d: float) -> float:
+            if d <= 180.0:
+                return 200.0 - (d - 100.0) * 0.12
+            return 190.4 + (d - 180.0) * 0.09
+
+        df = _make_lap_df(n=1600, altitude_fn=alt_fn)
+        corners = [_make_corner(1, 100.0, 600.0, 180.0)]
         result = compute_corner_elevation(df, corners)
         assert len(result) == 1
         assert result[0].trend == "compression"
@@ -214,6 +242,14 @@ class TestClassifyTrendEdgeCases:
         result = _classify_trend(alt, entry_idx=0, exit_idx=1, gradient_pct=-5.0)
         assert result == "downhill"
 
+    def test_short_segment_preserves_existing_sign_behavior(self) -> None:
+        """Short segments keep legacy sign-based fallback for >=1% gradient."""
+        from cataclysm.elevation import _classify_trend
+
+        alt = np.array([200.0, 200.05])
+        result = _classify_trend(alt, entry_idx=0, exit_idx=1, gradient_pct=1.2)
+        assert result == "uphill"
+
     def test_crest_detected_when_halves_exceed_threshold(self) -> None:
         """Segment that rises then falls by more than 0.5m each returns 'crest'."""
         from cataclysm.elevation import _classify_trend
@@ -240,6 +276,46 @@ class TestClassifyTrendEdgeCases:
         alt = np.array([200.0, 200.01, 200.02, 200.03, 200.02, 200.01, 200.0])
         result = _classify_trend(alt, entry_idx=0, exit_idx=6, gradient_pct=0.0)
         assert result == "flat"
+
+    def test_apex_aware_detects_early_crest(self) -> None:
+        """Apex-aware sign-change logic should detect crest even when midpoint would miss."""
+        from cataclysm.elevation import _classify_trend
+
+        alt = np.array([200.0, 203.0, 202.0, 201.0, 200.0, 199.0, 198.0, 197.0, 196.0])
+        result = _classify_trend(alt, entry_idx=0, exit_idx=8, gradient_pct=-4.0, apex_idx=1)
+        assert result == "crest"
+
+    def test_apex_aware_detects_early_compression(self) -> None:
+        """Apex-aware sign-change logic should detect compression with an early dip."""
+        from cataclysm.elevation import _classify_trend
+
+        alt = np.array([200.0, 197.0, 198.0, 199.0, 200.0, 201.0, 202.0, 203.0, 204.0])
+        result = _classify_trend(alt, entry_idx=0, exit_idx=8, gradient_pct=4.0, apex_idx=1)
+        assert result == "compression"
+
+    def test_invalid_apex_falls_back_to_midpoint_shape(self) -> None:
+        """Out-of-range apex index should not break shape detection."""
+        from cataclysm.elevation import _classify_trend
+
+        alt = np.array([200.0, 201.0, 202.0, 203.0, 202.0, 201.0, 200.0])
+        result = _classify_trend(alt, entry_idx=0, exit_idx=6, gradient_pct=0.0, apex_idx=99)
+        assert result == "crest"
+
+    def test_deadband_between_flat_and_uphill_is_flat(self) -> None:
+        """Gradients between 1.0% and 1.5% should classify as flat when no shape exists."""
+        from cataclysm.elevation import _classify_trend
+
+        alt = np.array([200.0, 201.0, 202.0, 203.0])
+        result = _classify_trend(alt, entry_idx=0, exit_idx=3, gradient_pct=1.2)
+        assert result == "flat"
+
+    def test_threshold_boundaries_are_not_uphill_or_downhill(self) -> None:
+        """Exactly +/-1.5% should not classify as uphill/downhill."""
+        from cataclysm.elevation import _classify_trend
+
+        alt = np.array([200.0, 201.0, 202.0, 203.0])
+        assert _classify_trend(alt, entry_idx=0, exit_idx=3, gradient_pct=1.5) == "flat"
+        assert _classify_trend(alt, entry_idx=0, exit_idx=3, gradient_pct=-1.5) == "flat"
 
 
 # ---------------------------------------------------------------------------
@@ -285,3 +361,11 @@ class TestComputeCornerElevationEdgeCases:
         assert len(result) == 1
         # Should be close to 5%
         assert abs(result[0].gradient_pct - 5.0) < 1.5
+
+    def test_apex_outside_corner_range_still_classifies(self) -> None:
+        """Apex before entry should not fail trend classification."""
+        df = _make_lap_df(n=700, altitude_fn=lambda d: 200.0 + d * 0.03)
+        corners = [_make_corner(1, 100.0, 300.0, 50.0)]
+        result = compute_corner_elevation(df, corners)
+        assert len(result) == 1
+        assert result[0].trend == "uphill"
