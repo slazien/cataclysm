@@ -14,7 +14,10 @@ export interface TrackCorner {
   corner_type: string;
   elevation_trend?: string;
   camber?: string;
-  coaching_note?: string;
+  coaching_notes?: string;
+  lat?: number;
+  lon?: number;
+  character?: string;
 }
 
 export interface TrackEditorData {

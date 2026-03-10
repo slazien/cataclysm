@@ -70,10 +70,13 @@ class CornerInput(BaseModel):
     name: str
     fraction: float
     direction: Literal["left", "right"]
-    corner_type: Literal["sweeper", "hairpin", "kink", "esses", "chicane"]
+    corner_type: Literal["sweeper", "hairpin", "kink", "esses", "chicane", "carousel", "complex"]
     elevation_trend: Literal["flat", "uphill", "downhill", "crest", "compression"] | None = None
     camber: Literal["flat", "positive", "negative", "off-camber"] | None = None
-    coaching_note: str | None = None
+    coaching_notes: str | None = None
+    lat: float | None = None
+    lon: float | None = None
+    character: Literal["flat", "lift", "brake"] | None = None
 
     @field_validator("number")
     @classmethod
@@ -194,7 +197,7 @@ async def get_track_editor(
                 "corner_type": c.corner_type,
                 "elevation_trend": c.elevation_trend,
                 "camber": c.camber,
-                "coaching_note": c.coaching_notes,
+                "coaching_notes": c.coaching_notes,
                 "lat": c.lat,
                 "lon": c.lon,
             }

@@ -380,8 +380,8 @@ function CornerPanel({ corner, onChange }: CornerPanelProps) {
 
       {field(
         "Coaching Note",
-        corner.coaching_note ?? "",
-        (v) => onChange({ ...corner, coaching_note: v }),
+        corner.coaching_notes ?? "",
+        (v) => onChange({ ...corner, coaching_notes: v }),
         "textarea",
       )}
 
@@ -515,7 +515,7 @@ export function TrackEditor() {
         corner_type: autoDetectCornerType(curvature),
         elevation_trend: "flat",
         camber: "flat",
-        coaching_note: "",
+        coaching_notes: "",
       };
       setCorners((prev) => [...prev, newCorner]);
       setSelectedCornerIdx(corners.length); // select the new one
