@@ -194,17 +194,14 @@ async def test_get_report_after_generation(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_get_report_not_found(client: AsyncClient) -> None:
-    """GET /api/coaching/{id}/report with no generated report auto-triggers generation."""
+    """GET /api/coaching/{id}/report with no generated report returns 404.
+
+    The frontend's useAutoReport handles triggering generation via POST.
+    """
     session_id = await _upload_session(client)
 
-    with patch(
-        "cataclysm.coaching.generate_coaching_report",
-        return_value=_mock_coaching_report(),
-    ):
-        response = await client.get(f"/api/coaching/{session_id}/report")
-        assert response.status_code == 200
-        assert response.json()["status"] == "generating"
-        await _wait_for_generation(session_id)
+    response = await client.get(f"/api/coaching/{session_id}/report")
+    assert response.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -338,7 +335,7 @@ async def test_generate_report_returns_existing(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_generate_report_retries_after_error(client: AsyncClient) -> None:
-    """GET clears error reports and auto-triggers fresh generation."""
+    """GET clears error reports and returns 404 so frontend can re-trigger via POST."""
     session_id = await _upload_session(client)
 
     # First generation fails (API overloaded)
@@ -356,18 +353,24 @@ async def test_generate_report_retries_after_error(client: AsyncClient) -> None:
             if not is_generating(session_id, "intermediate"):
                 break
 
-    # GET clears error and auto-triggers generation. Keep mock active so the
-    # background task spawned by GET doesn't hang on the real coaching API.
+    # GET clears the error report and returns 404 — frontend retries via POST
+    response = await client.get(f"/api/coaching/{session_id}/report")
+    assert response.status_code == 404
+
+    # Frontend would POST to re-trigger — verify that works
     mock_report = _mock_coaching_report()
     with patch(
         "cataclysm.coaching.generate_coaching_report",
         return_value=mock_report,
     ):
-        response = await client.get(f"/api/coaching/{session_id}/report")
+        response = await client.post(
+            f"/api/coaching/{session_id}/report",
+            json={"skill_level": "intermediate"},
+        )
         assert response.status_code == 200
         assert response.json()["status"] == "generating"
 
-        # Wait for the auto-triggered background task to complete
+        # Wait for background task to complete
         for _ in range(20):
             await asyncio.sleep(0.01)
             if not is_generating(session_id, "intermediate"):
@@ -1169,22 +1172,9 @@ async def test_run_generation_stores_error_on_exception(client: AsyncClient) -> 
         assert response.json()["status"] == "generating"
         await _wait_for_generation(session_id)
 
-    # GET clears error and auto-triggers fresh generation. Keep mock active so
-    # the background task spawned by GET doesn't hang on the real coaching API.
-    mock_report = _mock_coaching_report()
-    with patch(
-        "cataclysm.coaching.generate_coaching_report",
-        return_value=mock_report,
-    ):
-        report = await client.get(f"/api/coaching/{session_id}/report")
-        assert report.status_code == 200
-        assert report.json()["status"] == "generating"
-
-        # Wait for auto-triggered background task to complete
-        for _ in range(200):
-            await asyncio.sleep(0.01)
-            if not is_generating(session_id, "intermediate"):
-                break
+    # GET clears the error report and returns 404
+    report = await client.get(f"/api/coaching/{session_id}/report")
+    assert report.status_code == 404
 
 
 @pytest.mark.asyncio

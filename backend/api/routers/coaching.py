@@ -516,11 +516,14 @@ async def get_report(
 
     report = await get_coaching_report(session_id, skill_level)
     if report is not None:
-        # Error/unparseable reports should not be served — clear them so the
-        # frontend sees a 404 and auto-triggers a fresh generation attempt.
+        # Error/unparseable reports should not be served — clear them and return
+        # 404 so the frontend's useAutoReport decides whether to re-trigger.
+        # IMPORTANT: do NOT fall through to auto-trigger below — that causes
+        # infinite regeneration loops on page refresh after a failed generation.
         is_parse_failure = "Could not parse" in (report.summary or "")
         if report.status == "error" or is_parse_failure:
             await clear_coaching_report(session_id, skill_level)
+            raise HTTPException(status_code=404, detail="Report cleared after error")
         else:
             # Filter out hallucinated corners beyond the actual corner count.
             num_corners = len(next(iter(sd.all_lap_corners.values()), []))
@@ -539,12 +542,9 @@ async def get_report(
     if is_generating(session_id, skill_level):
         return _generating_response(session_id, skill_level, remaining)
 
-    # Auto-trigger generation instead of returning 404 — the frontend's
-    # auto-trigger POST doesn't always fire reliably after error clearing.
-    mark_generating(session_id, skill_level)
-    task = asyncio.create_task(_run_generation(session_id, sd, skill_level))
-    _track_task(task)
-    return _generating_response(session_id, skill_level, remaining)
+    # No report exists and nothing is generating — return 404.
+    # The frontend's useAutoReport will POST to trigger generation.
+    raise HTTPException(status_code=404, detail="No coaching report found")
 
 
 def _build_report_content(

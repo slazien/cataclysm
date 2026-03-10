@@ -12,8 +12,11 @@ export function useCoachingReport(sessionId: string | null) {
     queryFn: () => getCoachingReport(sessionId!, skillLevel),
     enabled: !!sessionId,
     retry: 1,
-    refetchOnWindowFocus: false,
     staleTime: 5 * 60 * 1000, // 5 min — avoid repeated 404s when no report exists
+    // Refetch on window focus ONLY while generating — ensures tab refocus picks up
+    // completion after background throttling pauses the polling interval.
+    // When ready, skip refocus refetch to avoid unnecessary API calls.
+    refetchOnWindowFocus: (query) => query.state.data?.status === "generating",
     // Poll every 2s while the report is still generating
     refetchInterval: (query) => {
       const { data, status } = query.state;

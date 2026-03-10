@@ -270,8 +270,8 @@ class TestGetReportErrorPath:
     """GET /coaching/{id}/report — error report is cleared and regeneration triggered."""
 
     @pytest.mark.asyncio
-    async def test_error_report_cleared_and_generation_triggered(self, client: AsyncClient) -> None:
-        """When stored report has status=error, it is cleared and generation starts."""
+    async def test_error_report_cleared_and_returns_404(self, client: AsyncClient) -> None:
+        """When stored report has status=error, it is cleared and 404 returned."""
         sid = await _upload(client, filename="get_error.csv")
 
         # Store an error report
@@ -284,16 +284,13 @@ class TestGetReportErrorPath:
         await store_coaching_report(sid, error_report, "intermediate")
 
         resp = await client.get(f"/api/coaching/{sid}/report")
-        assert resp.status_code == 200
-        # After clearing error report, should return generating
-        data = resp.json()
-        assert data["status"] in ("generating", "ready")
+        assert resp.status_code == 404
 
         clear_all_coaching()
 
     @pytest.mark.asyncio
     async def test_parse_failure_report_cleared(self, client: AsyncClient) -> None:
-        """Report with 'Could not parse' in summary is cleared on GET."""
+        """Report with 'Could not parse' in summary is cleared on GET and returns 404."""
         sid = await _upload(client, filename="parse_fail.csv")
 
         parse_fail_report = CoachingReportResponse(
@@ -305,10 +302,7 @@ class TestGetReportErrorPath:
         await store_coaching_report(sid, parse_fail_report, "intermediate")
 
         resp = await client.get(f"/api/coaching/{sid}/report")
-        assert resp.status_code == 200
-        data = resp.json()
-        # Parse failure is cleared, triggers auto-generation
-        assert data["status"] in ("generating", "ready")
+        assert resp.status_code == 404
 
         clear_all_coaching()
 
