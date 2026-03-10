@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 from datetime import datetime
 
-from cataclysm.llm_gateway import set_routing_enabled_override
+from cataclysm.llm_gateway import set_routing_enabled_override, set_task_route_cache
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.db.database import async_session_factory
-from backend.api.db.models import RuntimeSetting
+from backend.api.db.models import LlmTaskRoute, RuntimeSetting
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +95,26 @@ async def sync_llm_routing_setting_once(*, default_enabled: bool) -> dict[str, o
     }
 
 
+async def sync_task_routes_once() -> dict[str, list[dict[str, str]]]:
+    """Load all per-task route configs from DB and apply to gateway cache."""
+    async with async_session_factory() as db:
+        result = await db.execute(select(LlmTaskRoute))
+        rows = result.scalars().all()
+
+    routes: dict[str, list[dict[str, str]]] = {}
+    for row in rows:
+        try:
+            config = json.loads(row.config_json)
+            chain = config.get("chain", [])
+            if isinstance(chain, list) and chain:
+                routes[row.task] = chain
+        except (json.JSONDecodeError, AttributeError):
+            logger.warning("Invalid route config for task %s", row.task)
+
+    set_task_route_cache(routes)
+    return routes
+
+
 async def start_runtime_settings_sync(
     *,
     default_routing_enabled: bool,
@@ -112,6 +134,10 @@ async def start_runtime_settings_sync(
                 await sync_llm_routing_setting_once(default_enabled=default_routing_enabled)
             except Exception:
                 logger.warning("Failed to sync runtime settings", exc_info=True)
+            try:
+                await sync_task_routes_once()
+            except Exception:
+                logger.warning("Failed to sync task routes", exc_info=True)
             assert _stop_event is not None
             try:
                 await asyncio.wait_for(_stop_event.wait(), timeout=interval_s)
@@ -125,6 +151,11 @@ async def start_runtime_settings_sync(
     except Exception:
         logger.warning("Failed initial runtime settings sync; using defaults", exc_info=True)
         _apply_routing_state(default_routing_enabled, source="default")
+
+    try:
+        await sync_task_routes_once()
+    except Exception:
+        logger.warning("Failed initial task routes sync; using defaults", exc_info=True)
 
     _worker_task = asyncio.create_task(_runner(), name="runtime-settings-sync")
 

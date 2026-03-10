@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.config import Settings
 from backend.api.db.database import get_db
-from backend.api.db.models import TrackCornerConfig
+from backend.api.db.models import LlmTaskRoute, TrackCornerConfig
 from backend.api.dependencies import AuthenticatedUser, get_current_user
 from backend.api.services.llm_usage_store import (
     get_llm_usage_dashboard_db,
@@ -30,6 +30,7 @@ from backend.api.services.runtime_settings import (
     get_runtime_setting,
     get_runtime_setting_bool,
     set_runtime_setting_bool,
+    sync_task_routes_once,
 )
 
 logger = logging.getLogger(__name__)
@@ -137,6 +138,67 @@ class LLMRoutingTogglePayload(BaseModel):
     """PUT body for enabling/disabling global LLM routing."""
 
     enabled: bool
+
+
+KNOWN_TASKS = [
+    "coaching_report",
+    "coaching_chat",
+    "topic_classifier",
+    "coaching_validator",
+    "track_draft",
+    "share_comparison",
+]
+
+MODEL_REGISTRY = [
+    {
+        "provider": "anthropic",
+        "model": "claude-haiku-4-5-20251001",
+        "display": "Haiku 4.5",
+        "cost_in": 1.0,
+        "cost_out": 5.0,
+    },
+    {
+        "provider": "anthropic",
+        "model": "claude-sonnet-4-6",
+        "display": "Sonnet 4.6",
+        "cost_in": 3.0,
+        "cost_out": 15.0,
+    },
+    {
+        "provider": "openai",
+        "model": "gpt-5-nano",
+        "display": "GPT-5 Nano",
+        "cost_in": 0.05,
+        "cost_out": 0.4,
+    },
+    {
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "display": "GPT-5 Mini",
+        "cost_in": 0.25,
+        "cost_out": 2.0,
+    },
+    {
+        "provider": "google",
+        "model": "gemini-2.5-flash-lite",
+        "display": "Flash Lite",
+        "cost_in": 0.10,
+        "cost_out": 0.40,
+    },
+    {
+        "provider": "google",
+        "model": "gemini-2.5-flash",
+        "display": "Flash 2.5",
+        "cost_in": 0.30,
+        "cost_out": 2.50,
+    },
+]
+
+
+class TaskRoutePayload(BaseModel):
+    """PUT body for per-task LLM routing configuration."""
+
+    chain: list[dict[str, str]]  # [{"provider": "...", "model": "..."}]
 
 
 @router.get("/me")
@@ -391,3 +453,87 @@ async def update_llm_routing_status(
     status["updated_at"] = row.updated_at.isoformat() if row is not None else None
     status["updated_by"] = row.updated_by if row is not None else None
     return status
+
+
+# ---------------------------------------------------------------------------
+# Per-task LLM routing CRUD
+# ---------------------------------------------------------------------------
+
+
+@router.get("/llm-routing/models")
+async def list_available_models(
+    _user: Annotated[AuthenticatedUser, Depends(require_admin)],
+) -> dict[str, Any]:
+    """Return known models, tasks, and which providers have API keys configured."""
+    available_providers: list[str] = []
+    key_vars = {
+        "anthropic": "ANTHROPIC_API_KEY",
+        "openai": "OPENAI_API_KEY",
+        "google": "GOOGLE_API_KEY",
+    }
+    for provider, env_var in key_vars.items():
+        if os.environ.get(env_var):
+            available_providers.append(provider)
+    return {
+        "models": MODEL_REGISTRY,
+        "tasks": KNOWN_TASKS,
+        "available_providers": available_providers,
+    }
+
+
+@router.get("/llm-routing/tasks")
+async def list_task_routes(
+    _user: Annotated[AuthenticatedUser, Depends(require_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, Any]:
+    """Return all per-task routing configurations."""
+    result = await db.execute(select(LlmTaskRoute))
+    rows = result.scalars().all()
+    configs: dict[str, Any] = {}
+    for row in rows:
+        try:
+            configs[row.task] = json.loads(row.config_json)
+        except json.JSONDecodeError:
+            configs[row.task] = {"chain": []}
+    return {"task_routes": configs, "tasks": KNOWN_TASKS}
+
+
+@router.put("/llm-routing/tasks/{task}")
+async def upsert_task_route(
+    task: str,
+    payload: TaskRoutePayload,
+    user: Annotated[AuthenticatedUser, Depends(require_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, Any]:
+    """Create or update routing config for a specific task."""
+    if task not in KNOWN_TASKS:
+        raise HTTPException(400, f"Unknown task: {task}")
+
+    config_json = json.dumps({"chain": payload.chain})
+    row = await db.get(LlmTaskRoute, task)
+    if row is None:
+        row = LlmTaskRoute(task=task, config_json=config_json, updated_by=user.email)
+        db.add(row)
+    else:
+        row.config_json = config_json
+        row.updated_by = user.email
+    await db.commit()
+
+    # Immediately apply to gateway cache
+    await sync_task_routes_once()
+    return {"task": task, "config": {"chain": payload.chain}}
+
+
+@router.delete("/llm-routing/tasks/{task}")
+async def delete_task_route(
+    task: str,
+    _user: Annotated[AuthenticatedUser, Depends(require_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, str]:
+    """Remove per-task routing config (revert to caller defaults)."""
+    row = await db.get(LlmTaskRoute, task)
+    if row is not None:
+        await db.delete(row)
+        await db.commit()
+    await sync_task_routes_once()
+    return {"status": "deleted", "task": task}
