@@ -334,6 +334,15 @@ describe('useUnits', () => {
       expect(r).toContain('km/h');
       expect(r).not.toContain('{{speed:');
     });
+
+    it('converts meter distances in imperial mode coaching text', () => {
+      useUiStore.setState({ unitPreference: 'imperial' });
+      const { result } = renderHook(() => useUnits());
+      const text = 'Try braking 98m past the pedestrian bridge.';
+      expect(result.current.resolveSpeed(text)).toBe(
+        'Try braking 322 ft past the pedestrian bridge.',
+      );
+    });
   });
 
   // ---------------------------------------------------------------------------

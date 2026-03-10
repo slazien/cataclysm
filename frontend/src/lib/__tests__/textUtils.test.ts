@@ -101,6 +101,32 @@ describe('resolveSpeedMarkers', () => {
     });
   });
 
+  describe('legacy fallback (distance units in coaching text)', () => {
+    it('converts "Nm" to feet in imperial mode', () => {
+      expect(resolveSpeedMarkers('Brake 98m past the bridge.', false)).toBe(
+        'Brake 322 ft past the bridge.',
+      );
+    });
+
+    it('converts "N meters" to feet in imperial mode', () => {
+      expect(resolveSpeedMarkers('Move turn-in 10 meters later.', false)).toBe(
+        'Move turn-in 33 ft later.',
+      );
+    });
+
+    it('converts feet to meters in metric mode', () => {
+      expect(resolveSpeedMarkers('Brake 322 ft before apex.', true)).toBe(
+        'Brake 98 m before apex.',
+      );
+    });
+
+    it('does not convert m/s values as distance markers', () => {
+      expect(resolveSpeedMarkers('Entry speed is 30 m/s.', false)).toBe(
+        'Entry speed is 30 m/s.',
+      );
+    });
+  });
+
   describe('legacy fallback (bare "N mph")', () => {
     it('converts single "N mph" in metric mode', () => {
       // 42 * 1.60934 = 67.59228 -> 67.6 (1 decimal in original)
