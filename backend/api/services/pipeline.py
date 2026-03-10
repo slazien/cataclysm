@@ -53,7 +53,7 @@ from cataclysm.optimal_comparison import (
     compare_with_optimal,
 )
 from cataclysm.parser import ParsedSession, parse_racechrono_csv
-from cataclysm.track_db import locate_official_corners
+from cataclysm.track_db import TrackLayout, locate_official_corners, lookup_track
 from cataclysm.track_match import detect_track_or_lookup
 from cataclysm.track_reference import (
     align_reference_to_session,
@@ -181,6 +181,274 @@ _track_physics_cache: dict[tuple[str, str | None, str], tuple[dict[str, object],
 TRACK_CACHE_TTL_S = 3600  # 1 hour — track geometry doesn't change
 
 
+def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Great-circle distance in meters between two coordinates."""
+    earth_radius_m = 6_371_000.0
+    rlat1, rlon1 = np.radians(lat1), np.radians(lon1)
+    rlat2, rlon2 = np.radians(lat2), np.radians(lon2)
+    dlat = rlat2 - rlat1
+    dlon = rlon2 - rlon1
+    a = np.sin(dlat / 2) ** 2 + np.cos(rlat1) * np.cos(rlat2) * np.sin(dlon / 2) ** 2
+    return float(earth_radius_m * 2 * np.arcsin(np.sqrt(a)))
+
+
+def _downsample_series(values: np.ndarray, max_points: int = 350) -> np.ndarray:
+    """Return evenly sampled values with a hard cap on point count."""
+    n = len(values)
+    if n <= max_points:
+        return values
+    idx = np.linspace(0, n - 1, max_points, dtype=int)
+    return values[idx]
+
+
+def _mean_bidirectional_nn_distance_m(
+    src_lats: np.ndarray,
+    src_lons: np.ndarray,
+    dst_lats: np.ndarray,
+    dst_lons: np.ndarray,
+) -> float:
+    """Symmetric nearest-neighbor distance between two traces in meters."""
+    if len(src_lats) == 0 or len(dst_lats) == 0:
+        return float("inf")
+    lat0 = float(np.mean(np.concatenate([src_lats, dst_lats])))
+    lon0 = float(np.mean(np.concatenate([src_lons, dst_lons])))
+    lat_scale = 111_320.0
+    lon_scale = 111_320.0 * np.cos(np.radians(lat0))
+
+    sx = (src_lons - lon0) * lon_scale
+    sy = (src_lats - lat0) * lat_scale
+    dx = (dst_lons - lon0) * lon_scale
+    dy = (dst_lats - lat0) * lat_scale
+
+    spts = np.column_stack([sx, sy])
+    dpts = np.column_stack([dx, dy])
+    sq_dist = np.sum((spts[:, None, :] - dpts[None, :, :]) ** 2, axis=2)
+    src_to_dst = np.sqrt(np.min(sq_dist, axis=1))
+    dst_to_src = np.sqrt(np.min(sq_dist, axis=0))
+    return float((np.mean(src_to_dst) + np.mean(dst_to_src)) / 2.0)
+
+
+def _score_osm_candidate(
+    *,
+    session_lats: np.ndarray,
+    session_lons: np.ndarray,
+    session_length_m: float,
+    centroid_lat: float,
+    centroid_lon: float,
+    candidate_lats: np.ndarray,
+    candidate_lons: np.ndarray,
+    candidate_length_m: float,
+) -> tuple[float, dict[str, float]]:
+    """Score OSM candidate quality using centroid, length, loop closure, and shape."""
+    cand_center_lat = float(np.mean(candidate_lats))
+    cand_center_lon = float(np.mean(candidate_lons))
+    center_dist_m = _haversine_m(centroid_lat, centroid_lon, cand_center_lat, cand_center_lon)
+    length_error_m = abs(candidate_length_m - session_length_m)
+    loop_gap_m = _haversine_m(
+        float(candidate_lats[0]),
+        float(candidate_lons[0]),
+        float(candidate_lats[-1]),
+        float(candidate_lons[-1]),
+    )
+    loop_tol_m = max(30.0, 0.02 * candidate_length_m)
+    loop_penalty = max(0.0, loop_gap_m - loop_tol_m) * 5.0
+
+    shape_error_m = _mean_bidirectional_nn_distance_m(
+        _downsample_series(session_lats),
+        _downsample_series(session_lons),
+        _downsample_series(candidate_lats),
+        _downsample_series(candidate_lons),
+    )
+    score = center_dist_m + (1.8 * length_error_m) + (0.8 * shape_error_m) + loop_penalty
+    return score, {
+        "center_dist_m": center_dist_m,
+        "length_error_m": length_error_m,
+        "shape_error_m": shape_error_m,
+        "loop_gap_m": loop_gap_m,
+        "score": score,
+    }
+
+
+def _layout_to_corner_rows(layout: TrackLayout) -> list[dict[str, object]]:
+    """Convert TrackLayout corners to TrackCornerV2 upsert payload rows."""
+    rows: list[dict[str, object]] = []
+    for c in layout.corners:
+        rows.append(
+            {
+                "number": c.number,
+                "name": c.name,
+                "fraction": c.fraction,
+                "lat": c.lat,
+                "lon": c.lon,
+                "character": c.character,
+                "direction": c.direction,
+                "corner_type": c.corner_type,
+                "elevation_trend": c.elevation_trend,
+                "camber": c.camber,
+                "blind": c.blind,
+                "coaching_notes": c.coaching_notes,
+                "auto_detected": False,
+                "confidence": 1.0,
+                "detection_method": "manual",
+            }
+        )
+    return rows
+
+
+def _layout_to_landmark_rows(layout: TrackLayout) -> list[dict[str, object]]:
+    """Convert TrackLayout landmarks to TrackLandmark upsert payload rows."""
+    rows: list[dict[str, object]] = []
+    for lm in layout.landmarks:
+        rows.append(
+            {
+                "name": lm.name,
+                "distance_m": lm.distance_m,
+                "landmark_type": lm.landmark_type.value,
+                "lat": lm.lat,
+                "lon": lm.lon,
+                "description": lm.description,
+                "source": "metadata-bootstrap",
+            }
+        )
+    return rows
+
+
+def _corner_hash_rows(corners: list[Any]) -> list[dict[str, object]]:
+    """Build stable corner dict rows for content-hash versioning."""
+    rows: list[dict[str, object]] = []
+    for c in corners:
+        rows.append(
+            {
+                "number": c.number,
+                "name": c.name,
+                "fraction": c.fraction,
+                "character": c.character,
+                "direction": c.direction,
+                "corner_type": c.corner_type,
+                "elevation_trend": c.elevation_trend,
+                "camber": c.camber,
+                "blind": bool(c.blind),
+                "coaching_notes": c.coaching_notes,
+                "lat": c.lat,
+                "lon": c.lon,
+            }
+        )
+    return rows
+
+
+def _apply_layout_to_session(
+    session_data: SessionData,
+    layout: TrackLayout,
+    corner_version: str | None,
+) -> bool:
+    """Apply a detected layout to an already processed in-memory session."""
+    if not layout.corners:
+        return False
+
+    best_lap_df = session_data.processed.resampled_laps[session_data.processed.best_lap]
+    skeletons = locate_official_corners(best_lap_df, layout)
+    corners = extract_corner_kpis_for_lap(best_lap_df, skeletons)
+    if not corners:
+        return False
+
+    all_lap_corners: dict[int, list[Corner]] = {}
+    for lap_num in session_data.coaching_laps:
+        lap_df = session_data.processed.resampled_laps[lap_num]
+        if lap_num == session_data.processed.best_lap:
+            all_lap_corners[lap_num] = corners
+        else:
+            all_lap_corners[lap_num] = extract_corner_kpis_for_lap(lap_df, corners)
+
+    try:
+        elev = compute_corner_elevation(best_lap_df, corners)
+        if elev:
+            enrich_corners_with_elevation(all_lap_corners, elev)
+    except (ValueError, KeyError, IndexError):
+        logger.warning(
+            "Failed elevation enrichment while applying layout to session %s",
+            session_data.session_id,
+            exc_info=True,
+        )
+
+    consistency = session_data.consistency
+    if len(session_data.coaching_laps) >= 2:
+        try:
+            consistency = compute_session_consistency(
+                session_data.processed.lap_summaries,
+                all_lap_corners,
+                session_data.processed.resampled_laps,
+                session_data.processed.best_lap,
+                session_data.anomalous_laps,
+            )
+        except (ValueError, KeyError, IndexError):
+            logger.warning(
+                "Failed consistency recomputation for %s after layout apply",
+                session_data.session_id,
+                exc_info=True,
+            )
+
+    gains = session_data.gains
+    if len(session_data.coaching_laps) >= 2:
+        try:
+            gains = estimate_gains(
+                session_data.processed.resampled_laps,
+                corners,
+                session_data.processed.lap_summaries,
+                session_data.coaching_laps,
+                session_data.processed.best_lap,
+            )
+        except (ValueError, KeyError, IndexError):
+            logger.warning(
+                "Failed gains recomputation for %s after layout apply",
+                session_data.session_id,
+                exc_info=True,
+            )
+
+    if session_data.reference_centerline is not None and session_data.gps_traces:
+        try:
+            session_data.corner_line_profiles = analyze_corner_lines(
+                session_data.gps_traces,
+                session_data.reference_centerline,
+                corners,
+                resampled_laps=session_data.processed.resampled_laps,
+                coaching_laps=session_data.coaching_laps,
+            )
+        except (ValueError, KeyError, IndexError):
+            logger.warning(
+                "Failed corner-line reanalysis for %s after layout apply",
+                session_data.session_id,
+                exc_info=True,
+            )
+
+    lap_consistency = (
+        consistency.lap_consistency
+        if consistency is not None
+        else _fallback_lap_consistency(
+            session_data.processed.lap_summaries, session_data.anomalous_laps
+        )
+    )
+    corner_consistency = consistency.corner_consistency if consistency else []
+    session_data.snapshot = build_session_snapshot(
+        metadata=session_data.parsed.metadata,
+        summaries=session_data.processed.lap_summaries,
+        lap_consistency=lap_consistency,
+        corner_consistency=corner_consistency,
+        gains=gains,
+        all_lap_corners=all_lap_corners,
+        anomalous_laps=session_data.anomalous_laps,
+        file_key=session_data.session_id,
+        gps_quality_score=session_data.snapshot.gps_quality_score,
+        gps_quality_grade=session_data.snapshot.gps_quality_grade,
+    )
+    session_data.corners = corners
+    session_data.all_lap_corners = all_lap_corners
+    session_data.consistency = consistency
+    session_data.gains = gains
+    session_data.layout = layout
+    session_data.corner_override_version = corner_version
+    return True
+
+
 def _get_track_cached(
     track_slug: str,
     key_suffix: str,
@@ -296,13 +564,28 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
     best_lap_df = processed.resampled_laps[processed.best_lap]
     layout = detect_track_or_lookup(parsed.data, parsed.metadata.track_name)
     corner_version: str | None = None
-    if layout is not None:
+    if layout is not None and layout.corners:
         # Hybrid cache already has the correct corners (DB-first + Python fallback).
         # Capture version hash for staleness detection by ensure_corners_current().
         slug = track_slug_from_layout(layout)
         corner_version = get_corner_override_version(slug)
         skeletons = locate_official_corners(best_lap_df, layout)
         corners: list[Corner] = extract_corner_kpis_for_lap(best_lap_df, skeletons)
+        if not corners:
+            logger.warning(
+                "Matched layout '%s' produced 0 official corners; falling back to auto-detection",
+                layout.name,
+            )
+            layout = None
+            corner_version = None
+            corners = detect_corners(best_lap_df)
+    elif layout is not None:
+        logger.warning(
+            "Matched layout '%s' has no corner definitions; falling back to auto-detection",
+            layout.name,
+        )
+        layout = None
+        corners = detect_corners(best_lap_df)
     else:
         corners = detect_corners(best_lap_df)
 
@@ -471,6 +754,8 @@ async def _try_auto_discover_track(session_data: SessionData) -> None:
     from cataclysm.track_match import compute_session_centroid
 
     from backend.api.db.database import async_session_factory
+    from backend.api.services.track_corners import update_corner_hash
+    from backend.api.services.track_enrichment import enrich_track
 
     # Compute GPS centroid from the session data
     try:
@@ -484,51 +769,145 @@ async def _try_auto_discover_track(session_data: SessionData) -> None:
         logger.info("No OSM raceways found near %.4f,%.4f", clat, clon)
         return
 
-    # Pick the closest result
-    best = min(
-        results,
-        key=lambda r: (float(np.mean(r.lats)) - clat) ** 2 + (float(np.mean(r.lons)) - clon) ** 2,
-    )
+    # Multi-signal ranking: centroid + length + loop closure + shape distance.
+    best_lap_df = session_data.processed.resampled_laps[session_data.processed.best_lap]
+    if "lat" not in best_lap_df.columns or "lon" not in best_lap_df.columns:
+        return
+    session_lats = np.asarray(best_lap_df["lat"].to_numpy(), dtype=float)
+    session_lons = np.asarray(best_lap_df["lon"].to_numpy(), dtype=float)
+    session_length_m = float(best_lap_df["lap_distance_m"].iloc[-1])
+
+    scored_candidates: list[tuple[float, Any, dict[str, float]]] = []
+    for candidate in results:
+        cand_lats = np.asarray(candidate.lats, dtype=float)
+        cand_lons = np.asarray(candidate.lons, dtype=float)
+        score, metrics = _score_osm_candidate(
+            session_lats=session_lats,
+            session_lons=session_lons,
+            session_length_m=session_length_m,
+            centroid_lat=clat,
+            centroid_lon=clon,
+            candidate_lats=cand_lats,
+            candidate_lons=cand_lons,
+            candidate_length_m=candidate.length_m,
+        )
+        scored_candidates.append((score, candidate, metrics))
+    scored_candidates.sort(key=lambda item: item[0])
+    best = scored_candidates[0][1]
+    best_metrics = scored_candidates[0][2]
     seed = osm_to_track_seed(best)
-    logger.info("Auto-discovered track: %s (%.0fm) via OSM", seed["name"], seed["length_m"])
+    logger.info(
+        "Auto-discovered track: %s (%.0fm) via OSM "
+        "[score=%.1f center=%.1fm length=%.1fm shape=%.1fm]",
+        seed["name"],
+        seed["length_m"],
+        best_metrics["score"],
+        best_metrics["center_dist_m"],
+        best_metrics["length_error_m"],
+        best_metrics["shape_error_m"],
+    )
     session_track_name = session_data.snapshot.metadata.track_name.strip()
     aliases = (
         [session_track_name]
         if session_track_name and session_track_name.casefold() != seed["name"].strip().casefold()
         else []
     )
+    metadata_layout = lookup_track(session_track_name) if session_track_name else None
+    centerline_geojson = {
+        "type": "LineString",
+        "coordinates": [
+            [float(lon), float(lat)] for lat, lon in zip(best.lats, best.lons, strict=False)
+        ],
+    }
 
-    # Create a draft track in the DB
+    # Create/enrich a track in DB and apply it to the current session.
     try:
         async with async_session_factory() as db:
-            from backend.api.db.models import Track
-            from backend.api.services.track_store import get_track_by_slug
-
-            # Don't create duplicates
-            existing = await get_track_by_slug(db, seed["slug"])
-            if existing is not None:
-                logger.info("Track %s already exists in DB, skipping", seed["slug"])
-                return
-
-            track = Track(
-                slug=seed["slug"],
-                name=seed["name"],
-                source="osm-auto",
-                center_lat=seed["center_lat"],
-                center_lon=seed["center_lon"],
-                length_m=seed["length_m"],
-                status="draft",
-                quality_tier=1,
-                aliases=aliases,
+            from backend.api.services.track_store import (
+                create_track,
+                get_corners_for_track,
+                get_landmarks_for_track,
+                get_track_by_slug,
+                update_track,
+                upsert_corners,
+                upsert_landmarks,
             )
-            db.add(track)
-            await db.commit()
-            await db.refresh(track)
 
-            # Seed hybrid cache so GPS detection finds it for future uploads
-            layout = db_track_to_layout(track, [], [])
+            track = await get_track_by_slug(db, seed["slug"])
+            if track is None:
+                track = await create_track(
+                    db,
+                    slug=seed["slug"],
+                    name=seed["name"],
+                    source="osm-auto",
+                    center_lat=seed["center_lat"],
+                    center_lon=seed["center_lon"],
+                    length_m=seed["length_m"],
+                    quality_tier=1,
+                    status="draft",
+                )
+                logger.info("Auto-created draft track: %s", seed["slug"])
+
+            merged_aliases = sorted(
+                {
+                    *(track.aliases or []),
+                    *aliases,
+                }
+            )
+            track = (
+                await update_track(
+                    db,
+                    track.slug,
+                    aliases=merged_aliases,
+                    centerline_geojson=centerline_geojson,
+                )
+                or track
+            )
+
+            if metadata_layout is not None and metadata_layout.corners:
+                await upsert_corners(db, track.id, _layout_to_corner_rows(metadata_layout))
+                await upsert_landmarks(db, track.id, _layout_to_landmark_rows(metadata_layout))
+                track = (
+                    await update_track(
+                        db,
+                        track.slug,
+                        quality_tier=3,
+                        status="published",
+                    )
+                    or track
+                )
+                logger.info(
+                    "Bootstrapped '%s' from known metadata layout '%s' (%d corners)",
+                    track.slug,
+                    metadata_layout.name,
+                    len(metadata_layout.corners),
+                )
+            else:
+                await enrich_track(
+                    db,
+                    track.id,
+                    np.asarray(best.lats, dtype=float),
+                    np.asarray(best.lons, dtype=float),
+                    track_length_m=best.length_m,
+                )
+
+            db_corners = await get_corners_for_track(db, track.id)
+            db_landmarks = await get_landmarks_for_track(db, track.id)
+            layout = db_track_to_layout(track, db_corners, db_landmarks)
             update_db_tracks_cache_with_aliases(track.slug, layout, aliases=track.aliases)
-            logger.info("Auto-created draft track: %s", seed["slug"])
+            if db_corners:
+                update_corner_hash(track.slug, _corner_hash_rows(db_corners))
+
+            await db.commit()
+            corner_version = get_corner_override_version(track.slug)
+            if _apply_layout_to_session(session_data, layout, corner_version):
+                invalidate_physics_cache(session_data.session_id)
+                logger.info(
+                    "Applied discovered layout '%s' to current session %s (%d corners)",
+                    track.slug,
+                    session_data.session_id,
+                    len(session_data.corners),
+                )
     except Exception:
         logger.warning("Failed to persist auto-discovered track", exc_info=True)
 

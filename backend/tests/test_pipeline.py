@@ -239,12 +239,44 @@ class TestRunPipelineSyncErrorPaths:
         """When detect_track_or_lookup returns a layout, official corners are used."""
 
         def _setup(mocks: dict[str, MagicMock]) -> None:
-            mocks["detect_track_or_lookup"].return_value = MagicMock()
-            mocks["locate_official_corners"].return_value = []
+            layout = MagicMock()
+            layout.corners = [MagicMock()]
+            layout.name = "Known Layout"
+            mocks["detect_track_or_lookup"].return_value = layout
+            mocks["locate_official_corners"].return_value = [MagicMock()]
+            mocks["extract_corner_kpis_for_lap"].return_value = [MagicMock()]
 
-        result, mocks = self._run_with_patches(_setup)
+        _, mocks = self._run_with_patches(_setup)
         mocks["locate_official_corners"].assert_called_once()
         mocks["detect_corners"].assert_not_called()
+
+    def test_falls_back_when_layout_has_no_corners(self) -> None:
+        """Layouts without corner definitions must fall back to auto-detection."""
+
+        def _setup(mocks: dict[str, MagicMock]) -> None:
+            layout = MagicMock()
+            layout.corners = []
+            layout.name = "Draft Track"
+            mocks["detect_track_or_lookup"].return_value = layout
+
+        _, mocks = self._run_with_patches(_setup)
+        mocks["detect_corners"].assert_called_once()
+        mocks["locate_official_corners"].assert_not_called()
+
+    def test_falls_back_when_official_kpi_extraction_returns_empty(self) -> None:
+        """Official-corner matches that produce zero KPIs must fall back safely."""
+
+        def _setup(mocks: dict[str, MagicMock]) -> None:
+            layout = MagicMock()
+            layout.corners = [MagicMock()]
+            layout.name = "Known Layout"
+            mocks["detect_track_or_lookup"].return_value = layout
+            mocks["locate_official_corners"].return_value = [MagicMock()]
+            mocks["extract_corner_kpis_for_lap"].return_value = []
+
+        _, mocks = self._run_with_patches(_setup)
+        mocks["locate_official_corners"].assert_called_once()
+        mocks["detect_corners"].assert_called_once()
 
     def test_elevation_failure_is_swallowed(self) -> None:
         """ValueError from compute_corner_elevation does not propagate."""
