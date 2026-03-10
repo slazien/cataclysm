@@ -15,6 +15,24 @@ from httpx import AsyncClient
 from backend.api.services import equipment_store
 from backend.tests.conftest import build_synthetic_csv
 
+CORNER_ENRICHMENT_KEYS = (
+    "brake_point_lat",
+    "brake_point_lon",
+    "apex_lat",
+    "apex_lon",
+    "direction",
+    "character",
+    "corner_type_hint",
+    "elevation_trend",
+    "camber",
+    "blind",
+    "coaching_notes",
+    "banking_deg",
+    "name",
+    "nominal_distance_m",
+    "landmark_ref",
+)
+
 
 async def _upload_session(
     client: AsyncClient,
@@ -56,6 +74,9 @@ async def test_get_corners(client: AsyncClient) -> None:
         assert "exit_distance_m" in corner
         assert "min_speed_mph" in corner
         assert "apex_type" in corner
+        for key in CORNER_ENRICHMENT_KEYS:
+            assert key in corner
+        assert isinstance(corner["blind"], bool)
 
 
 @pytest.mark.asyncio
@@ -76,6 +97,13 @@ async def test_get_all_laps_corners(client: AsyncClient) -> None:
     assert data["session_id"] == session_id
     assert "laps" in data
     assert isinstance(data["laps"], dict)
+    if data["laps"]:
+        first_lap_corners = next(iter(data["laps"].values()))
+        if first_lap_corners:
+            corner = first_lap_corners[0]
+            for key in CORNER_ENRICHMENT_KEYS:
+                assert key in corner
+            assert isinstance(corner["blind"], bool)
 
 
 @pytest.mark.asyncio

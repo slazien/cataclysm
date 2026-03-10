@@ -69,7 +69,21 @@ def _corner_to_schema(c: Any) -> CornerSchema:
         peak_brake_g=c.peak_brake_g,
         throttle_commit_m=c.throttle_commit_m,
         apex_type=c.apex_type,
+        brake_point_lat=c.brake_point_lat,
+        brake_point_lon=c.brake_point_lon,
+        apex_lat=c.apex_lat,
+        apex_lon=c.apex_lon,
+        direction=getattr(c, "direction", None),
+        character=getattr(c, "character", None),
+        corner_type_hint=getattr(c, "corner_type_hint", None),
+        elevation_trend=getattr(c, "elevation_trend", None),
+        camber=getattr(c, "camber", None),
+        blind=bool(getattr(c, "blind", False)),
+        coaching_notes=getattr(c, "coaching_notes", None),
+        banking_deg=getattr(c, "banking_deg", None),
+        name=getattr(c, "name", None),
         nominal_distance_m=getattr(c, "nominal_distance_m", None),
+        landmark_ref=getattr(c, "landmark_ref", None),
     )
 
 

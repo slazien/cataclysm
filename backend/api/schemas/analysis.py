@@ -23,6 +23,15 @@ class CornerSchema(BaseModel):
     brake_point_lon: float | None = None
     apex_lat: float | None = None
     apex_lon: float | None = None
+    direction: str | None = None
+    character: str | None = None
+    corner_type_hint: str | None = None
+    elevation_trend: str | None = None
+    camber: str | None = None
+    blind: bool = False
+    coaching_notes: str | None = None
+    banking_deg: float | None = None
+    name: str | None = None
     nominal_distance_m: float | None = None
     landmark_ref: str | None = None
 
