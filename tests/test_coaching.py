@@ -2072,12 +2072,85 @@ class TestGuardrailRetryLogic:
         mock_validator.force_validate.assert_not_called()
         assert report.validation_failed is False
 
+
+class TestDeterministicContentValidation:
+    """Tests for deterministic forbidden-composite checks in report generation."""
+
+    @staticmethod
+    def _response(summary: str) -> str:
+        return json.dumps(
+            {
+                "summary": summary,
+                "priority_corners": [],
+                "corner_grades": [],
+                "patterns": [],
+            }
+        )
+
+    def test_forbidden_composite_triggers_retry(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        first = self._response("Strong lap with 95.7 mph of available grip at T5.")
+        second = self._response("Strong lap with T5 minimum speed of {{speed:95.7}}.")
+
+        mock_msg1 = MagicMock()
+        mock_msg1.content = [MagicMock(text=first)]
+        mock_msg2 = MagicMock()
+        mock_msg2.content = [MagicMock(text=second)]
+        mock_client = MagicMock()
+        mock_client.messages.create.side_effect = [mock_msg1, mock_msg2]
+        mock_anthropic = MagicMock()
+        mock_anthropic.Anthropic.return_value = mock_client
+
+        mock_validator = MagicMock()
+        mock_validator.record_and_maybe_validate.return_value = None
+
+        with (
+            patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test"}),
+            patch.dict(sys.modules, {"anthropic": mock_anthropic}),
+            patch("cataclysm.coaching._get_validator", return_value=mock_validator),
+        ):
+            report = generate_coaching_report(sample_summaries, sample_all_lap_corners, "Test")
+
+        assert mock_client.messages.create.call_count == 2
+        assert "minimum speed" in report.summary.lower()
+        assert report.content_warnings == []
+
+    def test_forbidden_composite_after_retry_is_sanitized(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        bad = self._response("Best lap shows 95.7 mph of available grip at T5.")
+        mock_msg = MagicMock()
+        mock_msg.content = [MagicMock(text=bad)]
+        mock_client = MagicMock()
+        mock_client.messages.create.side_effect = [mock_msg, mock_msg]
+        mock_anthropic = MagicMock()
+        mock_anthropic.Anthropic.return_value = mock_client
+
+        mock_validator = MagicMock()
+        mock_validator.record_and_maybe_validate.return_value = None
+
+        with (
+            patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test"}),
+            patch.dict(sys.modules, {"anthropic": mock_anthropic}),
+            patch("cataclysm.coaching._get_validator", return_value=mock_validator),
+        ):
+            report = generate_coaching_report(sample_summaries, sample_all_lap_corners, "Test")
+
+        assert report.content_warnings
+        assert "mph of available grip" in report.content_warnings[0].lower()
+        assert "redacted invalid metric phrase" in report.summary.lower()
+
     def test_validation_fails_then_retry_passes_no_flag(
         self,
         sample_summaries: list[LapSummary],
         sample_all_lap_corners: dict[int, list[Corner]],
     ) -> None:
-        mock_anthropic = _make_mock_anthropic(self._valid_response())
+        mock_anthropic = _make_mock_anthropic(self._response("Good session."))
         mock_validator = MagicMock()
         failed = MagicMock()
         failed.passed = False

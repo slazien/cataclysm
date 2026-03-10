@@ -1,9 +1,8 @@
 """Adaptive sampling validator for AI coaching outputs.
 
-Periodically checks coaching reports against physics guardrails using a
-lightweight LLM call.  Tracks pass/fail history and adapts the sampling
-interval: fewer failures → less frequent checks; more failures → more
-frequent checks.
+Periodically judges coaching reports with a rubric-based LLM check.
+Tracks pass/fail history and adapts the sampling interval: fewer failures
+lead to less frequent checks; more failures tighten checks.
 """
 
 from __future__ import annotations
@@ -18,34 +17,18 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from cataclysm.driving_physics import PHYSICS_GUARDRAILS
-from cataclysm.llm_gateway import call_text_completion, is_task_available, routing_enabled
+from cataclysm.coaching_judge import build_judge_prompt, parse_judge_response
+from cataclysm.llm_gateway import call_text_completion, is_task_available
 
 logger = logging.getLogger(__name__)
 
 # ── Adaptive interval parameters ──────────────────────────────────────
-DEFAULT_INTERVAL = 20
+DEFAULT_INTERVAL = 5
 MIN_INTERVAL = 5
 MAX_INTERVAL = 200
 WINDOW_SIZE = 10
 FAILURE_RATE_INCREASE = 0.0  # 0% failures in window → grow interval
 FAILURE_RATE_DECREASE = 0.20  # >20% failures in window → shrink interval
-
-# ── Validation prompt ─────────────────────────────────────────────────
-_VALIDATION_PROMPT = """\
-Below are physics guardrails that a motorsport coaching report must NEVER contradict:
-
-{guardrails}
-
-Now check this coaching report for contradictions:
-
-{report}
-
-For each guardrail, verify whether ANY statement in the report contradicts it.
-Respond ONLY with JSON (no markdown, no explanation):
-{{"passed": true, "violations": []}}
-if no contradictions, or:
-{{"passed": false, "violations": ["brief description of each contradiction"]}}"""
 
 
 @dataclass
@@ -55,6 +38,9 @@ class ValidationRecord:
     timestamp: str
     passed: bool
     violations: list[str] = field(default_factory=list)
+    scores: dict[str, int] = field(default_factory=dict)
+    skill_level_checked: str = "intermediate"
+    forbidden_pattern_violations: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -70,12 +56,7 @@ class ValidationState:
 
 
 class CoachingValidator:
-    """Adaptive sampling validator for coaching report quality.
-
-    Counts coaching outputs and runs a validation check every
-    ``current_interval`` outputs.  After each check the interval is
-    adjusted based on recent failure rate.
-    """
+    """Adaptive sampling validator for coaching report quality."""
 
     def __init__(self, state_path: Path | None = None) -> None:
         self.state_path = state_path or Path("data/coaching_validation.json")
@@ -83,11 +64,13 @@ class CoachingValidator:
 
     # ── Public API ────────────────────────────────────────────────────
 
-    def record_and_maybe_validate(self, report_text: str) -> ValidationRecord | None:
-        """Record a coaching output; validate if the interval has elapsed.
-
-        Returns the ValidationRecord if a check ran, otherwise None.
-        """
+    def record_and_maybe_validate(
+        self,
+        report_text: str,
+        *,
+        skill_level: str = "intermediate",
+    ) -> ValidationRecord | None:
+        """Record a coaching output; validate if the interval has elapsed."""
         self.state.total_outputs += 1
         self.state.outputs_since_check += 1
 
@@ -95,9 +78,8 @@ class CoachingValidator:
             self._save()
             return None
 
-        # Time to validate
         self.state.outputs_since_check = 0
-        record = self._validate(report_text)
+        record = self._validate(report_text, skill_level=skill_level)
         self.state.total_checks += 1
         if not record.passed:
             self.state.total_failures += 1
@@ -106,12 +88,14 @@ class CoachingValidator:
         self._save()
         return record
 
-    def force_validate(self, report_text: str) -> ValidationRecord:
-        """Validate unconditionally (e.g. on retry after a failure).
-
-        Records the result in history but does not affect the output counter.
-        """
-        record = self._validate(report_text)
+    def force_validate(
+        self,
+        report_text: str,
+        *,
+        skill_level: str = "intermediate",
+    ) -> ValidationRecord:
+        """Validate unconditionally (e.g., retry check after a failed sample)."""
+        record = self._validate(report_text, skill_level=skill_level)
         self.state.total_checks += 1
         if not record.passed:
             self.state.total_failures += 1
@@ -122,9 +106,9 @@ class CoachingValidator:
 
     @property
     def summary(self) -> dict[str, object]:
-        """Return a human-readable summary of validation history."""
+        """Return a compact summary of validation history."""
         recent = self.state.checks[-WINDOW_SIZE:]
-        recent_failures = sum(1 for r in recent if not r.passed)
+        recent_failures = sum(1 for record in recent if not record.passed)
         return {
             "total_outputs": self.state.total_outputs,
             "total_checks": self.state.total_checks,
@@ -134,80 +118,137 @@ class CoachingValidator:
             "next_check_in": (self.state.current_interval - self.state.outputs_since_check),
         }
 
+    @property
+    def dashboard(self) -> dict[str, object]:
+        """Return dashboard-friendly quality aggregates."""
+        checks = self.state.checks
+        if not checks:
+            return {
+                "summary": self.summary,
+                "failure_types": {},
+                "grounding_trend": [],
+                "forbidden_composites": {},
+            }
+
+        failure_types: dict[str, int] = {}
+        forbidden_composites: dict[str, int] = {}
+        grounding_trend: list[dict[str, object]] = []
+
+        for record in checks:
+            for violation in record.violations:
+                failure_types[violation] = failure_types.get(violation, 0) + 1
+            for phrase in record.forbidden_pattern_violations:
+                forbidden_composites[phrase] = forbidden_composites.get(phrase, 0) + 1
+            if "data_relevance" in record.scores:
+                grounding_trend.append(
+                    {
+                        "timestamp": record.timestamp,
+                        "data_relevance": record.scores["data_relevance"],
+                    }
+                )
+
+        return {
+            "summary": self.summary,
+            "failure_types": failure_types,
+            "grounding_trend": grounding_trend[-50:],
+            "forbidden_composites": forbidden_composites,
+        }
+
     # ── Validation ────────────────────────────────────────────────────
 
-    def _validate(self, report_text: str) -> ValidationRecord:
-        """Run a guardrail compliance check via a lightweight LLM call."""
+    def _validate(self, report_text: str, *, skill_level: str) -> ValidationRecord:
+        """Run rubric-based validation via a lightweight LLM call."""
         now = datetime.now(UTC).isoformat()
 
-        use_router = routing_enabled(False)
-        client = self._create_client() if not use_router else None
-        if client is None and not is_task_available(
-            "coaching_validator", default_provider="anthropic"
-        ):
+        if not is_task_available("coaching_validator", default_provider="anthropic"):
             logger.debug("Skipping coaching validation — no API key")
-            return ValidationRecord(timestamp=now, passed=True)
+            return ValidationRecord(timestamp=now, passed=True, skill_level_checked=skill_level)
 
-        prompt = _VALIDATION_PROMPT.format(
-            guardrails=PHYSICS_GUARDRAILS,
-            report=report_text,
-        )
+        prompt = build_judge_prompt(report_text, skill_level)
 
         try:
-            if use_router:
-                result = call_text_completion(
-                    task="coaching_validator",
-                    user_content=prompt,
-                    system=None,
-                    max_tokens=512,
-                    temperature=0.0,
-                    default_provider="anthropic",
-                    default_model="claude-sonnet-4-6",
-                )
-                text = result.text
-            else:
-                assert client is not None
-                message = client.messages.create(
-                    model="claude-sonnet-4-6",
-                    max_tokens=512,
-                    messages=[{"role": "user", "content": prompt}],
-                )
-                block = message.content[0]
-                text = block.text if hasattr(block, "text") else str(block)
+            result = call_text_completion(
+                task="coaching_validator",
+                user_content=prompt,
+                system=None,
+                max_tokens=800,
+                temperature=0.0,
+                default_provider="anthropic",
+                default_model="claude-sonnet-4-6",
+            )
+            text = result.text
         except Exception:
             logger.warning("Coaching validation API call failed", exc_info=True)
-            return ValidationRecord(timestamp=now, passed=True)
+            return ValidationRecord(timestamp=now, passed=True, skill_level_checked=skill_level)
 
-        return self._parse_validation(text, now)
+        return self._parse_validation(text, now, skill_level=skill_level)
 
     @staticmethod
-    def _parse_validation(text: str, timestamp: str) -> ValidationRecord:
-        """Parse the validator LLM response into a ValidationRecord."""
-        text = text.strip()
-        # Strip markdown code fences if present
-        if text.startswith("```"):
-            text = text.split("\n", 1)[-1]
-            text = text.rsplit("```", 1)[0]
+    def _parse_validation(
+        text: str,
+        timestamp: str,
+        *,
+        skill_level: str = "intermediate",
+    ) -> ValidationRecord:
+        """Parse validator response into a ValidationRecord."""
+        clean = text.strip()
+        if clean.startswith("```"):
+            clean = clean.split("\n", 1)[-1]
+            clean = clean.rsplit("```", 1)[0]
 
-        data: dict | None = None
-        try:
-            data = json.loads(text.strip())
-        except json.JSONDecodeError:
-            # Try to extract JSON from surrounding text
-            start = text.find("{")
-            end = text.rfind("}")
-            if start != -1 and end > start:
-                with contextlib.suppress(json.JSONDecodeError):
-                    data = json.loads(text[start : end + 1])
+        data: dict[str, Any] | None = None
+        with contextlib.suppress(json.JSONDecodeError):
+            parsed = json.loads(clean.strip())
+            if isinstance(parsed, dict):
+                data = parsed
 
         if data is None:
-            logger.warning("Could not parse validation response: %s", text[:200])
-            return ValidationRecord(timestamp=timestamp, passed=True)
+            start = clean.find("{")
+            end = clean.rfind("}")
+            if start != -1 and end > start:
+                with contextlib.suppress(json.JSONDecodeError):
+                    parsed = json.loads(clean[start : end + 1])
+                    if isinstance(parsed, dict):
+                        data = parsed
+
+        if data is None:
+            logger.warning("Could not parse validation response: %s", clean[:200])
+            return ValidationRecord(
+                timestamp=timestamp, passed=True, skill_level_checked=skill_level
+            )
+
+        # Backward compatibility with the old validator format.
+        if "passed" in data and "violations" in data:
+            violations = data.get("violations", [])
+            return ValidationRecord(
+                timestamp=timestamp,
+                passed=bool(data.get("passed", True)),
+                violations=violations if isinstance(violations, list) else [],
+                skill_level_checked=skill_level,
+            )
+
+        judge = parse_judge_response(clean, skill_level)
+        scores = {
+            "topic_gating": judge.topic_gating,
+            "communication_fit": judge.communication_fit,
+            "data_relevance": judge.data_relevance,
+            "causal_reasoning": judge.causal_reasoning,
+            "actionability": judge.actionability,
+        }
+        threshold_violations = [
+            f"{name} score {score} < 3" for name, score in scores.items() if score < 3
+        ]
+        violations = judge.forbidden_pattern_violations + [
+            item for item in threshold_violations if item not in judge.forbidden_pattern_violations
+        ]
 
         return ValidationRecord(
             timestamp=timestamp,
-            passed=bool(data.get("passed", True)),
-            violations=data.get("violations", []),
+            passed=judge.overall_pass,
+            violations=violations,
+            scores=scores,
+            skill_level_checked=judge.skill_level_checked,
+            forbidden_pattern_violations=judge.forbidden_pattern_violations,
         )
 
     # ── Adaptive interval ─────────────────────────────────────────────
@@ -216,12 +257,11 @@ class CoachingValidator:
         """Adjust sampling interval based on recent failure rate."""
         recent = self.state.checks[-WINDOW_SIZE:]
         if len(recent) < 3:
-            return  # Not enough data to adjust
+            return
 
-        failure_rate = sum(1 for r in recent if not r.passed) / len(recent)
+        failure_rate = sum(1 for record in recent if not record.passed) / len(recent)
 
         if failure_rate <= FAILURE_RATE_INCREASE and len(recent) >= WINDOW_SIZE:
-            # Clean track record → relax checks
             new = min(MAX_INTERVAL, self.state.current_interval * 2)
             if new != self.state.current_interval:
                 logger.info(
@@ -232,7 +272,6 @@ class CoachingValidator:
                 )
                 self.state.current_interval = new
         elif failure_rate > FAILURE_RATE_DECREASE:
-            # Too many failures → tighten checks
             new = max(MIN_INTERVAL, self.state.current_interval // 2)
             if new != self.state.current_interval:
                 logger.info(
@@ -251,7 +290,7 @@ class CoachingValidator:
             return ValidationState()
         try:
             raw = json.loads(self.state_path.read_text())
-            checks = [ValidationRecord(**c) for c in raw.pop("checks", [])]
+            checks = [ValidationRecord(**record) for record in raw.pop("checks", [])]
             return ValidationState(**raw, checks=checks)
         except Exception:
             logger.warning("Could not load validation state, starting fresh", exc_info=True)
@@ -261,23 +300,12 @@ class CoachingValidator:
         """Atomically persist state to disk."""
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         data = asdict(self.state)
-        # Atomic write: write to temp file then rename
         fd, tmp = tempfile.mkstemp(dir=self.state_path.parent, suffix=".tmp")
         try:
-            with os.fdopen(fd, "w") as f:
-                json.dump(data, f, indent=2)
+            with os.fdopen(fd, "w") as handle:
+                json.dump(data, handle, indent=2)
             Path(tmp).replace(self.state_path)
         except Exception:
             with contextlib.suppress(OSError):
                 os.unlink(tmp)
             raise
-
-    @staticmethod
-    def _create_client() -> Any:
-        """Create a lightweight Anthropic client for validation calls."""
-        import anthropic
-
-        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-        if not api_key:
-            return None
-        return anthropic.Anthropic(api_key=api_key, max_retries=2, timeout=30.0)

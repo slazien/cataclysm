@@ -78,77 +78,68 @@ def test_no_validation_before_interval(validator: CoachingValidator) -> None:
 # ── Validation triggers ──────────────────────────────────────────────
 
 
-@patch("cataclysm.coaching_validator.CoachingValidator._create_client")
-def test_validation_triggers_at_interval(
-    mock_client_factory: MagicMock,
-    validator: CoachingValidator,
-) -> None:
+def test_validation_triggers_at_interval(validator: CoachingValidator) -> None:
     """Validation fires exactly when outputs_since_check reaches the interval."""
-    # Mock the API call to return a passing result
-    mock_client = MagicMock()
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text='{"passed": true, "violations": []}')]
-    mock_client.messages.create.return_value = mock_response
-    mock_client_factory.return_value = mock_client
+    response = MagicMock()
+    response.text = '{"passed": true, "violations": []}'
 
-    # Burn through interval - 1 outputs (no validation)
-    for _ in range(DEFAULT_INTERVAL - 1):
-        assert validator.record_and_maybe_validate("text") is None
+    with (
+        patch("cataclysm.coaching_validator.is_task_available", return_value=True),
+        patch("cataclysm.coaching_validator.call_text_completion", return_value=response),
+    ):
+        # Burn through interval - 1 outputs (no validation)
+        for _ in range(DEFAULT_INTERVAL - 1):
+            assert validator.record_and_maybe_validate("text") is None
 
-    # The Nth output should trigger validation
-    result = validator.record_and_maybe_validate("text")
+        # The Nth output should trigger validation
+        result = validator.record_and_maybe_validate("text")
+
     assert result is not None
     assert result.passed is True
     assert validator.state.total_checks == 1
     assert validator.state.outputs_since_check == 0
 
 
-@patch("cataclysm.coaching_validator.CoachingValidator._create_client")
-def test_failed_validation_recorded(
-    mock_client_factory: MagicMock,
-    validator: CoachingValidator,
-) -> None:
+def test_failed_validation_recorded(validator: CoachingValidator) -> None:
     """A failing validation increments the failure counter."""
-    mock_client = MagicMock()
-    mock_response = MagicMock()
-    mock_response.content = [
-        MagicMock(
-            text=json.dumps(
-                {
-                    "passed": False,
-                    "violations": ["Said early turn-in causes early apex"],
-                }
-            )
-        )
-    ]
-    mock_client.messages.create.return_value = mock_response
-    mock_client_factory.return_value = mock_client
+    response = MagicMock()
+    response.text = json.dumps(
+        {
+            "passed": False,
+            "violations": ["Said early turn-in causes early apex"],
+        }
+    )
 
-    # Reach the interval
-    for _ in range(DEFAULT_INTERVAL - 1):
-        validator.record_and_maybe_validate("text")
+    with (
+        patch("cataclysm.coaching_validator.is_task_available", return_value=True),
+        patch("cataclysm.coaching_validator.call_text_completion", return_value=response),
+    ):
+        # Reach the interval
+        for _ in range(DEFAULT_INTERVAL - 1):
+            validator.record_and_maybe_validate("text")
 
-    result = validator.record_and_maybe_validate("text")
+        result = validator.record_and_maybe_validate("text")
+
     assert result is not None
     assert result.passed is False
     assert result.violations == ["Said early turn-in causes early apex"]
     assert validator.state.total_failures == 1
 
 
-@patch("cataclysm.coaching_validator.CoachingValidator._create_client")
-def test_no_api_key_skips_validation(
-    mock_client_factory: MagicMock,
-    validator: CoachingValidator,
-) -> None:
+def test_no_api_key_skips_validation(validator: CoachingValidator) -> None:
     """Without an API key, validation is skipped (passes by default)."""
-    mock_client_factory.return_value = None
+    with (
+        patch("cataclysm.coaching_validator.is_task_available", return_value=False),
+        patch("cataclysm.coaching_validator.call_text_completion") as mock_call,
+    ):
+        for _ in range(DEFAULT_INTERVAL - 1):
+            validator.record_and_maybe_validate("text")
 
-    for _ in range(DEFAULT_INTERVAL - 1):
-        validator.record_and_maybe_validate("text")
+        result = validator.record_and_maybe_validate("text")
 
-    result = validator.record_and_maybe_validate("text")
     assert result is not None
     assert result.passed is True
+    mock_call.assert_not_called()
 
 
 # ── Response parsing ──────────────────────────────────────────────────
@@ -186,6 +177,20 @@ def test_parse_validation_garbage_defaults_to_pass() -> None:
     text = "I don't understand"
     rec = CoachingValidator._parse_validation(text, "2024-01-01T00:00:00Z")
     assert rec.passed is True
+
+
+def test_parse_validation_judge_shape() -> None:
+    text = (
+        '{"topic_gating": 2, "communication_fit": 4, "data_relevance": 5, '
+        '"causal_reasoning": 4, "actionability": 5, '
+        '"forbidden_pattern_violations": [], "skill_level_checked": "advanced", '
+        '"overall_pass": false}'
+    )
+    rec = CoachingValidator._parse_validation(text, "2024-01-01T00:00:00Z")
+    assert rec.passed is False
+    assert rec.scores["topic_gating"] == 2
+    assert rec.skill_level_checked == "advanced"
+    assert any("topic_gating score 2 < 3" in violation for violation in rec.violations)
 
 
 # ── Adaptive interval ─────────────────────────────────────────────────
@@ -273,23 +278,45 @@ def test_no_adjustment_with_few_checks(state_path: Path) -> None:
     assert v.state.current_interval == 20
 
 
+def test_dashboard_aggregates(state_path: Path) -> None:
+    v = CoachingValidator(state_path=state_path)
+    v.state.checks.extend(
+        [
+            ValidationRecord(
+                timestamp="t1",
+                passed=False,
+                violations=["topic_gating score 2 < 3"],
+                scores={"data_relevance": 3},
+                forbidden_pattern_violations=["mph of grip"],
+            ),
+            ValidationRecord(
+                timestamp="t2",
+                passed=True,
+                scores={"data_relevance": 5},
+            ),
+        ]
+    )
+    dashboard = v.dashboard
+    assert dashboard["summary"]["total_checks"] == 0
+    assert dashboard["failure_types"]["topic_gating score 2 < 3"] == 1
+    assert dashboard["forbidden_composites"]["mph of grip"] == 1
+
+
 # ── force_validate ────────────────────────────────────────────────────
 
 
-@patch("cataclysm.coaching_validator.CoachingValidator._create_client")
-def test_force_validate_always_runs(
-    mock_client_factory: MagicMock,
-    validator: CoachingValidator,
-) -> None:
+def test_force_validate_always_runs(validator: CoachingValidator) -> None:
     """force_validate runs regardless of output counter."""
-    mock_client = MagicMock()
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text='{"passed": true, "violations": []}')]
-    mock_client.messages.create.return_value = mock_response
-    mock_client_factory.return_value = mock_client
+    response = MagicMock()
+    response.text = '{"passed": true, "violations": []}'
 
-    # No outputs recorded — force_validate should still run
-    result = validator.force_validate("some report")
+    with (
+        patch("cataclysm.coaching_validator.is_task_available", return_value=True),
+        patch("cataclysm.coaching_validator.call_text_completion", return_value=response),
+    ):
+        # No outputs recorded — force_validate should still run
+        result = validator.force_validate("some report")
+
     assert result.passed is True
     assert validator.state.total_checks == 1
     # output counter should not have changed
@@ -297,19 +324,17 @@ def test_force_validate_always_runs(
     assert validator.state.total_outputs == 0
 
 
-@patch("cataclysm.coaching_validator.CoachingValidator._create_client")
-def test_force_validate_records_failure(
-    mock_client_factory: MagicMock,
-    validator: CoachingValidator,
-) -> None:
+def test_force_validate_records_failure(validator: CoachingValidator) -> None:
     """force_validate failure is tracked in history."""
-    mock_client = MagicMock()
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text='{"passed": false, "violations": ["bad physics"]}')]
-    mock_client.messages.create.return_value = mock_response
-    mock_client_factory.return_value = mock_client
+    response = MagicMock()
+    response.text = '{"passed": false, "violations": ["bad physics"]}'
 
-    result = validator.force_validate("bad report")
+    with (
+        patch("cataclysm.coaching_validator.is_task_available", return_value=True),
+        patch("cataclysm.coaching_validator.call_text_completion", return_value=response),
+    ):
+        result = validator.force_validate("bad report")
+
     assert result.passed is False
     assert validator.state.total_failures == 1
     assert len(validator.state.checks) == 1
@@ -329,20 +354,20 @@ def test_summary_returns_useful_info(validator: CoachingValidator) -> None:
 # ── API call failure (lines 158-160) ────────────────────────────────
 
 
-@patch("cataclysm.coaching_validator.CoachingValidator._create_client")
-def test_api_exception_returns_pass(
-    mock_client_factory: MagicMock,
-    validator: CoachingValidator,
-) -> None:
+def test_api_exception_returns_pass(validator: CoachingValidator) -> None:
     """If the API call raises, validation defaults to pass (fail-open)."""
-    mock_client = MagicMock()
-    mock_client.messages.create.side_effect = RuntimeError("Connection timeout")
-    mock_client_factory.return_value = mock_client
+    with (
+        patch("cataclysm.coaching_validator.is_task_available", return_value=True),
+        patch(
+            "cataclysm.coaching_validator.call_text_completion",
+            side_effect=RuntimeError("Connection timeout"),
+        ),
+    ):
+        for _ in range(DEFAULT_INTERVAL - 1):
+            validator.record_and_maybe_validate("text")
 
-    for _ in range(DEFAULT_INTERVAL - 1):
-        validator.record_and_maybe_validate("text")
+        result = validator.record_and_maybe_validate("text")
 
-    result = validator.record_and_maybe_validate("text")
     assert result is not None
     assert result.passed is True
 
@@ -362,31 +387,3 @@ def test_save_exception_cleans_temp_file(state_path: Path) -> None:
         v._save()
 
 
-# ── _create_client (lines 261-266) ──────────────────────────────────
-
-
-def test_create_client_no_api_key() -> None:
-    """Without ANTHROPIC_API_KEY, _create_client returns None."""
-    with patch.dict("os.environ", {"ANTHROPIC_API_KEY": ""}, clear=False):
-        result = CoachingValidator._create_client()
-    assert result is None
-
-
-def test_create_client_with_api_key() -> None:
-    """With an API key, _create_client returns an Anthropic client."""
-    import sys
-
-    mock_anthropic = MagicMock()
-    mock_anthropic.Anthropic.return_value = MagicMock(name="FakeClient")
-    original = sys.modules.get("anthropic")
-    sys.modules["anthropic"] = mock_anthropic
-    try:
-        with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "sk-test-key"}, clear=False):
-            result = CoachingValidator._create_client()
-        assert result is not None
-        mock_anthropic.Anthropic.assert_called_once()
-    finally:
-        if original is not None:
-            sys.modules["anthropic"] = original
-        else:
-            sys.modules.pop("anthropic", None)

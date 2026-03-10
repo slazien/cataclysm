@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
@@ -454,47 +453,25 @@ async def _call_haiku_comparison(prompt: str) -> str:
     """
     import asyncio
 
-    import anthropic
-    from cataclysm.llm_gateway import call_text_completion, is_task_available, routing_enabled
+    from cataclysm.llm_gateway import call_text_completion, is_task_available
 
-    use_router = routing_enabled(False)
-    if use_router:
-        if not is_task_available("share_comparison", default_provider="anthropic"):
-            return (
-                "AI comparison is unavailable (no API key configured). "
-                "Please check ANTHROPIC_API_KEY / OPENAI_API_KEY / GOOGLE_API_KEY."
-            )
-
-        def _call_router() -> str:
-            result = call_text_completion(
-                task="share_comparison",
-                user_content=prompt,
-                system=None,
-                max_tokens=_HAIKU_MAX_TOKENS,
-                temperature=0.3,
-                default_provider="anthropic",
-                default_model=_HAIKU_MODEL,
-            )
-            return result.text
-
-        return await asyncio.to_thread(_call_router)
-
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
+    if not is_task_available("share_comparison", default_provider="anthropic"):
         return (
             "AI comparison is unavailable (no API key configured). "
-            "Please check your ANTHROPIC_API_KEY environment variable."
+            "Please check ANTHROPIC_API_KEY / OPENAI_API_KEY / GOOGLE_API_KEY."
         )
-
-    client = anthropic.Anthropic(api_key=api_key, max_retries=3, timeout=60.0)
 
     def _call() -> str:
-        msg = client.messages.create(
-            model=_HAIKU_MODEL,
+        result = call_text_completion(
+            task="share_comparison",
+            user_content=prompt,
+            system=None,
             max_tokens=_HAIKU_MAX_TOKENS,
-            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            default_provider="anthropic",
+            default_model=_HAIKU_MODEL,
         )
-        return msg.content[0].text  # type: ignore[union-attr]
+        return result.text
 
     return await asyncio.to_thread(_call)
 

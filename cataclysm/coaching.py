@@ -8,9 +8,12 @@ import logging
 import os
 import re
 from dataclasses import dataclass, field
-from typing import Any
 
 from cataclysm.causal_chains import SessionCausalAnalysis, format_causal_context_for_prompt
+from cataclysm.coaching_content_validator import (
+    strip_forbidden_composites,
+    validate_coaching_content,
+)
 from cataclysm.coaching_validator import CoachingValidator
 from cataclysm.constants import MPS_TO_MPH
 from cataclysm.corner_analysis import SessionCornerAnalysis
@@ -36,7 +39,7 @@ from cataclysm.landmarks import (
     find_nearest_landmark,
     format_corner_landmarks,
 )
-from cataclysm.llm_gateway import call_text_completion, is_task_available, routing_enabled
+from cataclysm.llm_gateway import call_text_completion, is_task_available
 from cataclysm.optimal_comparison import OptimalComparisonResult
 from cataclysm.skill_detection import SkillAssessment, format_skill_for_prompt
 from cataclysm.topic_guardrail import TOPIC_RESTRICTION_PROMPT
@@ -93,8 +96,6 @@ def _get_validator() -> CoachingValidator:
 
 
 # Anthropic client settings for resilience against transient API errors (429, 529, 5xx)
-_API_MAX_RETRIES = 4  # 5 total attempts with exponential backoff + jitter
-_API_TIMEOUT_S = 120.0  # generous timeout for overloaded periods
 
 SkillLevel = str  # "novice", "intermediate", "advanced"
 
@@ -242,6 +243,7 @@ class CoachingReport:
     raw_response: str = ""
     validation_failed: bool = False
     validation_violations: list[str] = field(default_factory=list)
+    content_warnings: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -1130,25 +1132,6 @@ def _parse_coaching_response(text: str) -> CoachingReport:
     )
 
 
-def _create_client() -> Any:
-    """Create an Anthropic client with resilient retry settings.
-
-    Returns the client or None if the API key is not set.
-    The SDK automatically retries on 429, 500, and 529 errors with
-    exponential backoff + jitter.
-    """
-    import anthropic
-
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        return None
-    return anthropic.Anthropic(
-        api_key=api_key,
-        max_retries=_API_MAX_RETRIES,
-        timeout=_API_TIMEOUT_S,
-    )
-
-
 def _compact_chat_context(messages: list[dict[str, str]]) -> list[dict[str, str]]:
     """Bound chat context growth to control token and cost blow-up."""
     max_messages = 12  # 6 user/assistant turns
@@ -1161,6 +1144,65 @@ def _compact_chat_context(messages: list[dict[str, str]]) -> list[dict[str, str]
 
     tail_count = max_messages - len(keep_head)
     return keep_head + messages[-tail_count:]
+
+
+def _collect_validation_input_values(
+    summaries: list[LapSummary],
+    all_lap_corners: dict[int, list[Corner]],
+) -> set[float]:
+    """Collect known telemetry values for orphan-number warnings."""
+    values: set[float] = set()
+
+    for summary in summaries:
+        values.add(round(summary.lap_time_s, 2))
+        values.add(round(summary.max_speed_mps * MPS_TO_MPH, 1))
+
+    for corners in all_lap_corners.values():
+        for corner in corners:
+            values.add(round(corner.min_speed_mps * MPS_TO_MPH, 1))
+            if corner.brake_point_m is not None:
+                values.add(round(corner.brake_point_m, 1))
+            if corner.peak_brake_g is not None:
+                values.add(round(abs(corner.peak_brake_g), 2))
+            if corner.throttle_commit_m is not None:
+                values.add(round(corner.throttle_commit_m, 1))
+
+    return values
+
+
+def _sanitize_report_forbidden_composites(report: CoachingReport) -> list[str]:
+    """Remove forbidden composite phrases from report text fields."""
+    removed: list[str] = []
+
+    def _clean(text: str) -> str:
+        cleaned, found = strip_forbidden_composites(text)
+        removed.extend(found)
+        return cleaned
+
+    report.raw_response = _clean(report.raw_response)
+    report.summary = _clean(report.summary)
+    report.primary_focus = _clean(report.primary_focus)
+    report.patterns = [_clean(pattern) for pattern in report.patterns]
+    report.drills = [_clean(drill) for drill in report.drills]
+
+    for priority in report.priority_corners:
+        for field_name in ("issue", "tip"):
+            value = priority.get(field_name)
+            if isinstance(value, str):
+                priority[field_name] = _clean(value)
+
+    for grade in report.corner_grades:
+        grade.notes = _clean(grade.notes)
+        grade.braking_reason = _clean(grade.braking_reason)
+        grade.trail_braking_reason = _clean(grade.trail_braking_reason)
+        grade.min_speed_reason = _clean(grade.min_speed_reason)
+        grade.throttle_reason = _clean(grade.throttle_reason)
+
+    deduped: list[str] = []
+    for phrase in removed:
+        if phrase not in deduped:
+            deduped.append(phrase)
+    return deduped
 
 
 def generate_coaching_report(
@@ -1192,9 +1234,7 @@ def generate_coaching_report(
     Returns a CoachingReport. If the API key is not set, returns a report
     with a message explaining how to enable coaching.
     """
-    use_router = routing_enabled(False)
-    client = _create_client() if not use_router else None
-    if client is None and not is_task_available("coaching_report", default_provider="anthropic"):
+    if not is_task_available("coaching_report", default_provider="anthropic"):
         return CoachingReport(
             summary=(
                 "Set ANTHROPIC_API_KEY (or OPENAI_API_KEY / GOOGLE_API_KEY with routing enabled) "
@@ -1232,49 +1272,57 @@ def generate_coaching_report(
         system += "\n\n" + kb_context
 
     def _call_coaching_api() -> tuple[str, CoachingReport]:
-        if use_router:
-            result = call_text_completion(
-                task="coaching_report",
-                user_content=prompt,
-                system=system,
-                max_tokens=int(os.environ.get("LLM_REPORT_MAX_TOKENS", "8192")),
-                temperature=0.3,
-                default_provider="anthropic",
-                default_model="claude-haiku-4-5-20251001",
-            )
-            text = result.text
-        else:
-            assert client is not None
-            msg = client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=int(os.environ.get("LLM_REPORT_MAX_TOKENS", "8192")),
-                temperature=0.3,
-                system=system,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            if msg.stop_reason == "max_tokens":
-                logger.warning(
-                    "Coaching response TRUNCATED (max_tokens=%s, usage=%s)",
-                    os.environ.get("LLM_REPORT_MAX_TOKENS", "8192"),
-                    msg.usage,
-                )
-            blk = msg.content[0]
-            text = blk.text if hasattr(blk, "text") else str(blk)
-        return text, _parse_coaching_response(text)
+        result = call_text_completion(
+            task="coaching_report",
+            user_content=prompt,
+            system=system,
+            max_tokens=int(os.environ.get("LLM_REPORT_MAX_TOKENS", "10000")),
+            temperature=0.3,
+            default_provider="anthropic",
+            default_model="claude-haiku-4-5-20251001",
+        )
+        return result.text, _parse_coaching_response(result.text)
 
     response_text, report = _call_coaching_api()
+
+    input_values = _collect_validation_input_values(summaries, all_lap_corners)
+    content_check = validate_coaching_content(response_text, input_values=input_values)
+    if not content_check.passed:
+        logger.warning(
+            "Coaching content validation failed (forbidden composites: %s), retrying",
+            content_check.forbidden_composites,
+        )
+        response_text, report = _call_coaching_api()
+        retry_check = validate_coaching_content(response_text, input_values=input_values)
+        if not retry_check.passed:
+            logger.error(
+                "Coaching content validation failed after retry: %s",
+                retry_check.forbidden_composites,
+            )
+            removed = _sanitize_report_forbidden_composites(report)
+            report.content_warnings = retry_check.forbidden_composites + [
+                item for item in removed if item not in retry_check.forbidden_composites
+            ]
+    if content_check.orphan_numbers:
+        logger.info("Coaching orphan-number warnings detected: %s", content_check.orphan_numbers)
 
     # Adaptive sampling validation — checks every Nth output.
     # On failure: retry once (regenerate), then flag if still bad.
     validator = _get_validator()
-    validation = validator.record_and_maybe_validate(response_text)
+    validation = validator.record_and_maybe_validate(response_text, skill_level=skill_level)
     if validation and not validation.passed:
         logger.warning(
             "Coaching guardrail violation detected, retrying: %s",
             validation.violations,
         )
         response_text, report = _call_coaching_api()
-        retry_validation = validator.force_validate(response_text)
+        retry_content = validate_coaching_content(response_text, input_values=input_values)
+        if not retry_content.passed:
+            removed = _sanitize_report_forbidden_composites(report)
+            report.content_warnings = retry_content.forbidden_composites + [
+                item for item in removed if item not in retry_content.forbidden_composites
+            ]
+        retry_validation = validator.force_validate(response_text, skill_level=skill_level)
         if not retry_validation.passed:
             logger.warning(
                 "Coaching guardrail violation persists after retry: %s",
@@ -1319,9 +1367,7 @@ def ask_followup(
 
     Maintains conversation context for multi-turn chat.
     """
-    use_router = routing_enabled(False)
-    client = _create_client() if not use_router else None
-    if client is None and not is_task_available("coaching_chat", default_provider="anthropic"):
+    if not is_task_available("coaching_chat", default_provider="anthropic"):
         return "Set ANTHROPIC_API_KEY (or OPENAI_API_KEY / GOOGLE_API_KEY) to enable coaching chat."
 
     if not context.messages:
@@ -1346,35 +1392,22 @@ def ask_followup(
             system += "\n\n" + kb_context
 
     try:
-        if use_router:
-            serialized = json.dumps(context.messages, ensure_ascii=False)
-            user_payload = (
-                "Conversation history JSON (oldest→newest):\n"
-                f"{serialized}\n\n"
-                "Reply as the assistant to the latest user message."
-            )
-            result = call_text_completion(
-                task="coaching_chat",
-                user_content=user_payload,
-                system=system,
-                max_tokens=int(os.environ.get("LLM_FOLLOWUP_MAX_TOKENS", "768")),
-                temperature=0.3,
-                default_provider="anthropic",
-                default_model="claude-haiku-4-5-20251001",
-            )
-            response_text = result.text
-        else:
-            assert client is not None
-            message = client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=int(os.environ.get("LLM_FOLLOWUP_MAX_TOKENS", "768")),
-                system=system,
-                messages=context.messages,  # type: ignore[arg-type]
-            )
-            followup_block = message.content[0]
-            response_text = (
-                followup_block.text if hasattr(followup_block, "text") else str(followup_block)
-            )
+        serialized = json.dumps(context.messages, ensure_ascii=False)
+        user_payload = (
+            "Conversation history JSON (oldest→newest):\n"
+            f"{serialized}\n\n"
+            "Reply as the assistant to the latest user message."
+        )
+        result = call_text_completion(
+            task="coaching_chat",
+            user_content=user_payload,
+            system=system,
+            max_tokens=int(os.environ.get("LLM_FOLLOWUP_MAX_TOKENS", "768")),
+            temperature=0.3,
+            default_provider="anthropic",
+            default_model="claude-haiku-4-5-20251001",
+        )
+        response_text = result.text
     except Exception as e:
         logger.warning("Follow-up chat API call failed after retries: %s", e)
         return (
