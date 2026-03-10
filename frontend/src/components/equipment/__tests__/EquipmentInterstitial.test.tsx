@@ -9,6 +9,7 @@ const mockAssignEquipment = vi.fn();
 const mockAssignEquipmentInline = vi.fn();
 const mockVehicleSearch = vi.fn(() => ({ data: [], isLoading: false }));
 const mockEquipmentProfiles = vi.fn(() => ({ data: { items: [] }, isLoading: false }));
+const mockUseSession = vi.fn(() => ({ status: 'authenticated' }));
 
 vi.mock('@/hooks/useEquipment', () => ({
   useCreateProfile: () => ({ mutateAsync: mockCreateProfile, isPending: false }),
@@ -21,7 +22,7 @@ vi.mock('@/hooks/useEquipment', () => ({
 }));
 
 vi.mock('next-auth/react', () => ({
-  useSession: () => ({ status: 'authenticated' }),
+  useSession: () => mockUseSession(),
 }));
 
 vi.mock('@/lib/api', () => ({
@@ -45,6 +46,7 @@ vi.mock('lucide-react', () => ({
 describe('EquipmentInterstitial', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseSession.mockReturnValue({ status: 'authenticated' });
     mockVehicleSearch.mockReturnValue({ data: [], isLoading: false });
     mockEquipmentProfiles.mockReturnValue({ data: { items: [] }, isLoading: false });
     mockAssignEquipmentInline.mockResolvedValue({});
@@ -119,6 +121,26 @@ describe('EquipmentInterstitial', () => {
       }),
     );
     expect(onComplete).toHaveBeenCalled();
+  });
+
+  it('does not show existing setup quick-pick for unauthenticated users', () => {
+    mockUseSession.mockReturnValue({ status: 'unauthenticated' });
+    mockEquipmentProfiles.mockReturnValue({
+      data: {
+        items: [
+          {
+            id: 'p1',
+            name: 'Miata – Street',
+            tires: { model: 'RE-71RS', compound_category: 'track/r-compound', size: '205/50R16', estimated_mu: 1.1, mu_source: 'curated', mu_confidence: 'high', treadwear_rating: null, pressure_psi: null, brand: null, age_sessions: null },
+            is_default: true,
+          },
+        ],
+      },
+      isLoading: false,
+    });
+    render(<EquipmentInterstitial sessionId="sess-1" onComplete={vi.fn()} />);
+    expect(screen.queryByText(/use existing setup/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('Miata – Street')).not.toBeInTheDocument();
   });
 
   it('shows vehicle search results when query matches', async () => {

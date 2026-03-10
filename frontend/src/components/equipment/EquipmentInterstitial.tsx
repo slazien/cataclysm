@@ -45,7 +45,7 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
   const isAuthenticated = authStatus === 'authenticated';
 
   const { data: profilesData } = useEquipmentProfiles();
-  const existingProfiles = profilesData?.items ?? [];
+  const existingProfiles = isAuthenticated ? (profilesData?.items ?? []) : [];
 
   const [vehicleQuery, setVehicleQuery] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleSpec | null>(null);
@@ -163,6 +163,7 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
     canSave,
     saving,
     compound,
+    selectedTireMu,
     tireModel,
     tireSize,
     profileName,
@@ -220,7 +221,7 @@ export function EquipmentInterstitial({ sessionId, onComplete }: EquipmentInters
         </p>
 
         {/* Quick-pick existing profiles */}
-        {existingProfiles.length > 0 && (
+        {isAuthenticated && existingProfiles.length > 0 && (
           <div className="mt-5">
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">
               Use existing setup

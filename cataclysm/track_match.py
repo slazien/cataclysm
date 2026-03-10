@@ -100,14 +100,18 @@ def detect_track_or_lookup(
     df: pd.DataFrame,
     track_name: str,
     threshold_m: float = 5000.0,
+    *,
+    allow_name_fallback: bool = True,
 ) -> TrackLayout | None:
-    """Primary integration function: GPS detection first, name fallback.
+    """Primary integration function: GPS detection first, optional name fallback.
 
     Tries GPS-based detection via :func:`detect_track`.  If that fails
-    (not enough GPS data, or no match within *threshold_m*), falls back
-    to :func:`lookup_track` using the metadata track name.
+    (not enough GPS data, or no match within *threshold_m*), optionally
+    falls back to :func:`lookup_track_hybrid` using the metadata track name.
     """
     match = detect_track(df, threshold_m)
     if match is not None:
         return match.layout
+    if not allow_name_fallback:
+        return None
     return lookup_track_hybrid(track_name)

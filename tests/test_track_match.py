@@ -130,6 +130,15 @@ class TestDetectTrackOrLookup:
         assert layout is not None
         assert layout.name == "Barber Motorsports Park"
 
+    def test_name_fallback_can_be_disabled(self) -> None:
+        df = self._make_gps_df(lat=0.0, lon=0.0)
+        layout = detect_track_or_lookup(
+            df,
+            "Barber Motorsports Park",
+            allow_name_fallback=False,
+        )
+        assert layout is None
+
 
 class TestAMPDetection:
     def _make_gps_df(self, lat: float, lon: float, n: int = 200) -> pd.DataFrame:
