@@ -142,3 +142,56 @@ class TestTrackLandmarks:
     async def test_landmarks_not_found(self, client: AsyncClient) -> None:
         resp = await client.get("/api/track-admin/no-such/landmarks")
         assert resp.status_code == 404
+
+
+class TestTrackValidation:
+    @pytest.mark.asyncio
+    async def test_validate_good_track(self, client: AsyncClient) -> None:
+        """Track with valid corners returns is_valid=True."""
+        await client.post(
+            "/api/track-admin/",
+            json={
+                "slug": "valid-track",
+                "name": "Valid Track",
+                "source": "manual",
+                "length_m": 3200.0,
+            },
+        )
+        corners = [
+            {"number": 1, "name": "T1", "fraction": 0.10, "direction": "left"},
+            {"number": 2, "name": "T2", "fraction": 0.30, "direction": "right"},
+            {"number": 3, "name": "T3", "fraction": 0.55, "direction": "left"},
+            {"number": 4, "name": "T4", "fraction": 0.80, "direction": "right"},
+        ]
+        await client.put("/api/track-admin/valid-track/corners", json=corners)
+
+        resp = await client.post("/api/track-admin/valid-track/validate")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["is_valid"] is True
+        assert isinstance(data["issues"], list)
+        assert data["quality_score"] > 0.0
+
+    @pytest.mark.asyncio
+    async def test_validate_track_not_found(self, client: AsyncClient) -> None:
+        """Non-existent slug returns 404."""
+        resp = await client.post("/api/track-admin/nonexistent/validate")
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_validate_track_no_corners(self, client: AsyncClient) -> None:
+        """Track with no corners returns is_valid=False with zero-corners error."""
+        await client.post(
+            "/api/track-admin/",
+            json={
+                "slug": "empty-track",
+                "name": "Empty Track",
+                "source": "manual",
+            },
+        )
+        resp = await client.post("/api/track-admin/empty-track/validate")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["is_valid"] is False
+        assert any("zero corners" in i["message"].lower() for i in data["issues"])
+        assert data["quality_score"] == 0.0

@@ -5,14 +5,17 @@ from __future__ import annotations
 import logging
 from typing import Annotated, Any
 
+from cataclysm.track_db import OfficialCorner
 from cataclysm.track_db_hybrid import db_track_to_layout, update_db_tracks_cache
+from cataclysm.track_validation import validate_track
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.db.database import get_db
-from backend.api.db.models import Track
+from backend.api.db.models import Track, TrackElevationProfile
 from backend.api.dependencies import AuthenticatedUser, get_user_or_anon
 from backend.api.routers.admin import require_admin
 from backend.api.services.track_corners import update_corner_cache
@@ -100,6 +103,21 @@ class LandmarkInput(BaseModel):
     lon: float | None = None
     description: str | None = None
     source: str | None = None
+
+
+class ValidationIssueResponse(BaseModel):
+    """A single validation issue."""
+
+    severity: str
+    message: str
+
+
+class ValidationResponse(BaseModel):
+    """Result of track data validation."""
+
+    is_valid: bool
+    issues: list[ValidationIssueResponse]
+    quality_score: float
 
 
 # ---------------------------------------------------------------------------
@@ -312,3 +330,62 @@ async def get_landmarks(
         }
         for lm in landmarks
     ]
+
+
+@router.post("/{slug}/validate", response_model=ValidationResponse)
+async def validate_track_endpoint(
+    slug: str,
+    _user: Annotated[AuthenticatedUser, Depends(require_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ValidationResponse:
+    """Run validation gates on a track's corners and elevation data."""
+    track = await _get_track_or_404(db, slug)
+
+    # Get corners from DB and convert to OfficialCorner dataclasses
+    db_corners = await get_corners_for_track(db, track.id)
+    corners = [
+        OfficialCorner(
+            number=c.number,
+            name=c.name or f"T{c.number}",
+            fraction=c.fraction,
+            lat=c.lat,
+            lon=c.lon,
+            character=c.character,
+            direction=c.direction,
+            corner_type=c.corner_type,
+            elevation_trend=c.elevation_trend,
+            camber=c.camber,
+            blind=c.blind or False,
+            coaching_notes=c.coaching_notes,
+        )
+        for c in db_corners
+    ]
+
+    # Get elevation profile if available (prefer highest-accuracy source)
+    result = await db.execute(
+        select(TrackElevationProfile)
+        .where(TrackElevationProfile.track_id == track.id)
+        .order_by(TrackElevationProfile.accuracy_m.asc().nullslast())
+        .limit(1)
+    )
+    elevation = result.scalar_one_or_none()
+
+    elevation_distances: list[float] | None = None
+    elevation_values: list[float] | None = None
+    if elevation is not None:
+        elevation_distances = elevation.distances_m
+        elevation_values = elevation.elevations_m
+
+    # Run validation
+    vr = validate_track(
+        corners,
+        length_m=track.length_m,
+        elevation_distances=elevation_distances,
+        elevation_values=elevation_values,
+    )
+
+    return ValidationResponse(
+        is_valid=vr.is_valid,
+        issues=[ValidationIssueResponse(severity=i.severity, message=i.message) for i in vr.issues],
+        quality_score=vr.quality_score,
+    )
