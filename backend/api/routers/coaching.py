@@ -237,6 +237,7 @@ async def _run_generation(
     skill_level: str,
 ) -> None:
     """Background task that generates the coaching report."""
+    logger.info("Coaching generation STARTED for %s (skill=%s)", session_id, skill_level)
     try:
         from cataclysm.coaching import generate_coaching_report
         from cataclysm.corner_analysis import compute_corner_analysis
@@ -355,7 +356,9 @@ async def _run_generation(
         )
 
         # Semaphore + retry with backoff for rate-limit errors
+        logger.info("Coaching generation AWAITING semaphore for %s", session_id)
         async with _coaching_semaphore:
+            logger.info("Coaching generation ACQUIRED semaphore for %s", session_id)
             last_exc: Exception | None = None
             for attempt in range(_MAX_RETRIES):
                 try:
@@ -475,6 +478,7 @@ async def _run_generation(
         )
 
         await store_coaching_report(session_id, response, skill_level)
+        logger.info("Coaching generation COMPLETED for %s", session_id)
     except Exception:  # noqa: BLE001 — intentionally broad for background task resilience
         logger.exception("Failed to generate coaching report for %s", session_id)
         await store_coaching_report(

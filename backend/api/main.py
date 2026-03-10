@@ -388,12 +388,29 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 len(all_sessions),
             )
     else:
+        _auto_triggered = 0
+        max_auto = 5  # Cap startup auto-coaching to avoid thundering herd
         for sd in all_sessions:
             if not sd.is_anonymous:
                 skill: SkillLevel = user_skill.get(sd.user_id or "", "intermediate")
+                if _auto_triggered >= max_auto:
+                    logger.info(
+                        "Auto-coaching cap reached (%d); deferring remaining sessions",
+                        max_auto,
+                    )
+                    break
                 await trigger_auto_coaching(sd.session_id, sd, skill_level=skill)
+                # Count how many actually triggered (check if is_generating changed)
+                from backend.api.services.coaching_store import is_generating
+
+                if is_generating(sd.session_id, skill):
+                    _auto_triggered += 1
         if all_sessions:
-            logger.info("Checked %d session(s) for missing coaching reports", len(all_sessions))
+            logger.info(
+                "Checked %d session(s) for missing coaching reports; %d triggered",
+                len(all_sessions),
+                _auto_triggered,
+            )
 
     try:
         yield

@@ -57,7 +57,7 @@ class Settings(BaseSettings):
 
     # LLM routing and cost controls
     llm_routing_enabled: bool = False
-    llm_lazy_generation_enabled: bool = False
+    llm_lazy_generation_enabled: bool = True
     llm_usage_telemetry_enabled: bool = True
     llm_usage_retention_days: int = 90
     llm_report_max_tokens: int = 4096
@@ -81,9 +81,7 @@ class Settings(BaseSettings):
 
     # Auth
     nextauth_secret: str = ""
-    admin_allowlist_emails_raw: str = (
-        "p.zientala.1995@gmail.com,cataclysm.hpde@gmail.com"
-    )
+    admin_allowlist_emails_raw: str = "p.zientala.1995@gmail.com,cataclysm.hpde@gmail.com"
 
     # Debug mode
     debug: bool = False
