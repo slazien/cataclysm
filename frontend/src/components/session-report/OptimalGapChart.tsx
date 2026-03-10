@@ -8,10 +8,18 @@ import { useUnits } from '@/hooks/useUnits';
 import { SkeletonCard } from '@/components/shared/SkeletonCard';
 import type { CornerOpportunity } from '@/lib/types';
 
-const MARGINS = { top: 4, right: 16, bottom: 4, left: 50 };
+const MARGINS = { top: 6, right: 56, bottom: 6, left: 40 };
 
 /** Minimum speed gap (in mph) to display a corner row. */
 const MIN_GAP_MPH = 0.5;
+const BAR_HEIGHT = 26;
+const BAR_GAP = 6;
+const BAR_RADIUS = 4;
+const TIME_COL_W = 52; // reserved right column for time labels
+
+// Warm monochrome: amber (opportunity) → red-orange (urgent)
+const COLOR_LO = 'f59e0b'; // --cata-accent (amber)
+const COLOR_HI = 'ef4444'; // --color-brake (red)
 
 /** Interpolate between two hex colors (6-char, no '#'). */
 function lerpColor(a: string, b: string, t: number): string {
@@ -28,10 +36,6 @@ function lerpColor(a: string, b: string, t: number): string {
   const bl = Math.round(ab + (bb - ab) * clamp);
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${bl.toString(16).padStart(2, '0')}`;
 }
-
-// Green (small gap) -> Amber -> Red (large gap)
-const COLOR_GREEN = '22c55e';
-const COLOR_RED = 'ef4444';
 
 interface BarRegion {
   cornerNumber: number;
@@ -84,14 +88,10 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
     const { width, height, margins } = dimensions;
     ctx.clearRect(0, 0, width, height);
 
-    const chartW = width - margins.left - margins.right;
-    const chartH = height - margins.top - margins.bottom;
+    const chartW = width - margins.left - margins.right - TIME_COL_W;
     const displayCount = opportunities.length + (straightsGapS > 0 ? 1 : 0);
-    const barHeight = Math.min(22, chartH / displayCount - 4);
-    const barSpacing =
-      displayCount > 1
-        ? (chartH - barHeight * displayCount) / (displayCount - 1)
-        : 0;
+    const barHeight = BAR_HEIGHT;
+    const barSpacing = BAR_GAP;
     const maxTimeCost = Math.max(...opportunities.map((o) => totalImpactS(o)), straightsGapS);
 
     // Build hit regions for click detection
@@ -107,88 +107,88 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
       const exitCost = opp.exit_straight_time_cost_s ?? 0;
       const totalBarW = maxTimeCost > 0 ? (totalImpact / maxTimeCost) * chartW : 0;
 
-      // Color gradient: green for small relative cost, red for large
       const intensity = maxTimeCost > 0 ? totalImpact / maxTimeCost : 0;
-      const barColor = lerpColor(COLOR_GREEN, COLOR_RED, intensity);
+      const barColor = lerpColor(COLOR_LO, COLOR_HI, intensity);
 
-      // Stacked bar: corner segment (solid) + optional straight segment (faded)
-      if (exitCost > 0 && totalBarW > 4) {
-        const gap = 1;
+      // Stacked bar: corner (solid) + exit straight (faded) with gap
+      if (exitCost > 0.05 && totalBarW > 6) {
+        const gap = 1.5;
         const usableW = totalBarW - gap;
         const cornerW = (opp.time_cost_s / totalImpact) * usableW;
         const straightW = (exitCost / totalImpact) * usableW;
 
-        // Corner segment — rounded left corners only
+        // Corner segment — rounded left
         ctx.fillStyle = barColor + 'd9';
         ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(margins.left, y, cornerW, barHeight, [3, 0, 0, 3]);
-        } else {
-          ctx.rect(margins.left, y, cornerW, barHeight);
-        }
+        ctx.roundRect?.(margins.left, y, cornerW, barHeight, [BAR_RADIUS, 0, 0, BAR_RADIUS]);
         ctx.fill();
 
-        // Straight segment — rounded right corners only, lower opacity
-        const straightX = margins.left + cornerW + gap;
-        ctx.fillStyle = barColor + '5c';
+        // Exit straight segment — rounded right, lower opacity
+        ctx.fillStyle = barColor + '4d';
         ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(straightX, y, straightW, barHeight, [0, 3, 3, 0]);
-        } else {
-          ctx.rect(straightX, y, straightW, barHeight);
-        }
+        ctx.roundRect?.(margins.left + cornerW + gap, y, straightW, barHeight, [0, BAR_RADIUS, BAR_RADIUS, 0]);
         ctx.fill();
       } else {
-        // Single bar — no exit straight or bar too narrow to split
+        // Single bar
         ctx.fillStyle = barColor + 'd9';
         ctx.beginPath();
-        if (ctx.roundRect) {
-          ctx.roundRect(margins.left, y, totalBarW, barHeight, 3);
-        } else {
-          ctx.rect(margins.left, y, totalBarW, barHeight);
-        }
+        ctx.roundRect?.(margins.left, y, totalBarW, barHeight, BAR_RADIUS);
         ctx.fill();
       }
 
-      // Corner name label (left of bar)
-      ctx.fillStyle = 'rgba(200, 200, 210, 0.8)';
+      // --- Left column: corner name ---
+      ctx.fillStyle = 'rgba(139, 145, 158, 0.9)'; // --text-secondary
       ctx.font = '11px Inter, system-ui, sans-serif';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
-      ctx.fillText(`T${opp.corner_number}`, margins.left - 6, y + barHeight / 2);
+      ctx.fillText(`T${opp.corner_number}`, margins.left - 8, y + barHeight / 2);
 
-      // Value label — always show speed gap + total time for consistency
+      // --- In-bar or after-bar: speed gap ---
       const gapDisplay = convertSpeed(opp.speed_gap_mph).toFixed(1);
-      const totalDisplay = totalImpact.toFixed(1);
-      const label =
-        exitCost > 0.05
-          ? `+${gapDisplay} ${speedUnit}  ~${opp.time_cost_s.toFixed(1)}s corner · ${exitCost.toFixed(1)}s exit`
-          : `+${gapDisplay} ${speedUnit}  ~${totalDisplay}s`;
-      if (totalBarW > 140) {
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 10px Inter, system-ui, sans-serif';
+      const speedLabel = `+${gapDisplay} ${speedUnit}`;
+
+      if (totalBarW > 80) {
+        // Inside bar — bold white
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+        ctx.font = 'bold 11px Inter, system-ui, sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText(label, margins.left + 6, y + barHeight / 2);
-      } else {
+        ctx.fillText(speedLabel, margins.left + 8, y + barHeight / 2);
+      } else if (totalBarW > 4) {
+        // Outside bar — secondary color
+        ctx.fillStyle = 'rgba(139, 145, 158, 0.7)';
         ctx.font = '10px Inter, system-ui, sans-serif';
-        const labelX = margins.left + totalBarW + 4;
-        const textW = ctx.measureText(label).width;
-        const rightBound = width - margins.right;
-        if (labelX + textW > rightBound && totalBarW >= 50) {
-          // Not enough space outside — draw inside bar, right-aligned
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-          ctx.textAlign = 'right';
-          ctx.fillText(label, margins.left + totalBarW - 4, y + barHeight / 2);
-        } else {
-          ctx.fillStyle = 'rgba(200, 200, 210, 0.6)';
-          ctx.textAlign = 'left';
-          ctx.save();
-          ctx.beginPath();
-          ctx.rect(labelX, y, rightBound - labelX, barHeight + 2);
-          ctx.clip();
-          ctx.fillText(label, labelX, y + barHeight / 2);
-          ctx.restore();
-        }
+        ctx.textAlign = 'left';
+        const afterBarX = margins.left + totalBarW + 6;
+        const maxLabelX = width - margins.right - TIME_COL_W;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(afterBarX, y, maxLabelX - afterBarX, barHeight);
+        ctx.clip();
+        ctx.fillText(speedLabel, afterBarX, y + barHeight / 2);
+        ctx.restore();
+      }
+
+      // --- Right column: time cost (always visible) ---
+      const timeX = width - margins.right;
+      const totalDisplay = totalImpact.toFixed(1);
+
+      // Primary: total time
+      ctx.fillStyle = 'rgba(226, 228, 233, 0.95)'; // --text-primary
+      ctx.font = 'bold 11px Inter, system-ui, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`~${totalDisplay}s`, timeX, y + barHeight / 2);
+
+      // Sub-label: corner+exit split (if applicable)
+      if (exitCost > 0.05) {
+        ctx.fillStyle = 'rgba(139, 145, 158, 0.6)';
+        ctx.font = '9px Inter, system-ui, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(
+          `${opp.time_cost_s.toFixed(1)}+${exitCost.toFixed(1)}`,
+          timeX,
+          y + barHeight / 2 + 10,
+        );
       }
     });
 
@@ -268,7 +268,7 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
   }
 
   const displayCount = opportunities.length + (straightsGapS > 0 ? 1 : 0);
-  const chartHeight = Math.max(120, displayCount * 28 + 16);
+  const chartHeight = Math.max(120, displayCount * (BAR_HEIGHT + BAR_GAP) + 12);
 
   return (
     <div className="rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
