@@ -1110,3 +1110,27 @@ el.getBoundingClientRect().right > window.innerWidth
 **Why**: Removing hardcoded client email checks without replacing them with a server-backed gate allowed signed-in non-admin users into admin screens until API calls failed.
 
 **Error signature**: Admin pages render for non-admin users and then show noisy API failures instead of immediate access-denied UI.
+
+## Playwright MCP Chrome: Clear Stale User-Data Dirs on Session Conflict (2026-03-10)
+
+**Pattern**: When Playwright MCP Chrome fails with "Opening in existing browser session" or refuses to launch, run `rm -rf ~/.cache/ms-playwright/mcp-chrome-*` to clear stale user-data directories, then retry. Never reuse or kill an existing Chrome window — always clean cache and open fresh.
+
+**Why**: Playwright MCP Chrome stores per-session user-data in `~/.cache/ms-playwright/mcp-chrome-*`. If a previous session crashed or wasn't cleaned up, the next launch detects the lock file and tries to reuse the existing session (which may be the user's own browser). Clearing the cache forces a clean launch.
+
+**Error signature**: `"Opening in existing browser session"` message instead of launching a new window, or Chrome opens but navigates in the user's existing window.
+
+## Railway Auto-Deploy May Not Trigger — Redeploy Is Appropriate Fallback (2026-03-10)
+
+**Pattern**: After `git push origin staging`, poll `list-deployments` for ~60s. If no new deployment appears, `railway redeploy --service <svc> --yes` is the correct fallback. The rule "NEVER redeploy after a push" only applies when the push DID trigger a deploy — it prevents redundant double-deploys, not recovery from missed triggers.
+
+**Why**: Railway's git trigger can silently fail (webhook missed, branch trigger misconfigured, transient platform issue). Waiting indefinitely for a deploy that won't come wastes time. One `list-deployments` check after 30-60s is sufficient to confirm whether the push triggered anything.
+
+**Error signature**: `git push` succeeds but `list-deployments` shows no new deployment after 60s. Latest deployment timestamp predates the push.
+
+## Canvas Hit-Region Testing With Playwright Is Unreliable — Verify in Code Review (2026-03-10)
+
+**Pattern**: Don't attempt pixel-precision click testing on canvas elements via Playwright. Canvas bars use coordinate-based hit regions (mouse Y vs bar Y/height ranges), and Playwright's click coordinates are viewport-relative with DPR scaling — making reliable targeting fragile. Instead, verify hit-region logic correctness in code review: confirm regions use the same constants as bar rendering.
+
+**Why**: Attempted to click specific bars in OptimalGapChart via Playwright at calculated Y coordinates. The clicks either missed the bars entirely or hit the wrong region due to DPR scaling, margin offsets, and canvas-to-viewport coordinate translation. Code review confirmed the hit regions use identical `barHeight`/`barSpacing`/`margins.top` as the rendering loop — sufficient verification.
+
+**Error signature**: Playwright `browser_click` on canvas at calculated coordinates produces no navigation or wrong corner navigation. Hit-test works correctly in manual browser testing.
