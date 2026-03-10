@@ -353,6 +353,87 @@ class TestComputeCornerOpportunities:
         assert result[0].brake_gap_m is not None
         assert result[0].brake_gap_m < 0  # negative = earlier than optimal
 
+    def test_exit_straight_time_cost_field_exists(self) -> None:
+        """CornerOpportunity has exit_straight_time_cost_s field, defaults to 0."""
+        optimal = _make_optimal_profile(speed=40.0)
+        lap_df = _make_lap_df(speed=35.0)
+        corner = _make_corner(min_speed=25.0)
+
+        result = compute_corner_opportunities([corner], lap_df, optimal)
+
+        assert len(result) == 1
+        assert hasattr(result[0], "exit_straight_time_cost_s")
+        assert result[0].exit_straight_time_cost_s >= 0.0
+
+
+class TestExitStraightTimeCost:
+    """Tests for exit_straight_time_cost_s computation."""
+
+    def test_two_corners_with_straight_between(self) -> None:
+        """Time cost on straight between two corners is computed."""
+        optimal = _make_optimal_profile(n=1000, step_m=0.7, speed=40.0)
+        lap_df = _make_lap_df(n=1000, step_m=0.7, speed=35.0)
+        c1 = _make_corner(number=1, entry=100.0, exit_d=200.0, apex=150.0, min_speed=25.0)
+        c2 = _make_corner(number=2, entry=400.0, exit_d=500.0, apex=450.0, min_speed=25.0)
+
+        result = compute_corner_opportunities([c1, c2], lap_df, optimal)
+
+        opp1 = next(o for o in result if o.corner_number == 1)
+        assert opp1.exit_straight_time_cost_s > 0.0
+
+    def test_adjacent_corners_no_straight(self) -> None:
+        """Corners with no gap between them have zero exit straight cost."""
+        optimal = _make_optimal_profile(n=1000, step_m=0.7, speed=40.0)
+        lap_df = _make_lap_df(n=1000, step_m=0.7, speed=35.0)
+        c1 = _make_corner(number=1, entry=100.0, exit_d=300.0, apex=200.0, min_speed=25.0)
+        c2 = _make_corner(number=2, entry=300.0, exit_d=500.0, apex=400.0, min_speed=25.0)
+
+        result = compute_corner_opportunities([c1, c2], lap_df, optimal)
+
+        opp1 = next(o for o in result if o.corner_number == 1)
+        assert opp1.exit_straight_time_cost_s == 0.0
+
+    def test_single_corner_gets_full_remaining_as_exit(self) -> None:
+        """Single corner: exit straight covers exit → end + 0 → entry (wrap-around)."""
+        optimal = _make_optimal_profile(n=1000, step_m=0.7, speed=40.0)
+        lap_df = _make_lap_df(n=1000, step_m=0.7, speed=35.0)
+        corner = _make_corner(number=1, entry=200.0, exit_d=350.0, apex=275.0, min_speed=25.0)
+
+        result = compute_corner_opportunities([corner], lap_df, optimal)
+
+        assert len(result) == 1
+        assert result[0].exit_straight_time_cost_s > 0.0
+
+    def test_exit_straight_negative_capped_at_zero(self) -> None:
+        """If driver is faster on the straight than optimal, cap at 0."""
+        optimal = _make_optimal_profile(n=1000, step_m=0.7, speed=30.0)
+        lap_df = _make_lap_df(n=1000, step_m=0.7, speed=40.0)
+        c1 = _make_corner(number=1, entry=100.0, exit_d=200.0, apex=150.0, min_speed=25.0)
+        c2 = _make_corner(number=2, entry=400.0, exit_d=500.0, apex=450.0, min_speed=25.0)
+
+        result = compute_corner_opportunities([c1, c2], lap_df, optimal)
+
+        opp1 = next(o for o in result if o.corner_number == 1)
+        assert opp1.exit_straight_time_cost_s == 0.0
+
+    def test_skipped_corner_does_not_break_last_corner_wrap(self) -> None:
+        """Skipped corners outside the optimal range must not break wrap attribution."""
+        optimal = _make_optimal_profile(n=1000, step_m=0.7, speed=40.0)
+        lap_df = _make_lap_df(n=1000, step_m=0.7, speed=35.0)
+        c1 = _make_corner(number=1, entry=100.0, exit_d=200.0, apex=150.0, min_speed=25.0)
+        c2 = _make_corner(number=2, entry=400.0, exit_d=500.0, apex=450.0, min_speed=25.0)
+        # Outside optimal distance (0..~699m) so this corner is skipped.
+        c3 = _make_corner(number=3, entry=900.0, exit_d=950.0, apex=925.0, min_speed=25.0)
+
+        result = compute_corner_opportunities([c1, c2, c3], lap_df, optimal)
+
+        assert len(result) == 2
+        opp1 = next(o for o in result if o.corner_number == 1)
+        opp2 = next(o for o in result if o.corner_number == 2)
+        # Corner 2 is the last valid corner, so it should include wrap-around
+        # exit cost (500→end plus 0→100), larger than corner 1's 200→400 straight.
+        assert opp2.exit_straight_time_cost_s > opp1.exit_straight_time_cost_s
+
 
 # ---------------------------------------------------------------------------
 # TestCompareWithOptimal

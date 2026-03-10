@@ -45,6 +45,7 @@ class CornerOpportunity:
     optimal_brake_point_m: float | None
     brake_gap_m: float | None  # positive = driver brakes later (closer to corner) than optimal
     time_cost_s: float  # time lost vs optimal in this corner zone
+    exit_straight_time_cost_s: float = 0.0  # time lost on the straight after this corner
 
 
 @dataclass
@@ -258,6 +259,58 @@ def compute_corner_opportunities(
                 time_cost_s=time_cost,
             )
         )
+
+    # Build a map from corner_number → CornerOpportunity for assignment
+    opp_by_number = {opp.corner_number: opp for opp in opportunities}
+
+    # Sort only valid corners spatially to find adjacent pairs. Corners skipped
+    # above (outside optimal range) must not interrupt adjacency/wrap logic.
+    spatial_corners = sorted(
+        (corner for corner in corners if corner.number in opp_by_number),
+        key=lambda c: c.entry_distance_m,
+    )
+    total_distance = float(optimal.distance_m[-1]) if len(optimal.distance_m) > 0 else 0.0
+
+    for i, corner in enumerate(spatial_corners):
+        opp = opp_by_number.get(corner.number)
+        if opp is None:
+            continue  # corner was skipped (outside optimal range)
+
+        # Define exit straight segment(s)
+        if i < len(spatial_corners) - 1:
+            # Normal case: this corner exit → next corner entry
+            next_entry = spatial_corners[i + 1].entry_distance_m
+            segments = (
+                [(corner.exit_distance_m, next_entry)]
+                if next_entry > corner.exit_distance_m
+                else []
+            )
+        else:
+            # Last corner: wrap around through start/finish
+            segments = []
+            if corner.exit_distance_m < total_distance:
+                segments.append((corner.exit_distance_m, total_distance))
+            first_entry = spatial_corners[0].entry_distance_m
+            if first_entry > 0:
+                segments.append((0.0, first_entry))
+
+        # Compute time cost across all segments
+        straight_cost = 0.0
+        for seg_start, seg_end in segments:
+            seg_mask = (optimal.distance_m >= seg_start) & (optimal.distance_m <= seg_end)
+            if not seg_mask.any():
+                continue
+
+            seg_optimal = optimal.optimal_speed_mps[seg_mask]
+            seg_actual = _interpolate_speed_at_distance(
+                actual_distance,
+                actual_speed,
+                optimal.distance_m[seg_mask],
+            )
+            straight_cost += _compute_time_cost(seg_actual, seg_optimal, step_m)
+
+        # Sanity guard: cap at zero (same as corner time_cost)
+        opp.exit_straight_time_cost_s = max(0.0, straight_cost)
 
     # Sort by time cost descending (biggest opportunity first)
     opportunities.sort(key=lambda opp: opp.time_cost_s, reverse=True)

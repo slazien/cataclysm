@@ -306,6 +306,7 @@ async def upload_sessions(
     session_ids: list[str] = []
     errors: list[str] = []
     max_bytes = settings.max_upload_size_mb * 1024 * 1024
+    lazy_generation_enabled = bool(getattr(settings, "llm_lazy_generation_enabled", False))
 
     for f in files:
         if not f.filename:
@@ -411,8 +412,8 @@ async def upload_sessions(
                         exc_info=True,
                     )
 
-            # Auto-generate coaching report (both anonymous and authenticated)
-            if sd is not None:
+            # Auto-generate coaching report unless lazy-generation mode is enabled.
+            if sd is not None and not lazy_generation_enabled:
                 try:
                     await trigger_auto_coaching(sid, sd, skill_level=user_skill_level)
                 except (ValueError, TypeError, KeyError):

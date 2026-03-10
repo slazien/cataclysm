@@ -1709,6 +1709,7 @@ async def get_optimal_comparison_data(
                     ),
                     "time_cost_s": round(opp.time_cost_s, 3),
                     "linked_group_id": linked.corner_to_group.get(opp.corner_number),
+                    "exit_straight_time_cost_s": round(opp.exit_straight_time_cost_s, 3),
                 }
                 for opp in result.corner_opportunities
             ],

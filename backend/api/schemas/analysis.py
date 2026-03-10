@@ -243,6 +243,7 @@ class CornerOpportunitySchema(BaseModel):
     speed_gap_mph: float  # optimal - actual (positive = driver is slower)
     brake_gap_m: float | None = None  # positive = driver brakes later than optimal
     time_cost_s: float  # time lost vs optimal in this corner zone
+    exit_straight_time_cost_s: float = 0.0  # time lost on the straight after this corner
     linked_group_id: int | None = None  # non-null if part of a chicane/esses group
 
 

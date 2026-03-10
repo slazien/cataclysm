@@ -44,6 +44,10 @@ interface OptimalGapChartProps {
   onCornerClick?: (cornerNumber: number) => void;
 }
 
+function totalImpactS(opp: CornerOpportunity): number {
+  return opp.time_cost_s + (opp.exit_straight_time_cost_s ?? 0);
+}
+
 export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartProps) {
   const { data: comparison, isLoading } = useOptimalComparison(sessionId);
   const { convertSpeed, speedUnit } = useUnits();
@@ -55,9 +59,9 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
   // Filter to non-trivial gaps, already sorted by time_cost_s desc from backend
   const opportunities = useMemo(() => {
     if (!comparison?.corner_opportunities) return [];
-    return comparison.corner_opportunities.filter(
-      (opp) => opp.speed_gap_mph > MIN_GAP_MPH && opp.time_cost_s > 0,
-    );
+    return comparison.corner_opportunities
+      .filter((opp) => opp.speed_gap_mph > MIN_GAP_MPH && totalImpactS(opp) > 0)
+      .sort((a, b) => totalImpactS(b) - totalImpactS(a));
   }, [comparison]);
 
   const totalGapS = comparison?.total_gap_s ?? null;
@@ -65,7 +69,7 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
   const straightsGapS = useMemo(() => {
     if (!comparison?.corner_opportunities || !comparison?.total_gap_s || comparison.total_gap_s <= 0) return 0;
     if (!comparison.is_valid) return 0;
-    const allCornerCost = comparison.corner_opportunities.reduce((s, o) => s + o.time_cost_s, 0);
+    const allCornerCost = comparison.corner_opportunities.reduce((s, o) => s + totalImpactS(o), 0);
     const residual = comparison.total_gap_s - allCornerCost;
     return residual > 0.1 ? residual : 0;
   }, [comparison]);
@@ -88,7 +92,7 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
       displayCount > 1
         ? (chartH - barHeight * displayCount) / (displayCount - 1)
         : 0;
-    const maxTimeCost = Math.max(...opportunities.map((o) => o.time_cost_s), straightsGapS);
+    const maxTimeCost = Math.max(...opportunities.map((o) => totalImpactS(o)), straightsGapS);
 
     // Build hit regions for click detection
     barRegionsRef.current = opportunities.map((opp, i) => ({
@@ -99,10 +103,12 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
 
     opportunities.forEach((opp: CornerOpportunity, i: number) => {
       const y = margins.top + i * (barHeight + barSpacing);
-      const barW = maxTimeCost > 0 ? (opp.time_cost_s / maxTimeCost) * chartW : 0;
+      const totalImpact = totalImpactS(opp);
+      const exitCost = opp.exit_straight_time_cost_s ?? 0;
+      const barW = maxTimeCost > 0 ? (totalImpact / maxTimeCost) * chartW : 0;
 
       // Color gradient: green for small relative cost, red for large
-      const intensity = maxTimeCost > 0 ? opp.time_cost_s / maxTimeCost : 0;
+      const intensity = maxTimeCost > 0 ? totalImpact / maxTimeCost : 0;
       const barColor = lerpColor(COLOR_GREEN, COLOR_RED, intensity);
 
       // Bar
@@ -124,7 +130,10 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
 
       // Value label: "+X.X mph potential  ~0.Xs"
       const gapDisplay = convertSpeed(opp.speed_gap_mph).toFixed(1);
-      const label = `+${gapDisplay} ${speedUnit}  ~${opp.time_cost_s.toFixed(1)}s`;
+      const label =
+        exitCost > 0
+          ? `~${opp.time_cost_s.toFixed(1)}s corner + ${exitCost.toFixed(1)}s exit = ${totalImpact.toFixed(1)}s`
+          : `+${gapDisplay} ${speedUnit}  ~${opp.time_cost_s.toFixed(1)}s`;
       if (barW > 140) {
         ctx.fillStyle = '#fff';
         ctx.font = 'bold 10px Inter, system-ui, sans-serif';

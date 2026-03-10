@@ -43,6 +43,10 @@ interface CornerSpeedGapPanelProps {
   onDrillDown?: (corner: number) => void;
 }
 
+function totalImpactS(opp: CornerOpportunity): number {
+  return opp.time_cost_s + (opp.exit_straight_time_cost_s ?? 0);
+}
+
 /** Row in the overview bar chart. */
 function GapBar({
   opp,
@@ -63,10 +67,16 @@ function GapBar({
   convertSpeed: (mph: number) => number;
   speedUnit: string;
 }) {
-  const widthPct = maxTimeCost > 0 ? (opp.time_cost_s / maxTimeCost) * 100 : 0;
-  const intensity = maxTimeCost > 0 ? opp.time_cost_s / maxTimeCost : 0;
+  const totalImpact = totalImpactS(opp);
+  const exitCost = opp.exit_straight_time_cost_s ?? 0;
+  const widthPct = maxTimeCost > 0 ? (totalImpact / maxTimeCost) * 100 : 0;
+  const intensity = maxTimeCost > 0 ? totalImpact / maxTimeCost : 0;
   const barColor = gapColor(intensity);
   const gapDisplay = convertSpeed(opp.speed_gap_mph).toFixed(1);
+  const timeLabel =
+    exitCost > 0
+      ? `~${opp.time_cost_s.toFixed(2)}s + ${exitCost.toFixed(2)}s exit`
+      : `~${opp.time_cost_s.toFixed(2)}s`;
 
   return (
     <motion.button
@@ -107,7 +117,7 @@ function GapBar({
           )}
           style={widthPct <= 45 ? { paddingLeft: `calc(${Math.max(widthPct, 2)}% + 6px)` } : undefined}
         >
-          +{gapDisplay} {speedUnit} / ~{opp.time_cost_s.toFixed(2)}s
+          +{gapDisplay} {speedUnit} / {timeLabel}
         </span>
       </div>
     </motion.button>
@@ -133,7 +143,9 @@ function CornerFocusView({
   const optimalPct = maxSpeed > 0 ? (optimalSpeed / maxSpeed) * 100 : 0;
   const absGap = Math.abs(convertSpeed(opp.speed_gap_mph));
   const gapDisplay = absGap.toFixed(1);
-  const hasTimeCost = opp.time_cost_s > 0;
+  const hasTimeCost = totalImpactS(opp) > 0;
+  const exitCost = opp.exit_straight_time_cost_s ?? 0;
+  const totalImpact = totalImpactS(opp);
   // Negative speed_gap means driver is already faster than the model's apex prediction
   const driverFasterAtApex = opp.speed_gap_mph < 0;
 
@@ -159,10 +171,25 @@ function CornerFocusView({
           )}
         >
           {hasTimeCost
-            ? `~${opp.time_cost_s.toFixed(2)}s cost`
+            ? exitCost > 0
+              ? `~${totalImpact.toFixed(2)}s total cost`
+              : `~${opp.time_cost_s.toFixed(2)}s cost`
             : 'No measurable gap'}
         </span>
       </div>
+      {exitCost > 0 && (
+        <div className="rounded-lg bg-[var(--bg-elevated)] px-3 py-2">
+          <div className="flex flex-wrap items-center gap-2 text-[11px] tabular-nums text-[var(--text-secondary)]">
+            <span>Corner: ~{opp.time_cost_s.toFixed(2)}s</span>
+            <span className="text-[var(--text-muted)]">+</span>
+            <span>Exit straight: ~{exitCost.toFixed(2)}s</span>
+            <span className="text-[var(--text-muted)]">=</span>
+            <span className="font-semibold text-[var(--color-brake)]">
+              Total: ~{totalImpact.toFixed(2)}s
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Side-by-side speed comparison */}
       <div className="space-y-2">
@@ -214,7 +241,7 @@ function CornerFocusView({
               </span>
               {', but you\'re still losing '}
               <span className="font-semibold tabular-nums text-[var(--color-brake)]">
-                ~{opp.time_cost_s.toFixed(2)}s
+                ~{totalImpact.toFixed(2)}s
               </span>
               {' in this zone. Focus on '}
               <span className="font-semibold text-[var(--text-primary)]">corner entry and exit</span>
@@ -230,7 +257,7 @@ function CornerFocusView({
               <span className="font-semibold text-[var(--text-primary)]">{opp.corner_number}</span>
               {' — that\'s '}
               <span className="font-semibold tabular-nums text-[var(--color-brake)]">
-                ~{opp.time_cost_s.toFixed(2)}s
+                ~{totalImpact.toFixed(2)}s
               </span>
               {' per lap on the table.'}
             </>
@@ -273,8 +300,8 @@ export function CornerSpeedGapPanel({ sessionId, selectedCorner, onDrillDown }: 
   const opportunities = useMemo(() => {
     if (!comparison?.corner_opportunities) return [];
     return comparison.corner_opportunities
-      .filter((opp) => opp.speed_gap_mph > MIN_GAP_MPH && opp.time_cost_s > 0)
-      .sort((a, b) => b.time_cost_s - a.time_cost_s);
+      .filter((opp) => opp.speed_gap_mph > MIN_GAP_MPH && totalImpactS(opp) > 0)
+      .sort((a, b) => totalImpactS(b) - totalImpactS(a));
   }, [comparison]);
 
   const totalGapS = Math.max(comparison?.total_gap_s ?? 0, 0);
@@ -283,13 +310,13 @@ export function CornerSpeedGapPanel({ sessionId, selectedCorner, onDrillDown }: 
     if (!comparison?.corner_opportunities || !comparison?.total_gap_s || comparison.total_gap_s <= 0)
       return 0;
     if (!comparison.is_valid) return 0;
-    const allCornerCost = comparison.corner_opportunities.reduce((s, o) => s + o.time_cost_s, 0);
+    const allCornerCost = comparison.corner_opportunities.reduce((s, o) => s + totalImpactS(o), 0);
     const residual = comparison.total_gap_s - allCornerCost;
     return residual > 0.1 ? residual : 0;
   }, [comparison]);
 
   const maxTimeCost = useMemo(
-    () => Math.max(...opportunities.map((o) => o.time_cost_s), straightsGapS, 0),
+    () => Math.max(...opportunities.map((o) => totalImpactS(o)), straightsGapS, 0),
     [opportunities, straightsGapS],
   );
 

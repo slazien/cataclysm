@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## Config Flag Reads in Runtime Paths Must Tolerate Test Mocks (2026-03-10)
+
+**Pattern**: When reading newly added config flags in hot runtime paths (e.g. upload flow), use a safe default (`getattr(settings, "flag_name", <default>)`) unless the dependency injection contract guarantees the attribute in every caller and test double.
+
+**Why**: `upload_sessions` started reading `settings.llm_lazy_generation_enabled` directly. Several direct-function tests build `MagicMock(spec=Settings)` and only set `max_upload_size_mb`, causing `AttributeError` at runtime during upload path tests. A guarded read with a boolean default preserves behavior and prevents brittle test/runtime failures when partial settings mocks are used.
+
+**Error signature**: `AttributeError: Mock object has no attribute 'llm_lazy_generation_enabled'` in `backend/tests/test_sessions_extended.py` direct upload tests.
+
 ## Check Railway Logs FIRST When Debugging Deployed Bugs (2026-03-10)
 
 **Pattern**: When a user reports a bug on staging/prod, ALWAYS check Railway runtime logs first — filter for `"Unhandled exception"`, `"ERROR"`, or the specific endpoint path. Don't trace code paths theoretically; the logs show the exact exception in seconds.
