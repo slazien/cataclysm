@@ -2,13 +2,26 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
+import pytest
+
 from cataclysm import llm_gateway
 from cataclysm.llm_gateway import (
     LLMUsage,
     call_text_completion,
     get_recent_usage_events,
     get_usage_summary,
+    set_task_route_cache,
 )
+
+
+@pytest.fixture(autouse=True)
+def _clean_task_route_cache() -> Iterator[None]:
+    """Ensure task route cache doesn't leak between tests."""
+    set_task_route_cache({})
+    yield
+    set_task_route_cache({})
 
 
 def _clear_events() -> None:

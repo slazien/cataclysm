@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import pytest
 
 from cataclysm.llm_gateway import (
@@ -12,8 +14,8 @@ from cataclysm.llm_gateway import (
 
 
 @pytest.fixture(autouse=True)
-def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Ensure routing env vars don't leak into tests."""
+def _clean_env(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Ensure routing env vars and task route cache don't leak into tests."""
     for var in (
         "LLM_ROUTING_ENABLED",
         "OPENAI_API_KEY",
@@ -21,6 +23,9 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "ANTHROPIC_API_KEY",
     ):
         monkeypatch.delenv(var, raising=False)
+    set_task_route_cache({})
+    yield
+    set_task_route_cache({})
 
 
 def test_empty_cache_returns_defaults() -> None:
