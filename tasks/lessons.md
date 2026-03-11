@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## TypeScript .filter(Boolean) Does Not Narrow Types (2026-03-10)
+
+**Pattern**: `.filter(Boolean)` on `(T | null | undefined)[]` does NOT narrow to `T[]` in TypeScript. Always use an explicit type predicate: `.filter((g): g is string => Boolean(g))`. This applies to any union-with-null array where the filtered result feeds a function expecting the non-null type.
+
+**Why**: Adding conditional `null` values to an array (e.g., `showFeature ? value : null`) followed by `.filter(Boolean)` preserves the `(string | null)[]` type. Passing this to `worstGrade(grades: string[])` causes TS2345. Hit twice in one session (CornerDetailPanel + PriorityCardsSection).
+
+**Error signature**: `TS2345: Argument of type '(string | null)[]' is not assignable to parameter of type 'string[]'` after a `.filter(Boolean)` call.
+
 ## Playwright QA Is Part of "Done" — Not a Post-Merge Step (2026-03-10)
 
 **Pattern**: After all implementation tasks pass reviews, run Playwright visual QA on staging BEFORE declaring "ready to merge." The subagent-driven workflow ends at "mark task complete" but QA is a BLOCKING gate before any merge offer. Never say "ready to merge" without having verified on staging first.
