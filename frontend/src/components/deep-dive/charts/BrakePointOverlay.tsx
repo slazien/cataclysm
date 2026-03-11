@@ -119,12 +119,6 @@ export function BrakePointOverlay({
       radius: number;
     }> = [];
 
-    // DEBUG — remove after diagnosis
-    const distRange = lapData.distance_m.length > 0
-      ? [lapData.distance_m[0], lapData.distance_m[lapData.distance_m.length - 1]]
-      : [0, 0];
-    let debugCount = 0;
-
     for (const [lapStr, corners] of Object.entries(allLapCorners)) {
       const lapNum = Number(lapStr);
       const corner = corners.find((c) => c.number === cornerNumber);
@@ -132,21 +126,6 @@ export function BrakePointOverlay({
 
       const pos = interpolateLatLon(corner.brake_point_m, lapData);
       if (!pos) continue;
-
-      if (debugCount < 3) {
-        console.log('[BrakeOverlay]', {
-          lap: lapNum,
-          cornerNumber,
-          brake_point_m: corner.brake_point_m,
-          distRange,
-          distLen: lapData.distance_m.length,
-          latLen: lapData.lat.length,
-          pos,
-          lat0: lapData.lat[0],
-          lon0: lapData.lon[0],
-        });
-        debugCount++;
-      }
 
       dots.push({
         lon: pos[0],
