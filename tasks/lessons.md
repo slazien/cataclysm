@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## Map Overlay Misplacement: Check Viewport Bounds Before Data Pipelines (2026-03-11)
+
+**Pattern**: When Mapbox/map markers appear "in the wrong place," first verify they're within the visible viewport (`fitBounds` area). Compute the marker GPS coords and check if they fall inside the current bounds. Only trace data/interpolation pipelines after confirming the markers ARE visible.
+
+**Why**: Spent 2 conversations (~3hrs) tracing `bisectLeft` interpolation, API data shapes, Docker image digests, and browser caching. The actual root cause: `fitBounds()` used entry/exit positions only — the brake zone (150m before entry) was off-screen. A single boolean check (`brakeInBounds: false`) found the bug instantly. Viewport visibility is the cheapest diagnostic and should be first.
+
+**Error signature**: User says markers are "at the wrong location" on a map. The data and math check out. The markers render but are outside the auto-zoom viewport, so users only see them after zooming out, at which point nearby features (like S/F) make the position look wrong.
+
 ## Timeout Debugging: Check Both Frontend AND Backend Timeout Paths (2026-03-11)
 
 **Pattern**: When a user reports "taking longer than expected" or a generation timeout, immediately check BOTH the backend LLM timeout (`timeout_s` in `call_text_completion`) AND the frontend polling timeout (`GENERATION_TIMEOUT_S` in `CoachingSummaryHero.tsx`). They are independent — the frontend can give up while the backend is still working.
