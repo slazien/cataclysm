@@ -12,7 +12,7 @@ import { InfoTooltip } from '@/components/shared/InfoTooltip';
 import { getChartMargins } from './chartHelpers';
 import type { ChartMargins } from '@/hooks/useCanvasChart';
 
-interface BrakeConsistencyProps {
+interface PedalConsistencyProps {
   sessionId: string;
 }
 
@@ -85,7 +85,7 @@ function drawLabels(
   ctx.restore();
 }
 
-export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
+export function PedalConsistency({ sessionId }: PedalConsistencyProps) {
   const selectedCorner = useAnalysisStore((s) => s.selectedCorner);
   const hoveredBrakeLap = useAnalysisStore((s) => s.hoveredBrakeLap);
   const setHoveredBrakeLap = useAnalysisStore((s) => s.setHoveredBrakeLap);

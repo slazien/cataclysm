@@ -8,7 +8,7 @@ import { ChartErrorBoundary } from '@/components/shared/ChartErrorBoundary';
 import { TrackMapContainer } from './charts/TrackMapContainer';
 import { CornerDetailPanel } from './CornerDetailPanel';
 import { CornerSpeedOverlay } from './charts/CornerSpeedOverlay';
-import { BrakeConsistency } from './charts/BrakeConsistency';
+import { PedalConsistency } from './charts/PedalConsistency';
 import { CornerReportCardGrid } from './CornerReportCardGrid';
 
 type ViewMode = 'grid' | 'detail';
@@ -146,7 +146,7 @@ export function CornerAnalysis() {
             {/* Brake Consistency Chart */}
             <div className="h-[12rem] overflow-hidden sm:h-[16rem] lg:h-auto">
               <ChartErrorBoundary name="Brake Consistency">
-                <BrakeConsistency sessionId={sessionId} />
+                <PedalConsistency sessionId={sessionId} />
               </ChartErrorBoundary>
             </div>
           </div>
