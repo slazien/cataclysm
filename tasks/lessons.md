@@ -1,5 +1,21 @@
 # Lessons Learned
 
+## Timeout Debugging: Check Both Frontend AND Backend Timeout Paths (2026-03-11)
+
+**Pattern**: When a user reports "taking longer than expected" or a generation timeout, immediately check BOTH the backend LLM timeout (`timeout_s` in `call_text_completion`) AND the frontend polling timeout (`GENERATION_TIMEOUT_S` in `CoachingSummaryHero.tsx`). They are independent — the frontend can give up while the backend is still working.
+
+**Why**: Sonnet coaching generation took ~150s. Backend timeout was bumped to 300s (then 600s) and worked, but the frontend still showed "taking longer" because its own `GENERATION_TIMEOUT_S = 120` constant hadn't been updated. Required 3 iterations to find both timeouts. Check both sides in the first pass.
+
+**Error signature**: User sees "Coaching generation is taking longer than expected" but backend logs show no error/timeout. Or: backend logs show COMPLETED but user never saw the result.
+
+## Never Reduce max_tokens on LLM Calls That Return Structured JSON (2026-03-11)
+
+**Pattern**: When an LLM call returns structured JSON (coaching reports, grades, patterns), never reduce `max_tokens` to speed up generation. A truncated response mid-JSON causes parse failures. Speed up via: shorter prompts, caching, or accepting the latency.
+
+**Why**: Attempted to reduce `max_tokens` from 8192 to 4096 to make Sonnet faster. User correctly caught that this could cause JSON decode errors — the coaching report parser expects complete JSON with `priority_corners`, `corner_grades`, `patterns`, `drills` fields. Truncation mid-object = crash.
+
+**Error signature**: `JSONDecodeError` or "Could not parse" after an LLM call that previously worked. Check if `max_tokens` was recently reduced.
+
 ## TypeScript .filter(Boolean) Does Not Narrow Types (2026-03-10)
 
 **Pattern**: `.filter(Boolean)` on `(T | null | undefined)[]` does NOT narrow to `T[]` in TypeScript. Always use an explicit type predicate: `.filter((g): g is string => Boolean(g))`. This applies to any union-with-null array where the filtered result feeds a function expecting the non-null type.
