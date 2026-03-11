@@ -57,6 +57,12 @@ export interface Corner {
   throttle_commit_m: number | null;
   apex_type: string;
   nominal_distance_m?: number | null;
+  brake_point_lat?: number | null;
+  brake_point_lon?: number | null;
+  apex_lat?: number | null;
+  apex_lon?: number | null;
+  direction?: string | null;
+  character?: string | null;
 }
 
 export interface LapConsistency {

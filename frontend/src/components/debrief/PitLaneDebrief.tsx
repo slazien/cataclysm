@@ -20,6 +20,7 @@ import { SkeletonCard } from '@/components/shared/SkeletonCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { SectionDivider } from '@/components/shared/SectionDivider';
 import { OptimalGapChart } from '@/components/session-report/OptimalGapChart';
+import { SessionComparisonCard } from './SessionComparisonCard';
 
 export function PitLaneDebrief() {
   const sessionId = useSessionStore((s) => s.activeSessionId);
@@ -135,6 +136,9 @@ export function PitLaneDebrief() {
           {sessionId && (
             <OptimalGapChart sessionId={sessionId} onCornerClick={handleExploreCorner} />
           )}
+
+          {/* Session vs previous comparison */}
+          <SessionComparisonCard session={session} optimalComparison={optimalComparison} />
 
           {/* All drills (not just the first) */}
           {report?.drills && report.drills.length > 1 && (

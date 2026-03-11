@@ -9,6 +9,7 @@ import { useCoachingReport } from '@/hooks/useCoaching';
 import { useCornerKings } from '@/hooks/useLeaderboard';
 import { useSession } from '@/hooks/useSession';
 import { useAnalysisStore, useSessionStore } from '@/stores';
+import { BrakePointOverlay } from './BrakePointOverlay';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { colors } from '@/lib/design-tokens';
 import { worstGrade } from '@/lib/gradeUtils';
@@ -233,6 +234,30 @@ export function TrackMapSatellite({
   useEffect(() => {
     if (mapLoaded) fitBounds();
   }, [mapLoaded, fitBounds]);
+
+  // Auto-zoom to selected corner area
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current || !lapData || !corners || !selectedCorner) return;
+    const cornerNum = Number(selectedCorner.replace('T', ''));
+    const corner = corners.find((c) => c.number === cornerNum);
+    if (!corner) return;
+
+    // Get entry and exit positions to compute corner bounds
+    const entryPos = interpolateLatLon(corner.entry_distance_m, lapData);
+    const exitPos = interpolateLatLon(corner.exit_distance_m, lapData);
+    if (!entryPos || !exitPos) return;
+
+    const padding = 0.0003; // ~30m in degrees
+    const minLon = Math.min(entryPos[0], exitPos[0]) - padding;
+    const maxLon = Math.max(entryPos[0], exitPos[0]) + padding;
+    const minLat = Math.min(entryPos[1], exitPos[1]) - padding;
+    const maxLat = Math.max(entryPos[1], exitPos[1]) + padding;
+
+    mapRef.current.fitBounds(
+      [[minLon, minLat], [maxLon, maxLat]],
+      { padding: 60, duration: 800, maxZoom: 19 },
+    );
+  }, [selectedCorner, mapLoaded, lapData, corners]);
 
   // Auto-bearing for 3D terrain view
   const autoBearing = useMemo(() => {
@@ -473,6 +498,15 @@ export function TrackMapSatellite({
               .sat-cursor-pulse { animation: sat-pulse 1s ease-in-out infinite; }
             `}</style>
           </Marker>
+        )}
+
+        {/* Brake point overlay for selected corner */}
+        {selectedCorner && lapData && (
+          <BrakePointOverlay
+            sessionId={sessionId}
+            cornerNumber={Number(selectedCorner.replace('T', ''))}
+            lapData={lapData}
+          />
         )}
       </MapGL>
     </div>
