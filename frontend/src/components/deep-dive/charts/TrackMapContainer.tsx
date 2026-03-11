@@ -34,7 +34,7 @@ const EXAGGERATION_DEFAULT = 2.0;
 
 export function TrackMapContainer({ sessionId }: TrackMapContainerProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('2d');
-  const [satEnabled, setSatEnabled] = useState(false);
+  const [satEnabled, setSatEnabled] = useState(true);
   const [exaggeration, setExaggeration] = useState(EXAGGERATION_DEFAULT);
   const [fullscreen, setFullscreen] = useState(false);
 
