@@ -47,6 +47,12 @@ vi.mock('lucide-react', () => ({
   ChevronUp: ({ className }: { className?: string }) => (
     <svg data-testid="chevron-up" className={className} />
   ),
+  TrendingUp: ({ className }: { className?: string }) => (
+    <svg data-testid="trending-up" className={className} />
+  ),
+  TrendingDown: ({ className }: { className?: string }) => (
+    <svg data-testid="trending-down" className={className} />
+  ),
 }));
 
 describe('PriorityCardsSection', () => {
@@ -278,6 +284,51 @@ describe('PriorityCardsSection', () => {
     // The worst grade for corner 3 is D -> border-l-[var(--grade-d)]
     const card = container.querySelector('.border-l-\\[var\\(--grade-d\\)\\]');
     expect(card).toBeInTheDocument();
+  });
+
+  it('shows delta badge when cornerDeltas provided with improvement', () => {
+    const deltas = new Map([
+      [5, { corner_number: 5, delta_s: 0.3 }],
+    ]);
+    render(
+      <PriorityCardsSection
+        priorities={[{ corner: 5, time_cost_s: 0.4, issue: 'Slow exit', tip: '' }]}
+        isNovice={false}
+        cornerDeltas={deltas}
+      />,
+    );
+    expect(screen.getByText('0.3s')).toBeInTheDocument();
+    expect(screen.getByTestId('trending-up')).toBeInTheDocument();
+  });
+
+  it('shows regression delta badge when delta is negative', () => {
+    const deltas = new Map([
+      [5, { corner_number: 5, delta_s: -0.2 }],
+    ]);
+    render(
+      <PriorityCardsSection
+        priorities={[{ corner: 5, time_cost_s: 0.6, issue: 'Slow exit', tip: '' }]}
+        isNovice={false}
+        cornerDeltas={deltas}
+      />,
+    );
+    expect(screen.getByText('0.2s')).toBeInTheDocument();
+    expect(screen.getByTestId('trending-down')).toBeInTheDocument();
+  });
+
+  it('hides delta badge when delta is below threshold', () => {
+    const deltas = new Map([
+      [5, { corner_number: 5, delta_s: 0.02 }],
+    ]);
+    render(
+      <PriorityCardsSection
+        priorities={[{ corner: 5, time_cost_s: 0.4, issue: 'Slow exit', tip: '' }]}
+        isNovice={false}
+        cornerDeltas={deltas}
+      />,
+    );
+    expect(screen.queryByTestId('trending-up')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('trending-down')).not.toBeInTheDocument();
   });
 
   it('falls back to accent border when no cornerGrades provided', () => {
