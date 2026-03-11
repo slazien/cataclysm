@@ -1035,6 +1035,7 @@ class TestGetOptimalComparisonData:
         opp.optimal_min_speed_mps = 25.0
         opp.speed_gap_mph = 11.2
         opp.brake_gap_m = 15.0
+        opp.throttle_gap_m = 10.0
         opp.time_cost_s = 0.35
 
         result = MagicMock()
@@ -1224,6 +1225,7 @@ class TestGetOptimalComparisonData:
         opp.optimal_min_speed_mps = 22.0
         opp.speed_gap_mph = 8.9
         opp.brake_gap_m = None  # no brake gap
+        opp.throttle_gap_m = None
         opp.time_cost_s = 0.25
 
         comparison = MagicMock()
