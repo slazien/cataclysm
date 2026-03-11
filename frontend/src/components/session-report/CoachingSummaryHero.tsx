@@ -22,7 +22,7 @@ function splitSummary(text: string): { lead: string; rest: string } {
   return { lead: text, rest: '' };
 }
 
-const GENERATION_TIMEOUT_S = 120;
+const GENERATION_TIMEOUT_S = 300;
 
 function GeneratingProgress({ startedAt, estimatedS, onRetry }: { startedAt?: string | null; estimatedS?: number | null; onRetry?: () => void }) {
   const [progress, setProgress] = useState(0);
