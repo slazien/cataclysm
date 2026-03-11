@@ -30,6 +30,16 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
+// Task descriptions for the admin dashboard
+const TASK_DESCRIPTIONS: Record<string, string> = {
+  coaching_report: "Full AI coaching report generated after session upload",
+  coaching_chat: "Conversational follow-up Q&A in the AI Coach chat drawer",
+  topic_classifier: "Guardrail that checks if a chat message is on-topic",
+  coaching_validator: "Post-generation quality check for hallucinations & accuracy",
+  track_draft: "Generates draft coaching notes for track corners (admin tool)",
+  share_comparison: "Natural-language comparison text for shared sessions",
+};
+
 // Provider color map
 const PROVIDER_COLORS: Record<string, string> = {
   anthropic: "bg-amber-500/20 text-amber-400 border-amber-500/30",
@@ -215,8 +225,13 @@ function TaskRow({
         className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-slate-800/30"
       >
         <span className="text-xs text-slate-500">{expanded ? "▼" : "▶"}</span>
-        <span className="font-medium text-slate-100">{task}</span>
-        <span className="ml-auto text-xs text-slate-400">
+        <div className="min-w-0">
+          <span className="font-medium text-slate-100">{task}</span>
+          {TASK_DESCRIPTIONS[task] && (
+            <p className="text-xs text-slate-500">{TASK_DESCRIPTIONS[task]}</p>
+          )}
+        </div>
+        <span className="ml-auto shrink-0 text-xs text-slate-400">
           {configured ? (
             <>
               <Badge
