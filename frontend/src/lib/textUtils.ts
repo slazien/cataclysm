@@ -161,6 +161,8 @@ export function formatCoachingText(text: string): string {
     /(?<=\.)\s+(?=\d+\.\s+[A-Z])/g,
     // Throttle/brake summary conclusions
     /(?<=\.)\s+(?=Throttle\s+is\b)/g,
+    // Structured coaching sub-sections from LLM (OBSERVATION, MECHANISM, etc.)
+    /(?<=\.)\s+(?=(?:OBSERVATION|MECHANISM|ROOT CAUSE|TIME IMPACT|FIX|EVIDENCE|CAUSE|IMPACT|SOLUTION|CORRECTION)s?:)/g,
   ];
 
   let result = text;

@@ -980,8 +980,8 @@ BAD: 'Braking B because peak G averages 0.25G. Min speed B because within 1.3 mp
     }}
   ],
   "patterns": [
-    "**<short descriptive title>**: <session-wide pattern with root cause chain>",
-    "**<title 2>**: <pattern 2 with why>",
+    "**<short descriptive title>**: <2-3 sentences of flowing narrative with root cause chain>",
+    "**<title 2>**: <pattern 2 — narrative, not bullet sub-sections>",
     "**<title 3>**: <pattern 3>"
   ],
   "drills": [
@@ -1044,8 +1044,10 @@ For each pattern, start with a **bold descriptive title** (3-6 words) that names
 finding — e.g. "**Late apex through esses**:", "**Brake release too abrupt**:", \
 "**Consistent entry, scattered exits**:". NEVER use generic labels like "OBSERVATION", \
 "PATTERN", "NOTE", or "FINDING" as titles — the title must be specific to this driver's data. \
-Then trace the root cause chain: don't just describe WHAT happened — \
-diagnose WHY by tracing entry cause -> mid-corner effect -> exit consequence. \
+Then write 2-3 sentences of flowing narrative that traces the root cause chain: \
+entry cause -> mid-corner effect -> exit consequence. \
+NEVER use structured sub-sections like "OBSERVATION: ... MECHANISM: ... ROOT CAUSE: ... \
+TIME IMPACT: ... FIX: ..." — write natural coaching narrative instead. \
 If lap times plateaued, explain whether it's a technique ceiling, \
 fatigue, tire degradation, or confidence limit based on the data.
 
