@@ -479,21 +479,9 @@ async def claim_anonymous_session(
     await store_session_db(db, current_user.user_id, sd)
     await db.commit()
 
-    # Persist raw CSV bytes so the session survives redeployments
-    if sd.csv_bytes is not None:
-        try:
-            await db.merge(
-                SessionFileModel(
-                    session_id=body.session_id,
-                    filename="",
-                    csv_bytes=sd.csv_bytes,
-                )
-            )
-            await db.commit()
-            sd.csv_bytes = None  # free memory after persistence
-        except SQLAlchemyError:
-            logger.warning("Failed to persist CSV bytes on claim for %s", body.session_id)
-            await db.rollback()
+    # SessionFile already persisted at upload time (both anon and auth).
+    # Free in-memory CSV bytes now that session is claimed and DB-backed.
+    sd.csv_bytes = None
 
     # Migrate any anon-owned equipment profile to the new user
     se = equipment_store.get_session_equipment(body.session_id)

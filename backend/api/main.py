@@ -6,6 +6,7 @@ import logging
 import logging.config
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from datetime import UTC
 from typing import Annotated, cast
 
 from dotenv import load_dotenv
@@ -361,6 +362,32 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     n_cleaned = cleanup_expired_anonymous()
     if n_cleaned:
         logger.info("Cleaned up %d expired anonymous session(s) at startup", n_cleaned)
+
+    # Clean up expired anonymous sessions from the database (>24h, unclaimed)
+    try:
+        from datetime import datetime, timedelta
+
+        from sqlalchemy import select as _cleanup_select
+
+        from backend.api.db.database import async_session_factory as _cleanup_asf
+        from backend.api.db.models import Session as SessionModel
+
+        async with _cleanup_asf() as _cleanup_db:
+            cutoff = datetime.now(UTC) - timedelta(hours=24)
+            result = await _cleanup_db.execute(
+                _cleanup_select(SessionModel).where(
+                    SessionModel.user_id.is_(None),
+                    SessionModel.session_date < cutoff,
+                )
+            )
+            expired_rows = result.scalars().all()
+            for row in expired_rows:
+                await _cleanup_db.delete(row)  # CASCADE deletes SessionFile
+            if expired_rows:
+                await _cleanup_db.commit()
+                logger.info("Cleaned up %d expired anonymous DB session(s)", len(expired_rows))
+    except Exception:
+        logger.warning("Failed to clean up anonymous DB sessions", exc_info=True)
 
     # Auto-generate coaching reports for sessions that don't have one yet
     from backend.api.db.database import async_session_factory as _asf
