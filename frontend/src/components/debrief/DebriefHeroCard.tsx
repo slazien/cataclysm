@@ -1,6 +1,7 @@
 'use client';
 
 import { formatLapTime } from '@/lib/formatters';
+import { ConsistencyBenchmark } from '@/components/shared/ConsistencyBenchmark';
 
 interface DebriefHeroCardProps {
   bestLapTime: number;
@@ -60,13 +61,14 @@ export function DebriefHeroCard({
       {/* Stats row — horizontal, display font for numbers */}
       <div className="mt-5 flex items-center justify-center gap-8 border-t border-[var(--cata-border)] pt-4">
         {consistencyScore !== null && (
-          <div>
+          <div className="flex flex-col items-center">
             <p className="font-[family-name:var(--font-display)] text-2xl font-bold text-[var(--text-primary)] lg:text-3xl">
               {consistencyScore}%
             </p>
             <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
               Consistency
             </p>
+            <ConsistencyBenchmark score={consistencyScore} />
           </div>
         )}
         <div>

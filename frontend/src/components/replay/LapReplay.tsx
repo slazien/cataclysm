@@ -1,42 +1,42 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useSessionStore, useAnalysisStore } from '@/stores';
 import { useLapData, useSessionLaps } from '@/hooks/useSession';
+import { useCorners, useIdealLap } from '@/hooks/useAnalysis';
 import { useReplay } from '@/hooks/useReplay';
+import { useOptimalReplay } from '@/hooks/useOptimalReplay';
 import { useReplayRecorder } from '@/hooks/useReplayRecorder';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { ReplayTrackMap } from './ReplayTrackMap';
+import { OptimalReplayMap } from './OptimalReplayMap';
 import { SpeedGauge } from './SpeedGauge';
 import { GForceDisplay } from './GForceDisplay';
 import { ReplayControls } from './ReplayControls';
 
-const G_TRAIL_LENGTH = 30; // number of recent g-force positions to show
+const G_TRAIL_LENGTH = 30;
+
+type ReplayMode = 'single' | 'optimal';
 
 /**
  * Main container for the animated lap replay feature.
  *
- * Layout:
- * - Track map (60% width) + side panel (speed gauge + g-force display, 40% width)
- * - Controls bar at the bottom
- *
- * Uses the first selected lap, or the best lap if none selected.
- *
- * Supports video recording of the track map canvas via the MediaRecorder API.
- * When recording, a red dot indicator appears in the top-left corner of the
- * track map viewport.
+ * Supports two modes:
+ * - "Single Lap": Original replay of one lap with speed coloring + g-force
+ * - "vs Ideal": Dual-trail animation showing actual vs ideal (stitched best
+ *   segments) with racing ghost dots and distance gap indicator
  */
 export function LapReplay() {
   const sessionId = useSessionStore((s) => s.activeSessionId);
   const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
   const { data: laps } = useSessionLaps(sessionId);
+  const [mode, setMode] = useState<ReplayMode>('single');
 
   // Determine which lap to replay
   const replayLapNumber = useMemo(() => {
     if (selectedLaps.length > 0) return selectedLaps[0];
     if (!laps || laps.length === 0) return null;
-    // Find best (shortest) lap
     let best = laps[0];
     for (const lap of laps) {
       if (lap.lap_time_s < best.lap_time_s) best = lap;
@@ -45,52 +45,54 @@ export function LapReplay() {
   }, [selectedLaps, laps]);
 
   const { data: lapData, isLoading } = useLapData(sessionId, replayLapNumber);
-  const replay = useReplay(lapData);
+  const { data: idealLap } = useIdealLap(mode === 'optimal' ? sessionId : null);
+  const { data: corners } = useCorners(mode === 'optimal' ? sessionId : null);
+
+  // Single-lap replay state
+  const replay = useReplay(mode === 'single' ? lapData : null);
+  // Optimal comparison replay state
+  const optReplay = useOptimalReplay(
+    mode === 'optimal' ? lapData : null,
+    mode === 'optimal' ? idealLap : null,
+  );
+
   const recorder = useReplayRecorder();
   const gTrailRef = useRef<Array<{ lat: number; lon: number }>>([]);
   const trackCanvasRef = useRef<HTMLCanvasElement>(null);
-
-  // Track whether we started recording (to auto-stop when replay ends)
   const wasRecordingRef = useRef(false);
+
+  // Active replay controls (shared interface)
+  const activeReplay = mode === 'single' ? replay : optReplay;
+  const activeIndex = mode === 'single' ? replay.currentIndex : optReplay.actualIndex;
 
   // Auto-stop recording when replay reaches the end
   const { isRecording, stopRecording: stopRec } = recorder;
   useEffect(() => {
     if (isRecording && wasRecordingRef.current) {
-      // Replay stopped playing and we were recording -- replay has ended
-      if (!replay.isPlaying && replay.currentIndex >= (lapData?.distance_m.length ?? 1) - 1) {
+      if (!activeReplay.isPlaying) {
         stopRec();
         wasRecordingRef.current = false;
       }
     }
-  }, [replay.isPlaying, replay.currentIndex, isRecording, stopRec, lapData]);
+  }, [activeReplay.isPlaying, isRecording, stopRec]);
 
-  // Handle start recording: reset to beginning, start recording, then play
   const handleStartRecording = useCallback(() => {
     const canvas = trackCanvasRef.current;
     if (!canvas) return;
-
-    // Clear any previous download
     recorder.clearRecording();
-
-    // Reset replay to beginning
-    replay.reset();
-
-    // Small delay to ensure reset takes effect before starting recording
+    activeReplay.reset();
     requestAnimationFrame(() => {
       recorder.startRecording(canvas);
       wasRecordingRef.current = true;
-      // Start playback
-      replay.play();
+      activeReplay.play();
     });
-  }, [recorder, replay]);
+  }, [recorder, activeReplay]);
 
-  // Handle stop recording manually
   const handleStopRecording = useCallback(() => {
     recorder.stopRecording();
     wasRecordingRef.current = false;
-    replay.pause();
-  }, [recorder, replay]);
+    activeReplay.pause();
+  }, [recorder, activeReplay]);
 
   // Derive current values from lap data + current index
   const current = useMemo(() => {
@@ -103,9 +105,14 @@ export function LapReplay() {
         currentDistance: 0,
         totalDistance: 0,
         currentTime: 0,
+        idealSpeed: null as number | null,
       };
     }
-    const idx = replay.currentIndex;
+    const idx = activeIndex;
+    const idealSpd =
+      mode === 'optimal' && idealLap
+        ? (idealLap.speed_mph[optReplay.idealIndex] ?? null)
+        : null;
     return {
       speed: lapData.speed_mph[idx] ?? 0,
       maxSpeed: d3.max(lapData.speed_mph) ?? 1,
@@ -114,10 +121,11 @@ export function LapReplay() {
       currentDistance: lapData.distance_m[idx] ?? 0,
       totalDistance: lapData.distance_m[lapData.distance_m.length - 1] ?? 0,
       currentTime: lapData.lap_time_s[idx] ?? 0,
+      idealSpeed: idealSpd,
     };
-  }, [lapData, replay.currentIndex]);
+  }, [lapData, activeIndex, mode, idealLap, optReplay.idealIndex]);
 
-  // Build g-force trail (keep last N positions)
+  // Build g-force trail
   const gTrail = useMemo(() => {
     const trail = gTrailRef.current;
     trail.push({ lat: current.lateralG, lon: current.longitudinalG });
@@ -126,6 +134,11 @@ export function LapReplay() {
     }
     return [...trail];
   }, [current.lateralG, current.longitudinalG]);
+
+  // Reset g-trail when switching modes
+  useEffect(() => {
+    gTrailRef.current = [];
+  }, [mode]);
 
   if (!sessionId) {
     return (
@@ -155,19 +168,70 @@ export function LapReplay() {
     );
   }
 
+  // Build scrub props for ReplayControls based on mode
+  const controlsMaxIndex = lapData.distance_m.length - 1;
+  const controlsCurrentIndex = activeIndex;
+  // For optimal mode, seek takes fraction (0-1); for single mode, seek takes index
+  const handleSeek =
+    mode === 'single'
+      ? replay.seek
+      : (idx: number) => optReplay.seek(idx / controlsMaxIndex);
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 p-3">
+      {/* Mode toggle */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => { setMode('single'); activeReplay.reset(); }}
+          className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+            mode === 'single'
+              ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)]'
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+          }`}
+        >
+          Single Lap
+        </button>
+        <button
+          type="button"
+          onClick={() => { setMode('optimal'); activeReplay.reset(); }}
+          className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+            mode === 'optimal'
+              ? 'bg-amber-500/20 text-amber-400'
+              : 'text-[var(--text-secondary)] hover:text-amber-400'
+          }`}
+        >
+          vs Ideal
+        </button>
+      </div>
+
       {/* Main content area */}
       <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
         {/* Track map -- 60% on desktop */}
         <div className="relative min-h-[300px] flex-[3] rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] lg:min-h-0">
-          <ReplayTrackMap
-            lapData={lapData}
-            currentIndex={replay.currentIndex}
-            canvasRef={trackCanvasRef}
-          />
+          {mode === 'single' ? (
+            <ReplayTrackMap
+              lapData={lapData}
+              currentIndex={replay.currentIndex}
+              canvasRef={trackCanvasRef}
+            />
+          ) : idealLap && corners ? (
+            <OptimalReplayMap
+              lapData={lapData}
+              idealLap={idealLap}
+              corners={corners}
+              actualIndex={optReplay.actualIndex}
+              idealDistance={optReplay.idealDistance}
+              idealIndex={optReplay.idealIndex}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <CircularProgress size={24} />
+              <span className="ml-2 text-xs text-[var(--text-secondary)]">Loading ideal lap…</span>
+            </div>
+          )}
 
-          {/* Recording indicator -- pulsing red dot */}
+          {/* Recording indicator */}
           {recorder.isRecording && (
             <div className="absolute left-3 top-3 flex items-center gap-1.5">
               <span className="relative flex h-3 w-3">
@@ -181,9 +245,28 @@ export function LapReplay() {
 
         {/* Side panel -- 40% on desktop */}
         <div className="flex flex-[2] flex-col gap-3">
-          {/* Speed gauge */}
+          {/* Speed gauge (with optional ideal speed) */}
           <div className="flex items-center justify-center rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-            <SpeedGauge speed={current.speed} maxSpeed={current.maxSpeed} />
+            <div className="flex flex-col items-center gap-1">
+              <SpeedGauge speed={current.speed} maxSpeed={current.maxSpeed} />
+              {current.idealSpeed != null && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-amber-400">
+                    Ideal: {Math.round(current.idealSpeed)} mph
+                  </span>
+                  <span
+                    className={`font-semibold ${
+                      current.speed >= current.idealSpeed
+                        ? 'text-[var(--color-throttle)]'
+                        : 'text-[var(--color-brake)]'
+                    }`}
+                  >
+                    {current.speed >= current.idealSpeed ? '+' : ''}
+                    {Math.round(current.speed - current.idealSpeed)} mph
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* G-force display */}
@@ -201,25 +284,28 @@ export function LapReplay() {
             <span className="font-mono text-sm font-semibold text-[var(--text-primary)]">
               {replayLapNumber}
             </span>
+            {mode === 'optimal' && (
+              <span className="text-xs text-amber-400">vs Ideal</span>
+            )}
           </div>
         </div>
       </div>
 
       {/* Controls bar */}
       <ReplayControls
-        isPlaying={replay.isPlaying}
-        playbackSpeed={replay.playbackSpeed}
-        currentIndex={replay.currentIndex}
-        maxIndex={lapData.distance_m.length - 1}
+        isPlaying={activeReplay.isPlaying}
+        playbackSpeed={activeReplay.playbackSpeed}
+        currentIndex={controlsCurrentIndex}
+        maxIndex={controlsMaxIndex}
         currentDistance={current.currentDistance}
         totalDistance={current.totalDistance}
         currentTime={current.currentTime}
-        play={replay.play}
-        pause={replay.pause}
-        togglePlay={replay.togglePlay}
-        seek={replay.seek}
-        setSpeed={replay.setSpeed}
-        reset={replay.reset}
+        play={activeReplay.play}
+        pause={activeReplay.pause}
+        togglePlay={activeReplay.togglePlay}
+        seek={handleSeek}
+        setSpeed={activeReplay.setSpeed}
+        reset={activeReplay.reset}
         recording={{
           isRecordingSupported: recorder.isSupported,
           isRecording: recorder.isRecording,

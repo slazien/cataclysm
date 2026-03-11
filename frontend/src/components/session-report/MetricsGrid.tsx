@@ -4,6 +4,7 @@ import { motion as m } from 'motion/react';
 import { cn } from '@/lib/utils';
 import { MetricCard } from '@/components/shared/MetricCard';
 import { motion as motionTokens } from '@/lib/design-tokens';
+import { useSkillLevel } from '@/hooks/useSkillLevel';
 import type { SessionSummary, LapSummary, SessionConsistency } from '@/lib/types';
 
 interface MetricsGridProps {
@@ -26,7 +27,24 @@ function formatTime(seconds: number): string {
   return `${min}:${sec.padStart(6, '0')}`;
 }
 
+const CONSISTENCY_RANGES: Record<string, [number, number]> = {
+  novice: [40, 55],
+  intermediate: [60, 75],
+  advanced: [78, 90],
+};
+
+function consistencySubtitle(score: number | undefined, level: string, hasSufficientData: boolean | undefined, sampleCount: number | undefined): string | undefined {
+  if (hasSufficientData === false) return `Low sample (${sampleCount ?? 0} laps)`;
+  if (score == null) return undefined;
+  const range = CONSISTENCY_RANGES[level] ?? CONSISTENCY_RANGES.intermediate;
+  if (score >= range[0] && score <= range[1]) return `On target for ${level} (${range[0]}–${range[1]})`;
+  if (score > range[1]) return `Above ${level} range (${range[0]}–${range[1]})`;
+  const gap = Math.ceil(range[0] - score);
+  return `+${gap} pts to ${level} range (${range[0]}–${range[1]})`;
+}
+
 export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced, physicsOptimalLapTime, isOptimalRefreshing, isOptimalPending }: MetricsGridProps) {
+  const { skillLevel } = useSkillLevel();
   const bestLap = session?.best_lap_time_s;
   const top3Avg = session?.top3_avg_time_s;
   const optimalLap = physicsOptimalLapTime;
@@ -77,11 +95,12 @@ export function MetricsGrid({ session, laps, consistency, isNovice, isAdvanced, 
           label="Consistency"
           helpKey="metric.consistency"
           value={consistencyScore != null ? `${consistencyScore.toFixed(0)}%` : '\u2014'}
-          subtitle={
-            consistency?.lap_consistency?.has_sufficient_data === false
-              ? `Low sample (${consistency.lap_consistency.sample_count ?? 0} laps)`
-              : undefined
-          }
+          subtitle={consistencySubtitle(
+            consistencyScore != null ? Number(consistencyScore.toFixed(0)) : undefined,
+            skillLevel,
+            consistency?.lap_consistency?.has_sufficient_data,
+            consistency?.lap_consistency?.sample_count,
+          )}
           highlight={
             consistencyScore != null
               ? consistency?.lap_consistency?.has_sufficient_data === false

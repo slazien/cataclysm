@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery, useQueries, keepPreviousData } from "@tanstack/react-query";
-import { getCorners, getAllLapCorners, getConsistency, getGains, getGrip, getDelta, getLapData, getGPSQuality, getMiniSectors, getDegradation, getOptimalComparison, getGGDiagram, getLineAnalysis } from "@/lib/api";
-import type { Corner, SessionConsistency, DeltaData, LapData, GPSQualityReport, MiniSectorData, DegradationData, OptimalComparisonData, GGDiagramData, LineAnalysisData } from "@/lib/types";
+import { getCorners, getAllLapCorners, getConsistency, getGains, getGrip, getDelta, getLapData, getGPSQuality, getMiniSectors, getDegradation, getOptimalComparison, getGGDiagram, getLineAnalysis, getIdealLap } from "@/lib/api";
+import type { Corner, SessionConsistency, DeltaData, LapData, GPSQualityReport, MiniSectorData, DegradationData, OptimalComparisonData, GGDiagramData, LineAnalysisData, IdealLapData } from "@/lib/types";
 import { useSessionEquipment } from "./useEquipment";
 
 // Telemetry data is immutable per session — never refetch once cached.
@@ -163,6 +163,15 @@ export function useLineAnalysis(
     // Don't fire with empty lap array — backend returns available:false anyway, and
     // isPending=true on a disabled query would show a ghost spinner when 0 laps selected.
     enabled: !!sessionId && (laps === undefined || laps.length > 0),
+    ...IMMUTABLE,
+  });
+}
+
+export function useIdealLap(sessionId: string | null) {
+  return useQuery<IdealLapData>({
+    queryKey: ["ideal-lap", sessionId],
+    queryFn: () => getIdealLap(sessionId!),
+    enabled: !!sessionId,
     ...IMMUTABLE,
   });
 }
