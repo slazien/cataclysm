@@ -34,6 +34,18 @@ export function TracksideCard({
     [resolveSpeed],
   );
 
+  /** First sentence only — for phone-glance readability */
+  const briefIssue = useCallback(
+    (text: string) => {
+      const resolved = fmtIssue(text);
+      const firstSentence = resolved.split(/(?<=[.!?])\s/)[0] ?? resolved;
+      return firstSentence.length > 80
+        ? firstSentence.slice(0, 77) + '…'
+        : firstSentence;
+    },
+    [fmtIssue],
+  );
+
   const handleShare = useCallback(async () => {
     const lines = [
       `${session.track_name ?? 'Track'} — ${session.session_date ?? ''}`,
@@ -93,7 +105,7 @@ export function TracksideCard({
             Focus
           </p>
           <p className="font-[family-name:var(--font-display)] text-lg font-bold text-[var(--text-primary)]">
-            T{topCorners[0].corner}: {fmtIssue(topCorners[0].issue)}
+            T{topCorners[0].corner}: {briefIssue(topCorners[0].issue)}
           </p>
         </div>
       )}
@@ -104,7 +116,7 @@ export function TracksideCard({
           {topCorners.slice(0, 3).map((c) => (
             <div key={c.corner} className="flex items-center justify-between text-sm">
               <span className="font-medium text-[var(--text-primary)]">T{c.corner}</span>
-              <span className="text-[var(--text-secondary)]">{fmtIssue(c.issue)}</span>
+              <span className="flex-1 truncate px-2 text-[var(--text-secondary)]">{briefIssue(c.issue)}</span>
               <span className="font-mono text-xs font-semibold text-[var(--color-brake)]">
                 −{c.time_cost_s.toFixed(1)}s
               </span>
