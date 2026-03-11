@@ -3,6 +3,8 @@
 import { useCallback } from 'react';
 import { Share2 } from 'lucide-react';
 import { formatLapTime } from '@/lib/formatters';
+import { useUnits } from '@/hooks/useUnits';
+import { formatCoachingText } from '@/lib/textUtils';
 import type { SessionSummary, PriorityCorner } from '@/lib/types';
 
 interface TracksideCardProps {
@@ -24,7 +26,13 @@ export function TracksideCard({
   gapToOptimal,
   optimalLapTime,
 }: TracksideCardProps) {
+  const { resolveSpeed } = useUnits();
   const bestLap = session.best_lap_time_s;
+
+  const fmtIssue = useCallback(
+    (text: string) => formatCoachingText(resolveSpeed(text)),
+    [resolveSpeed],
+  );
 
   const handleShare = useCallback(async () => {
     const lines = [
@@ -37,7 +45,7 @@ export function TracksideCard({
       '',
       'Focus:',
       ...topCorners.slice(0, 3).map(
-        (c) => `  T${c.corner}: ${c.issue} (−${c.time_cost_s.toFixed(1)}s)`,
+        (c) => `  T${c.corner}: ${fmtIssue(c.issue)} (−${c.time_cost_s.toFixed(1)}s)`,
       ),
     ].filter((l): l is string => l != null);
     const text = lines.join('\n');
@@ -51,7 +59,7 @@ export function TracksideCard({
       }
     }
     await navigator.clipboard.writeText(text);
-  }, [session, bestLap, optimalLapTime, gapToOptimal, consistencyScore, topCorners]);
+  }, [session, bestLap, optimalLapTime, gapToOptimal, consistencyScore, topCorners, fmtIssue]);
 
   return (
     <div className="rounded-xl border-2 border-[var(--cata-border)] bg-[var(--bg-surface)] p-5">
@@ -85,7 +93,7 @@ export function TracksideCard({
             Focus
           </p>
           <p className="font-[family-name:var(--font-display)] text-lg font-bold text-[var(--text-primary)]">
-            T{topCorners[0].corner}: {topCorners[0].issue}
+            T{topCorners[0].corner}: {fmtIssue(topCorners[0].issue)}
           </p>
         </div>
       )}
@@ -96,7 +104,7 @@ export function TracksideCard({
           {topCorners.slice(0, 3).map((c) => (
             <div key={c.corner} className="flex items-center justify-between text-sm">
               <span className="font-medium text-[var(--text-primary)]">T{c.corner}</span>
-              <span className="text-[var(--text-secondary)]">{c.issue}</span>
+              <span className="text-[var(--text-secondary)]">{fmtIssue(c.issue)}</span>
               <span className="font-mono text-xs font-semibold text-[var(--color-brake)]">
                 −{c.time_cost_s.toFixed(1)}s
               </span>
