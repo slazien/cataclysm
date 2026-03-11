@@ -15,6 +15,7 @@ from cataclysm.coaching import CoachingReport, CornerGrade
 from cataclysm.corners_gained import CornersGainedResult
 from cataclysm.driver_archetypes import ArchetypeResult, detect_archetype
 from cataclysm.flow_lap import FlowLapResult
+from cataclysm.optimal_comparison import CornerOpportunity, OptimalComparisonResult
 from cataclysm.pdf_report import ReportContent, generate_pdf
 from cataclysm.skill_detection import SkillAssessment, detect_skill_level
 from cataclysm.topic_guardrail import (
@@ -61,10 +62,61 @@ from backend.api.services.coaching_store import (
     unmark_generating,
 )
 from backend.api.services.db_session_store import get_session_for_user_with_db_sync
+from backend.api.services.pipeline import get_optimal_comparison_data
 from backend.api.services.session_store import SessionData
 from backend.api.services.track_corners import ensure_corners_current
 
 logger = logging.getLogger(__name__)
+
+
+def _reconstruct_optimal_comparison(raw: dict[str, object]) -> OptimalComparisonResult | None:
+    """Rebuild an ``OptimalComparisonResult`` from the serialised dict.
+
+    ``get_optimal_comparison_data`` returns a JSON-safe dict.  The coaching
+    prompt formatter only needs scalar fields and ``CornerOpportunity`` items,
+    so the numpy arrays (``speed_delta_mps``, ``distance_m``) are set to empty.
+    Returns ``None`` when the comparison is flagged invalid.
+    """
+    import numpy as np
+
+    if not raw.get("is_valid", True):
+        return None
+
+    opps: list[CornerOpportunity] = []
+    corner_opps = raw.get("corner_opportunities") or []
+    if not isinstance(corner_opps, list):
+        corner_opps = []
+    for item in corner_opps:
+        if not isinstance(item, dict):
+            continue
+        opps.append(
+            CornerOpportunity(
+                corner_number=int(item.get("corner_number", 0)),
+                actual_min_speed_mps=float(item.get("actual_min_speed_mph", 0)) / 2.23694,
+                optimal_min_speed_mps=float(item.get("optimal_min_speed_mph", 0)) / 2.23694,
+                speed_gap_mps=float(item.get("speed_gap_mph", 0)) / 2.23694,
+                speed_gap_mph=float(item.get("speed_gap_mph", 0)),
+                actual_brake_point_m=None,
+                optimal_brake_point_m=None,
+                brake_gap_m=(
+                    float(item["brake_gap_m"]) if item.get("brake_gap_m") is not None else None
+                ),
+                time_cost_s=float(item.get("time_cost_s", 0)),
+                exit_straight_time_cost_s=float(item.get("exit_straight_time_cost_s", 0)),
+            )
+        )
+
+    return OptimalComparisonResult(
+        corner_opportunities=opps,
+        actual_lap_time_s=float(raw.get("actual_lap_time_s", 0)),  # type: ignore[arg-type]
+        optimal_lap_time_s=float(raw.get("optimal_lap_time_s", 0)),  # type: ignore[arg-type]
+        total_gap_s=float(raw.get("total_gap_s", 0)),  # type: ignore[arg-type]
+        speed_delta_mps=np.empty(0),
+        distance_m=np.empty(0),
+        is_valid=True,
+        invalid_reasons=[],
+    )
+
 
 router = APIRouter()
 
@@ -360,10 +412,23 @@ async def _run_generation(
                 best_lap_s,
             )
 
-        archetype, skill_assessment, corners_gained = await asyncio.gather(
+        async def _compute_optimal() -> OptimalComparisonResult | None:
+            try:
+                raw = await get_optimal_comparison_data(sd)
+                return _reconstruct_optimal_comparison(raw)
+            except Exception:  # noqa: BLE001
+                logger.warning(
+                    "Failed to compute optimal comparison for coaching sid=%s",
+                    session_id,
+                    exc_info=True,
+                )
+                return None
+
+        archetype, skill_assessment, corners_gained, optimal_comparison = await asyncio.gather(
             _compute_archetype(),
             _compute_skill(),
             _compute_corners_gained(),
+            _compute_optimal(),
         )
 
         # Semaphore + retry with backoff for rate-limit errors
@@ -381,6 +446,7 @@ async def _run_generation(
                         gains=sd.gains,
                         skill_level=skill_level,
                         landmarks=landmarks or None,
+                        optimal_comparison=optimal_comparison,
                         corner_analysis=corner_analysis,
                         causal_analysis=causal_analysis,
                         archetype=archetype,

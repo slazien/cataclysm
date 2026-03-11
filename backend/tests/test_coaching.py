@@ -1359,3 +1359,133 @@ async def test_run_generation_caps_and_resorts_priority_time_costs(
         (1, pytest.approx(0.1)),
         (5, pytest.approx(0.0)),
     ]
+
+
+@pytest.mark.asyncio
+async def test_run_generation_passes_optimal_comparison(client: AsyncClient) -> None:
+    """_run_generation fetches optimal comparison and passes it to generate_coaching_report."""
+    session_id = await _upload_session(client)
+
+    captured_kwargs: dict[str, object] = {}
+
+    def _spy_generate(*args: object, **kwargs: object) -> CoachingReport:
+        captured_kwargs.update(kwargs)
+        return _mock_coaching_report()
+
+    optimal_raw: dict[str, object] = {
+        "corner_opportunities": [
+            {
+                "corner_number": 5,
+                "actual_min_speed_mph": 42.0,
+                "optimal_min_speed_mph": 50.0,
+                "speed_gap_mph": 8.0,
+                "brake_gap_m": 5.2,
+                "time_cost_s": 0.35,
+                "exit_straight_time_cost_s": 0.12,
+            },
+        ],
+        "actual_lap_time_s": 95.0,
+        "optimal_lap_time_s": 92.5,
+        "total_gap_s": 2.5,
+        "is_valid": True,
+        "invalid_reasons": [],
+    }
+
+    with (
+        patch("cataclysm.coaching.generate_coaching_report", side_effect=_spy_generate),
+        patch(
+            "backend.api.routers.coaching.get_optimal_comparison_data",
+            return_value=optimal_raw,
+        ),
+    ):
+        await client.post(
+            f"/api/coaching/{session_id}/report",
+            json={"skill_level": "intermediate"},
+        )
+        await _wait_for_generation(session_id)
+
+    oc = captured_kwargs.get("optimal_comparison")
+    assert oc is not None, "optimal_comparison was not passed to generate_coaching_report"
+
+    from cataclysm.optimal_comparison import OptimalComparisonResult
+
+    assert isinstance(oc, OptimalComparisonResult)
+    assert oc.actual_lap_time_s == pytest.approx(95.0)
+    assert oc.optimal_lap_time_s == pytest.approx(92.5)
+    assert oc.total_gap_s == pytest.approx(2.5)
+    assert len(oc.corner_opportunities) == 1
+    assert oc.corner_opportunities[0].corner_number == 5
+    assert oc.corner_opportunities[0].speed_gap_mph == pytest.approx(8.0)
+    assert oc.corner_opportunities[0].time_cost_s == pytest.approx(0.35)
+
+
+@pytest.mark.asyncio
+async def test_run_generation_optimal_failure_still_generates(
+    client: AsyncClient,
+) -> None:
+    """When optimal comparison fails, coaching still generates (optimal_comparison=None)."""
+    session_id = await _upload_session(client)
+
+    captured_kwargs: dict[str, object] = {}
+
+    def _spy_generate(*args: object, **kwargs: object) -> CoachingReport:
+        captured_kwargs.update(kwargs)
+        return _mock_coaching_report()
+
+    with (
+        patch("cataclysm.coaching.generate_coaching_report", side_effect=_spy_generate),
+        patch(
+            "backend.api.routers.coaching.get_optimal_comparison_data",
+            side_effect=RuntimeError("physics solver exploded"),
+        ),
+    ):
+        await client.post(
+            f"/api/coaching/{session_id}/report",
+            json={"skill_level": "intermediate"},
+        )
+        await _wait_for_generation(session_id)
+
+    # Coaching should still succeed, with optimal_comparison=None
+    assert captured_kwargs.get("optimal_comparison") is None
+
+    response = await client.get(f"/api/coaching/{session_id}/report")
+    assert response.status_code == 200
+    assert response.json()["status"] == "ready"
+
+
+@pytest.mark.asyncio
+async def test_run_generation_invalid_optimal_passes_none(
+    client: AsyncClient,
+) -> None:
+    """When optimal comparison is_valid=False, optimal_comparison is None (not passed)."""
+    session_id = await _upload_session(client)
+
+    captured_kwargs: dict[str, object] = {}
+
+    def _spy_generate(*args: object, **kwargs: object) -> CoachingReport:
+        captured_kwargs.update(kwargs)
+        return _mock_coaching_report()
+
+    invalid_raw: dict[str, object] = {
+        "corner_opportunities": [],
+        "actual_lap_time_s": 95.0,
+        "optimal_lap_time_s": 70.0,
+        "total_gap_s": 25.0,
+        "is_valid": False,
+        "invalid_reasons": ["total gap exceeds plausible range"],
+    }
+
+    with (
+        patch("cataclysm.coaching.generate_coaching_report", side_effect=_spy_generate),
+        patch(
+            "backend.api.routers.coaching.get_optimal_comparison_data",
+            return_value=invalid_raw,
+        ),
+    ):
+        await client.post(
+            f"/api/coaching/{session_id}/report",
+            json={"skill_level": "intermediate"},
+        )
+        await _wait_for_generation(session_id)
+
+    assert captured_kwargs.get("optimal_comparison") is None
