@@ -1278,7 +1278,7 @@ def generate_coaching_report(
             temperature=0.3,
             default_provider="anthropic",
             default_model="claude-haiku-4-5-20251001",
-            timeout_s=300,
+            timeout_s=600,
         )
         return result.text, _parse_coaching_response(result.text)
 
