@@ -528,8 +528,11 @@ def call_text_completion(
         max_retries if max_retries is not None else _env_int("LLM_MAX_RETRIES", 3)
     )
     # Build attempt chain: DB config (full chain) or legacy (primary+fallback)
-    with _TASK_ROUTE_LOCK:
-        chain_raw = _TASK_ROUTE_CACHE.get(task)
+    # When routing is disabled, skip DB task routes entirely → use caller defaults.
+    chain_raw: list[dict[str, Any]] | None = None
+    if routing_enabled(False):
+        with _TASK_ROUTE_LOCK:
+            chain_raw = _TASK_ROUTE_CACHE.get(task)
     if chain_raw:
         attempts = [
             (
