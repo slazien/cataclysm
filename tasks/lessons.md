@@ -1031,6 +1031,14 @@ el.getBoundingClientRect().right > window.innerWidth
 
 **Error signature**: QA shows spinner or error state in Progress/Leaderboard section. Console shows 401 on a GET endpoint that should be anon-accessible.
 
+## Stash Unrelated Changes Before Merging Feature Branches (2026-03-10)
+
+**Pattern**: Before merging a feature branch to staging, run `git status --short` and stash any uncommitted files that don't belong to your feature. Multi-agent workflows leave dirty worktrees — other agents' WIP gets accidentally merged if you don't isolate.
+
+**Why**: Found 3 files with 1200+ lines of uncommitted changes from another agent on the feature branch. Without stashing, `git checkout staging && git merge` would have carried those changes into staging alongside the feature, creating an untested mixed deployment.
+
+**Error signature**: `git status` shows modified files you didn't touch (e.g., `llm_usage_store.py`, `LlmCostDashboard.tsx`) on your feature branch.
+
 ## Validate Domain-Specific Input Formats, Not Just Length (2026-03-09)
 
 **Pattern**: When a text field has a known domain format (tire sizes = `width/aspectRdiameter`, lap times = `m:ss.xxx`, etc.), validate the FORMAT with a regex — never rely on `min_length` alone. Validate on both frontend (`canSave` gate) and backend (Pydantic `field_validator`). Also: when a curated-DB selection auto-fills related fields, track the original value so you can warn on manual override (e.g. compound mismatch).
