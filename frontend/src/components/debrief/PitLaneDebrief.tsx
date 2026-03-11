@@ -21,6 +21,9 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { SectionDivider } from '@/components/shared/SectionDivider';
 import { OptimalGapChart } from '@/components/session-report/OptimalGapChart';
 import { SessionComparisonCard } from './SessionComparisonCard';
+import { TracksideCard } from './TracksideCard';
+import { CornerConsistencyTable } from './CornerConsistencyTable';
+import { ReviewChecklist } from './ReviewChecklist';
 
 export function PitLaneDebrief() {
   const sessionId = useSessionStore((s) => s.activeSessionId);
@@ -140,6 +143,15 @@ export function PitLaneDebrief() {
           {/* Session vs previous comparison */}
           <SessionComparisonCard session={session} optimalComparison={optimalComparison} />
 
+          {/* Trackside Quick Card — shareable summary */}
+          <TracksideCard
+            session={session}
+            consistencyScore={consistencyScore}
+            topCorners={report?.priority_corners?.slice(0, 3) ?? []}
+            gapToOptimal={gapToOptimal}
+            optimalLapTime={optimalComparison?.is_valid ? optimalComparison.optimal_lap_time_s : null}
+          />
+
           {/* All drills (not just the first) */}
           {report?.drills && report.drills.length > 1 && (
             <div className="rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-5">
@@ -194,6 +206,17 @@ export function PitLaneDebrief() {
               </div>
             </div>
           )}
+
+          {/* Corner-by-corner consistency breakdown */}
+          {consistency?.corner_consistency && consistency.corner_consistency.length > 0 && (
+            <CornerConsistencyTable
+              corners={consistency.corner_consistency}
+              onCornerClick={handleExploreCorner}
+            />
+          )}
+
+          {/* Review checklist — saved to localStorage per session */}
+          <ReviewChecklist sessionId={sessionId} />
 
           {/* Deep dive links for each priority corner */}
           {report?.priority_corners && report.priority_corners.length > 0 && (
