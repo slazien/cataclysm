@@ -2,11 +2,12 @@
 
 import { useMemo } from 'react';
 import { Marker, Source, Layer } from 'react-map-gl/mapbox';
+import { bisectLeft } from 'd3-array';
 import { useAllLapCorners, useOptimalComparison } from '@/hooks/useAnalysis';
-import { useSession, useSessionLaps } from '@/hooks/useSession';
+import { useSessionLaps } from '@/hooks/useSession';
 import { useSessionStore } from '@/stores';
 import { colors } from '@/lib/design-tokens';
-import type { Corner, LapData } from '@/lib/types';
+import type { LapData } from '@/lib/types';
 import type { GeoJSON } from 'geojson';
 
 interface BrakePointOverlayProps {
@@ -23,27 +24,14 @@ function dotRadius(peakG: number | null): number {
   return 3 + ((clamped - 0.3) / 1.2) * 5;
 }
 
-/** Resolve brake GPS position: prefer lat/lon, fall back to distance interpolation */
-function getBrakePos(
-  corner: Corner,
-  lapData: LapData,
-  interpolate: (d: number, ld: LapData) => [number, number] | null,
-): [number, number] | null {
-  if (corner.brake_point_lat != null && corner.brake_point_lon != null) {
-    return [corner.brake_point_lon, corner.brake_point_lat];
-  }
-  if (corner.brake_point_m != null) {
-    return interpolate(corner.brake_point_m, lapData);
-  }
-  return null;
-}
-
-/** Compute [lon, lat] at a given distance along the track (duplicated from TrackMapSatellite to avoid export churn) */
+/** Compute [lon, lat] at a given distance along the track outline.
+ *  Uses d3.bisectLeft for robust binary search (never returns -1). */
 function interpolateLatLon(
   distance: number,
   lapData: LapData,
 ): [number, number] | null {
-  const idx = lapData.distance_m.findIndex((d) => d >= distance);
+  if (lapData.distance_m.length === 0) return null;
+  const idx = bisectLeft(lapData.distance_m, distance);
   if (idx <= 0) return [lapData.lon[0], lapData.lat[0]];
   if (idx >= lapData.distance_m.length) {
     return [lapData.lon[lapData.lon.length - 1], lapData.lat[lapData.lat.length - 1]];
@@ -109,7 +97,6 @@ export function BrakePointOverlay({
   const { data: allLapCorners } = useAllLapCorners(sessionId);
   const { data: optimalComparison } = useOptimalComparison(sessionId);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
-  const { data: session } = useSession(activeSessionId);
   const { data: laps } = useSessionLaps(activeSessionId);
 
   const bestLapNumber = useMemo(() => {
@@ -135,9 +122,9 @@ export function BrakePointOverlay({
     for (const [lapStr, corners] of Object.entries(allLapCorners)) {
       const lapNum = Number(lapStr);
       const corner = corners.find((c) => c.number === cornerNumber);
-      if (!corner) continue;
+      if (!corner?.brake_point_m) continue;
 
-      const pos = getBrakePos(corner, lapData, interpolateLatLon);
+      const pos = interpolateLatLon(corner.brake_point_m, lapData);
       if (!pos) continue;
 
       dots.push({
@@ -295,10 +282,7 @@ export function BrakePointOverlay({
         const bestCorners = allLapCorners?.[String(bestLapNumber)];
         const bestCorner = bestCorners?.find((c) => c.number === cornerNumber);
         if (!bestCorner) return null;
-        const apexPos =
-          bestCorner.apex_lat != null && bestCorner.apex_lon != null
-            ? [bestCorner.apex_lon, bestCorner.apex_lat] as [number, number]
-            : interpolateLatLon(bestCorner.apex_distance_m, lapData);
+        const apexPos = interpolateLatLon(bestCorner.apex_distance_m, lapData);
         if (!apexPos) return null;
 
         return (
