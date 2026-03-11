@@ -93,7 +93,7 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
   const { convertSpeed, convertDistance, speedUnit, distanceUnit } = useUnits();
   const selectedCorner = useAnalysisStore((s) => s.selectedCorner);
   const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
-  const hoveredBrakeLap = useAnalysisStore((s) => s.hoveredBrakeLap);
+  const hoveredPedalPoint = useAnalysisStore((s) => s.hoveredPedalPoint);
 
   const { data: corners } = useCorners(sessionId);
   const { data: laps } = useSessionLaps(sessionId);
@@ -491,9 +491,9 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
     if (!ctx) return;
     ctx.clearRect(0, 0, dimensions.width, dimensions.height);
 
-    if (!hoveredBrakeLap || !corner || lapDataArr.length === 0 || dimensions.innerWidth <= 0) return;
+    if (!hoveredPedalPoint || !corner || lapDataArr.length === 0 || dimensions.innerWidth <= 0) return;
 
-    const lapData = lapDataArr.find((l) => l.lap_number === hoveredBrakeLap.lapNumber);
+    const lapData = lapDataArr.find((l) => l.lap_number === hoveredPedalPoint.lapNumber);
     if (!lapData) return;
 
     // Draw highlighted speed line for this lap
@@ -518,7 +518,7 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
     // Draw vertical marker at brake point distance
     // Brake points are often before the corner entry zone, so clamp to the
     // visible chart area but still draw the line at the edge with an arrow.
-    const bpXRaw = xScale(hoveredBrakeLap.brakePointM);
+    const bpXRaw = xScale(hoveredPedalPoint.distanceM);
     const chartLeft = dimensions.margins.left;
     const chartRight = dimensions.margins.left + dimensions.innerWidth;
     const bpX = Math.max(chartLeft, Math.min(chartRight, bpXRaw));
@@ -544,9 +544,9 @@ export function CornerSpeedOverlay({ sessionId }: CornerSpeedOverlayProps) {
     ctx.font = `10px ${fonts.mono}`;
     ctx.textAlign = isOffChart ? 'left' : 'center';
     ctx.textBaseline = 'bottom';
-    const bpLabel = `${isOffChart ? '\u25C0 ' : ''}BP L${hoveredBrakeLap.lapNumber}`;
+    const bpLabel = `${isOffChart ? '\u25C0 ' : ''}BP L${hoveredPedalPoint.lapNumber}`;
     ctx.fillText(bpLabel, bpX + (isOffChart ? 2 : 0), dimensions.margins.top - 2);
-  }, [hoveredBrakeLap, lapDataArr, corner, xScale, yScale, dimensions, getOverlayCtx, convertSpeed]);
+  }, [hoveredPedalPoint, lapDataArr, corner, xScale, yScale, dimensions, getOverlayCtx, convertSpeed]);
 
   if (!selectedCorner || cornerNumber === null) {
     return (

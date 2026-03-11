@@ -10,7 +10,7 @@ describe('analysisStore', () => {
       selectedCorner: null,
       deepDiveMode: 'speed',
       zoomRange: null,
-      hoveredBrakeLap: null,
+      hoveredPedalPoint: null,
     });
   });
 
@@ -142,25 +142,26 @@ describe('analysisStore', () => {
     });
   });
 
-  describe('setHoveredBrakeLap', () => {
-    it('sets a hovered brake lap', () => {
-      useAnalysisStore.getState().setHoveredBrakeLap({ lapNumber: 3, brakePointM: 450.5 });
+  describe('setHoveredPedalPoint', () => {
+    it('sets a hovered pedal point', () => {
+      useAnalysisStore.getState().setHoveredPedalPoint({ lapNumber: 3, distanceM: 450.5, type: 'brake' as const });
       const state = useAnalysisStore.getState();
-      expect(state.hoveredBrakeLap).toEqual({ lapNumber: 3, brakePointM: 450.5 });
+      expect(state.hoveredPedalPoint).toEqual({ lapNumber: 3, distanceM: 450.5, type: 'brake' });
     });
 
-    it('clears hovered brake lap with null', () => {
-      useAnalysisStore.getState().setHoveredBrakeLap({ lapNumber: 1, brakePointM: 100 });
-      useAnalysisStore.getState().setHoveredBrakeLap(null);
-      expect(useAnalysisStore.getState().hoveredBrakeLap).toBeNull();
+    it('clears hovered pedal point with null', () => {
+      useAnalysisStore.getState().setHoveredPedalPoint({ lapNumber: 1, distanceM: 100, type: 'brake' as const });
+      useAnalysisStore.getState().setHoveredPedalPoint(null);
+      expect(useAnalysisStore.getState().hoveredPedalPoint).toBeNull();
     });
 
-    it('replaces previous hovered brake lap', () => {
-      useAnalysisStore.getState().setHoveredBrakeLap({ lapNumber: 1, brakePointM: 100 });
-      useAnalysisStore.getState().setHoveredBrakeLap({ lapNumber: 5, brakePointM: 300 });
-      expect(useAnalysisStore.getState().hoveredBrakeLap).toEqual({
+    it('replaces previous hovered pedal point', () => {
+      useAnalysisStore.getState().setHoveredPedalPoint({ lapNumber: 1, distanceM: 100, type: 'brake' as const });
+      useAnalysisStore.getState().setHoveredPedalPoint({ lapNumber: 5, distanceM: 300, type: 'brake' as const });
+      expect(useAnalysisStore.getState().hoveredPedalPoint).toEqual({
         lapNumber: 5,
-        brakePointM: 300,
+        distanceM: 300,
+        type: 'brake',
       });
     });
   });
@@ -178,21 +179,21 @@ describe('analysisStore', () => {
       expect(state.zoomRange).toBeNull();
     });
 
-    it('hoveredBrakeLap is independent from other state', () => {
-      useAnalysisStore.getState().setHoveredBrakeLap({ lapNumber: 2, brakePointM: 200 });
+    it('hoveredPedalPoint is independent from other state', () => {
+      useAnalysisStore.getState().setHoveredPedalPoint({ lapNumber: 2, distanceM: 200, type: 'brake' as const });
       useAnalysisStore.getState().selectLaps([1, 3]);
 
       const state = useAnalysisStore.getState();
-      expect(state.hoveredBrakeLap).toEqual({ lapNumber: 2, brakePointM: 200 });
+      expect(state.hoveredPedalPoint).toEqual({ lapNumber: 2, distanceM: 200, type: 'brake' });
       expect(state.selectedLaps).toEqual([1, 3]);
     });
   });
 
-  describe('reset includes hoveredBrakeLap', () => {
-    it('resets hoveredBrakeLap to null', () => {
-      useAnalysisStore.getState().setHoveredBrakeLap({ lapNumber: 1, brakePointM: 100 });
+  describe('reset includes hoveredPedalPoint', () => {
+    it('resets hoveredPedalPoint to null', () => {
+      useAnalysisStore.getState().setHoveredPedalPoint({ lapNumber: 1, distanceM: 100, type: 'brake' as const });
       useAnalysisStore.getState().reset();
-      expect(useAnalysisStore.getState().hoveredBrakeLap).toBeNull();
+      expect(useAnalysisStore.getState().hoveredPedalPoint).toBeNull();
     });
   });
 });

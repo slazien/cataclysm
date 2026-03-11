@@ -99,8 +99,8 @@ export function BrakePointOverlay({
   const { data: optimalComparison } = useOptimalComparison(sessionId);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const { data: laps } = useSessionLaps(activeSessionId);
-  const hoveredBrakeLap = useAnalysisStore((s) => s.hoveredBrakeLap);
-  const setHoveredBrakeLap = useAnalysisStore((s) => s.setHoveredBrakeLap);
+  const hoveredPedalPoint = useAnalysisStore((s) => s.hoveredPedalPoint);
+  const setHoveredPedalPoint = useAnalysisStore((s) => s.setHoveredPedalPoint);
 
   const bestLapNumber = useMemo(() => {
     if (!laps || laps.length === 0) return null;
@@ -217,14 +217,14 @@ export function BrakePointOverlay({
 
   const handleDotEnter = useCallback(
     (lapNumber: number, brakePointM: number) => {
-      setHoveredBrakeLap({ lapNumber, brakePointM });
+      setHoveredPedalPoint({ lapNumber, distanceM: brakePointM, type: 'brake' });
     },
-    [setHoveredBrakeLap],
+    [setHoveredPedalPoint],
   );
 
   const handleDotLeave = useCallback(() => {
-    setHoveredBrakeLap(null);
-  }, [setHoveredBrakeLap]);
+    setHoveredPedalPoint(null);
+  }, [setHoveredPedalPoint]);
 
   if (brakeDots.length === 0) return null;
 
@@ -232,7 +232,7 @@ export function BrakePointOverlay({
     <>
       {/* Per-lap brake scatter dots */}
       {brakeDots.map((dot) => {
-        const isHovered = hoveredBrakeLap?.lapNumber === dot.lapNumber;
+        const isHovered = hoveredPedalPoint?.lapNumber === dot.lapNumber && hoveredPedalPoint?.type === 'brake';
         const highlightRadius = isHovered ? dot.radius + 4 : dot.radius;
 
         return (
