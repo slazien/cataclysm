@@ -21,6 +21,9 @@ logger = logging.getLogger(__name__)
 # Search window before a corner entry for matching optimal brake points
 _BRAKE_SEARCH_BEFORE_M = 200.0
 
+# Search window after a corner exit for matching optimal throttle points
+_THROTTLE_SEARCH_AFTER_M = 100.0
+
 # Floor speed (mps) to avoid division-by-zero in time computations
 _MIN_SPEED_MPS = 1.0
 
@@ -44,6 +47,7 @@ class CornerOpportunity:
     actual_brake_point_m: float | None
     optimal_brake_point_m: float | None
     brake_gap_m: float | None  # positive = driver brakes later (closer to corner) than optimal
+    throttle_gap_m: float | None  # positive = driver commits later than optimal
     time_cost_s: float  # time lost vs optimal in this corner zone
     exit_straight_time_cost_s: float = 0.0  # time lost on the straight after this corner
 
@@ -102,6 +106,31 @@ def _find_optimal_brake_for_corner(
             d = abs(bp - corner.entry_distance_m)
             if d < best_dist:
                 best = bp
+                best_dist = d
+
+    return best
+
+
+def _find_optimal_throttle_for_corner(
+    corner: Corner,
+    optimal: OptimalProfile,
+) -> float | None:
+    """Find the closest optimal throttle point within [apex, exit + buffer].
+
+    Returns the throttle-point distance, or *None* if no optimal throttle point
+    falls inside the search window.
+    """
+    search_start = corner.apex_distance_m
+    search_end = corner.exit_distance_m + _THROTTLE_SEARCH_AFTER_M
+
+    best: float | None = None
+    best_dist = float("inf")
+
+    for tp in optimal.optimal_throttle_points:
+        if search_start <= tp <= search_end:
+            d = abs(tp - corner.apex_distance_m)
+            if d < best_dist:
+                best = tp
                 best_dist = d
 
     return best
@@ -236,6 +265,13 @@ def compute_corner_opportunities(
         else:
             brake_gap = None
 
+        # --- throttle gap --------------------------------------------------
+        opt_throttle = _find_optimal_throttle_for_corner(corner, optimal)
+        if opt_throttle is not None and corner.throttle_commit_m is not None:
+            throttle_gap: float | None = corner.throttle_commit_m - opt_throttle
+        else:
+            throttle_gap = None
+
         # --- time cost in this zone ----------------------------------------
         time_cost = _compute_time_cost(interp_actual, optimal_zone_speed, step_m)
 
@@ -256,6 +292,7 @@ def compute_corner_opportunities(
                 actual_brake_point_m=corner.brake_point_m,
                 optimal_brake_point_m=opt_brake,
                 brake_gap_m=brake_gap,
+                throttle_gap_m=throttle_gap,
                 time_cost_s=time_cost,
             )
         )

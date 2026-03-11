@@ -1705,6 +1705,9 @@ async def get_optimal_comparison_data(
                     "brake_gap_m": (
                         round(opp.brake_gap_m, 2) if opp.brake_gap_m is not None else None
                     ),
+                    "throttle_gap_m": (
+                        round(opp.throttle_gap_m, 2) if opp.throttle_gap_m is not None else None
+                    ),
                     "time_cost_s": round(opp.time_cost_s, 3),
                     "linked_group_id": linked.corner_to_group.get(opp.corner_number),
                     "exit_straight_time_cost_s": round(opp.exit_straight_time_cost_s, 3),

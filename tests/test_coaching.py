@@ -1804,6 +1804,7 @@ class TestFormatOptimalComparison:
             actual_brake_point_m=150.0,
             optimal_brake_point_m=165.0,
             brake_gap_m=15.0,
+            throttle_gap_m=None,
             time_cost_s=0.45,
         )
         result = OptimalComparisonResult(
@@ -1830,6 +1831,7 @@ class TestFormatOptimalComparison:
             actual_brake_point_m=None,
             optimal_brake_point_m=None,
             brake_gap_m=None,
+            throttle_gap_m=None,
             time_cost_s=0.2,
         )
         result = OptimalComparisonResult(
@@ -1858,6 +1860,7 @@ class TestFormatOptimalComparison:
                 actual_brake_point_m=None,
                 optimal_brake_point_m=None,
                 brake_gap_m=None,
+                throttle_gap_m=None,
                 time_cost_s=0.1 * i,
             )
             for i in range(1, 16)
@@ -2461,6 +2464,7 @@ class TestBuildCoachingPromptWithOptimalComparison:
                     actual_brake_point_m=None,
                     optimal_brake_point_m=None,
                     brake_gap_m=None,
+                    throttle_gap_m=None,
                     time_cost_s=0.4,
                 ),
             ],

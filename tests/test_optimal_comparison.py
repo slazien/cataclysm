@@ -11,6 +11,7 @@ from cataclysm.optimal_comparison import (
     OptimalComparisonResult,
     _compute_time_cost,
     _find_optimal_brake_for_corner,
+    _find_optimal_throttle_for_corner,
     _interpolate_speed_at_distance,
     compare_speed_profiles,
     compare_with_optimal,
@@ -617,3 +618,68 @@ class TestComputeCornerOpportunitiesEdges:
         result = compute_corner_opportunities([corner], lap_df, optimal)
         if result:
             assert result[0].brake_gap_m is None
+
+
+# ---------------------------------------------------------------------------
+# TestFindOptimalThrottleForCorner
+# ---------------------------------------------------------------------------
+
+
+class TestFindOptimalThrottleForCorner:
+    """Tests for _find_optimal_throttle_for_corner."""
+
+    def test_finds_throttle_in_window(self) -> None:
+        corner = _make_corner(apex=275.0, exit_d=350.0)
+        optimal = _make_optimal_profile()  # optimal_throttle_points=[350.0]
+        result = _find_optimal_throttle_for_corner(corner, optimal)
+        assert result == 350.0
+
+    def test_returns_none_when_no_throttle_in_window(self) -> None:
+        corner = _make_corner(apex=275.0, exit_d=350.0)
+        optimal = _make_optimal_profile()
+        optimal.optimal_throttle_points = [600.0]
+        result = _find_optimal_throttle_for_corner(corner, optimal)
+        assert result is None
+
+    def test_picks_closest_to_apex(self) -> None:
+        corner = _make_corner(apex=275.0, exit_d=350.0)
+        optimal = _make_optimal_profile()
+        optimal.optimal_throttle_points = [280.0, 340.0]
+        result = _find_optimal_throttle_for_corner(corner, optimal)
+        assert result == 280.0
+
+
+# ---------------------------------------------------------------------------
+# TestThrottleGapInCornerOpportunities
+# ---------------------------------------------------------------------------
+
+
+class TestThrottleGapInCornerOpportunities:
+    """Tests for throttle_gap_m in CornerOpportunity."""
+
+    def test_throttle_gap_computed(self) -> None:
+        corner = _make_corner(number=1, entry=200.0, exit_d=350.0, apex=275.0, brake_m=180.0)
+        # corner.throttle_commit_m = 330.0 (exit_d - 20 from _make_corner helper)
+        optimal = _make_optimal_profile()  # optimal_throttle_points=[350.0]
+        lap_df = _make_lap_df()
+        result = compute_corner_opportunities([corner], lap_df, optimal)
+        opp = result[0]
+        # throttle_gap = actual (330.0) - optimal (350.0) = -20.0
+        assert opp.throttle_gap_m is not None
+        assert abs(opp.throttle_gap_m - (-20.0)) < 0.1
+
+    def test_throttle_gap_none_when_no_throttle_commit(self) -> None:
+        corner = _make_corner()
+        corner.throttle_commit_m = None
+        optimal = _make_optimal_profile()
+        lap_df = _make_lap_df()
+        result = compute_corner_opportunities([corner], lap_df, optimal)
+        assert result[0].throttle_gap_m is None
+
+    def test_throttle_gap_none_when_no_optimal_throttle(self) -> None:
+        corner = _make_corner()
+        optimal = _make_optimal_profile()
+        optimal.optimal_throttle_points = []
+        lap_df = _make_lap_df()
+        result = compute_corner_opportunities([corner], lap_df, optimal)
+        assert result[0].throttle_gap_m is None

@@ -101,6 +101,11 @@ def _reconstruct_optimal_comparison(raw: dict[str, object]) -> OptimalComparison
                 brake_gap_m=(
                     float(item["brake_gap_m"]) if item.get("brake_gap_m") is not None else None
                 ),
+                throttle_gap_m=(
+                    float(item["throttle_gap_m"])
+                    if item.get("throttle_gap_m") is not None
+                    else None
+                ),
                 time_cost_s=float(item.get("time_cost_s", 0)),
                 exit_straight_time_cost_s=float(item.get("exit_straight_time_cost_s", 0)),
             )
