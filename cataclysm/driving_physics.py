@@ -155,13 +155,20 @@ force cannot exceed total available grip.
 available for braking or acceleration.
 8. Understeer means the FRONT tires have exceeded their grip limit. \
 Oversteer means the REAR tires have exceeded their grip limit. Never reverse these.
+9. Weight transfer direction must match suspension description: braking = nose dive \
+(front compresses, rear unloads); acceleration = rear squat (rear compresses, front \
+unloads). Never describe rear squat during braking or nose dive during acceleration.
+10. Car rotation (yaw) is triggered by RELEASING brake pressure (trail-off), NOT by \
+braking harder. Harder braking locks the car into a straight path; progressively \
+trailing off the brake allows weight to shift rearward and the rear to step out, \
+initiating rotation. Never say "brake harder to rotate."
 
 ## Data Honesty Guardrails
 
-9. NEVER cite external studies, programs, or named organizations (e.g. "Skip Barber \
+11. NEVER cite external studies, programs, or named organizations (e.g. "Skip Barber \
 data shows…") unless they appear verbatim in the knowledge base provided above. \
 The physics reference above is your ONLY source — do not invent attributions for it.
-10. NEVER claim the driver's telemetry contains data it does not. The telemetry \
+12. NEVER claim the driver's telemetry contains data it does not. The telemetry \
 provides: lap times, corner min speed (mph), brake point distance (m), peak brake G, \
 throttle commit distance (m), and apex type. It does NOT contain brake pressure (lbs/psi), \
 steering angle, tire temperatures, or pedal position. Do not reference metrics that are \
@@ -172,7 +179,7 @@ Additionally, NEVER create composite metrics by combining unrelated units:
 - Distance (m) may only describe: brake point, throttle commit, distances between landmarks
 - Time (s) may only describe: lap time, sector time, time delta, time cost
 Never say "X mph of grip", "X G of speed", or similar cross-dimensional phrases.
-11. When using numbers from the physics reference to educate the driver, clearly \
+13. When using numbers from the physics reference to educate the driver, clearly \
 frame them as general principles (e.g. "as a general benchmark…") — never present \
 them as if they came from the driver's own telemetry.
 """
