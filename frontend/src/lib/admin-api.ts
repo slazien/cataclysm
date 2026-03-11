@@ -40,12 +40,25 @@ export interface LlmKpis {
   error_rate: number;
   total_cost_usd: number;
   avg_latency_ms: number;
+  cost_per_call: number;
+  total_input_tokens: number;
+  total_output_tokens: number;
+  total_cached_tokens: number;
+  total_cache_creation_tokens: number;
+  latency_p50: number;
+  latency_p95: number;
+  latency_p99: number;
+  cache_hit_rate: number;
+  cache_savings_usd: number;
+  daily_avg_calls: number;
+  delta_cost_pct: number | null;
 }
 
 export interface LlmCostTimeseriesRow {
   date: string;
   calls: number;
   cost_usd: number;
+  cost_per_call: number;
 }
 
 export interface LlmCallsByModelRow {
@@ -73,6 +86,27 @@ export interface LlmTaskModelCostRow {
   cost_usd: number;
 }
 
+export interface LlmLatencyTimeseriesRow {
+  date: string;
+  p50: number;
+  p95: number;
+  count: number;
+}
+
+export interface LlmTokenTimeseriesRow {
+  date: string;
+  input_tokens: number;
+  output_tokens: number;
+  cached_tokens: number;
+  cache_creation_tokens: number;
+}
+
+export interface LlmErrorBreakdownRow {
+  error: string;
+  count: number;
+  last_seen: string;
+}
+
 export interface LlmDashboardData {
   window_days: number;
   kpis: LlmKpis;
@@ -80,6 +114,9 @@ export interface LlmDashboardData {
   calls_by_model: LlmCallsByModelRow[];
   cost_by_task: LlmCostByTaskRow[];
   task_model_cost_matrix: LlmTaskModelCostRow[];
+  latency_timeseries: LlmLatencyTimeseriesRow[];
+  token_timeseries: LlmTokenTimeseriesRow[];
+  error_breakdown: LlmErrorBreakdownRow[];
 }
 
 export async function getTrackList(): Promise<{ tracks: string[] }> {
@@ -115,6 +152,25 @@ export async function setLlmRoutingStatus(enabled: boolean): Promise<LlmRoutingS
 
 export async function getLlmDashboard(days: number): Promise<LlmDashboardData> {
   return fetchApi(`/api/admin/llm-usage/dashboard?days=${days}`);
+}
+
+export interface LlmRecentEvent {
+  timestamp: string;
+  task: string;
+  provider: string;
+  model: string;
+  success: boolean;
+  input_tokens: number;
+  output_tokens: number;
+  cached_input_tokens: number;
+  cache_creation_input_tokens: number;
+  latency_ms: number;
+  cost_usd: number;
+  error: string | null;
+}
+
+export async function getLlmRecentEvents(limit = 50): Promise<LlmRecentEvent[]> {
+  return fetchApi(`/api/admin/llm-usage/events?limit=${limit}`);
 }
 
 // ── Per-task routing config types ────────────────────────────────────

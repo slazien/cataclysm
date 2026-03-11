@@ -225,23 +225,60 @@ async def get_recent_llm_usage_events_db(
     return events
 
 
+def _percentile(sorted_values: list[float], pct: float) -> float:
+    """Return the pct-th percentile from a pre-sorted list (0..1)."""
+    if not sorted_values:
+        return 0.0
+    idx = int(len(sorted_values) * pct)
+    idx = min(idx, len(sorted_values) - 1)
+    return sorted_values[idx]
+
+
 async def get_llm_usage_dashboard_db(db: AsyncSession, *, days: int = 30) -> dict[str, Any]:
     """Return dashboard-shaped usage aggregates for admin analytics views."""
     clamped_days = max(0, min(days, 365))
+    now = datetime.now(UTC)
     stmt = select(LLMUsageEvent).order_by(LLMUsageEvent.event_timestamp.asc())
     if clamped_days > 0:
-        cutoff = datetime.now(UTC) - timedelta(days=clamped_days)
+        cutoff = now - timedelta(days=clamped_days)
         stmt = stmt.where(LLMUsageEvent.event_timestamp >= cutoff)
     rows = (await db.execute(stmt)).scalars().all()
 
     total_calls = float(len(rows))
     total_errors = float(sum(1 for row in rows if not row.success))
     total_cost = float(sum(float(row.cost_usd or 0.0) for row in rows))
-    avg_latency = (
-        float(sum(float(row.latency_ms or 0.0) for row in rows)) / total_calls
-        if total_calls
-        else 0.0
-    )
+    all_latencies: list[float] = []
+    total_input_tokens = 0
+    total_output_tokens = 0
+    total_cached_tokens = 0
+    total_cache_creation_tokens = 0
+    cache_hit_count = 0
+
+    for row in rows:
+        all_latencies.append(float(row.latency_ms or 0.0))
+        total_input_tokens += int(row.input_tokens or 0)
+        total_output_tokens += int(row.output_tokens or 0)
+        cached = int(row.cached_input_tokens or 0)
+        total_cached_tokens += cached
+        total_cache_creation_tokens += int(row.cache_creation_input_tokens or 0)
+        if cached > 0:
+            cache_hit_count += 1
+
+    avg_latency = sum(all_latencies) / total_calls if total_calls else 0.0
+    sorted_latencies = sorted(all_latencies)
+
+    # --- prior window for delta_cost_pct ---
+    delta_cost_pct: float | None = None
+    if clamped_days > 0:
+        prior_start = cutoff - timedelta(days=clamped_days)
+        prior_stmt = (
+            select(func.coalesce(func.sum(LLMUsageEvent.cost_usd), 0.0))
+            .where(LLMUsageEvent.event_timestamp >= prior_start)
+            .where(LLMUsageEvent.event_timestamp < cutoff)
+        )
+        prior_cost = float((await db.execute(prior_stmt)).scalar() or 0.0)
+        if prior_cost > 0:
+            delta_cost_pct = round((total_cost - prior_cost) / prior_cost * 100, 2)
 
     cost_timeseries: dict[str, dict[str, float]] = defaultdict(
         lambda: {"cost_usd": 0.0, "calls": 0.0}
@@ -258,17 +295,48 @@ async def get_llm_usage_dashboard_db(db: AsyncSession, *, days: int = 30) -> dic
         }
     )
     task_model: dict[tuple[str, str, str], dict[str, float | str]] = defaultdict(
-        lambda: {"task": "", "model": "", "provider": "", "calls": 0.0, "cost_usd": 0.0}
+        lambda: {
+            "task": "",
+            "model": "",
+            "provider": "",
+            "calls": 0.0,
+            "cost_usd": 0.0,
+        }
     )
     task_top_models: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+
+    # per-date accumulators for latency/token timeseries
+    date_latencies: dict[str, list[float]] = defaultdict(list)
+    date_tokens: dict[str, dict[str, int]] = defaultdict(
+        lambda: {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cached_tokens": 0,
+            "cache_creation_tokens": 0,
+        }
+    )
+
+    # error breakdown accumulator
+    error_counts: dict[str, dict[str, Any]] = defaultdict(lambda: {"count": 0, "last_seen": ""})
 
     for row in rows:
         date_key = row.event_timestamp.astimezone(UTC).date().isoformat()
         cost = float(row.cost_usd or 0.0)
+        latency = float(row.latency_ms or 0.0)
 
         ts_slot = cost_timeseries[date_key]
         ts_slot["cost_usd"] += cost
         ts_slot["calls"] += 1.0
+
+        # latency timeseries
+        date_latencies[date_key].append(latency)
+
+        # token timeseries
+        dt_slot = date_tokens[date_key]
+        dt_slot["input_tokens"] += int(row.input_tokens or 0)
+        dt_slot["output_tokens"] += int(row.output_tokens or 0)
+        dt_slot["cached_tokens"] += int(row.cached_input_tokens or 0)
+        dt_slot["cache_creation_tokens"] += int(row.cache_creation_input_tokens or 0)
 
         mk = (row.provider, row.model)
         m_slot = by_model[mk]
@@ -280,7 +348,7 @@ async def get_llm_usage_dashboard_db(db: AsyncSession, *, days: int = 30) -> dic
         t_slot = by_task[row.task]
         t_slot["calls"] += 1.0
         t_slot["cost_usd"] += cost
-        t_slot["latency_ms_sum"] += float(row.latency_ms or 0.0)
+        t_slot["latency_ms_sum"] += latency
         if not row.success:
             t_slot["errors"] += 1.0
 
@@ -293,14 +361,67 @@ async def get_llm_usage_dashboard_db(db: AsyncSession, *, days: int = 30) -> dic
         tm_slot["cost_usd"] = float(tm_slot["cost_usd"]) + cost
         task_top_models[row.task][f"{row.provider}/{row.model}"] += cost
 
+        # error breakdown
+        if not row.success and row.error:
+            err_slot = error_counts[row.error]
+            err_slot["count"] += 1
+            ts_iso = row.event_timestamp.astimezone(UTC).isoformat()
+            if ts_iso > err_slot["last_seen"]:
+                err_slot["last_seen"] = ts_iso
+
+    # --- build cost_timeseries with cost_per_call ---
     timeseries_rows = [
         {
             "date": date_key,
             "calls": values["calls"],
             "cost_usd": round(values["cost_usd"], 6),
+            "cost_per_call": round(
+                values["cost_usd"] / values["calls"] if values["calls"] else 0.0,
+                6,
+            ),
         }
         for date_key, values in sorted(cost_timeseries.items(), key=lambda item: item[0])
     ]
+
+    # --- build latency_timeseries ---
+    all_dates_sorted = sorted(cost_timeseries.keys())
+    latency_timeseries_rows: list[dict[str, Any]] = []
+    for date_key in all_dates_sorted:
+        lats = sorted(date_latencies.get(date_key, []))
+        latency_timeseries_rows.append(
+            {
+                "date": date_key,
+                "p50": round(_percentile(lats, 0.50), 2),
+                "p95": round(_percentile(lats, 0.95), 2),
+                "count": len(lats),
+            }
+        )
+
+    # --- build token_timeseries ---
+    token_timeseries_rows: list[dict[str, int | str]] = [
+        {
+            "date": date_key,
+            "input_tokens": date_tokens[date_key]["input_tokens"],
+            "output_tokens": date_tokens[date_key]["output_tokens"],
+            "cached_tokens": date_tokens[date_key]["cached_tokens"],
+            "cache_creation_tokens": date_tokens[date_key]["cache_creation_tokens"],
+        }
+        for date_key in all_dates_sorted
+    ]
+
+    # --- build error_breakdown (top 10 by count) ---
+    error_breakdown: list[dict[str, Any]] = sorted(
+        [
+            {
+                "error": err_msg,
+                "count": info["count"],
+                "last_seen": info["last_seen"],
+            }
+            for err_msg, info in error_counts.items()
+        ],
+        key=lambda item: item["count"],
+        reverse=True,
+    )[:10]
 
     model_rows: list[dict[str, float | str]] = [
         {
@@ -353,16 +474,41 @@ async def get_llm_usage_dashboard_db(db: AsyncSession, *, days: int = 30) -> dic
         key=lambda item: (item["task"], item["model"]),
     )
 
+    distinct_days = max(1, len(cost_timeseries))
+    # $0.30 per 1M cached tokens saved vs standard input pricing
+    cache_savings = total_cached_tokens * 0.30 / 1_000_000
+
     return {
         "window_days": clamped_days,
         "kpis": {
             "total_calls": total_calls,
             "total_errors": total_errors,
-            "error_rate": round((total_errors / total_calls) if total_calls else 0.0, 4),
+            "error_rate": round(
+                (total_errors / total_calls) if total_calls else 0.0,
+                4,
+            ),
             "total_cost_usd": round(total_cost, 6),
             "avg_latency_ms": round(avg_latency, 2),
+            "cost_per_call": round(total_cost / total_calls if total_calls else 0.0, 6),
+            "total_input_tokens": total_input_tokens,
+            "total_output_tokens": total_output_tokens,
+            "total_cached_tokens": total_cached_tokens,
+            "total_cache_creation_tokens": total_cache_creation_tokens,
+            "latency_p50": round(_percentile(sorted_latencies, 0.50), 2),
+            "latency_p95": round(_percentile(sorted_latencies, 0.95), 2),
+            "latency_p99": round(_percentile(sorted_latencies, 0.99), 2),
+            "cache_hit_rate": round(
+                cache_hit_count / total_calls if total_calls else 0.0,
+                4,
+            ),
+            "cache_savings_usd": round(cache_savings, 6),
+            "daily_avg_calls": round(total_calls / distinct_days, 2),
+            "delta_cost_pct": delta_cost_pct,
         },
         "cost_timeseries": timeseries_rows,
+        "latency_timeseries": latency_timeseries_rows,
+        "token_timeseries": token_timeseries_rows,
+        "error_breakdown": error_breakdown,
         "calls_by_model": model_rows,
         "cost_by_task": task_rows,
         "task_model_cost_matrix": matrix_rows,
