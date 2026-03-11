@@ -175,6 +175,7 @@ class CoachingValidator:
                 temperature=0.0,
                 default_provider="anthropic",
                 default_model="claude-sonnet-4-6",
+                json_mode=True,
             )
             text = result.text
         except Exception:

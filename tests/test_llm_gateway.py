@@ -119,10 +119,16 @@ def test_openai_reasoning_model_strips_temperature(monkeypatch) -> None:
     captured_kwargs: dict = {}
 
     def _fake_call_openai(
-        model, user_content, *, system, max_tokens, temperature, timeout_s, max_retries
+        model,
+        user_content,
+        *,
+        system,
+        max_tokens,
+        temperature,
+        timeout_s,
+        max_retries,
+        json_mode=False,
     ):
-        # Call the real kwarg-building logic by importing it, but we intercept
-        # at the responses.create level
         captured_kwargs["temperature"] = temperature
         captured_kwargs["model"] = model
         return "ok", LLMUsage(input_tokens=10, output_tokens=5)
@@ -242,7 +248,9 @@ def test_google_model_passes_temperature(monkeypatch) -> None:
     monkeypatch.setenv("LLM_ROUTING_ENABLED", "0")
     monkeypatch.setenv("GOOGLE_API_KEY", "gk-test")
 
-    def _fake_call_google(model, user_content, *, system, max_tokens, temperature, timeout_s):
+    def _fake_call_google(
+        model, user_content, *, system, max_tokens, temperature, timeout_s, json_mode=False
+    ):
         assert temperature == 0.3, "Google models should receive temperature"
         return "gemini ok", LLMUsage(input_tokens=10, output_tokens=5)
 
@@ -259,3 +267,39 @@ def test_google_model_passes_temperature(monkeypatch) -> None:
     )
     assert result.provider == "google"
     assert result.text == "gemini ok"
+
+
+def test_openai_json_mode_sets_text_format(monkeypatch) -> None:
+    """json_mode=True should set text.format.type=json_object on OpenAI calls."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
+
+    captured: dict = {}
+    fake_client = _make_fake_openai_client(captured)
+    monkeypatch.setattr("openai.OpenAI", fake_client)
+
+    from cataclysm.llm_gateway import _call_openai
+
+    _call_openai(
+        "gpt-5-mini",
+        "return JSON",
+        system=None,
+        max_tokens=128,
+        temperature=0.3,
+        timeout_s=30,
+        max_retries=1,
+        json_mode=True,
+    )
+    assert captured.get("text") == {"format": {"type": "json_object"}}
+
+    # Without json_mode, no text format
+    captured.clear()
+    _call_openai(
+        "gpt-5-mini",
+        "test",
+        system=None,
+        max_tokens=64,
+        temperature=None,
+        timeout_s=30,
+        max_retries=1,
+    )
+    assert "text" not in captured

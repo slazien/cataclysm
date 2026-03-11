@@ -420,6 +420,7 @@ def _call_openai(
     temperature: float | None,
     timeout_s: float,
     max_retries: int,
+    json_mode: bool = False,
 ) -> tuple[str, LLMUsage]:
     from openai import OpenAI
 
@@ -439,6 +440,8 @@ def _call_openai(
         kwargs["instructions"] = system
     if temperature is not None and not is_reasoning:
         kwargs["temperature"] = temperature
+    if json_mode:
+        kwargs["text"] = {"format": {"type": "json_object"}}
 
     response = client.responses.create(**kwargs)
     text = _extract_text_from_openai(response)
@@ -466,15 +469,19 @@ def _call_google(
     max_tokens: int,
     temperature: float | None,
     timeout_s: float,
+    json_mode: bool = False,
 ) -> tuple[str, LLMUsage]:
     import google.generativeai as genai
 
     genai.configure(api_key=_provider_api_key("google"))
     model_obj = genai.GenerativeModel(model_name=model, system_instruction=system)
-    generation_config = genai.types.GenerationConfig(
-        max_output_tokens=max_tokens,
-        temperature=temperature if temperature is not None else 0.3,
-    )
+    gen_config_kwargs: dict[str, Any] = {
+        "max_output_tokens": max_tokens,
+        "temperature": temperature if temperature is not None else 0.3,
+    }
+    if json_mode:
+        gen_config_kwargs["response_mime_type"] = "application/json"
+    generation_config = genai.types.GenerationConfig(**gen_config_kwargs)
     try:
         response = model_obj.generate_content(
             user_content,
@@ -508,6 +515,7 @@ def call_text_completion(
     default_model: str,
     timeout_s: float | None = None,
     max_retries: int | None = None,
+    json_mode: bool = False,
 ) -> LLMResult:
     """Execute a text completion with routing + fallback + telemetry."""
     resolved_timeout_s = (
@@ -562,6 +570,7 @@ def call_text_completion(
                     temperature=temperature,
                     timeout_s=resolved_timeout_s,
                     max_retries=resolved_max_retries,
+                    json_mode=json_mode,
                 )
             else:
                 text, usage = _call_google(
@@ -571,6 +580,7 @@ def call_text_completion(
                     max_tokens=max_tokens,
                     temperature=temperature,
                     timeout_s=resolved_timeout_s,
+                    json_mode=json_mode,
                 )
             latency_ms = (time.perf_counter() - start) * 1000.0
             cost_usd = _estimate_cost_usd(provider, model, usage)

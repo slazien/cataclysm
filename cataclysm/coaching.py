@@ -1279,6 +1279,7 @@ def generate_coaching_report(
             default_provider="anthropic",
             default_model="claude-haiku-4-5-20251001",
             timeout_s=600,
+            json_mode=True,
         )
         return result.text, _parse_coaching_response(result.text)
 
