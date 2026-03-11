@@ -139,9 +139,13 @@ export function HowItWorksModal() {
 
     const DISCLAIMER_KEY = 'cataclysm-disclaimer-accepted';
 
+    const openIfClosed = () => {
+      if (!useUiStore.getState().howItWorksOpen) toggle();
+    };
+
     // Returning user: disclaimer already accepted, show after short delay
     if (localStorage.getItem(DISCLAIMER_KEY)) {
-      const timer = setTimeout(toggle, 400);
+      const timer = setTimeout(openIfClosed, 400);
       return () => clearTimeout(timer);
     }
 
@@ -150,7 +154,7 @@ export function HowItWorksModal() {
     const interval = setInterval(() => {
       if (localStorage.getItem(DISCLAIMER_KEY)) {
         clearInterval(interval);
-        pendingTimeout = setTimeout(toggle, 400);
+        pendingTimeout = setTimeout(openIfClosed, 400);
       }
     }, 300);
     return () => { clearInterval(interval); clearTimeout(pendingTimeout); };
