@@ -283,6 +283,7 @@ export interface CornerOpportunity {
   optimal_min_speed_mph: number;
   speed_gap_mph: number; // optimal - actual (positive = driver is slower)
   brake_gap_m: number | null; // positive = driver brakes later than optimal
+  throttle_gap_m: number | null; // positive = driver gets on throttle later than optimal
   time_cost_s: number; // time lost vs optimal in this corner zone
   exit_straight_time_cost_s: number; // time lost on the straight after this corner
 }
