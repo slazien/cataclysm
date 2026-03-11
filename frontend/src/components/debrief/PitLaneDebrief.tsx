@@ -8,6 +8,7 @@ import { useSessionStore, useUiStore, useAnalysisStore } from '@/stores';
 import { MarkdownText } from '@/components/shared/MarkdownText';
 import { useUnits } from '@/hooks/useUnits';
 import { useCoachingNav } from '@/hooks/useCoachingNav';
+import { useSkillLevel } from '@/hooks/useSkillLevel';
 import { formatCoachingText } from '@/lib/textUtils';
 import { normalizeScore, formatLapTime } from '@/lib/formatters';
 import { DebriefHeroCard } from './DebriefHeroCard';
@@ -25,6 +26,110 @@ import { TracksideCard } from './TracksideCard';
 import { CornerConsistencyTable } from './CornerConsistencyTable';
 import { ReviewChecklist } from './ReviewChecklist';
 
+// ── Pattern labels and their icons for structured display ──
+const PATTERN_SECTIONS: { label: string; icon: string; color: string }[] = [
+  { label: 'ROOT CAUSE', icon: '🔍', color: 'text-amber-400' },
+  { label: 'MECHANISM', icon: '⚙️', color: 'text-blue-400' },
+  { label: 'CONSEQUENCE', icon: '⚡', color: 'text-orange-400' },
+  { label: 'TIME IMPACT', icon: '⏱️', color: 'text-red-400' },
+  { label: 'FIX', icon: '✅', color: 'text-emerald-400' },
+];
+
+/** Parse a coaching pattern into a title + structured sections. */
+function parsePatternSections(text: string): { title: string; sections: { label: string; icon: string; color: string; body: string }[]; trailing: string } {
+  // Title is the bold text before the first section label
+  const firstLabelIdx = PATTERN_SECTIONS.reduce((minIdx, s) => {
+    const idx = text.indexOf(s.label + ':');
+    return idx >= 0 && (minIdx < 0 || idx < minIdx) ? idx : minIdx;
+  }, -1);
+
+  const title = firstLabelIdx > 0 ? text.slice(0, firstLabelIdx).trim() : '';
+  const body = firstLabelIdx > 0 ? text.slice(firstLabelIdx) : text;
+
+  const sections: { label: string; icon: string; color: string; body: string }[] = [];
+  let remaining = body;
+
+  for (const sec of PATTERN_SECTIONS) {
+    const marker = sec.label + ':';
+    const idx = remaining.indexOf(marker);
+    if (idx < 0) continue;
+
+    // Find where the next section starts
+    const afterMarker = remaining.slice(idx + marker.length);
+    let endIdx = afterMarker.length;
+    for (const nextSec of PATTERN_SECTIONS) {
+      const nextIdx = afterMarker.indexOf(nextSec.label + ':');
+      if (nextIdx >= 0 && nextIdx < endIdx) endIdx = nextIdx;
+    }
+
+    sections.push({
+      ...sec,
+      body: afterMarker.slice(0, endIdx).trim(),
+    });
+  }
+
+  // Any text after the last section
+  const lastSec = PATTERN_SECTIONS.filter(s => text.includes(s.label + ':')).pop();
+  const lastIdx = lastSec ? text.lastIndexOf(lastSec.label + ':') : -1;
+  let trailing = '';
+  if (lastIdx >= 0) {
+    const afterLast = text.slice(lastIdx);
+    const nextLineBreak = afterLast.indexOf('\n\n');
+    trailing = nextLineBreak >= 0 ? text.slice(lastIdx + nextLineBreak).trim() : '';
+  }
+
+  return { title, sections, trailing };
+}
+
+function PatternCard({ pattern, resolveSpeed, coachingNav }: { pattern: string; resolveSpeed: (t: string) => string; coachingNav: ReturnType<typeof useCoachingNav> }) {
+  const resolved = formatCoachingText(resolveSpeed(pattern));
+  const { title, sections, trailing } = parsePatternSections(resolved);
+
+  // If no structured sections found, render as plain markdown
+  if (sections.length === 0) {
+    return (
+      <div className="text-sm leading-relaxed text-[var(--text-secondary)]">
+        <MarkdownText block linkHandlers={coachingNav}>{resolved}</MarkdownText>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-[var(--cata-border)]/50 bg-[var(--bg-base)] p-4">
+      {/* Pattern title — bold heading */}
+      {title && (
+        <p className="mb-3 text-sm font-semibold text-[var(--text-primary)]">
+          <MarkdownText linkHandlers={coachingNav}>{title}</MarkdownText>
+        </p>
+      )}
+
+      {/* Structured sections */}
+      <div className="space-y-2.5">
+        {sections.map((sec) => (
+          <div key={sec.label} className="flex gap-2.5">
+            <span className="mt-0.5 shrink-0 text-xs">{sec.icon}</span>
+            <div className="min-w-0">
+              <span className={`text-[11px] font-bold uppercase tracking-wider ${sec.color}`}>
+                {sec.label}
+              </span>
+              <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
+                <MarkdownText linkHandlers={coachingNav}>{sec.body}</MarkdownText>
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Trailing text (e.g., "Your best laps show...") */}
+      {trailing && (
+        <p className="mt-3 border-t border-[var(--cata-border)]/30 pt-2 text-sm italic text-[var(--text-secondary)]">
+          <MarkdownText linkHandlers={coachingNav}>{trailing}</MarkdownText>
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function PitLaneDebrief() {
   const sessionId = useSessionStore((s) => s.activeSessionId);
   const { data: session, isLoading: sessionLoading } = useSession(sessionId);
@@ -36,6 +141,8 @@ export function PitLaneDebrief() {
   const setActiveView = useUiStore((s) => s.setActiveView);
   const setMode = useAnalysisStore((s) => s.setMode);
   const selectCorner = useAnalysisStore((s) => s.selectCorner);
+
+  const { isNovice, isAdvanced, showFeature } = useSkillLevel();
 
   const [reviewMode, setReviewMode] = useState<ReviewMode>(getStoredReviewMode);
 
@@ -75,6 +182,10 @@ export function PitLaneDebrief() {
   const topPriority = report?.priority_corners?.[0] ?? null;
   const is15m = reviewMode === '15m' || reviewMode === '1hr';
   const is1hr = reviewMode === '1hr';
+  const showOptimal = showFeature('optimal_comparison');
+
+  // Skill-level corner count: novice 2, intermediate 3, advanced 4
+  const maxCorners = isNovice ? 2 : isAdvanced ? 4 : 3;
 
   // Optimal gap to show in 5m mode as a compact stat
   const gapToOptimal = optimalComparison?.is_valid
@@ -105,8 +216,8 @@ export function PitLaneDebrief() {
         nLaps={session.n_laps ?? 0}
       />
 
-      {/* Gap to optimal — compact stat in 5m mode */}
-      {gapToOptimal != null && gapToOptimal > 0 && (
+      {/* Gap to optimal — compact stat in 5m mode (hidden for novice) */}
+      {showOptimal && gapToOptimal != null && gapToOptimal > 0 && (
         <div className="flex items-center gap-2 rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] px-4 py-3">
           <span className="text-sm text-[var(--text-secondary)]">Gap to optimal:</span>
           <span className="font-[family-name:var(--font-display)] text-lg font-bold text-[var(--color-brake)]">
@@ -122,9 +233,9 @@ export function PitLaneDebrief() {
 
       <SectionDivider />
 
-      {/* Top 3 time-loss corners */}
+      {/* Top time-loss corners — count adapts to skill level */}
       {report?.priority_corners && report.priority_corners.length > 0 && (
-        <TimeLossCorners corners={report.priority_corners.slice(0, 3)} />
+        <TimeLossCorners corners={report.priority_corners.slice(0, maxCorners)} />
       )}
 
       {/* Quick tip — always in 5m */}
@@ -135,22 +246,26 @@ export function PitLaneDebrief() {
       {/* ── 15m: Optimal gap per corner + more drills ── */}
       {is15m && (
         <>
-          {/* Speed vs Optimal — reuse the Report tab's chart inline */}
-          {sessionId && (
+          {/* Speed vs Optimal — hidden for novice */}
+          {showOptimal && sessionId && (
             <OptimalGapChart sessionId={sessionId} onCornerClick={handleExploreCorner} />
           )}
 
-          {/* Session vs previous comparison */}
-          <SessionComparisonCard session={session} optimalComparison={optimalComparison} />
+          {/* Session vs previous comparison — hidden for novice */}
+          {!isNovice && (
+            <SessionComparisonCard session={session} optimalComparison={optimalComparison} />
+          )}
 
-          {/* Trackside Quick Card — shareable summary */}
-          <TracksideCard
-            session={session}
-            consistencyScore={consistencyScore}
-            topCorners={report?.priority_corners?.slice(0, 3) ?? []}
-            gapToOptimal={gapToOptimal}
-            optimalLapTime={optimalComparison?.is_valid ? optimalComparison.optimal_lap_time_s : null}
-          />
+          {/* Trackside Quick Card — hidden for novice (info overload) */}
+          {!isNovice && (
+            <TracksideCard
+              session={session}
+              consistencyScore={consistencyScore}
+              topCorners={report?.priority_corners?.slice(0, maxCorners) ?? []}
+              gapToOptimal={gapToOptimal}
+              optimalLapTime={optimalComparison?.is_valid ? optimalComparison.optimal_lap_time_s : null}
+            />
+          )}
 
           {/* All drills (not just the first) */}
           {report?.drills && report.drills.length > 1 && (
@@ -175,21 +290,17 @@ export function PitLaneDebrief() {
       {/* ── 1hr: Full summary + patterns + deep dive links ── */}
       {is1hr && (
         <>
-          {/* Session patterns */}
-          {report?.patterns && report.patterns.length > 0 && (
+          {/* Session patterns — hidden for novice (too technical) */}
+          {!isNovice && report?.patterns && report.patterns.length > 0 && (
             <div className="rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-5">
               <h3 className="mb-3 border-l-[3px] border-[var(--text-secondary)] pl-3 font-[family-name:var(--font-display)] text-sm font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                 Session Patterns
               </h3>
-              <ul className="space-y-2">
+              <div className="space-y-4">
                 {report.patterns.map((pattern, i) => (
-                  <li key={i} className="text-sm leading-relaxed text-[var(--text-secondary)]">
-                    <MarkdownText block linkHandlers={coachingNav}>
-                      {formatCoachingText(resolveSpeed(pattern))}
-                    </MarkdownText>
-                  </li>
+                  <PatternCard key={i} pattern={pattern} resolveSpeed={resolveSpeed} coachingNav={coachingNav} />
                 ))}
-              </ul>
+              </div>
             </div>
           )}
 
@@ -207,8 +318,8 @@ export function PitLaneDebrief() {
             </div>
           )}
 
-          {/* Corner-by-corner consistency breakdown */}
-          {consistency?.corner_consistency && consistency.corner_consistency.length > 0 && (
+          {/* Corner-by-corner consistency breakdown — hidden for novice */}
+          {!isNovice && consistency?.corner_consistency && consistency.corner_consistency.length > 0 && (
             <CornerConsistencyTable
               corners={consistency.corner_consistency}
               onCornerClick={handleExploreCorner}
@@ -225,7 +336,7 @@ export function PitLaneDebrief() {
                 Deep Dive Into Each Corner
               </h3>
               <div className="flex flex-wrap gap-2">
-                {report.priority_corners.slice(0, 3).map((pc) => (
+                {report.priority_corners.slice(0, maxCorners).map((pc) => (
                   <button
                     key={pc.corner}
                     type="button"

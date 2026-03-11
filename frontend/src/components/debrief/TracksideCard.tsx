@@ -18,6 +18,7 @@ interface TracksideCardProps {
 /**
  * Single-screen trackside quick card — designed for pit-lane phone glance.
  * Large text, high contrast, no scrolling needed.
+ * Uses `tip` (concise actionable text) for display, `issue` (full analysis) for share.
  */
 export function TracksideCard({
   session,
@@ -29,21 +30,10 @@ export function TracksideCard({
   const { resolveSpeed } = useUnits();
   const bestLap = session.best_lap_time_s;
 
-  const fmtIssue = useCallback(
+  /** Resolve speed templates + strip formatting markers */
+  const fmt = useCallback(
     (text: string) => formatCoachingText(resolveSpeed(text)),
     [resolveSpeed],
-  );
-
-  /** First sentence only — for phone-glance readability */
-  const briefIssue = useCallback(
-    (text: string) => {
-      const resolved = fmtIssue(text);
-      const firstSentence = resolved.split(/(?<=[.!?])\s/)[0] ?? resolved;
-      return firstSentence.length > 80
-        ? firstSentence.slice(0, 77) + '…'
-        : firstSentence;
-    },
-    [fmtIssue],
   );
 
   const handleShare = useCallback(async () => {
@@ -56,8 +46,8 @@ export function TracksideCard({
       consistencyScore != null ? `Consistency: ${consistencyScore}%` : null,
       '',
       'Focus:',
-      ...topCorners.slice(0, 3).map(
-        (c) => `  T${c.corner}: ${fmtIssue(c.issue)} (−${c.time_cost_s.toFixed(1)}s)`,
+      ...topCorners.map(
+        (c) => `  T${c.corner}: ${fmt(c.tip)} (−${c.time_cost_s.toFixed(1)}s)`,
       ),
     ].filter((l): l is string => l != null);
     const text = lines.join('\n');
@@ -71,7 +61,7 @@ export function TracksideCard({
       }
     }
     await navigator.clipboard.writeText(text);
-  }, [session, bestLap, optimalLapTime, gapToOptimal, consistencyScore, topCorners, fmtIssue]);
+  }, [session, bestLap, optimalLapTime, gapToOptimal, consistencyScore, topCorners, fmt]);
 
   return (
     <div className="rounded-xl border-2 border-[var(--cata-border)] bg-[var(--bg-surface)] p-5">
@@ -98,26 +88,26 @@ export function TracksideCard({
         {session.session_date ?? ''}
       </p>
 
-      {/* Focus — biggest text */}
+      {/* Focus — biggest text, uses tip (concise actionable) */}
       {topCorners.length > 0 && (
         <div className="mb-4 rounded-lg bg-amber-500/10 px-4 py-3">
           <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--cata-accent)]">
             Focus
           </p>
-          <p className="font-[family-name:var(--font-display)] text-lg font-bold text-[var(--text-primary)]">
-            T{topCorners[0].corner}: {briefIssue(topCorners[0].issue)}
+          <p className="font-[family-name:var(--font-display)] text-lg font-bold leading-snug text-[var(--text-primary)]">
+            T{topCorners[0].corner}: {fmt(topCorners[0].tip)}
           </p>
         </div>
       )}
 
-      {/* Top corners list */}
+      {/* Top corners list — tip text, no truncation */}
       {topCorners.length > 0 && (
-        <div className="mb-4 space-y-1.5">
-          {topCorners.slice(0, 3).map((c) => (
-            <div key={c.corner} className="flex items-center justify-between text-sm">
-              <span className="font-medium text-[var(--text-primary)]">T{c.corner}</span>
-              <span className="flex-1 truncate px-2 text-[var(--text-secondary)]">{briefIssue(c.issue)}</span>
-              <span className="font-mono text-xs font-semibold text-[var(--color-brake)]">
+        <div className="mb-4 space-y-2">
+          {topCorners.map((c) => (
+            <div key={c.corner} className="flex items-start gap-2 text-sm">
+              <span className="shrink-0 font-medium text-[var(--text-primary)]">T{c.corner}</span>
+              <span className="min-w-0 flex-1 leading-snug text-[var(--text-secondary)]">{fmt(c.tip)}</span>
+              <span className="shrink-0 font-mono text-xs font-semibold text-[var(--color-brake)]">
                 −{c.time_cost_s.toFixed(1)}s
               </span>
             </div>
