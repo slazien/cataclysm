@@ -54,8 +54,10 @@ _CORNERS_CONSTRAINTS = {
 
 def upgrade() -> None:
     for name, expr in _TRACKS_CONSTRAINTS.items():
+        op.execute(f"ALTER TABLE tracks DROP CONSTRAINT IF EXISTS {name}")
         op.create_check_constraint(name, "tracks", expr)
     for name, expr in _CORNERS_CONSTRAINTS.items():
+        op.execute(f"ALTER TABLE track_corners_v2 DROP CONSTRAINT IF EXISTS {name}")
         op.create_check_constraint(name, "track_corners_v2", expr)
 
 
