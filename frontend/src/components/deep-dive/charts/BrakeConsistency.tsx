@@ -87,6 +87,7 @@ function drawLabels(
 
 export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
   const selectedCorner = useAnalysisStore((s) => s.selectedCorner);
+  const hoveredBrakeLap = useAnalysisStore((s) => s.hoveredBrakeLap);
   const setHoveredBrakeLap = useAnalysisStore((s) => s.setHoveredBrakeLap);
   const { data: allLapCorners } = useAllLapCorners(sessionId);
   const { convertDistance, distanceUnit } = useUnits();
@@ -298,6 +299,43 @@ export function BrakeConsistency({ sessionId }: BrakeConsistencyProps) {
     if (ctx) ctx.clearRect(0, 0, dimensions.width, dimensions.height);
     setHoveredBrakeLap(null);
   }, [getOverlayCtx, dimensions, setHoveredBrakeLap]);
+
+  // External hover sync: highlight dot when hoveredBrakeLap is set from another chart (e.g. satellite map)
+  useEffect(() => {
+    const ctx = getOverlayCtx();
+    if (!ctx || dimensions.innerWidth <= 0) return;
+
+    // Only draw if there's a hovered lap and the overlay isn't already drawn by mouse
+    if (!hoveredBrakeLap) return;
+
+    const bp = brakePoints.find((p) => p.lapNumber === hoveredBrakeLap.lapNumber);
+    if (!bp) return;
+
+    const hx = xScale(bp.lapNumber);
+    const hy = yScale(bp.brakePointM);
+
+    ctx.clearRect(0, 0, dimensions.width, dimensions.height);
+
+    // Highlight ring
+    ctx.strokeStyle = colors.text.primary;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(hx, hy, 8, 0, 2 * Math.PI);
+    ctx.stroke();
+
+    // Tooltip
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    const label = `L${bp.lapNumber}: ${convertDistance(bp.brakePointM).toFixed(0)}${distanceUnit}`;
+    ctx.font = `11px ${fonts.mono}`;
+    const tw = ctx.measureText(label).width;
+    const tx = Math.min(hx + 12, dimensions.width - tw - 8);
+    const ty = Math.max(hy - 24, dimensions.margins.top);
+    ctx.fillRect(tx - 4, ty - 2, tw + 8, 18);
+    ctx.fillStyle = colors.text.primary;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(label, tx, ty);
+  }, [hoveredBrakeLap, brakePoints, xScale, yScale, dimensions, getOverlayCtx, convertDistance, distanceUnit]);
 
   if (!selectedCorner || cornerNumber === null) {
     return (

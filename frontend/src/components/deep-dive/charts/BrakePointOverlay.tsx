@@ -1,11 +1,12 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Marker, Source, Layer } from 'react-map-gl/mapbox';
 import { bisectLeft } from 'd3-array';
 import { useAllLapCorners, useOptimalComparison } from '@/hooks/useAnalysis';
 import { useSessionLaps } from '@/hooks/useSession';
 import { useSessionStore } from '@/stores';
+import { useAnalysisStore } from '@/stores';
 import { colors } from '@/lib/design-tokens';
 import type { LapData } from '@/lib/types';
 import type { GeoJSON } from 'geojson';
@@ -98,6 +99,8 @@ export function BrakePointOverlay({
   const { data: optimalComparison } = useOptimalComparison(sessionId);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const { data: laps } = useSessionLaps(activeSessionId);
+  const hoveredBrakeLap = useAnalysisStore((s) => s.hoveredBrakeLap);
+  const setHoveredBrakeLap = useAnalysisStore((s) => s.setHoveredBrakeLap);
 
   const bestLapNumber = useMemo(() => {
     if (!laps || laps.length === 0) return null;
@@ -117,6 +120,7 @@ export function BrakePointOverlay({
       lapNumber: number;
       isBest: boolean;
       radius: number;
+      brakePointM: number;
     }> = [];
 
     for (const [lapStr, corners] of Object.entries(allLapCorners)) {
@@ -133,6 +137,7 @@ export function BrakePointOverlay({
         lapNumber: lapNum,
         isBest: lapNum === bestLapNumber,
         radius: dotRadius(corner.peak_brake_g),
+        brakePointM: corner.brake_point_m,
       });
     }
 
@@ -210,35 +215,57 @@ export function BrakePointOverlay({
     return { distToApex, spreadM, brakeGapM: opp?.brake_gap_m ?? null };
   }, [brakeDots, allLapCorners, bestLapNumber, cornerNumber, optimalComparison]);
 
+  const handleDotEnter = useCallback(
+    (lapNumber: number, brakePointM: number) => {
+      setHoveredBrakeLap({ lapNumber, brakePointM });
+    },
+    [setHoveredBrakeLap],
+  );
+
+  const handleDotLeave = useCallback(() => {
+    setHoveredBrakeLap(null);
+  }, [setHoveredBrakeLap]);
+
   if (brakeDots.length === 0) return null;
 
   return (
     <>
       {/* Per-lap brake scatter dots */}
-      {brakeDots.map((dot) => (
-        <Marker
-          key={`brake-${dot.lapNumber}`}
-          longitude={dot.lon}
-          latitude={dot.lat}
-          anchor="center"
-        >
-          <div
-            style={{
-              width: dot.radius * 2,
-              height: dot.radius * 2,
-              borderRadius: '50%',
-              backgroundColor: dot.isBest
-                ? colors.motorsport.optimal
-                : `${colors.motorsport.brake}88`,
-              border: dot.isBest ? '2px solid #fff' : 'none',
-              boxShadow: dot.isBest
-                ? `0 0 8px ${colors.motorsport.optimal}88`
-                : 'none',
-            }}
-            title={`Lap ${dot.lapNumber}${dot.isBest ? ' (best)' : ''}`}
-          />
-        </Marker>
-      ))}
+      {brakeDots.map((dot) => {
+        const isHovered = hoveredBrakeLap?.lapNumber === dot.lapNumber;
+        const highlightRadius = isHovered ? dot.radius + 4 : dot.radius;
+
+        return (
+          <Marker
+            key={`brake-${dot.lapNumber}`}
+            longitude={dot.lon}
+            latitude={dot.lat}
+            anchor="center"
+          >
+            <div
+              onMouseEnter={() => handleDotEnter(dot.lapNumber, dot.brakePointM)}
+              onMouseLeave={handleDotLeave}
+              style={{
+                width: highlightRadius * 2,
+                height: highlightRadius * 2,
+                borderRadius: '50%',
+                backgroundColor: dot.isBest
+                  ? colors.motorsport.optimal
+                  : `${colors.motorsport.brake}${isHovered ? 'dd' : '88'}`,
+                border: dot.isBest || isHovered ? '2px solid #fff' : 'none',
+                boxShadow: isHovered
+                  ? `0 0 12px ${colors.motorsport.brake}cc`
+                  : dot.isBest
+                    ? `0 0 8px ${colors.motorsport.optimal}88`
+                    : 'none',
+                transition: 'all 150ms ease-out',
+                cursor: 'pointer',
+              }}
+              title={`Lap ${dot.lapNumber}${dot.isBest ? ' (best)' : ''}`}
+            />
+          </Marker>
+        );
+      })}
 
       {/* Best-lap brake line (solid blue) */}
       {bestBrakeLine && (
