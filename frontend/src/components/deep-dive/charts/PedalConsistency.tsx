@@ -87,8 +87,8 @@ function drawLabels(
 
 export function PedalConsistency({ sessionId }: PedalConsistencyProps) {
   const selectedCorner = useAnalysisStore((s) => s.selectedCorner);
-  const hoveredBrakeLap = useAnalysisStore((s) => s.hoveredBrakeLap);
-  const setHoveredBrakeLap = useAnalysisStore((s) => s.setHoveredBrakeLap);
+  const hoveredPedalPoint = useAnalysisStore((s) => s.hoveredPedalPoint);
+  const setHoveredPedalPoint = useAnalysisStore((s) => s.setHoveredPedalPoint);
   const { data: allLapCorners } = useAllLapCorners(sessionId);
   const { convertDistance, distanceUnit } = useUnits();
 
@@ -286,29 +286,29 @@ export function PedalConsistency({ sessionId }: PedalConsistencyProps) {
         ctx.textBaseline = 'top';
         ctx.fillText(label, tx, ty);
 
-        setHoveredBrakeLap({ lapNumber: nearest.lapNumber, brakePointM: nearest.brakePointM });
+        setHoveredPedalPoint({ lapNumber: nearest.lapNumber, distanceM: nearest.brakePointM, type: 'brake' });
       } else {
-        setHoveredBrakeLap(null);
+        setHoveredPedalPoint(null);
       }
     },
-    [brakePoints, xScale, yScale, dimensions, getOverlayCtx, setHoveredBrakeLap, convertDistance, distanceUnit, overlayCanvasRef],
+    [brakePoints, xScale, yScale, dimensions, getOverlayCtx, setHoveredPedalPoint, convertDistance, distanceUnit, overlayCanvasRef],
   );
 
   const handleMouseLeave = useCallback(() => {
     const ctx = getOverlayCtx();
     if (ctx) ctx.clearRect(0, 0, dimensions.width, dimensions.height);
-    setHoveredBrakeLap(null);
-  }, [getOverlayCtx, dimensions, setHoveredBrakeLap]);
+    setHoveredPedalPoint(null);
+  }, [getOverlayCtx, dimensions, setHoveredPedalPoint]);
 
-  // External hover sync: highlight dot when hoveredBrakeLap is set from another chart (e.g. satellite map)
+  // External hover sync: highlight dot when hoveredPedalPoint is set from another chart (e.g. satellite map)
   useEffect(() => {
     const ctx = getOverlayCtx();
     if (!ctx || dimensions.innerWidth <= 0) return;
 
     // Only draw if there's a hovered lap and the overlay isn't already drawn by mouse
-    if (!hoveredBrakeLap) return;
+    if (!hoveredPedalPoint || hoveredPedalPoint.type !== 'brake') return;
 
-    const bp = brakePoints.find((p) => p.lapNumber === hoveredBrakeLap.lapNumber);
+    const bp = brakePoints.find((p) => p.lapNumber === hoveredPedalPoint.lapNumber);
     if (!bp) return;
 
     const hx = xScale(bp.lapNumber);
@@ -335,7 +335,7 @@ export function PedalConsistency({ sessionId }: PedalConsistencyProps) {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.fillText(label, tx, ty);
-  }, [hoveredBrakeLap, brakePoints, xScale, yScale, dimensions, getOverlayCtx, convertDistance, distanceUnit]);
+  }, [hoveredPedalPoint, brakePoints, xScale, yScale, dimensions, getOverlayCtx, convertDistance, distanceUnit]);
 
   if (!selectedCorner || cornerNumber === null) {
     return (
