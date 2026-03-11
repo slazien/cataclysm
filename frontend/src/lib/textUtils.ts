@@ -183,16 +183,31 @@ function closeMarkdown(s: string): string {
   return s;
 }
 
+/** Generic bold labels the LLM sometimes uses — useless as collapsed titles. */
+const GENERIC_LABELS = /^(observation|pattern|note|finding|insight|analysis|trend|issue|key point)s?$/i;
+
 /** Extracts the title from coaching text.
- *  If text starts with **bold title**, returns the full bold portion.
- *  Otherwise falls back to extracting the first clause. */
+ *  If text starts with **bold title**, returns the full bold portion —
+ *  unless it's a generic label like "OBSERVATION", in which case it
+ *  extracts the first meaningful clause from the body instead. */
 export function extractActionTitle(text: string): string {
   // If text starts with a bold section, extract it entirely
-  const boldMatch = text.match(/^(\*\*[^*]+\*\*)/);
+  const boldMatch = text.match(/^(\*\*([^*]+)\*\*)/);
   if (boldMatch) {
+    const inner = boldMatch[2].trim();
+    // If the bold part is a generic label, skip it and use the body
+    if (GENERIC_LABELS.test(inner)) {
+      const afterBold = text.slice(boldMatch[0].length).replace(/^[\s:;\u2014\u2013-]+/, '');
+      return extractFirstClause(afterBold);
+    }
     // Strip trailing punctuation (: ; — etc.) inside the bold markers
     return boldMatch[1].replace(/([^*])[,:;\u2014\u2013-]+(\*\*)$/, '$1$2');
   }
+  return extractFirstClause(text);
+}
+
+/** Extract a short first clause (~50 chars) from plain text. */
+function extractFirstClause(text: string): string {
   // Try to grab first short clause
   const match = text.match(/^(.{10,60}?)[.,;:\u2014\u2013-]\s/);
   if (match) return closeMarkdown(match[1].trim());
@@ -207,11 +222,24 @@ export function extractActionTitle(text: string): string {
 }
 
 /** Extracts the detail text after a bold title.
- *  Strips the leading **bold**: separator, returning just the body. */
+ *  Strips the leading **bold**: separator, returning just the body.
+ *  When the bold label is generic, also strips the first clause (used as title). */
 export function extractDetailText(text: string): string {
-  const boldMatch = text.match(/^\*\*[^*]+\*\*\s*[:;\u2014\u2013-]?\s*/);
-  if (boldMatch) return text.slice(boldMatch[0].length).trim();
+  const boldMatch = text.match(/^\*\*([^*]+)\*\*\s*[:;\u2014\u2013-]?\s*/);
+  if (boldMatch) {
+    const body = text.slice(boldMatch[0].length).trim();
+    // If generic label, the title was extracted from the body — strip it
+    if (GENERIC_LABELS.test(boldMatch[1].trim())) {
+      return extractDetailAfterClause(body);
+    }
+    return body;
+  }
   // No bold prefix — return everything after the title clause
+  return extractDetailAfterClause(text);
+}
+
+/** Strip the first clause (used as title by extractFirstClause) from text. */
+function extractDetailAfterClause(text: string): string {
   const clauseMatch = text.match(/^.{10,60}?[.,;:\u2014\u2013-]\s/);
   if (clauseMatch) return text.slice(clauseMatch[0].length).trim();
   return '';

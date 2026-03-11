@@ -315,6 +315,26 @@ describe('extractActionTitle', () => {
   it('falls back to clause extraction when no bold prefix', () => {
     expect(extractActionTitle('Late braking into T5, causing overshoot')).toBe('Late braking into T5');
   });
+
+  it('skips generic bold label "OBSERVATION" and uses body clause', () => {
+    const text = '**OBSERVATION**: Late braking into T5 costs 0.3s per lap. The driver overshoots.';
+    expect(extractActionTitle(text)).toBe('Late braking into T5 costs 0.3s per lap');
+  });
+
+  it('skips generic bold label "Pattern" (case-insensitive)', () => {
+    const text = '**Pattern**: Consistent early apex through esses, reducing exit speed by 3mph.';
+    expect(extractActionTitle(text)).toBe('Consistent early apex through esses');
+  });
+
+  it('skips generic bold label "Finding"', () => {
+    const text = '**Finding** — Brake point scatter increases through the session, especially in the final stint.';
+    expect(extractActionTitle(text)).toBe('Brake point scatter increases through the session');
+  });
+
+  it('keeps descriptive bold titles unchanged', () => {
+    const text = '**Late apex through esses**: You consistently miss the apex by 2m.';
+    expect(extractActionTitle(text)).toBe('**Late apex through esses**');
+  });
 });
 
 describe('extractDetailText', () => {
@@ -340,6 +360,16 @@ describe('extractDetailText', () => {
   it('falls back to clause-based split when no bold', () => {
     const text = 'Late braking into T5, causing consistent overshoot at the apex.';
     expect(extractDetailText(text)).toBe('causing consistent overshoot at the apex.');
+  });
+
+  it('strips first clause from body when bold label is generic', () => {
+    const text = '**OBSERVATION**: Late braking into T5 costs 0.3s per lap. The driver overshoots.';
+    expect(extractDetailText(text)).toBe('The driver overshoots.');
+  });
+
+  it('returns body after descriptive bold title unchanged', () => {
+    const text = '**Late apex through esses**: You consistently miss the apex.';
+    expect(extractDetailText(text)).toBe('You consistently miss the apex.');
   });
 });
 

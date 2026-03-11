@@ -980,9 +980,9 @@ BAD: 'Braking B because peak G averages 0.25G. Min speed B because within 1.3 mp
     }}
   ],
   "patterns": [
-    "<session-wide pattern with root cause chain>",
-    "<pattern 2 with why>",
-    "<pattern 3>"
+    "**<short descriptive title>**: <session-wide pattern with root cause chain>",
+    "**<title 2>**: <pattern 2 with why>",
+    "**<title 3>**: <pattern 3>"
   ],
   "drills": [
     "<specific practice drill for weakness 1>",
@@ -1040,7 +1040,11 @@ GOOD: "Entry scatter is the root cause here — fix the brake point and exit spe
 BAD: "Braking B because peak G averages 0.25G. Trail braking B because blending smoothly"
 BAD: "Min speed std=1.1 mph. Throttle scatter ±6.8m. Correlation r=-0.63"
 
-For each pattern, trace the root cause chain: don't just describe WHAT happened — \
+For each pattern, start with a **bold descriptive title** (3-6 words) that names the specific \
+finding — e.g. "**Late apex through esses**:", "**Brake release too abrupt**:", \
+"**Consistent entry, scattered exits**:". NEVER use generic labels like "OBSERVATION", \
+"PATTERN", "NOTE", or "FINDING" as titles — the title must be specific to this driver's data. \
+Then trace the root cause chain: don't just describe WHAT happened — \
 diagnose WHY by tracing entry cause -> mid-corner effect -> exit consequence. \
 If lap times plateaued, explain whether it's a technique ceiling, \
 fatigue, tire degradation, or confidence limit based on the data.
