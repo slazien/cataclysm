@@ -407,6 +407,10 @@ def _call_anthropic(
     return text, usage
 
 
+# OpenAI reasoning models (o-series, GPT-5 Nano/Mini) reject temperature.
+_OPENAI_REASONING_PREFIXES = ("o1", "o3", "o4", "gpt-5-nano", "gpt-5-mini")
+
+
 def _call_openai(
     model: str,
     user_content: str,
@@ -424,6 +428,8 @@ def _call_openai(
         max_retries=max_retries,
         timeout=timeout_s,
     )
+    is_reasoning = any(model.startswith(p) for p in _OPENAI_REASONING_PREFIXES)
+
     kwargs: dict[str, Any] = {
         "model": model,
         "input": user_content,
@@ -431,7 +437,7 @@ def _call_openai(
     }
     if system:
         kwargs["instructions"] = system
-    if temperature is not None:
+    if temperature is not None and not is_reasoning:
         kwargs["temperature"] = temperature
 
     response = client.responses.create(**kwargs)

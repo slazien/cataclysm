@@ -103,3 +103,159 @@ def test_recent_usage_events_returns_newest_first(monkeypatch) -> None:
     assert len(events) == 2
     assert events[0]["task"] == "t2"
     assert events[1]["task"] == "t1"
+
+
+# ---------------------------------------------------------------------------
+# Provider-specific parameter handling
+# ---------------------------------------------------------------------------
+
+
+def test_openai_reasoning_model_strips_temperature(monkeypatch) -> None:
+    """GPT-5 Nano/Mini are reasoning models that reject temperature."""
+    _clear_events()
+    monkeypatch.setenv("LLM_ROUTING_ENABLED", "0")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
+
+    captured_kwargs: dict = {}
+
+    def _fake_call_openai(
+        model, user_content, *, system, max_tokens, temperature, timeout_s, max_retries
+    ):
+        # Call the real kwarg-building logic by importing it, but we intercept
+        # at the responses.create level
+        captured_kwargs["temperature"] = temperature
+        captured_kwargs["model"] = model
+        return "ok", LLMUsage(input_tokens=10, output_tokens=5)
+
+    monkeypatch.setattr(llm_gateway, "_call_openai", _fake_call_openai)
+
+    result = call_text_completion(
+        task="coaching_report",
+        user_content="test",
+        system=None,
+        max_tokens=128,
+        temperature=0.3,
+        default_provider="openai",
+        default_model="gpt-5-nano",
+    )
+    assert result.provider == "openai"
+    assert result.text == "ok"
+
+
+def _make_fake_openai_client(captured: dict):
+    """Create a fake OpenAI client that captures kwargs passed to responses.create."""
+
+    class _Usage:
+        input_tokens = 10
+        output_tokens = 5
+        input_tokens_details = None
+
+    class _FakeResponse:
+        usage = _Usage
+        output = [
+            type(
+                "Block",
+                (),
+                {
+                    "type": "message",
+                    "content": [type("T", (), {"type": "output_text", "text": "ok"})()],
+                },
+            )()
+        ]
+
+    class _FakeResponses:
+        def create(self, **kwargs):
+            captured.update(kwargs)
+            return _FakeResponse()
+
+    class _FakeClient:
+        responses = _FakeResponses()
+
+        def __init__(self, **kw):
+            pass
+
+    return _FakeClient
+
+
+def test_openai_reasoning_model_kwargs_no_temperature(monkeypatch) -> None:
+    """Verify _call_openai actually strips temperature from kwargs for reasoning models."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
+
+    captured: dict = {}
+    fake_client = _make_fake_openai_client(captured)
+    monkeypatch.setattr("openai.OpenAI", fake_client)
+
+    from cataclysm.llm_gateway import _call_openai
+
+    _call_openai(
+        "gpt-5-nano",
+        "test prompt",
+        system="sys",
+        max_tokens=128,
+        temperature=0.3,
+        timeout_s=30,
+        max_retries=1,
+    )
+    assert "temperature" not in captured, (
+        f"temperature should be stripped for reasoning model, got {captured}"
+    )
+
+    # Non-reasoning model should keep temperature
+    captured.clear()
+    _call_openai(
+        "gpt-4o",
+        "test prompt",
+        system="sys",
+        max_tokens=128,
+        temperature=0.3,
+        timeout_s=30,
+        max_retries=1,
+    )
+    assert captured.get("temperature") == 0.3, "Non-reasoning model should pass temperature"
+
+
+def test_openai_gpt5_mini_also_strips_temperature(monkeypatch) -> None:
+    """GPT-5 Mini is also a reasoning model."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
+
+    captured: dict = {}
+    fake_client = _make_fake_openai_client(captured)
+    monkeypatch.setattr("openai.OpenAI", fake_client)
+
+    from cataclysm.llm_gateway import _call_openai
+
+    _call_openai(
+        "gpt-5-mini",
+        "test",
+        system=None,
+        max_tokens=64,
+        temperature=0.5,
+        timeout_s=30,
+        max_retries=1,
+    )
+    assert "temperature" not in captured
+
+
+def test_google_model_passes_temperature(monkeypatch) -> None:
+    """Gemini models should receive temperature normally."""
+    _clear_events()
+    monkeypatch.setenv("LLM_ROUTING_ENABLED", "0")
+    monkeypatch.setenv("GOOGLE_API_KEY", "gk-test")
+
+    def _fake_call_google(model, user_content, *, system, max_tokens, temperature, timeout_s):
+        assert temperature == 0.3, "Google models should receive temperature"
+        return "gemini ok", LLMUsage(input_tokens=10, output_tokens=5)
+
+    monkeypatch.setattr(llm_gateway, "_call_google", _fake_call_google)
+
+    result = call_text_completion(
+        task="coaching_report",
+        user_content="test",
+        system=None,
+        max_tokens=128,
+        temperature=0.3,
+        default_provider="google",
+        default_model="gemini-2.5-flash",
+    )
+    assert result.provider == "google"
+    assert result.text == "gemini ok"
