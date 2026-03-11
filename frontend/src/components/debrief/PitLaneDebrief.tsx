@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useSession } from '@/hooks/useSession';
 import { useConsistency, useOptimalComparison } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
-import { ArrowRight } from 'lucide-react';
 import { useSessionStore, useUiStore, useAnalysisStore } from '@/stores';
 import { MarkdownText } from '@/components/shared/MarkdownText';
 import { useUnits } from '@/hooks/useUnits';
@@ -20,6 +19,7 @@ import type { ReviewMode } from './ReviewModeSelector';
 import { SkeletonCard } from '@/components/shared/SkeletonCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { SectionDivider } from '@/components/shared/SectionDivider';
+import { OptimalGapChart } from '@/components/session-report/OptimalGapChart';
 
 export function PitLaneDebrief() {
   const sessionId = useSessionStore((s) => s.activeSessionId);
@@ -131,22 +131,10 @@ export function PitLaneDebrief() {
       {/* ── 15m: Optimal gap per corner + more drills ── */}
       {is15m && (
         <>
-          {/* Link to Report tab's Speed vs Optimal chart */}
-          <button
-            type="button"
-            onClick={() => setActiveView('session-report')}
-            className="flex min-h-[44px] w-full items-center justify-between rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] px-5 py-4 text-left transition-colors hover:bg-[var(--bg-elevated)]"
-          >
-            <div>
-              <h3 className="font-[family-name:var(--font-display)] text-sm font-bold text-[var(--text-primary)]">
-                Speed vs Optimal
-              </h3>
-              <p className="text-xs text-[var(--text-secondary)]">
-                Corner-by-corner gap breakdown on the Report tab
-              </p>
-            </div>
-            <ArrowRight className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
-          </button>
+          {/* Speed vs Optimal — reuse the Report tab's chart inline */}
+          {sessionId && (
+            <OptimalGapChart sessionId={sessionId} onCornerClick={handleExploreCorner} />
+          )}
 
           {/* All drills (not just the first) */}
           {report?.drills && report.drills.length > 1 && (
