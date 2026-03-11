@@ -146,13 +146,14 @@ export function HowItWorksModal() {
     }
 
     // New user: poll until disclaimer is accepted, then show
+    let pendingTimeout: ReturnType<typeof setTimeout>;
     const interval = setInterval(() => {
       if (localStorage.getItem(DISCLAIMER_KEY)) {
         clearInterval(interval);
-        setTimeout(toggle, 400);
+        pendingTimeout = setTimeout(toggle, 400);
       }
     }, 300);
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); clearTimeout(pendingTimeout); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
