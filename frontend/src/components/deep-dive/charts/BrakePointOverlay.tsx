@@ -536,19 +536,7 @@ export function BrakePointOverlay({
                   backgroundColor: `${colors.motorsport.brake}88`,
                 }}
               />
-              Brake points
-            </span>
-            <span className="flex items-center gap-1">
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: 8,
-                  height: 2,
-                  backgroundColor: colors.motorsport.optimal,
-                  borderRadius: 1,
-                }}
-              />
-              Best lap
+              Brakes
             </span>
             <span className="flex items-center gap-1">
               <span
@@ -561,7 +549,19 @@ export function BrakePointOverlay({
                   borderBottom: `6px solid ${colors.motorsport.throttle}88`,
                 }}
               />
-              Throttle pts
+              Throttle
+            </span>
+            <span className="flex items-center gap-1">
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: 8,
+                  height: 2,
+                  backgroundColor: colors.motorsport.optimal,
+                  borderRadius: 1,
+                }}
+              />
+              Your best
             </span>
             {(optimalBrakeLine || optimalThrottleLine) && (
               <span className="flex items-center gap-1">
@@ -575,7 +575,7 @@ export function BrakePointOverlay({
                     borderTop: `1px dashed ${colors.motorsport.throttle}`,
                   }}
                 />
-                Optimal
+                Target
               </span>
             )}
           </div>
