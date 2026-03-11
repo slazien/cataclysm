@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## Playwright QA Is Part of "Done" — Not a Post-Merge Step (2026-03-10)
+
+**Pattern**: After all implementation tasks pass reviews, run Playwright visual QA on staging BEFORE declaring "ready to merge." The subagent-driven workflow ends at "mark task complete" but QA is a BLOCKING gate before any merge offer. Never say "ready to merge" without having verified on staging first.
+
+**Why**: Completed 3 tasks (modal fix, anon persistence, coaching wiring), all reviews passed, all quality gates green — then declared "ready to merge staging → main." User had to ask "Have you QAd this?" The existing rule ("Frontend QA: ANY frontend change → Playwright visual verify") was known but skipped because the subagent workflow's "done" signal felt like actual done. QA is the last gate, not an afterthought.
+
+**Error signature**: Saying "ready to merge/deploy" or "all tasks complete" without a Playwright screenshot in the conversation history.
+
 ## Verify Defaults When Concurrent Agents Edit Same Files (2026-03-10)
 
 **Pattern**: When another agent (Codex/Gemini) edits the same file concurrently, diff the final state against the known-good values before committing. Especially numeric defaults, model names, and feature flags — concurrent edits can silently change values you previously set.
