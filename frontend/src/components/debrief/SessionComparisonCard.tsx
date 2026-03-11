@@ -6,7 +6,7 @@ import { useSession } from '@/hooks/useSession';
 import { useOptimalComparison, useConsistency } from '@/hooks/useAnalysis';
 import { usePreviousSessionDelta } from '@/hooks/usePreviousSessionDelta';
 import { useSessionStore } from '@/stores';
-import { formatLapTime, normalizeScore } from '@/lib/formatters';
+import { formatLapTime, normalizeScore, parseSessionDate } from '@/lib/formatters';
 import type { SessionSummary, OptimalComparisonData } from '@/lib/types';
 
 interface SessionComparisonCardProps {
@@ -77,10 +77,10 @@ export function SessionComparisonCard({ session, optimalComparison }: SessionCom
 
   // Format previous session date
   const prevDateStr = prevSession?.session_date
-    ? new Date(prevSession.session_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    ? parseSessionDate(prevSession.session_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     : null;
   const currentDateStr = session.session_date
-    ? new Date(session.session_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    ? parseSessionDate(session.session_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     : null;
 
   const currentBestLap = session.best_lap_time_s;

@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { useSessions, useSession } from './useSession';
 import { getCoachingReport } from '@/lib/api';
+import { parseSessionDate } from '@/lib/formatters';
 import { computeSkillDimensions, dimensionsToArray } from '@/lib/skillDimensions';
 import type { SkillDimensions } from '@/lib/skillDimensions';
 import type { CoachingReport } from '@/lib/types';
@@ -40,8 +41,8 @@ export function useSkillHistory(currentSessionId: string | null) {
       )
       .sort((a, b) => {
         // Sort by date descending (newest first) to pick the most recent N
-        const dateA = new Date(a.session_date).getTime();
-        const dateB = new Date(b.session_date).getTime();
+        const dateA = parseSessionDate(a.session_date).getTime();
+        const dateB = parseSessionDate(b.session_date).getTime();
         return dateB - dateA;
       })
       .slice(0, MAX_HISTORY);

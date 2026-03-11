@@ -209,8 +209,8 @@ export function ProgressView() {
     const trackSessions = sessionsData.items
       .filter((s) => s.track_name === effectiveTrack)
       .sort((a, b) => {
-        const da = new Date(a.session_date).getTime();
-        const db = new Date(b.session_date).getTime();
+        const da = parseSessionDate(a.session_date).getTime();
+        const db = parseSessionDate(b.session_date).getTime();
         return db - da;
       });
     return trackSessions.length > 0 ? trackSessions[0].session_id : null;

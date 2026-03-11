@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSessions } from './useSession';
 import { getOptimalComparison } from '@/lib/api';
+import { parseSessionDate } from '@/lib/formatters';
 import type { SessionSummary, OptimalComparisonData } from '@/lib/types';
 
 export interface CornerDelta {
@@ -26,7 +27,8 @@ export function usePreviousSessionDelta(
     if (!currentSession?.track_name || !currentSession.session_date || !sessionsData?.items) {
       return null;
     }
-    const currentDate = new Date(currentSession.session_date).getTime();
+    const currentDate = parseSessionDate(currentSession.session_date).getTime();
+    if (isNaN(currentDate)) return null;
     // All sessions at the same track, sorted newest-first
     const candidates = sessionsData.items
       .filter(
@@ -34,9 +36,9 @@ export function usePreviousSessionDelta(
           s.track_name === currentSession.track_name &&
           s.session_id !== currentSession.session_id,
       )
-      .sort((a, b) => new Date(b.session_date).getTime() - new Date(a.session_date).getTime());
+      .sort((a, b) => parseSessionDate(b.session_date).getTime() - parseSessionDate(a.session_date).getTime());
     // Find the session immediately before the current one
-    return candidates.find((s) => new Date(s.session_date).getTime() < currentDate)?.session_id ?? null;
+    return candidates.find((s) => parseSessionDate(s.session_date).getTime() < currentDate)?.session_id ?? null;
   }, [currentSession, sessionsData]);
 
   const { data: prevOptimal, isPending: prevLoading } = useQuery<OptimalComparisonData>({
