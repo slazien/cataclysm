@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useSession } from '@/hooks/useSession';
 import { useConsistency, useOptimalComparison } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
+import { ArrowRight } from 'lucide-react';
 import { useSessionStore, useUiStore, useAnalysisStore } from '@/stores';
 import { MarkdownText } from '@/components/shared/MarkdownText';
 import { useUnits } from '@/hooks/useUnits';
@@ -130,44 +131,22 @@ export function PitLaneDebrief() {
       {/* ── 15m: Optimal gap per corner + more drills ── */}
       {is15m && (
         <>
-          {/* Per-corner optimal gap breakdown */}
-          {optimalComparison?.corner_opportunities &&
-            optimalComparison.corner_opportunities.length > 0 && (
-              <div className="rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-5">
-                <h3 className="mb-4 border-l-[3px] border-[var(--text-secondary)] pl-3 font-[family-name:var(--font-display)] text-sm font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                  Corner-by-Corner Gap to Optimal
-                </h3>
-                <div className="space-y-1.5">
-                  {optimalComparison.corner_opportunities
-                    .filter((o) => o.time_cost_s > 0.01)
-                    .sort((a, b) => b.time_cost_s - a.time_cost_s)
-                    .map((o) => (
-                      <button
-                        key={o.corner_number}
-                        type="button"
-                        onClick={() => handleExploreCorner(o.corner_number)}
-                        className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-[var(--bg-elevated)] min-h-[44px]"
-                      >
-                        <span className="w-10 shrink-0 font-[family-name:var(--font-display)] text-sm font-bold text-[var(--text-primary)]">
-                          T{o.corner_number}
-                        </span>
-                        {/* Bar showing relative time cost */}
-                        <div className="flex-1">
-                          <div
-                            className="h-2 rounded-full bg-[var(--color-brake)]/60"
-                            style={{
-                              width: `${Math.min(100, (o.time_cost_s / (optimalComparison.total_gap_s || 1)) * 100)}%`,
-                            }}
-                          />
-                        </div>
-                        <span className="w-14 shrink-0 text-right font-[family-name:var(--font-display)] text-sm font-bold tabular-nums text-[var(--color-brake)]">
-                          {o.time_cost_s.toFixed(2)}s
-                        </span>
-                      </button>
-                    ))}
-                </div>
-              </div>
-            )}
+          {/* Link to Report tab's Speed vs Optimal chart */}
+          <button
+            type="button"
+            onClick={() => setActiveView('session-report')}
+            className="flex min-h-[44px] w-full items-center justify-between rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] px-5 py-4 text-left transition-colors hover:bg-[var(--bg-elevated)]"
+          >
+            <div>
+              <h3 className="font-[family-name:var(--font-display)] text-sm font-bold text-[var(--text-primary)]">
+                Speed vs Optimal
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Corner-by-corner gap breakdown on the Report tab
+              </p>
+            </div>
+            <ArrowRight className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" />
+          </button>
 
           {/* All drills (not just the first) */}
           {report?.drills && report.drills.length > 1 && (
