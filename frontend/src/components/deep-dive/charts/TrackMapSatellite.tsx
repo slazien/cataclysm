@@ -235,23 +235,32 @@ export function TrackMapSatellite({
     if (mapLoaded) fitBounds();
   }, [mapLoaded, fitBounds]);
 
-  // Auto-zoom to selected corner area
+  // Auto-zoom to selected corner area (includes brake zone when available)
   useEffect(() => {
     if (!mapLoaded || !mapRef.current || !lapData || !corners || !selectedCorner) return;
     const cornerNum = Number(selectedCorner.replace('T', ''));
     const corner = corners.find((c) => c.number === cornerNum);
     if (!corner) return;
 
-    // Get entry and exit positions to compute corner bounds
+    // Collect key positions: entry, exit, and brake point (if available)
+    const positions: [number, number][] = [];
     const entryPos = interpolateLatLon(corner.entry_distance_m, lapData);
     const exitPos = interpolateLatLon(corner.exit_distance_m, lapData);
     if (!entryPos || !exitPos) return;
+    positions.push(entryPos, exitPos);
+
+    if (corner.brake_point_m != null) {
+      const brakePos = interpolateLatLon(corner.brake_point_m, lapData);
+      if (brakePos) positions.push(brakePos);
+    }
 
     const padding = 0.0003; // ~30m in degrees
-    const minLon = Math.min(entryPos[0], exitPos[0]) - padding;
-    const maxLon = Math.max(entryPos[0], exitPos[0]) + padding;
-    const minLat = Math.min(entryPos[1], exitPos[1]) - padding;
-    const maxLat = Math.max(entryPos[1], exitPos[1]) + padding;
+    const lons = positions.map((p) => p[0]);
+    const lats = positions.map((p) => p[1]);
+    const minLon = Math.min(...lons) - padding;
+    const maxLon = Math.max(...lons) + padding;
+    const minLat = Math.min(...lats) - padding;
+    const maxLat = Math.max(...lats) + padding;
 
     mapRef.current.fitBounds(
       [[minLon, minLat], [maxLon, maxLat]],
