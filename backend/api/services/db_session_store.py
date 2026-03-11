@@ -210,7 +210,7 @@ async def ensure_user_exists(db: AsyncSession, user: AuthenticatedUser) -> None:
 
 async def store_session_db(
     db: AsyncSession,
-    user_id: str,
+    user_id: str | None,
     session_data: SessionData,
 ) -> None:
     """Persist session metadata to the database after upload.

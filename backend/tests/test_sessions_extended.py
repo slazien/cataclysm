@@ -8,6 +8,7 @@ Targets: lines 55, 68-69, 86-87, 90-91, 113, 125-128, 133, 146-161,
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -2442,3 +2443,89 @@ async def test_backfill_weather_direct_skip_existing_weather() -> None:
     assert result["skipped"] == 1
     assert result["backfilled"] == 0
     assert result["total"] == 1
+
+
+# ===========================================================================
+# Anonymous session persistence — verify DB rows created on anon upload
+# ===========================================================================
+
+
+class TestAnonymousSessionPersistence:
+    """Verify anonymous uploads persist Session + SessionFile rows to DB."""
+
+    @pytest.fixture
+    def _anon_user(self) -> Generator[None, None, None]:
+        """Override get_optional_user to return None (anonymous request)."""
+        from backend.api.dependencies import get_optional_user
+        from backend.api.main import app
+
+        app.dependency_overrides[get_optional_user] = lambda: None
+        yield
+        app.dependency_overrides[get_optional_user] = lambda: _TEST_USER
+
+    @pytest.mark.asyncio
+    async def test_anonymous_upload_creates_session_row_with_null_user(
+        self, client: AsyncClient, synthetic_csv_bytes: bytes, _anon_user: None
+    ) -> None:
+        """Anonymous upload creates a Session row with user_id=NULL."""
+        response = await client.post(
+            "/api/sessions/upload",
+            files=[("files", ("anon_persist.csv", synthetic_csv_bytes, "text/csv"))],
+        )
+        assert response.status_code == 200
+        sid = response.json()["session_ids"][0]
+
+        # Verify the Session row exists in DB with user_id IS NULL
+        from sqlalchemy import select
+
+        from backend.api.db.models import Session as SessionModel
+        from backend.tests.conftest import _test_session_factory
+
+        async with _test_session_factory() as db:
+            row = (
+                await db.execute(select(SessionModel).where(SessionModel.session_id == sid))
+            ).scalar_one_or_none()
+            assert row is not None, f"Session row not found for {sid}"
+            assert row.user_id is None, f"Expected user_id=NULL, got {row.user_id}"
+
+    @pytest.mark.asyncio
+    async def test_anonymous_upload_creates_session_file_row(
+        self, client: AsyncClient, synthetic_csv_bytes: bytes, _anon_user: None
+    ) -> None:
+        """Anonymous upload creates a SessionFile row with CSV bytes."""
+        response = await client.post(
+            "/api/sessions/upload",
+            files=[("files", ("anon_file.csv", synthetic_csv_bytes, "text/csv"))],
+        )
+        assert response.status_code == 200
+        sid = response.json()["session_ids"][0]
+
+        # Verify the SessionFile row exists in DB
+        from sqlalchemy import select
+
+        from backend.api.db.models import SessionFile as SessionFileModel
+        from backend.tests.conftest import _test_session_factory
+
+        async with _test_session_factory() as db:
+            row = (
+                await db.execute(select(SessionFileModel).where(SessionFileModel.session_id == sid))
+            ).scalar_one_or_none()
+            assert row is not None, f"SessionFile row not found for {sid}"
+            assert len(row.csv_bytes) > 0, "CSV bytes should not be empty"
+            assert row.filename == "anon_file.csv"
+
+    @pytest.mark.asyncio
+    async def test_anonymous_session_still_tagged_anonymous_in_memory(
+        self, client: AsyncClient, synthetic_csv_bytes: bytes, _anon_user: None
+    ) -> None:
+        """Anonymous upload still sets is_anonymous=True in memory."""
+        response = await client.post(
+            "/api/sessions/upload",
+            files=[("files", ("anon_mem.csv", synthetic_csv_bytes, "text/csv"))],
+        )
+        assert response.status_code == 200
+        sid = response.json()["session_ids"][0]
+
+        sd = session_store.get_session(sid)
+        assert sd is not None
+        assert sd.is_anonymous is True

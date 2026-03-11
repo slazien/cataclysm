@@ -268,9 +268,9 @@ async def upload_sessions(
 ) -> UploadResponse:
     """Upload one or more RaceChrono CSV files and create sessions.
 
-    Supports both authenticated and anonymous uploads. Anonymous uploads
-    are rate-limited per IP and stored in-memory only (not persisted to
-    PostgreSQL). Authenticated uploads persist to the database as before.
+    Supports both authenticated and anonymous uploads. Both are persisted
+    to PostgreSQL (Session + SessionFile rows) so they survive redeployments.
+    Anonymous sessions use user_id=NULL and are rate-limited per IP.
     """
     is_anonymous = current_user is None
 
@@ -351,7 +351,7 @@ async def upload_sessions(
                     # Tag as anonymous with client IP for rate limiting lookups
                     sd.is_anonymous = True
                     sd.client_ip = client_ip
-                    sd.csv_bytes = file_bytes  # retain for persistence on claim
+                    sd.csv_bytes = file_bytes  # kept for claim path compat
                 elif current_user is not None:
                     # Tag session with user for ownership enforcement
                     sd.user_id = current_user.user_id
@@ -363,9 +363,10 @@ async def upload_sessions(
                 except (ValueError, TypeError, OSError):
                     logger.warning("Auto weather fetch failed for %s", sid, exc_info=True)
 
-            # Persist session metadata to DB (authenticated users only)
-            if sd is not None and current_user is not None:
-                await store_session_db(db, current_user.user_id, sd)
+            # Persist session metadata + CSV to DB (both authenticated & anonymous)
+            if sd is not None:
+                owner_id = current_user.user_id if current_user is not None else None
+                await store_session_db(db, owner_id, sd)
                 await db.commit()
 
                 # Persist raw CSV bytes so sessions survive redeployments.
