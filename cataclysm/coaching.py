@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import json
 import logging
 import os
@@ -1078,18 +1077,24 @@ def _parse_coaching_response(text: str) -> CoachingReport:
 
     # Fallback: find outermost { ... } if code-block extraction didn't work
     data = None
+    parse_error: json.JSONDecodeError | None = None
     try:
         data = json.loads(json_text.strip())
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
+        parse_error = exc
         start = text.find("{")
         end = text.rfind("}")
         if start != -1 and end > start:
-            with contextlib.suppress(json.JSONDecodeError):
+            try:
                 data = json.loads(text[start : end + 1])
+            except json.JSONDecodeError as exc2:
+                parse_error = exc2
 
     if data is None:
         logger.error(
-            "Could not parse coaching JSON. First 500 chars: %s",
+            "Could not parse coaching JSON (%s). Last 200 chars: %s | First 500 chars: %s",
+            parse_error,
+            text[-200:] if text else "<empty>",
             text[:500] if text else "<empty>",
         )
         return CoachingReport(
