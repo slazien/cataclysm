@@ -6,6 +6,7 @@ import { useCoachingReport } from '@/hooks/useCoaching';
 import { useSessionStore } from '@/stores';
 import { MarkdownText } from '@/components/shared/MarkdownText';
 import { useUnits } from '@/hooks/useUnits';
+import { useCoachingNav } from '@/hooks/useCoachingNav';
 import { formatCoachingText } from '@/lib/textUtils';
 import { normalizeScore } from '@/lib/formatters';
 import { DebriefHeroCard } from './DebriefHeroCard';
@@ -21,6 +22,7 @@ export function PitLaneDebrief() {
   const { data: consistency } = useConsistency(sessionId);
   const { data: report } = useCoachingReport(sessionId);
   const { resolveSpeed } = useUnits();
+  const coachingNav = useCoachingNav();
 
   if (!sessionId) {
     return <EmptyState message="Select a session to see your debrief." />;
@@ -75,7 +77,7 @@ export function PitLaneDebrief() {
             Session Summary
           </h3>
           <div className="text-sm leading-relaxed text-[var(--text-secondary)]">
-            <MarkdownText block>{formatCoachingText(resolveSpeed(report.summary))}</MarkdownText>
+            <MarkdownText block linkHandlers={coachingNav}>{formatCoachingText(resolveSpeed(report.summary))}</MarkdownText>
           </div>
         </div>
       )}

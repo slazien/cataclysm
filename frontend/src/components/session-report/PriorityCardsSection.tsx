@@ -5,6 +5,8 @@ import { ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { useUiStore, useAnalysisStore } from '@/stores';
 import type { PriorityCorner, CornerGrade, OptimalComparisonData } from '@/lib/types';
 import { useUnits } from '@/hooks/useUnits';
+import { useSkillLevel } from '@/hooks/useSkillLevel';
+import { useCoachingNav } from '@/hooks/useCoachingNav';
 import { worstGrade } from '@/lib/gradeUtils';
 import { extractActionTitle, formatCoachingText } from '@/lib/textUtils';
 import { MarkdownText } from '@/components/shared/MarkdownText';
@@ -47,6 +49,7 @@ function PriorityCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const { resolveSpeed } = useUnits();
+  const coachingNav = useCoachingNav();
 
   const borderColorClass = gradeForCorner
     ? (GRADE_BORDER_COLORS[gradeForCorner] ?? 'border-l-[var(--cata-accent)]')
@@ -89,29 +92,31 @@ function PriorityCard({
         <p className="mb-2 text-xs leading-relaxed text-[var(--text-secondary)]">{formatCoachingText(resolveSpeed(p.tip))}</p>
       )}
 
-      {/* Expandable detail section */}
-      <div>
-        <button
-          type="button"
-          onClick={() => setExpanded(!expanded)}
-          className="inline-flex min-h-[44px] items-center gap-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-secondary)]"
-        >
-          {expanded ? (
-            <>
-              Hide details <ChevronUp className="h-3 w-3" />
-            </>
-          ) : (
-            <>
-              Show details <ChevronDown className="h-3 w-3" />
-            </>
+      {/* Expandable detail section — hidden for novice (tip above is sufficient) */}
+      {!isNovice && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setExpanded(!expanded)}
+            className="inline-flex min-h-[44px] items-center gap-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-secondary)]"
+          >
+            {expanded ? (
+              <>
+                Hide details <ChevronUp className="h-3 w-3" />
+              </>
+            ) : (
+              <>
+                Show details <ChevronDown className="h-3 w-3" />
+              </>
+            )}
+          </button>
+          {expanded && (
+            <div className="mt-2 text-xs leading-relaxed text-[var(--text-secondary)]">
+              <MarkdownText block linkHandlers={coachingNav}>{resolvedIssue}</MarkdownText>
+            </div>
           )}
-        </button>
-        {expanded && (
-          <div className="mt-2 text-xs leading-relaxed text-[var(--text-secondary)]">
-            <MarkdownText block>{resolvedIssue}</MarkdownText>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -120,6 +125,8 @@ export function PriorityCardsSection({ priorities, isNovice, cornerGrades, optim
   const setActiveView = useUiStore((s) => s.setActiveView);
   const setMode = useAnalysisStore((s) => s.setMode);
   const selectCorner = useAnalysisStore((s) => s.selectCorner);
+  const { showFeature } = useSkillLevel();
+  const showTrailBraking = showFeature('trail_braking_grade');
 
   function handleExploreCorner(cornerNum: number) {
     selectCorner(`T${cornerNum}`);
@@ -132,7 +139,7 @@ export function PriorityCardsSection({ priorities, isNovice, cornerGrades, optim
     if (!cornerGrades) return null;
     const cg = cornerGrades.find((g) => g.corner === cornerNum);
     if (!cg) return null;
-    const grades = [cg.braking, cg.trail_braking, cg.min_speed, cg.throttle].filter(Boolean);
+    const grades = [cg.braking, showTrailBraking ? cg.trail_braking : null, cg.min_speed, cg.throttle].filter((g): g is string => Boolean(g));
     return grades.length > 0 ? worstGrade(grades) : null;
   }
 

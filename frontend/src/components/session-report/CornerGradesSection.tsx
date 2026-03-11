@@ -10,6 +10,8 @@ import { motion as motionTokens } from '@/lib/design-tokens';
 import { useUnits } from '@/hooks/useUnits';
 import { formatCoachingText } from '@/lib/textUtils';
 import { InfoTooltip } from '@/components/shared/InfoTooltip';
+import { useSkillLevel } from '@/hooks/useSkillLevel';
+import { useCoachingNav } from '@/hooks/useCoachingNav';
 import type { CornerGrade } from '@/lib/types';
 
 const rowVariants = {
@@ -26,6 +28,9 @@ export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
   const setMode = useAnalysisStore((s) => s.setMode);
   const selectCorner = useAnalysisStore((s) => s.selectCorner);
   const { resolveSpeed } = useUnits();
+  const { showFeature, isNovice } = useSkillLevel();
+  const showTrailBraking = showFeature('trail_braking_grade');
+  const coachingNav = useCoachingNav();
   const [expandedCorner, setExpandedCorner] = useState<number | null>(null);
 
   const handleCornerClick = useCallback(
@@ -60,9 +65,11 @@ export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
               <th className="px-2 py-1.5 text-center font-medium text-[var(--text-secondary)] lg:px-3 lg:py-2">
                 <span className="inline-flex items-center gap-1">Braking <InfoTooltip helpKey="grade.braking" side="bottom" /></span>
               </th>
+              {showTrailBraking && (
               <th className="px-2 py-1.5 text-center font-medium text-[var(--text-secondary)] lg:px-3 lg:py-2">
                 <span className="inline-flex items-center gap-1">Trail Braking <InfoTooltip helpKey="grade.trail-braking" side="bottom" /></span>
               </th>
+              )}
               <th className="px-2 py-1.5 text-center font-medium text-[var(--text-secondary)] lg:px-3 lg:py-2">
                 <span className="inline-flex items-center gap-1">Min Speed <InfoTooltip helpKey="grade.min-speed" side="bottom" /></span>
               </th>
@@ -93,7 +100,7 @@ export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
                     <td className="px-2 py-1.5 font-medium text-[var(--text-primary)] lg:px-3 lg:py-2">
                       <span className="flex items-center gap-1">
                         T{g.corner}
-                        {hasNotes && (
+                        {!isNovice && hasNotes && (
                           <button
                             type="button"
                             onClick={(e) => handleToggleNotes(e, g.corner)}
@@ -114,12 +121,12 @@ export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
                       </span>
                     </td>
                     <td className="px-2 py-1.5 text-center lg:px-3 lg:py-2"><GradeChip grade={g.braking} reason={g.braking_reason} /></td>
-                    <td className="px-2 py-1.5 text-center lg:px-3 lg:py-2"><GradeChip grade={g.trail_braking} reason={g.trail_braking_reason} /></td>
+                    {showTrailBraking && <td className="px-2 py-1.5 text-center lg:px-3 lg:py-2"><GradeChip grade={g.trail_braking} reason={g.trail_braking_reason} /></td>}
                     <td className="px-2 py-1.5 text-center lg:px-3 lg:py-2"><GradeChip grade={g.min_speed} reason={g.min_speed_reason} /></td>
                     <td className="px-2 py-1.5 text-center lg:px-3 lg:py-2"><GradeChip grade={g.throttle} reason={g.throttle_reason} /></td>
                   </m.tr>
                   <AnimatePresence>
-                    {isExpanded && hasNotes && (
+                    {!isNovice && isExpanded && hasNotes && (
                       <m.tr
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
@@ -127,9 +134,9 @@ export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
                         transition={{ duration: 0.2 }}
                         className="border-b border-[var(--cata-border)] last:border-0"
                       >
-                        <td colSpan={5} className="px-2 py-2 lg:px-3">
+                        <td colSpan={showTrailBraking ? 5 : 4} className="px-2 py-2 lg:px-3">
                           <AiInsight mode="inline">
-                            <MarkdownText block>{formatCoachingText(resolveSpeed(g.notes))}</MarkdownText>
+                            <MarkdownText block linkHandlers={coachingNav}>{formatCoachingText(resolveSpeed(g.notes))}</MarkdownText>
                           </AiInsight>
                         </td>
                       </m.tr>

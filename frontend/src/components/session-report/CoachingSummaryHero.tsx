@@ -5,6 +5,7 @@ import { Sparkles } from 'lucide-react';
 import { MarkdownText } from '@/components/shared/MarkdownText';
 import { useUnits } from '@/hooks/useUnits';
 import { formatCoachingText } from '@/lib/textUtils';
+import { useCoachingNav } from '@/hooks/useCoachingNav';
 import type { CoachingReport } from '@/lib/types';
 
 interface CoachingSummaryHeroProps {
@@ -102,6 +103,7 @@ function GeneratingProgress({ startedAt, estimatedS, onRetry }: { startedAt?: st
 export function CoachingSummaryHero({ report, onRetry }: CoachingSummaryHeroProps) {
   const isLoading = !report || report.status === 'generating';
   const { resolveSpeed } = useUnits();
+  const coachingNav = useCoachingNav();
   const summary = report?.summary ? formatCoachingText(resolveSpeed(report.summary)) : report?.summary;
   const primaryFocus = report?.primary_focus ? formatCoachingText(resolveSpeed(report.primary_focus)) : null;
 
@@ -130,7 +132,7 @@ export function CoachingSummaryHero({ report, onRetry }: CoachingSummaryHeroProp
                 Your #1 Focus
               </span>
               <p className="mt-1 text-sm font-medium leading-relaxed text-[var(--text-primary)]">
-                <MarkdownText>{primaryFocus}</MarkdownText>
+                <MarkdownText linkHandlers={coachingNav}>{primaryFocus}</MarkdownText>
               </p>
               <p className="mt-2 text-[11px] text-[var(--text-secondary)]">
                 Based on Allen Berg corner prioritization methodology
@@ -143,11 +145,11 @@ export function CoachingSummaryHero({ report, onRetry }: CoachingSummaryHeroProp
               return (
                 <>
                   <p className="font-[family-name:var(--font-display)] text-base font-semibold leading-snug text-[var(--text-primary)]">
-                    <MarkdownText>{lead}</MarkdownText>
+                    <MarkdownText linkHandlers={coachingNav}>{lead}</MarkdownText>
                   </p>
                   {rest && (
                     <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
-                      <MarkdownText>{rest}</MarkdownText>
+                      <MarkdownText linkHandlers={coachingNav}>{rest}</MarkdownText>
                     </p>
                   )}
                 </>

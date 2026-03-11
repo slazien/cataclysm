@@ -118,6 +118,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
   const { convertSpeed, convertDistance, speedUnit, distanceUnit, resolveSpeed } = useUnits();
   const { skillLevel, showFeature } = useSkillLevel();
   const showExplanations = showFeature('grade_explanations');
+  const showTrailBraking = showFeature('trail_braking_grade');
 
   const cycleCorner = useCallback(
     (direction: 'prev' | 'next') => {
@@ -217,10 +218,10 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
   if (cornerGrade) {
     const gradeLetters = [
       cornerGrade.braking,
-      cornerGrade.trail_braking,
+      showTrailBraking ? cornerGrade.trail_braking : null,
       cornerGrade.min_speed,
       cornerGrade.throttle,
-    ].filter(Boolean);
+    ].filter((g): g is string => Boolean(g));
     if (gradeLetters.length > 0) {
       overallGrade = worstGrade(gradeLetters);
     }
@@ -342,7 +343,7 @@ export function CornerDetailPanel({ sessionId }: CornerDetailPanelProps) {
               explanation={showExplanations ? gradeExplanation(cornerGrade.braking, 'braking', skillLevel) : null}
             />
           )}
-          {cornerGrade.trail_braking && (
+          {showTrailBraking && cornerGrade.trail_braking && (
             <GradeRow
               label={<GlossaryTerm term="Trail Braking">Trail Braking</GlossaryTerm>}
               grade={cornerGrade.trail_braking}

@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { TrendingUp, Target, ChevronDown, ChevronUp } from 'lucide-react';
 import { extractActionTitle, extractDetailText, formatCoachingText } from '@/lib/textUtils';
 import { useUnits } from '@/hooks/useUnits';
+import { useCoachingNav } from '@/hooks/useCoachingNav';
 import { MarkdownText } from '@/components/shared/MarkdownText';
+import type { CoachingLinkHandlers } from '@/lib/coachingLinks';
 
 const DEFAULT_VISIBLE = 3;
 
@@ -13,7 +15,7 @@ interface PatternsAndDrillsSectionProps {
   drills: string[];
 }
 
-function ExpandableItem({ text, bullet }: { text: string; bullet: string }) {
+function ExpandableItem({ text, bullet, linkHandlers }: { text: string; bullet: string; linkHandlers?: CoachingLinkHandlers }) {
   const [expanded, setExpanded] = useState(false);
   const title = extractActionTitle(text);
   const detail = extractDetailText(text);
@@ -24,7 +26,7 @@ function ExpandableItem({ text, bullet }: { text: string; bullet: string }) {
       <div className="flex items-start gap-1">
         <span className="mt-0.5 shrink-0 text-[var(--text-secondary)]">{bullet}</span>
         <div className="min-w-0">
-          <span><MarkdownText>{title}</MarkdownText></span>
+          <span><MarkdownText linkHandlers={linkHandlers}>{title}</MarkdownText></span>
           {hasDetail && (
             <button
               type="button"
@@ -40,7 +42,7 @@ function ExpandableItem({ text, bullet }: { text: string; bullet: string }) {
           )}
           {expanded && detail && (
             <div className="mt-1 text-[var(--text-secondary)]">
-              <MarkdownText block>{detail}</MarkdownText>
+              <MarkdownText block linkHandlers={linkHandlers}>{detail}</MarkdownText>
             </div>
           )}
         </div>
@@ -52,6 +54,7 @@ function ExpandableItem({ text, bullet }: { text: string; bullet: string }) {
 export function PatternsAndDrillsSection({ patterns, drills }: PatternsAndDrillsSectionProps) {
   const [showAllPatterns, setShowAllPatterns] = useState(false);
   const { resolveSpeed } = useUnits();
+  const coachingNav = useCoachingNav();
   const resolvedPatterns = patterns.map((t) => formatCoachingText(resolveSpeed(t)));
   const resolvedDrills = drills.map((t) => formatCoachingText(resolveSpeed(t)));
   const visiblePatterns = showAllPatterns ? resolvedPatterns : resolvedPatterns.slice(0, DEFAULT_VISIBLE);
@@ -67,7 +70,7 @@ export function PatternsAndDrillsSection({ patterns, drills }: PatternsAndDrills
           </div>
           <ul className="space-y-1.5">
             {visiblePatterns.map((p, i) => (
-              <ExpandableItem key={i} text={p} bullet="&bull;" />
+              <ExpandableItem key={i} text={p} bullet="&bull;" linkHandlers={coachingNav} />
             ))}
           </ul>
           {hiddenCount > 0 && (
@@ -93,7 +96,7 @@ export function PatternsAndDrillsSection({ patterns, drills }: PatternsAndDrills
           </div>
           <ul className="space-y-1.5">
             {resolvedDrills.map((d, i) => (
-              <ExpandableItem key={i} text={d} bullet={`${i + 1}.`} />
+              <ExpandableItem key={i} text={d} bullet={`${i + 1}.`} linkHandlers={coachingNav} />
             ))}
           </ul>
         </div>

@@ -3,6 +3,7 @@
 import { Brain } from 'lucide-react';
 import { MarkdownText } from '@/components/shared/MarkdownText';
 import { useUnits } from '@/hooks/useUnits';
+import { useCoachingNav } from '@/hooks/useCoachingNav';
 import { formatCoachingText } from '@/lib/textUtils';
 
 interface QuickTipProps {
@@ -11,6 +12,7 @@ interface QuickTipProps {
 
 export function QuickTip({ drill }: QuickTipProps) {
   const { resolveSpeed } = useUnits();
+  const coachingNav = useCoachingNav();
 
   return (
     <div
@@ -23,7 +25,7 @@ export function QuickTip({ drill }: QuickTipProps) {
           <h3 className="mb-1 font-[family-name:var(--font-display)] text-xs font-bold uppercase tracking-widest text-[var(--cata-accent)]">
             Coach&apos;s Tip
           </h3>
-          <div className="text-sm leading-relaxed text-[var(--text-secondary)]"><MarkdownText block>{formatCoachingText(resolveSpeed(drill))}</MarkdownText></div>
+          <div className="text-sm leading-relaxed text-[var(--text-secondary)]"><MarkdownText block linkHandlers={coachingNav}>{formatCoachingText(resolveSpeed(drill))}</MarkdownText></div>
         </div>
       </div>
     </div>
