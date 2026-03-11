@@ -228,11 +228,11 @@ export function BrakePointOverlay({
               height: dot.radius * 2,
               borderRadius: '50%',
               backgroundColor: dot.isBest
-                ? colors.motorsport.throttle
+                ? colors.motorsport.optimal
                 : `${colors.motorsport.brake}88`,
               border: dot.isBest ? '2px solid #fff' : 'none',
               boxShadow: dot.isBest
-                ? `0 0 8px ${colors.motorsport.throttle}88`
+                ? `0 0 8px ${colors.motorsport.optimal}88`
                 : 'none',
             }}
             title={`Lap ${dot.lapNumber}${dot.isBest ? ' (best)' : ''}`}
@@ -240,14 +240,14 @@ export function BrakePointOverlay({
         </Marker>
       ))}
 
-      {/* Best-lap brake line (solid green) */}
+      {/* Best-lap brake line (solid blue) */}
       {bestBrakeLine && (
         <Source id="best-brake-line" type="geojson" data={bestBrakeLine}>
           <Layer
             id="best-brake-line-layer"
             type="line"
             paint={{
-              'line-color': colors.motorsport.throttle,
+              'line-color': colors.motorsport.optimal,
               'line-width': 3,
               'line-opacity': 0.9,
             }}
@@ -258,14 +258,14 @@ export function BrakePointOverlay({
         </Source>
       )}
 
-      {/* Optimal brake line (dashed amber) */}
+      {/* Optimal brake line (dashed green) */}
       {optimalBrakeLine && (
         <Source id="optimal-brake-line" type="geojson" data={optimalBrakeLine}>
           <Layer
             id="optimal-brake-line-layer"
             type="line"
             paint={{
-              'line-color': colors.motorsport.neutral,
+              'line-color': colors.motorsport.throttle,
               'line-width': 2.5,
               'line-opacity': 0.8,
               'line-dasharray': [4, 3],
@@ -330,7 +330,7 @@ export function BrakePointOverlay({
               <span
                 className="font-semibold tabular-nums"
                 style={{
-                  color: stats.brakeGapM > 0 ? colors.motorsport.neutral : colors.motorsport.throttle,
+                  color: stats.brakeGapM > 0 ? colors.motorsport.brake : colors.motorsport.throttle,
                 }}
               >
                 {stats.brakeGapM > 0 ? `${stats.brakeGapM.toFixed(1)}m later` : `${Math.abs(stats.brakeGapM).toFixed(1)}m earlier`}
@@ -356,7 +356,7 @@ export function BrakePointOverlay({
                   display: 'inline-block',
                   width: 8,
                   height: 2,
-                  backgroundColor: colors.motorsport.throttle,
+                  backgroundColor: colors.motorsport.optimal,
                   borderRadius: 1,
                 }}
               />
@@ -369,9 +369,9 @@ export function BrakePointOverlay({
                     display: 'inline-block',
                     width: 8,
                     height: 2,
-                    backgroundColor: colors.motorsport.neutral,
+                    backgroundColor: colors.motorsport.throttle,
                     borderRadius: 1,
-                    borderTop: `1px dashed ${colors.motorsport.neutral}`,
+                    borderTop: `1px dashed ${colors.motorsport.throttle}`,
                   }}
                 />
                 Optimal
