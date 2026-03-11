@@ -133,11 +133,26 @@ export function HowItWorksModal() {
   const open = useUiStore((s) => s.howItWorksOpen);
   const toggle = useUiStore((s) => s.toggleHowItWorks);
 
-  // Auto-open once for first-time visitors
+  // Auto-open once for first-time visitors, but only after disclaimer is accepted
   useEffect(() => {
-    if (!localStorage.getItem(HOW_IT_WORKS_SEEN_KEY)) {
-      toggle();
+    if (localStorage.getItem(HOW_IT_WORKS_SEEN_KEY)) return;
+
+    const DISCLAIMER_KEY = 'cataclysm-disclaimer-accepted';
+
+    // Returning user: disclaimer already accepted, show after short delay
+    if (localStorage.getItem(DISCLAIMER_KEY)) {
+      const timer = setTimeout(toggle, 400);
+      return () => clearTimeout(timer);
     }
+
+    // New user: poll until disclaimer is accepted, then show
+    const interval = setInterval(() => {
+      if (localStorage.getItem(DISCLAIMER_KEY)) {
+        clearInterval(interval);
+        setTimeout(toggle, 400);
+      }
+    }, 300);
+    return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
