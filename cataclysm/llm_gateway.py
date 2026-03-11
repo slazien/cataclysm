@@ -431,10 +431,13 @@ def _call_openai(
     )
     is_reasoning = any(model.startswith(p) for p in _OPENAI_REASONING_PREFIXES)
 
+    # Reasoning models share max_output_tokens between internal chain-of-thought
+    # and visible output.  Double the budget so the visible response isn't truncated.
+    effective_max = max_tokens * 3 if is_reasoning else max_tokens
     kwargs: dict[str, Any] = {
         "model": model,
         "input": user_content,
-        "max_output_tokens": max_tokens,
+        "max_output_tokens": effective_max,
     }
     if system:
         kwargs["instructions"] = system

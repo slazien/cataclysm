@@ -220,6 +220,45 @@ def test_openai_reasoning_model_kwargs_no_temperature(monkeypatch) -> None:
     assert captured.get("temperature") == 0.3, "Non-reasoning model should pass temperature"
 
 
+def test_openai_reasoning_model_triples_max_tokens(monkeypatch) -> None:
+    """Reasoning models get 3x max_output_tokens to account for internal chain-of-thought."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
+
+    captured: dict = {}
+    fake_client = _make_fake_openai_client(captured)
+    monkeypatch.setattr("openai.OpenAI", fake_client)
+
+    from cataclysm.llm_gateway import _call_openai
+
+    _call_openai(
+        "gpt-5-mini",
+        "test",
+        system=None,
+        max_tokens=8192,
+        temperature=0.3,
+        timeout_s=30,
+        max_retries=1,
+    )
+    assert captured["max_output_tokens"] == 8192 * 3, (
+        f"Reasoning model should get 3x tokens, got {captured['max_output_tokens']}"
+    )
+
+    # Non-reasoning model should pass max_tokens unchanged
+    captured.clear()
+    _call_openai(
+        "gpt-4o",
+        "test",
+        system=None,
+        max_tokens=8192,
+        temperature=0.3,
+        timeout_s=30,
+        max_retries=1,
+    )
+    assert captured["max_output_tokens"] == 8192, (
+        f"Non-reasoning model should get exact max_tokens, got {captured['max_output_tokens']}"
+    )
+
+
 def test_openai_gpt5_mini_also_strips_temperature(monkeypatch) -> None:
     """GPT-5 Mini is also a reasoning model."""
     monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
