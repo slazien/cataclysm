@@ -144,6 +144,36 @@ export function BrakePointOverlay({
     return dots;
   }, [allLapCorners, cornerNumber, lapData, bestLapNumber]);
 
+  // Collect per-lap throttle commit points for this corner
+  const throttleDots = useMemo(() => {
+    if (!allLapCorners) return [];
+    const dots: Array<{
+      lon: number;
+      lat: number;
+      lapNumber: number;
+      isBest: boolean;
+      throttleCommitM: number;
+    }> = [];
+
+    for (const [lapStr, corners] of Object.entries(allLapCorners)) {
+      const lapNum = Number(lapStr);
+      const corner = corners.find((c) => c.number === cornerNumber);
+      if (!corner?.throttle_commit_m) continue;
+
+      const pos = interpolateLatLon(corner.throttle_commit_m, lapData);
+      if (!pos) continue;
+
+      dots.push({
+        lon: pos[0],
+        lat: pos[1],
+        lapNumber: lapNum,
+        isBest: lapNum === bestLapNumber,
+        throttleCommitM: corner.throttle_commit_m,
+      });
+    }
+    return dots;
+  }, [allLapCorners, cornerNumber, lapData, bestLapNumber]);
+
   // Best-lap brake line (solid green)
   const bestBrakeLine = useMemo((): GeoJSON.FeatureCollection | null => {
     const bestDot = brakeDots.find((d) => d.isBest);
@@ -183,6 +213,43 @@ export function BrakePointOverlay({
     return { type: 'FeatureCollection', features: [line] };
   }, [optimalComparison, allLapCorners, bestLapNumber, cornerNumber, lapData]);
 
+  // Best-lap throttle line (solid blue)
+  const bestThrottleLine = useMemo((): GeoJSON.FeatureCollection | null => {
+    const bestDot = throttleDots.find((d) => d.isBest);
+    if (!bestDot) return null;
+
+    const bestCorners = allLapCorners?.[String(bestLapNumber)];
+    const bestCorner = bestCorners?.find((c) => c.number === cornerNumber);
+    const throttleDist = bestCorner?.throttle_commit_m;
+    if (throttleDist == null) return null;
+
+    const line = buildPerpendicularLine([bestDot.lon, bestDot.lat], lapData, throttleDist, 14);
+    if (!line) return null;
+
+    return { type: 'FeatureCollection', features: [line] };
+  }, [throttleDots, allLapCorners, bestLapNumber, cornerNumber, lapData]);
+
+  // Optimal throttle line (dashed green)
+  const optimalThrottleLine = useMemo((): GeoJSON.FeatureCollection | null => {
+    const opp = optimalComparison?.corner_opportunities?.find(
+      (o) => o.corner_number === cornerNumber,
+    );
+    if (!opp?.throttle_gap_m) return null;
+
+    const bestCorners = allLapCorners?.[String(bestLapNumber)];
+    const bestCorner = bestCorners?.find((c) => c.number === cornerNumber);
+    if (!bestCorner?.throttle_commit_m) return null;
+
+    const optimalDist = bestCorner.throttle_commit_m - opp.throttle_gap_m;
+    const pos = interpolateLatLon(optimalDist, lapData);
+    if (!pos) return null;
+
+    const line = buildPerpendicularLine(pos, lapData, optimalDist, 14);
+    if (!line) return null;
+
+    return { type: 'FeatureCollection', features: [line] };
+  }, [optimalComparison, allLapCorners, bestLapNumber, cornerNumber, lapData]);
+
   // Stats for the info panel
   const stats = useMemo(() => {
     if (brakeDots.length === 0) return null;
@@ -212,7 +279,7 @@ export function BrakePointOverlay({
       (o) => o.corner_number === cornerNumber,
     );
 
-    return { distToApex, spreadM, brakeGapM: opp?.brake_gap_m ?? null };
+    return { distToApex, spreadM, brakeGapM: opp?.brake_gap_m ?? null, throttleGapM: opp?.throttle_gap_m ?? null };
   }, [brakeDots, allLapCorners, bestLapNumber, cornerNumber, optimalComparison]);
 
   const handleDotEnter = useCallback(
@@ -222,11 +289,18 @@ export function BrakePointOverlay({
     [setHoveredPedalPoint],
   );
 
+  const handleThrottleDotEnter = useCallback(
+    (lapNumber: number, throttleCommitM: number) => {
+      setHoveredPedalPoint({ lapNumber, distanceM: throttleCommitM, type: 'throttle' });
+    },
+    [setHoveredPedalPoint],
+  );
+
   const handleDotLeave = useCallback(() => {
     setHoveredPedalPoint(null);
   }, [setHoveredPedalPoint]);
 
-  if (brakeDots.length === 0) return null;
+  if (brakeDots.length === 0 && throttleDots.length === 0) return null;
 
   return (
     <>
@@ -304,6 +378,78 @@ export function BrakePointOverlay({
         </Source>
       )}
 
+      {/* Per-lap throttle commit dots (triangles) */}
+      {throttleDots.map((dot) => {
+        const isHovered = hoveredPedalPoint?.lapNumber === dot.lapNumber && hoveredPedalPoint?.type === 'throttle';
+        const size = isHovered ? 14 : 10;
+
+        return (
+          <Marker
+            key={`throttle-${dot.lapNumber}`}
+            longitude={dot.lon}
+            latitude={dot.lat}
+            anchor="center"
+          >
+            <div
+              onMouseEnter={() => handleThrottleDotEnter(dot.lapNumber, dot.throttleCommitM)}
+              onMouseLeave={handleDotLeave}
+              style={{
+                width: 0,
+                height: 0,
+                borderLeft: `${size / 2}px solid transparent`,
+                borderRight: `${size / 2}px solid transparent`,
+                borderBottom: `${size}px solid ${
+                  dot.isBest
+                    ? colors.motorsport.optimal
+                    : `${colors.motorsport.throttle}${isHovered ? 'dd' : '88'}`
+                }`,
+                filter: isHovered
+                  ? `drop-shadow(0 0 6px ${colors.motorsport.throttle}cc)`
+                  : dot.isBest
+                    ? `drop-shadow(0 0 4px ${colors.motorsport.optimal}66)`
+                    : 'none',
+                transition: 'all 150ms ease-out',
+                cursor: 'pointer',
+              }}
+              title={`Throttle L${dot.lapNumber}${dot.isBest ? ' (best)' : ''}`}
+            />
+          </Marker>
+        );
+      })}
+
+      {/* Best-lap throttle line (solid blue) */}
+      {bestThrottleLine && (
+        <Source id="best-throttle-line" type="geojson" data={bestThrottleLine}>
+          <Layer
+            id="best-throttle-line-layer"
+            type="line"
+            paint={{
+              'line-color': colors.motorsport.optimal,
+              'line-width': 3,
+              'line-opacity': 0.9,
+            }}
+            layout={{ 'line-cap': 'round' }}
+          />
+        </Source>
+      )}
+
+      {/* Optimal throttle line (dashed green) */}
+      {optimalThrottleLine && (
+        <Source id="optimal-throttle-line" type="geojson" data={optimalThrottleLine}>
+          <Layer
+            id="optimal-throttle-line-layer"
+            type="line"
+            paint={{
+              'line-color': colors.motorsport.throttle,
+              'line-width': 2.5,
+              'line-opacity': 0.8,
+              'line-dasharray': [4, 3],
+            }}
+            layout={{ 'line-cap': 'round' }}
+          />
+        </Source>
+      )}
+
       {/* Apex marker (diamond) */}
       {(() => {
         const bestCorners = allLapCorners?.[String(bestLapNumber)];
@@ -364,6 +510,21 @@ export function BrakePointOverlay({
               </span>
             </p>
           )}
+          {stats.throttleGapM != null && Math.abs(stats.throttleGapM) >= 0.5 && (
+            <p className="text-xs text-[var(--text-primary)]">
+              <span className="text-[var(--text-secondary)]">throttle vs optimal: </span>
+              <span
+                className="font-semibold tabular-nums"
+                style={{
+                  color: stats.throttleGapM > 0 ? colors.motorsport.brake : colors.motorsport.throttle,
+                }}
+              >
+                {stats.throttleGapM > 0
+                  ? `${stats.throttleGapM.toFixed(1)}m later`
+                  : `${Math.abs(stats.throttleGapM).toFixed(1)}m earlier`}
+              </span>
+            </p>
+          )}
           <div className="mt-1.5 flex items-center gap-3 text-[10px] text-[var(--text-secondary)]">
             <span className="flex items-center gap-1">
               <span
@@ -389,7 +550,20 @@ export function BrakePointOverlay({
               />
               Best lap
             </span>
-            {optimalBrakeLine && (
+            <span className="flex items-center gap-1">
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: 0,
+                  height: 0,
+                  borderLeft: '3px solid transparent',
+                  borderRight: '3px solid transparent',
+                  borderBottom: `6px solid ${colors.motorsport.throttle}88`,
+                }}
+              />
+              Throttle pts
+            </span>
+            {(optimalBrakeLine || optimalThrottleLine) && (
               <span className="flex items-center gap-1">
                 <span
                   style={{
