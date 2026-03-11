@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowRight, ChevronDown, ChevronUp, TrendingUp, TrendingDown } from 'lucide-react';
 import { useUiStore, useAnalysisStore } from '@/stores';
 import type { PriorityCorner, CornerGrade, OptimalComparisonData } from '@/lib/types';
+import type { CornerDelta } from '@/hooks/usePreviousSessionDelta';
 import { useUnits } from '@/hooks/useUnits';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
 import { useCoachingNav } from '@/hooks/useCoachingNav';
@@ -26,6 +27,7 @@ interface PriorityCardsSectionProps {
   cornerGrades?: CornerGrade[];
   optimalComparison?: OptimalComparisonData | null;
   isOptimalRefreshing?: boolean;
+  cornerDeltas?: Map<number, CornerDelta> | null;
 }
 
 function formatPriorityBadge(timeCostS: number): string {
@@ -38,6 +40,7 @@ function PriorityCard({
   gradeForCorner,
   liveTimeCost,
   isRefreshing,
+  delta,
   onExplore,
 }: {
   p: PriorityCorner;
@@ -45,6 +48,7 @@ function PriorityCard({
   gradeForCorner: string | null;
   liveTimeCost?: number;
   isRefreshing?: boolean;
+  delta?: CornerDelta | null;
   onExplore: (corner: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -73,9 +77,28 @@ function PriorityCard({
             {actionTitle}
           </span>
         </div>
-        <span className={`shrink-0 rounded-full bg-[var(--color-brake)]/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--color-brake)] ${isRefreshing ? 'animate-pulse' : ''}`}>
-          {formatPriorityBadge(liveTimeCost ?? p.time_cost_s)}
-        </span>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <span className={`rounded-full bg-[var(--color-brake)]/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--color-brake)] ${isRefreshing ? 'animate-pulse' : ''}`}>
+            {formatPriorityBadge(liveTimeCost ?? p.time_cost_s)}
+          </span>
+          {delta && Math.abs(delta.delta_s) >= 0.05 && (
+            <span
+              className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ${
+                delta.delta_s > 0
+                  ? 'bg-[var(--color-throttle)]/10 text-[var(--color-throttle)]'
+                  : 'bg-[var(--color-brake)]/10 text-[var(--color-brake)]'
+              }`}
+              title={`${delta.delta_s > 0 ? 'Improved' : 'Regressed'} vs previous session`}
+            >
+              {delta.delta_s > 0 ? (
+                <TrendingUp className="h-2.5 w-2.5" />
+              ) : (
+                <TrendingDown className="h-2.5 w-2.5" />
+              )}
+              {Math.abs(delta.delta_s).toFixed(1)}s
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Explore link - prominent */}
@@ -121,7 +144,7 @@ function PriorityCard({
   );
 }
 
-export function PriorityCardsSection({ priorities, isNovice, cornerGrades, optimalComparison, isOptimalRefreshing }: PriorityCardsSectionProps) {
+export function PriorityCardsSection({ priorities, isNovice, cornerGrades, optimalComparison, isOptimalRefreshing, cornerDeltas }: PriorityCardsSectionProps) {
   const setActiveView = useUiStore((s) => s.setActiveView);
   const setMode = useAnalysisStore((s) => s.setMode);
   const selectCorner = useAnalysisStore((s) => s.selectCorner);
@@ -166,6 +189,7 @@ export function PriorityCardsSection({ priorities, isNovice, cornerGrades, optim
               gradeForCorner={getGradeForCorner(p.corner)}
               liveTimeCost={liveTimeCost}
               isRefreshing={isOptimalRefreshing}
+              delta={cornerDeltas?.get(p.corner)}
               onExplore={handleExploreCorner}
             />
           );

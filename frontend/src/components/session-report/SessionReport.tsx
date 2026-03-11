@@ -6,6 +6,7 @@ import { useSessionStore, useUiStore, useAnalysisStore } from '@/stores';
 import { useSession, useSessionLaps } from '@/hooks/useSession';
 import { useAutoReport } from '@/hooks/useAutoReport';
 import { useCorners, useConsistency, useGPSQuality, useOptimalComparison } from '@/hooks/useAnalysis';
+import { usePreviousSessionDelta } from '@/hooks/usePreviousSessionDelta';
 import { useRecentAchievements } from '@/hooks/useAchievements';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
 import { useTour } from '@/hooks/useTour';
@@ -117,6 +118,7 @@ export function SessionReport() {
   const { data: consistency } = useConsistency(activeSessionId);
   const { data: gpsQuality } = useGPSQuality(activeSessionId);
   const { data: optimalComparison, isPlaceholderData: isOptimalStale, isPending: isOptimalPending } = useOptimalComparison(activeSessionId);
+  const { cornerDeltas } = usePreviousSessionDelta(session, optimalComparison);
   const { data: recentAchievementsData } = useRecentAchievements(!!activeSessionId);
   const { isNovice, isAdvanced, showFeature } = useSkillLevel();
   const skillLevel = useUiStore((s) => s.skillLevel);
@@ -254,6 +256,7 @@ export function SessionReport() {
             cornerGrades={report.corner_grades}
             optimalComparison={optimalComparison}
             isOptimalRefreshing={isOptimalStale}
+            cornerDeltas={cornerDeltas}
           />
         )}
 
