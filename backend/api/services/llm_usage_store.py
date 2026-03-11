@@ -67,6 +67,11 @@ async def _persist_batch(events: list[dict[str, Any]]) -> None:
         for event in events:
             db.add(_event_to_model(event))
         await db.commit()
+    logger.info(
+        "Persisted %d LLM usage event(s): %s",
+        len(events),
+        ", ".join(f"{e.get('task')}/{e.get('model')}" for e in events),
+    )
 
 
 async def _worker() -> None:

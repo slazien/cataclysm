@@ -587,6 +587,18 @@ def call_text_completion(
                 )
             latency_ms = (time.perf_counter() - start) * 1000.0
             cost_usd = _estimate_cost_usd(provider, model, usage)
+            logger.info(
+                "LLM call OK: task=%s provider=%s model=%s in=%d out=%d cached=%d "
+                "latency=%.0fms cost=$%.4f",
+                task,
+                provider,
+                model,
+                usage.input_tokens,
+                usage.output_tokens,
+                usage.cached_input_tokens,
+                latency_ms,
+                cost_usd,
+            )
             _record_event(
                 UsageEvent(
                     timestamp=datetime.now(UTC).isoformat(),
