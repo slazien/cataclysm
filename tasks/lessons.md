@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## Braking Zones Must Handle Start/Finish Wrap (2026-03-11)
+
+**Pattern**: Any logic that applies a braking zone from `brake_point_m` to `entry_distance_m` must handle lap-boundary wrap-around. If `brake_point_m` is near track end and corner entry is just after 0 m, a simple `start <= distance <= end` mask drops the entire T1 braking zone. Build a wrap-aware mask using track length and apply it consistently in both telemetry calibration and solver-array construction.
+
+**Why**: Per-corner braking calibration and `decel_array` building both initially assumed monotonic zones. That works for most corners but fails for the first braking zone after start/finish, exactly where many tracks place the heaviest stop. The result is silent under-calibration for T1 and no braking override in the solver for that corner.
+
+**Error signature**: T1 or the first post-S/F corner never gets a per-corner braking estimate even though braking telemetry exists near lap end and near 0 m. Decel overrides appear for later corners but not for the first wrapped zone.
+
 ## Async Background Tests: Poll Completion, Don't Sleep Blindly (2026-03-11)
 
 **Pattern**: Tests that depend on background coaching/report generation must poll the generation state until completion instead of using fixed sleeps or tiny wait windows. If the system exposes a generation-in-progress sentinel, reuse it in the test helper and wait until it clears before asserting on downstream artifacts like reports or PDFs.

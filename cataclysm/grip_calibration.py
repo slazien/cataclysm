@@ -337,7 +337,7 @@ def _braking_zone_mask(
 
     zone_span_m = zone_end_m - zone_start_m
     if zone_span_m >= track_length_m:
-        return np.isfinite(distance_m)
+        return np.asarray(np.isfinite(distance_m), dtype=bool)
 
     zone_start_wrapped = zone_start_m % track_length_m
     zone_end_wrapped = zone_end_m % track_length_m
