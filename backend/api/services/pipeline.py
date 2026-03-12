@@ -1240,13 +1240,21 @@ def _collect_independent_calibration_telemetry(
 
 def _collect_braking_calibration_telemetry(
     session_data: SessionData,
+    *,
+    target_lap: int | None = None,
 ) -> tuple[np.ndarray, np.ndarray, list[int]] | None:
-    """Return braking telemetry from all coaching laps including the best lap."""
+    """Return braking telemetry from independent laps only.
+
+    Mirrors independent grip calibration: the target lap is excluded so the
+    reference braking model does not learn from the same lap being scored.
+    """
     lon_segments: list[np.ndarray] = []
     dist_segments: list[np.ndarray] = []
     used_laps: list[int] = []
 
     for lap_num in session_data.coaching_laps:
+        if target_lap is not None and lap_num == target_lap:
+            continue
         lap_df = session_data.processed.resampled_laps.get(lap_num)
         if lap_df is None:
             continue
@@ -1303,8 +1311,15 @@ def _build_braking_zone_mask(
     distance_m: np.ndarray,
     zone_start_m: float,
     zone_end_m: float,
+    *,
+    local_zone_end_m: float | None = None,
 ) -> np.ndarray:
-    """Return a boolean mask for a braking zone, handling start/finish wrap."""
+    """Return a boolean mask for a braking zone.
+
+    Only zones that extend before 0 m are treated as start/finish wrap. If the
+    brake point lies after entry but before the corner apex, treat it as a
+    local trail-braking interval rather than wrap-around.
+    """
     finite_distance = distance_m[np.isfinite(distance_m)]
     if len(finite_distance) == 0:
         return np.zeros(len(distance_m), dtype=bool)
@@ -1323,11 +1338,23 @@ def _build_braking_zone_mask(
     if zone_span_m >= track_length_m:
         return np.asarray(np.isfinite(distance_m), dtype=bool)
 
-    zone_start_wrapped = zone_start_m % track_length_m
-    zone_end_wrapped = zone_end_m % track_length_m
-    if zone_start_wrapped <= zone_end_wrapped:
-        return (distance_m >= zone_start_wrapped) & (distance_m <= zone_end_wrapped)
-    return (distance_m >= zone_start_wrapped) | (distance_m <= zone_end_wrapped)
+    if zone_start_m < 0.0:
+        zone_start_wrapped = zone_start_m % track_length_m
+        zone_end_wrapped = zone_end_m % track_length_m
+        if zone_start_wrapped <= zone_end_wrapped:
+            return (distance_m >= zone_start_wrapped) & (distance_m <= zone_end_wrapped)
+        return (distance_m >= zone_start_wrapped) | (distance_m <= zone_end_wrapped)
+
+    if zone_start_m > zone_end_m:
+        if local_zone_end_m is not None and zone_start_m <= local_zone_end_m:
+            return (distance_m >= zone_start_m) & (distance_m <= local_zone_end_m)
+        zone_start_wrapped = zone_start_m % track_length_m
+        zone_end_wrapped = zone_end_m % track_length_m
+        if zone_start_wrapped <= zone_end_wrapped:
+            return (distance_m >= zone_start_wrapped) & (distance_m <= zone_end_wrapped)
+        return (distance_m >= zone_start_wrapped) | (distance_m <= zone_end_wrapped)
+
+    return (distance_m >= zone_start_m) & (distance_m <= zone_end_m)
 
 
 def _build_decel_array(
@@ -1348,7 +1375,17 @@ def _build_decel_array(
             else corner.entry_distance_m - 200.0
         )
         zone_end = corner.entry_distance_m
-        mask = _build_braking_zone_mask(distance_m, zone_start, zone_end)
+        local_zone_end = (
+            corner.apex_distance_m
+            if corner.brake_point_m is not None and zone_start > zone_end
+            else None
+        )
+        mask = _build_braking_zone_mask(
+            distance_m,
+            zone_start,
+            zone_end,
+            local_zone_end_m=local_zone_end,
+        )
         decel_arr[mask] = corner_decel
     return decel_arr
 
@@ -1616,7 +1653,10 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
 
         decel_array: np.ndarray | None = None
         if session_data.corners and calibrated_vp is not None:
-            braking_data = _collect_braking_calibration_telemetry(session_data)
+            braking_data = _collect_braking_calibration_telemetry(
+                session_data,
+                target_lap=session_data.processed.best_lap,
+            )
             if braking_data is not None:
                 lon_g_all, dist_m_all, braking_laps = braking_data
                 per_corner_decel = calibrate_per_corner_braking_g(

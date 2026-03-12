@@ -767,18 +767,18 @@ class TestCollectBrakingCalibrationTelemetry:
         sd.processed.resampled_laps = laps
         return sd
 
-    def test_includes_best_lap(self) -> None:
-        """Braking telemetry includes the best lap because braking is pre-corner."""
+    def test_excludes_target_lap(self) -> None:
+        """Braking calibration uses only independent laps, excluding the target lap."""
         sd = self._make_sd_with_brake_cols([3, 5, 7], best_lap=5)
 
-        result = _collect_braking_calibration_telemetry(sd)
+        result = _collect_braking_calibration_telemetry(sd, target_lap=5)
 
         assert result is not None
         lon_g, dist_m, used_laps = result
-        assert 5 in used_laps
-        assert used_laps == [3, 5, 7]
-        assert len(lon_g) == 9
-        assert len(dist_m) == 9
+        assert 5 not in used_laps
+        assert used_laps == [3, 7]
+        assert len(lon_g) == 6
+        assert len(dist_m) == 6
 
     def test_returns_none_when_required_columns_missing(self) -> None:
         """Missing longitudinal or distance telemetry returns None."""
@@ -793,6 +793,14 @@ class TestCollectBrakingCalibrationTelemetry:
         }
 
         result = _collect_braking_calibration_telemetry(sd)
+
+        assert result is None
+
+    def test_returns_none_when_only_target_lap_available(self) -> None:
+        """With only the target lap available, braking calibration is skipped."""
+        sd = self._make_sd_with_brake_cols([5], best_lap=5)
+
+        result = _collect_braking_calibration_telemetry(sd, target_lap=5)
 
         assert result is None
 
@@ -1862,6 +1870,48 @@ class TestBuildDecelArray:
         assert result[idx_960] == pytest.approx(1.2)
         assert result[idx_20] == pytest.approx(1.2)
         assert result[idx_60] == pytest.approx(0.9)
+
+    def test_in_corner_brake_point_is_local_not_wrap(self) -> None:
+        """In-corner brake onset should extend to the apex, not wrap the lap."""
+        distance_m = np.linspace(0.0, 1000.0, 1001)
+        corners = [self._corner(1, entry_m=150.0, exit_m=250.0, brake_point_m=160.0)]
+
+        result = _build_decel_array(
+            distance_m, corners, per_corner_decel={1: 1.2}, global_decel=0.9
+        )
+
+        idx_149 = np.searchsorted(distance_m, 149.0)
+        idx_155 = np.searchsorted(distance_m, 155.0)
+        idx_165 = np.searchsorted(distance_m, 165.0)
+        idx_170 = np.searchsorted(distance_m, 170.0)
+        idx_200 = np.searchsorted(distance_m, 200.0)
+        idx_900 = np.searchsorted(distance_m, 900.0)
+        assert result[idx_149] == pytest.approx(0.9)
+        assert result[idx_155] == pytest.approx(0.9)
+        assert result[idx_165] == pytest.approx(1.2)
+        assert result[idx_170] == pytest.approx(1.2)
+        assert result[idx_200] == pytest.approx(1.2)
+        assert result[idx_900] == pytest.approx(0.9)
+
+    def test_long_in_corner_brake_point_stays_local(self) -> None:
+        """Long trail-braking corners should still stay local when onset is before apex."""
+        distance_m = np.linspace(0.0, 3000.0, 3001)
+        corners = [self._corner(1, entry_m=150.0, exit_m=900.0, brake_point_m=420.0)]
+
+        result = _build_decel_array(
+            distance_m, corners, per_corner_decel={1: 1.2}, global_decel=0.9
+        )
+
+        idx_419 = np.searchsorted(distance_m, 419.0)
+        idx_430 = np.searchsorted(distance_m, 430.0)
+        idx_520 = np.searchsorted(distance_m, 520.0)
+        idx_526 = np.searchsorted(distance_m, 526.0)
+        idx_2900 = np.searchsorted(distance_m, 2900.0)
+        assert result[idx_419] == pytest.approx(0.9)
+        assert result[idx_430] == pytest.approx(1.2)
+        assert result[idx_520] == pytest.approx(1.2)
+        assert result[idx_526] == pytest.approx(0.9)
+        assert result[idx_2900] == pytest.approx(0.9)
 
 
 # ---------------------------------------------------------------------------

@@ -258,3 +258,57 @@ async def test_optimal_profile_threads_per_corner_decel_array() -> None:
         patch.object(pipeline, "compute_optimal_profile", side_effect=fake_compute_optimal_profile),
     ):
         await pipeline.get_optimal_profile_data(session_data)
+
+
+@pytest.mark.asyncio
+async def test_optimal_profile_uses_independent_braking_laps_only() -> None:
+    """Per-corner braking calibration should exclude the target/best lap."""
+    session_data = _make_session_data(coaching_laps=[1, 2, 3], best_lap=2)
+    session_data.processed.resampled_laps = {
+        1: _make_lap([0.2, 0.1], [-0.4, -0.5]),
+        2: _make_lap([0.0, 0.0], [-9.0, -9.1]),  # target lap: obviously distinct
+        3: _make_lap([0.3, 0.2], [-0.6, -0.7]),
+    }
+    session_data.corners = [
+        _make_corner(1, entry_distance_m=0.7, exit_distance_m=1.4, brake_point_m=0.0)
+    ]
+    captured: dict[str, np.ndarray] = {}
+
+    def fake_calibrate_per_corner_braking_g(
+        lon_g: np.ndarray, dist_m: np.ndarray, corners: list[Corner]
+    ) -> dict[int, float]:
+        captured["lon"] = lon_g.copy()
+        captured["dist"] = dist_m.copy()
+        assert corners == session_data.corners
+        return {1: 1.4}
+
+    with (
+        patch.object(pipeline, "_try_lidar_elevation", AsyncMock(return_value=None)),
+        patch.object(pipeline, "compute_curvature", return_value=_make_curvature_result()),
+        patch.object(pipeline, "resolve_vehicle_params", return_value=None),
+        patch.object(
+            pipeline,
+            "calibrate_grip_from_telemetry",
+            return_value=CalibratedGrip(
+                max_lateral_g=1.2,
+                max_brake_g=1.0,
+                max_accel_g=0.5,
+                point_count=10,
+                confidence="high",
+            ),
+        ),
+        patch.object(
+            pipeline,
+            "calibrate_per_corner_braking_g",
+            side_effect=fake_calibrate_per_corner_braking_g,
+        ),
+        patch.object(
+            pipeline,
+            "compute_optimal_profile",
+            side_effect=lambda *args, **kwargs: _make_optimal(kwargs.get("params")),
+        ),
+    ):
+        await pipeline.get_optimal_profile_data(session_data)
+
+    np.testing.assert_allclose(captured["lon"], np.array([-0.4, -0.5, -0.6, -0.7]))
+    np.testing.assert_allclose(captured["dist"], np.array([0.0, 0.7, 0.0, 0.7]))

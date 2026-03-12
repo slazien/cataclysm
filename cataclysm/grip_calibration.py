@@ -319,8 +319,16 @@ def _braking_zone_mask(
     distance_m: np.ndarray,
     zone_start_m: float,
     zone_end_m: float,
+    *,
+    local_zone_end_m: float | None = None,
 ) -> np.ndarray:
-    """Return a boolean mask for a braking zone, handling start/finish wrap."""
+    """Return a boolean mask for a braking zone.
+
+    True start/finish wrap is only inferred when the zone begins before 0 m.
+    If ``zone_start_m > zone_end_m`` but the brake point still lies before the
+    corner apex, treat it as an ordinary in-corner trail-braking interval that
+    runs from brake onset through the local end (typically the apex).
+    """
     finite_distance = distance_m[np.isfinite(distance_m)]
     if len(finite_distance) == 0:
         return np.zeros(len(distance_m), dtype=bool)
@@ -339,11 +347,26 @@ def _braking_zone_mask(
     if zone_span_m >= track_length_m:
         return np.asarray(np.isfinite(distance_m), dtype=bool)
 
-    zone_start_wrapped = zone_start_m % track_length_m
-    zone_end_wrapped = zone_end_m % track_length_m
-    if zone_start_wrapped <= zone_end_wrapped:
-        return (distance_m >= zone_start_wrapped) & (distance_m <= zone_end_wrapped)
-    return (distance_m >= zone_start_wrapped) | (distance_m <= zone_end_wrapped)
+    # Most telemetry-derived "inverted" intervals are just trail braking that
+    # begins slightly after the formal corner-entry boundary, not a start/finish
+    # wrap. Only wrap if the zone actually extends before 0 m.
+    if zone_start_m < 0.0:
+        zone_start_wrapped = zone_start_m % track_length_m
+        zone_end_wrapped = zone_end_m % track_length_m
+        if zone_start_wrapped <= zone_end_wrapped:
+            return (distance_m >= zone_start_wrapped) & (distance_m <= zone_end_wrapped)
+        return (distance_m >= zone_start_wrapped) | (distance_m <= zone_end_wrapped)
+
+    if zone_start_m > zone_end_m:
+        if local_zone_end_m is not None and zone_start_m <= local_zone_end_m:
+            return (distance_m >= zone_start_m) & (distance_m <= local_zone_end_m)
+        zone_start_wrapped = zone_start_m % track_length_m
+        zone_end_wrapped = zone_end_m % track_length_m
+        if zone_start_wrapped <= zone_end_wrapped:
+            return (distance_m >= zone_start_wrapped) & (distance_m <= zone_end_wrapped)
+        return (distance_m >= zone_start_wrapped) | (distance_m <= zone_end_wrapped)
+
+    return (distance_m >= zone_start_m) & (distance_m <= zone_end_m)
 
 
 def calibrate_per_corner_braking_g(
@@ -376,7 +399,17 @@ def calibrate_per_corner_braking_g(
             else zone_end - braking_zone_margin_m
         )
 
-        zone_mask = _braking_zone_mask(distance_m, zone_start, zone_end) & (longitudinal_g < -0.2)
+        local_zone_end = (
+            corner.apex_distance_m
+            if corner.brake_point_m is not None and zone_start > zone_end
+            else None
+        )
+        zone_mask = _braking_zone_mask(
+            distance_m,
+            zone_start,
+            zone_end,
+            local_zone_end_m=local_zone_end,
+        ) & (longitudinal_g < -0.2)
         n_points = int(zone_mask.sum())
         if n_points < min_points:
             continue

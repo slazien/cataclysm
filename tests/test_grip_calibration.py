@@ -750,6 +750,31 @@ class TestCalibratePerCornerBrakingG:
 
         assert result[1] == pytest.approx(np.percentile([0.7, 0.9, 1.0, 0.8, 0.6], 95.0))
 
+    def test_in_corner_brake_point_does_not_wrap_full_lap(self) -> None:
+        """In-corner brake onset should extend locally to the apex, not wrap the lap."""
+        distance_m = np.array([100.0, 140.0, 150.0, 160.0, 170.0, 200.0, 900.0, 980.0])
+        longitudinal_g = np.array([-0.1, -0.2, -0.8, -0.9, -1.0, -0.3, -1.2, -1.1])
+
+        corners = [
+            Corner(
+                number=1,
+                entry_distance_m=150.0,
+                exit_distance_m=300.0,
+                apex_distance_m=220.0,
+                min_speed_mps=20.0,
+                brake_point_m=160.0,
+                peak_brake_g=0.9,
+                throttle_commit_m=260.0,
+                apex_type="mid",
+            ),
+        ]
+
+        from cataclysm.grip_calibration import calibrate_per_corner_braking_g
+
+        result = calibrate_per_corner_braking_g(longitudinal_g, distance_m, corners, min_points=2)
+
+        assert result[1] == pytest.approx(np.percentile([0.9, 1.0, 0.3], 95.0))
+
 
 # ---------------------------------------------------------------------------
 # GGV Surface Tests

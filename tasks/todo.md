@@ -12,6 +12,17 @@
 - [x] 7. Run repo quality gates relevant to the touched modules
 - [x] 8. Run code review, update lessons, commit, and push `temp/per-corner-braking-calibration`
 
+# Session TODO — 2026-03-12 (Per-Corner Braking Calibration QA Fixes)
+
+## Implementation
+- [x] 1. Fix braking-zone masking so in-corner brake onset uses local corner geometry instead of wrap heuristics
+- [x] 2. Exclude the target/best lap from braking calibration telemetry
+- [x] 3. Add regressions for in-corner and long-corner braking-zone handling in unit and pipeline tests
+
+## Verification
+- [x] 4. Re-run `ruff`, `dmypy`, targeted physics tests, and full regression
+- [x] 5. Re-run real-session QA against `origin/staging` and quantify solver impact across the local corpus
+
 # Session TODO — 2026-03-10 (Corner Enrichment Accuracy)
 
 ## Implementation

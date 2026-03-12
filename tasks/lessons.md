@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## Inverted Braking Zones Need Corner Geometry, Not Distance Heuristics (2026-03-12)
+
+**Pattern**: When `brake_point_m > entry_distance_m`, do not infer start/finish wrap from the inverted interval itself and do not use a fixed meter cutoff. Use corner geometry to decide whether the brake point is still inside the same corner: if brake onset lies before the apex, the local braking zone should run from `brake_point_m` through the apex; only treat it as wrap-around when the brake point lies past the local corner geometry.
+
+**Why**: A first fix replaced the original full-lap contamination bug with two new errors: it truncated local trail braking to `[entry, brake_point]`, dropping later braking samples, and it used a hardcoded `200m` cutoff that still misclassified long trail-braking corners as wrap-around. The correct discriminator was already in the data model: `apex_distance_m`. Using apex-aware local zones fixed both the semantics and the long-corner edge case.
+
+**Error signature**: A corner has `brake_point_m > entry_distance_m`, but the code either selects the whole lap or only a tiny `entry..brake_point` slice. Real symptoms are suspiciously huge mask counts, missing later braking samples, or tiny but real optimal-profile shifts disappearing on long trail-braking corners.
+
 ## Braking Zones Must Handle Start/Finish Wrap (2026-03-11)
 
 **Pattern**: Any logic that applies a braking zone from `brake_point_m` to `entry_distance_m` must handle lap-boundary wrap-around. If `brake_point_m` is near track end and corner entry is just after 0 m, a simple `start <= distance <= end` mask drops the entire T1 braking zone. Build a wrap-aware mask using track length and apply it consistently in both telemetry calibration and solver-array construction.
