@@ -37,7 +37,9 @@ from cataclysm.velocity_profile import VehicleParams
 from backend.api.services import equipment_store
 from backend.api.services import pipeline as pipeline_module
 from backend.api.services.pipeline import (
+    _build_decel_array,
     _build_mu_array,
+    _collect_braking_calibration_telemetry,
     _collect_independent_calibration_telemetry,
     _collect_per_corner_mu,
     _get_physics_cached,
@@ -745,6 +747,53 @@ class TestCollectIndependentCalibrationTelemetry:
         df2 = pd.DataFrame({"lateral_g": [np.nan, np.nan], "longitudinal_g": [np.nan, np.nan]})
         sd.processed.resampled_laps = {1: pd.DataFrame(), 2: df2}
         result = _collect_independent_calibration_telemetry(sd, target_lap=1)
+        assert result is None
+
+
+class TestCollectBrakingCalibrationTelemetry:
+    """Tests for the braking calibration telemetry helper."""
+
+    def _make_sd_with_brake_cols(self, coaching_laps: list[int], best_lap: int) -> MagicMock:
+        import pandas as pd
+
+        sd = MagicMock()
+        sd.coaching_laps = coaching_laps
+        sd.processed.best_lap = best_lap
+        laps = {}
+        for n in coaching_laps:
+            lon_g = np.array([-0.8, -1.0, -0.6, np.nan])
+            dist = np.array([10.0, 20.0, 30.0, np.nan])
+            laps[n] = pd.DataFrame({"longitudinal_g": lon_g, "lap_distance_m": dist})
+        sd.processed.resampled_laps = laps
+        return sd
+
+    def test_includes_best_lap(self) -> None:
+        """Braking telemetry includes the best lap because braking is pre-corner."""
+        sd = self._make_sd_with_brake_cols([3, 5, 7], best_lap=5)
+
+        result = _collect_braking_calibration_telemetry(sd)
+
+        assert result is not None
+        lon_g, dist_m, used_laps = result
+        assert 5 in used_laps
+        assert used_laps == [3, 5, 7]
+        assert len(lon_g) == 9
+        assert len(dist_m) == 9
+
+    def test_returns_none_when_required_columns_missing(self) -> None:
+        """Missing longitudinal or distance telemetry returns None."""
+        import pandas as pd
+
+        sd = MagicMock()
+        sd.coaching_laps = [1, 2]
+        sd.processed.best_lap = 1
+        sd.processed.resampled_laps = {
+            1: pd.DataFrame({"longitudinal_g": [-0.5, -0.6]}),
+            2: pd.DataFrame({"lap_distance_m": [10.0, 20.0]}),
+        }
+
+        result = _collect_braking_calibration_telemetry(sd)
+
         assert result is None
 
 
@@ -1731,6 +1780,70 @@ class TestBuildMuArray:
         assert result[0] == pytest.approx(1.1)
         assert result[1] == pytest.approx(1.05)
         assert result[2] == pytest.approx(0.9)
+
+
+# ---------------------------------------------------------------------------
+# _build_decel_array
+# ---------------------------------------------------------------------------
+
+
+class TestBuildDecelArray:
+    """Unit tests for _build_decel_array."""
+
+    def _corner(
+        self,
+        number: int,
+        entry_m: float,
+        exit_m: float,
+        brake_point_m: float | None,
+    ) -> Any:
+        from cataclysm.corners import Corner
+
+        return Corner(
+            number=number,
+            entry_distance_m=entry_m,
+            exit_distance_m=exit_m,
+            apex_distance_m=(entry_m + exit_m) / 2.0,
+            min_speed_mps=20.0,
+            brake_point_m=brake_point_m,
+            peak_brake_g=None,
+            throttle_commit_m=None,
+            apex_type="mid",
+        )
+
+    def test_uses_max_of_global_and_per_corner(self) -> None:
+        """Per-corner decel only raises above global, never lowers."""
+        distance_m = np.linspace(0.0, 2000.0, 1000)
+        corners = [
+            self._corner(1, entry_m=200.0, exit_m=350.0, brake_point_m=100.0),
+            self._corner(2, entry_m=800.0, exit_m=950.0, brake_point_m=700.0),
+        ]
+        per_corner_decel = {1: 1.3, 2: 0.7}
+        global_decel = 1.0
+
+        result = _build_decel_array(distance_m, corners, per_corner_decel, global_decel)
+
+        assert result[0] == pytest.approx(1.0)
+        idx_150 = np.searchsorted(distance_m, 150.0)
+        assert result[idx_150] == pytest.approx(1.3)
+        idx_750 = np.searchsorted(distance_m, 750.0)
+        assert result[idx_750] == pytest.approx(1.0)
+
+    def test_fallback_braking_zone_when_brake_point_missing(self) -> None:
+        """Missing brake_point_m falls back to 200m before corner entry."""
+        distance_m = np.linspace(0.0, 1000.0, 1001)
+        corners = [self._corner(1, entry_m=500.0, exit_m=650.0, brake_point_m=None)]
+
+        result = _build_decel_array(
+            distance_m, corners, per_corner_decel={1: 1.2}, global_decel=0.9
+        )
+
+        idx_250 = np.searchsorted(distance_m, 250.0)
+        idx_350 = np.searchsorted(distance_m, 350.0)
+        idx_500 = np.searchsorted(distance_m, 500.0)
+        assert result[idx_250] == pytest.approx(0.9)
+        assert result[idx_350] == pytest.approx(1.2)
+        assert result[idx_500] == pytest.approx(1.2)
 
 
 # ---------------------------------------------------------------------------

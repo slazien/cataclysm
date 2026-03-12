@@ -45,6 +45,7 @@ from cataclysm.grip import estimate_grip_limit
 from cataclysm.grip_calibration import (
     apply_calibration_to_params,
     calibrate_grip_from_telemetry,
+    calibrate_per_corner_braking_g,
     calibrate_per_corner_grip,
 )
 from cataclysm.linked_corners import detect_linked_corners
@@ -1237,6 +1238,40 @@ def _collect_independent_calibration_telemetry(
     return np.concatenate(lat_segments), np.concatenate(lon_segments), used_laps
 
 
+def _collect_braking_calibration_telemetry(
+    session_data: SessionData,
+) -> tuple[np.ndarray, np.ndarray, list[int]] | None:
+    """Return braking telemetry from all coaching laps including the best lap."""
+    lon_segments: list[np.ndarray] = []
+    dist_segments: list[np.ndarray] = []
+    used_laps: list[int] = []
+
+    for lap_num in session_data.coaching_laps:
+        lap_df = session_data.processed.resampled_laps.get(lap_num)
+        if lap_df is None:
+            continue
+        if "longitudinal_g" not in lap_df.columns or "lap_distance_m" not in lap_df.columns:
+            continue
+
+        lon_g = lap_df["longitudinal_g"].to_numpy()
+        dist_m = lap_df["lap_distance_m"].to_numpy()
+
+        finite_mask = np.isfinite(lon_g) & np.isfinite(dist_m)
+        lon_g = lon_g[finite_mask]
+        dist_m = dist_m[finite_mask]
+        if len(lon_g) == 0:
+            continue
+
+        lon_segments.append(lon_g)
+        dist_segments.append(dist_m)
+        used_laps.append(lap_num)
+
+    if not lon_segments:
+        return None
+
+    return np.concatenate(lon_segments), np.concatenate(dist_segments), used_laps
+
+
 def _build_mu_array(
     distance_m: np.ndarray,
     corners: list[Corner],
@@ -1262,6 +1297,29 @@ def _build_mu_array(
         mask = (distance_m >= corner.entry_distance_m) & (distance_m <= corner.exit_distance_m)
         mu_arr[mask] = corner_mu
     return mu_arr
+
+
+def _build_decel_array(
+    distance_m: np.ndarray,
+    corners: list[Corner],
+    per_corner_decel: dict[int, float],
+    global_decel: float,
+) -> np.ndarray:
+    """Build a per-point decel array from per-corner braking G estimates."""
+    decel_arr = np.full(len(distance_m), global_decel, dtype=np.float64)
+    for corner in corners:
+        if corner.number not in per_corner_decel:
+            continue
+        corner_decel = max(global_decel, per_corner_decel[corner.number])
+        zone_start = (
+            corner.brake_point_m
+            if corner.brake_point_m is not None
+            else corner.entry_distance_m - 200.0
+        )
+        zone_end = corner.entry_distance_m
+        mask = (distance_m >= zone_start) & (distance_m <= zone_end)
+        decel_arr[mask] = corner_decel
+    return decel_arr
 
 
 def _collect_per_corner_mu(
@@ -1525,6 +1583,32 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
                     calibrated_vp.mu,
                 )
 
+        decel_array: np.ndarray | None = None
+        if session_data.corners and calibrated_vp is not None:
+            braking_data = _collect_braking_calibration_telemetry(session_data)
+            if braking_data is not None:
+                lon_g_all, dist_m_all, braking_laps = braking_data
+                per_corner_decel = calibrate_per_corner_braking_g(
+                    lon_g_all,
+                    dist_m_all,
+                    session_data.corners,
+                )
+                if per_corner_decel:
+                    decel_array = _build_decel_array(
+                        curvature_result.distance_m,
+                        session_data.corners,
+                        per_corner_decel,
+                        calibrated_vp.max_decel_g,
+                    )
+                    logger.debug(
+                        "Per-corner decel array built for sid=%s: %d corners from laps=%s, "
+                        "global_decel=%.3f",
+                        session_id,
+                        len(per_corner_decel),
+                        braking_laps,
+                        calibrated_vp.max_decel_g,
+                    )
+
         # Compute elevation gradient and vertical curvature for the solver
         # Prefer resolved altitude (canonical/LIDAR), fall back to GPS
         gradient_sin = None
@@ -1555,6 +1639,7 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
             gradient_sin=gradient_sin,
             mu_array=mu_array,
             vertical_curvature=vert_curvature,
+            decel_array=decel_array,
         )
 
         return {

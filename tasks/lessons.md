@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## Async Background Tests: Poll Completion, Don't Sleep Blindly (2026-03-11)
+
+**Pattern**: Tests that depend on background coaching/report generation must poll the generation state until completion instead of using fixed sleeps or tiny wait windows. If the system exposes a generation-in-progress sentinel, reuse it in the test helper and wait until it clears before asserting on downstream artifacts like reports or PDFs.
+
+**Why**: The per-corner braking calibration work itself was correct, but several coaching/PDF tests started failing because they assumed generation would finish within a fixed `sleep(0.01)` or a short ~2s polling window. Small runtime shifts were enough to leave status at `"generating"` or keep the PDF endpoint at 404. Converting those tests to explicit completion polling removed the timing flake without weakening the assertions.
+
+**Error signature**: Tests fail intermittently with report status still `"generating"`, PDF download still 404, or assertions that pass locally but fail under heavier suite load.
+
 ## Data Viz Color Encoding: Color = Category, Style = Source (2026-03-11)
 
 **Pattern**: In multi-category data visualizations (e.g., brake vs throttle), encode the **primary category** with color (red = brake, green = throttle) and the **data source** with line style (dots = per-lap, solid = best, dashed = optimal). Never use a color named after one concept for a different concept (e.g., `colors.motorsport.optimal` for "best lap" markers). When adding a symmetric feature (both brake and throttle), the legend must be symmetric too — same number of items per category.

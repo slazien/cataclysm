@@ -1,3 +1,17 @@
+# Session TODO — 2026-03-11 (Per-Corner Braking Calibration)
+
+## Implementation
+- [x] 1. Add per-corner braking calibration extraction in `cataclysm/grip_calibration.py`
+- [x] 2. Add `decel_array` support to the velocity solver backward pass
+- [x] 3. Thread `decel_array` through `compute_optimal_profile()`
+- [x] 4. Add braking calibration collection and decel-array building in `pipeline.py`
+- [x] 5. Wire best-lap-inclusive braking calibration into optimal profile computation
+
+## Verification
+- [x] 6. Run targeted grip calibration, velocity profile, and pipeline tests
+- [x] 7. Run repo quality gates relevant to the touched modules
+- [x] 8. Run code review, update lessons, commit, and push `temp/per-corner-braking-calibration`
+
 # Session TODO — 2026-03-10 (Corner Enrichment Accuracy)
 
 ## Implementation

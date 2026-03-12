@@ -315,6 +315,47 @@ def calibrate_per_corner_grip(
     return result
 
 
+def calibrate_per_corner_braking_g(
+    longitudinal_g: np.ndarray,
+    distance_m: np.ndarray,
+    corners: list[Corner],
+    *,
+    percentile: float = 95.0,
+    min_points: int = 10,
+    braking_zone_margin_m: float = 200.0,
+) -> dict[int, float]:
+    """Extract per-corner braking G from the braking zone preceding each corner.
+
+    For each corner, the braking zone is defined as
+    ``[brake_point_m, entry_distance_m]`` if ``brake_point_m`` is known,
+    otherwise ``[entry_distance_m - braking_zone_margin_m, entry_distance_m]``.
+
+    Only actual braking samples (``longitudinal_g < -0.2``) are included.
+    """
+    if len(corners) == 0:
+        return {}
+
+    result: dict[int, float] = {}
+
+    for corner in corners:
+        zone_end = corner.entry_distance_m
+        zone_start = (
+            corner.brake_point_m
+            if corner.brake_point_m is not None
+            else zone_end - braking_zone_margin_m
+        )
+
+        zone_mask = (distance_m >= zone_start) & (distance_m <= zone_end) & (longitudinal_g < -0.2)
+        n_points = int(zone_mask.sum())
+        if n_points < min_points:
+            continue
+
+        braking_g = float(np.percentile(np.abs(longitudinal_g[zone_mask]), percentile))
+        result[corner.number] = braking_g
+
+    return result
+
+
 # ---------------------------------------------------------------------------
 # GGV Surface
 # ---------------------------------------------------------------------------

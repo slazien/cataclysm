@@ -17,8 +17,8 @@ from backend.tests.conftest import build_synthetic_csv
 
 
 async def _wait_for_generation(session_id: str, skill_level: str = "intermediate") -> None:
-    """Poll until the background coaching task finishes (max ~2 seconds)."""
-    for _ in range(200):
+    """Poll until the background coaching task finishes (max ~10 seconds)."""
+    for _ in range(1000):
         await asyncio.sleep(0.01)
         if not is_generating(session_id, skill_level):
             return
@@ -1191,11 +1191,7 @@ async def test_run_generation_unmarks_generating_on_error(client: AsyncClient) -
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "intermediate"},
         )
-        # Background task needs time to execute; poll instead of fixed sleep
-        for _ in range(50):
-            await asyncio.sleep(0.05)
-            if not is_generating(session_id, "intermediate"):
-                break
+        await _wait_for_generation(session_id)
 
     assert not is_generating(session_id, "intermediate")
 

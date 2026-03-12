@@ -18,6 +18,7 @@ if "pymap3d" not in sys.modules:
 from backend.api.services import pipeline
 from backend.api.services.pipeline import _physics_cache
 from backend.api.services.session_store import SessionData
+from cataclysm.corners import Corner
 from cataclysm.curvature import CurvatureResult
 from cataclysm.grip_calibration import CalibratedGrip
 from cataclysm.optimal_comparison import OptimalComparisonResult
@@ -65,6 +66,25 @@ def _make_session_data(coaching_laps: list[int], best_lap: int) -> SessionData:
         corners=[],
         all_lap_corners={},
         coaching_laps=coaching_laps,
+    )
+
+
+def _make_corner(
+    number: int,
+    entry_distance_m: float,
+    exit_distance_m: float,
+    brake_point_m: float | None,
+) -> Corner:
+    return Corner(
+        number=number,
+        entry_distance_m=entry_distance_m,
+        exit_distance_m=exit_distance_m,
+        apex_distance_m=(entry_distance_m + exit_distance_m) / 2.0,
+        min_speed_mps=20.0,
+        brake_point_m=brake_point_m,
+        peak_brake_g=1.0,
+        throttle_commit_m=exit_distance_m - 5.0,
+        apex_type="mid",
     )
 
 
@@ -203,3 +223,38 @@ async def test_optimal_comparison_uses_independent_calibration_and_returns_valid
     np.testing.assert_allclose(captured["lon"], np.array([0.1, 0.0, 0.0, -0.1]))
     assert result["is_valid"] is False
     assert result["invalid_reasons"] == ["aggregate_optimal_slower_than_actual"]
+
+
+@pytest.mark.asyncio
+async def test_optimal_profile_threads_per_corner_decel_array() -> None:
+    """Optimal-profile path builds and passes a per-corner decel array."""
+    session_data = _make_session_data(coaching_laps=[1, 2, 3], best_lap=2)
+    session_data.corners = [
+        _make_corner(1, entry_distance_m=0.7, exit_distance_m=1.4, brake_point_m=0.0)
+    ]
+
+    def fake_compute_optimal_profile(*args: object, **kwargs: object) -> OptimalProfile:
+        decel_array = kwargs.get("decel_array")
+        assert isinstance(decel_array, np.ndarray)
+        np.testing.assert_allclose(decel_array, np.array([1.4, 1.4]))
+        return _make_optimal(kwargs.get("params"))  # type: ignore[arg-type]
+
+    with (
+        patch.object(pipeline, "_try_lidar_elevation", AsyncMock(return_value=None)),
+        patch.object(pipeline, "compute_curvature", return_value=_make_curvature_result()),
+        patch.object(pipeline, "resolve_vehicle_params", return_value=None),
+        patch.object(
+            pipeline,
+            "calibrate_grip_from_telemetry",
+            return_value=CalibratedGrip(
+                max_lateral_g=1.2,
+                max_brake_g=1.0,
+                max_accel_g=0.5,
+                point_count=10,
+                confidence="high",
+            ),
+        ),
+        patch.object(pipeline, "calibrate_per_corner_braking_g", return_value={1: 1.4}),
+        patch.object(pipeline, "compute_optimal_profile", side_effect=fake_compute_optimal_profile),
+    ):
+        await pipeline.get_optimal_profile_data(session_data)

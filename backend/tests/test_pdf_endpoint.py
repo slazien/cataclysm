@@ -9,7 +9,7 @@ import pytest
 from cataclysm.coaching import CoachingReport, CornerGrade
 from httpx import AsyncClient
 
-from backend.api.services.coaching_store import clear_all_coaching
+from backend.api.services.coaching_store import clear_all_coaching, is_generating
 from backend.tests.conftest import build_synthetic_csv
 
 
@@ -70,6 +70,14 @@ def _mock_coaching_report() -> CoachingReport:
     )
 
 
+async def _wait_for_generation(session_id: str, skill_level: str = "intermediate") -> None:
+    """Poll until the background coaching task finishes."""
+    for _ in range(1000):
+        await asyncio.sleep(0.01)
+        if not is_generating(session_id, skill_level):
+            return
+
+
 @pytest.fixture(autouse=True)
 def _clear_coaching() -> None:
     """Clear coaching store before each test."""
@@ -91,8 +99,7 @@ async def test_pdf_download_success(client: AsyncClient) -> None:
             json={"skill_level": "intermediate"},
         )
         assert resp.status_code == 200
-        # Let the background task complete
-        await asyncio.sleep(0.01)
+        await _wait_for_generation(session_id)
 
     # Verify coaching report is ready
     resp = await client.get(f"/api/coaching/{session_id}/report")

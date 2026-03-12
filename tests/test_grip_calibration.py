@@ -633,6 +633,100 @@ class TestCalibratePerCornerGrip:
 
 
 # ---------------------------------------------------------------------------
+# TestCalibratePerCornerBrakingG
+# ---------------------------------------------------------------------------
+
+
+class TestCalibratePerCornerBrakingG:
+    """Tests for calibrate_per_corner_braking_g()."""
+
+    def test_extracts_braking_g_in_braking_zone(self) -> None:
+        """Extract p95 of |longitudinal_g| from the braking zone before each corner."""
+        rng = np.random.default_rng(42)
+        n = 1000
+        distance_m = np.linspace(0, 2000, n)
+        longitudinal_g = rng.normal(-0.3, 0.1, n)
+        brake_zone_mask = (distance_m >= 100) & (distance_m <= 200)
+        longitudinal_g[brake_zone_mask] = rng.normal(-1.2, 0.05, brake_zone_mask.sum())
+
+        corners = [
+            Corner(
+                number=1,
+                entry_distance_m=200.0,
+                exit_distance_m=350.0,
+                apex_distance_m=275.0,
+                min_speed_mps=20.0,
+                brake_point_m=100.0,
+                peak_brake_g=1.25,
+                throttle_commit_m=320.0,
+                apex_type="mid",
+            ),
+        ]
+
+        from cataclysm.grip_calibration import calibrate_per_corner_braking_g
+
+        result = calibrate_per_corner_braking_g(longitudinal_g, distance_m, corners)
+
+        assert 1 in result
+        assert result[1] == pytest.approx(1.2, abs=0.15)
+
+    def test_fallback_zone_when_no_brake_point(self) -> None:
+        """Uses entry_distance_m - margin when brake_point_m is None."""
+        rng = np.random.default_rng(42)
+        n = 1000
+        distance_m = np.linspace(0, 2000, n)
+        longitudinal_g = rng.normal(-0.1, 0.05, n)
+        mask = (distance_m >= 300) & (distance_m <= 500)
+        longitudinal_g[mask] = rng.normal(-1.0, 0.05, mask.sum())
+
+        corners = [
+            Corner(
+                number=1,
+                entry_distance_m=500.0,
+                exit_distance_m=650.0,
+                apex_distance_m=575.0,
+                min_speed_mps=20.0,
+                brake_point_m=None,
+                peak_brake_g=None,
+                throttle_commit_m=None,
+                apex_type="mid",
+            ),
+        ]
+
+        from cataclysm.grip_calibration import calibrate_per_corner_braking_g
+
+        result = calibrate_per_corner_braking_g(longitudinal_g, distance_m, corners)
+
+        assert 1 in result
+        assert result[1] == pytest.approx(1.0, abs=0.15)
+
+    def test_insufficient_data_skipped(self) -> None:
+        """Corners with too few braking points are excluded."""
+        distance_m = np.linspace(0, 500, 50)
+        longitudinal_g = np.full(50, -0.1)
+
+        corners = [
+            Corner(
+                number=1,
+                entry_distance_m=200.0,
+                exit_distance_m=350.0,
+                apex_distance_m=275.0,
+                min_speed_mps=20.0,
+                brake_point_m=100.0,
+                peak_brake_g=None,
+                throttle_commit_m=None,
+                apex_type="mid",
+            ),
+        ]
+
+        from cataclysm.grip_calibration import calibrate_per_corner_braking_g
+
+        result = calibrate_per_corner_braking_g(longitudinal_g, distance_m, corners)
+
+        assert result == {}
+
+
+# ---------------------------------------------------------------------------
 # GGV Surface Tests
 # ---------------------------------------------------------------------------
 

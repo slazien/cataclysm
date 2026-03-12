@@ -1199,6 +1199,141 @@ class TestPerPointMu:
 
 
 # ---------------------------------------------------------------------------
+# TestBackwardPassDecelArray
+# ---------------------------------------------------------------------------
+
+
+class TestBackwardPassDecelArray:
+    """Tests for _backward_pass with per-point decel_array."""
+
+    def test_decel_array_overrides_scalar(self) -> None:
+        """When decel_array is provided, backward pass uses per-point values."""
+        n = 100
+        step_m = 1.0
+        abs_k = np.zeros(n)
+        max_speed = np.full(n, 40.0)
+        max_speed[70] = 15.0
+
+        params_low_decel = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=0.5,
+            max_lateral_g=1.0,
+        )
+        decel_array = np.full(n, 1.5)
+
+        v_scalar = _backward_pass(max_speed, step_m, params_low_decel, abs_k)
+        v_array = _backward_pass(
+            max_speed,
+            step_m,
+            params_low_decel,
+            abs_k,
+            decel_array=decel_array,
+        )
+
+        assert v_array[50] > v_scalar[50]
+
+    def test_none_decel_array_matches_scalar(self) -> None:
+        """With decel_array=None, backward pass is identical to before."""
+        n = 100
+        step_m = 1.0
+        abs_k = np.full(n, 0.001)
+        max_speed = np.full(n, 40.0)
+        max_speed[70] = 15.0
+
+        params = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+        )
+
+        v_without = _backward_pass(max_speed, step_m, params, abs_k)
+        v_with_none = _backward_pass(max_speed, step_m, params, abs_k, decel_array=None)
+
+        np.testing.assert_array_equal(v_without, v_with_none)
+
+    def test_high_decel_zone_brakes_later(self) -> None:
+        """A corner with higher decel_array values should have a later brake point."""
+        n = 200
+        step_m = 1.0
+        abs_k = np.zeros(n)
+        max_speed = np.full(n, 50.0)
+        max_speed[150] = 10.0
+
+        params = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=0.8,
+            max_lateral_g=1.0,
+        )
+
+        v_uniform = _backward_pass(max_speed, step_m, params, abs_k)
+
+        decel_arr = np.full(n, 0.8)
+        decel_arr[100:150] = 1.5
+
+        v_boosted = _backward_pass(max_speed, step_m, params, abs_k, decel_array=decel_arr)
+
+        assert v_boosted[130] > v_uniform[130]
+        assert np.all(v_boosted >= v_uniform - 1e-10)
+
+    def test_decel_array_backward_compatible_with_existing_tests(self) -> None:
+        """Existing _backward_pass call sites work unchanged without decel_array."""
+        n = 50
+        step_m = 1.0
+        abs_k = np.full(n, 0.002)
+        max_speed = np.full(n, 30.0)
+        max_speed[25] = 10.0
+        params = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+        )
+
+        v = _backward_pass(max_speed, step_m, params, abs_k)
+
+        assert len(v) == n
+        assert v[25] == pytest.approx(10.0)
+        assert v[20] >= 10.0
+
+
+# ---------------------------------------------------------------------------
+# TestOptimalProfileDecelArray
+# ---------------------------------------------------------------------------
+
+
+class TestOptimalProfileDecelArray:
+    """Tests for compute_optimal_profile with decel_array."""
+
+    def test_decel_array_produces_different_brake_points(self) -> None:
+        """A higher decel_array should push brake points later."""
+        n = 500
+        curvature = np.zeros(n)
+        curvature[280:320] = 0.01
+        cr = _make_curvature_result(curvature, step_m=2.0)
+        params = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=0.8,
+            max_lateral_g=1.0,
+        )
+
+        result_scalar = compute_optimal_profile(cr, params, closed_circuit=False)
+
+        decel_arr = np.full(n, 1.5)
+        result_array = compute_optimal_profile(
+            cr,
+            params,
+            closed_circuit=False,
+            decel_array=decel_arr,
+        )
+
+        assert result_array.lap_time_s < result_scalar.lap_time_s
+
+
+# ---------------------------------------------------------------------------
 # TestVerticalCurvature — compression/crest effects in solver
 # ---------------------------------------------------------------------------
 

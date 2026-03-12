@@ -20,6 +20,7 @@ from backend.api.services.coaching_store import (
     clear_all_coaching,
     clear_coaching_data,
     get_coaching_report,
+    is_generating,
     store_coaching_context,
     store_coaching_report,
 )
@@ -73,6 +74,14 @@ def _mock_coaching_report() -> CoachingReport:
     )
 
 
+async def _wait_for_generation(session_id: str, skill_level: str = "intermediate") -> None:
+    """Poll until the background coaching task finishes."""
+    for _ in range(1000):
+        await asyncio.sleep(0.01)
+        if not is_generating(session_id, skill_level):
+            return
+
+
 @pytest.fixture(autouse=True)
 def _clear() -> None:
     """Clear coaching store before each test."""
@@ -104,8 +113,7 @@ class TestAutoCoachingOnUpload:
             assert resp.status_code == 200
             session_id = resp.json()["session_ids"][0]
 
-            # Let background task finish
-            await asyncio.sleep(0.01)
+            await _wait_for_generation(session_id)
 
         # Report should now be available
         report_resp = await client.get(f"/api/coaching/{session_id}/report")

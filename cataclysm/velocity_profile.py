@@ -229,6 +229,8 @@ def _available_accel(
     lateral_g_used: float,
     params: VehicleParams,
     direction: str,
+    *,
+    decel_g_override: float | None = None,
 ) -> float:
     """Compute available longitudinal G from the friction circle.
 
@@ -240,7 +242,10 @@ def _available_accel(
     Solving for lon:
         lon = max_lon * (1 - (lat/max_lat)^p) ^ (1/p)
     """
-    max_lon_g = params.max_accel_g if direction == "accel" else params.max_decel_g
+    if direction == "decel" and decel_g_override is not None:
+        max_lon_g = decel_g_override
+    else:
+        max_lon_g = params.max_accel_g if direction == "accel" else params.max_decel_g
     exp = params.friction_circle_exponent
 
     lateral_fraction = (abs(lateral_g_used) / params.max_lateral_g) ** exp
@@ -304,6 +309,7 @@ def _backward_pass(
     abs_curvature: np.ndarray,
     gradient_sin: np.ndarray | None = None,
     vertical_curvature: np.ndarray | None = None,
+    decel_array: np.ndarray | None = None,
 ) -> np.ndarray:
     """Backward integration: decelerate from each point respecting traction limits.
 
@@ -313,6 +319,9 @@ def _backward_pass(
 
     If *vertical_curvature* is provided, compressions (positive) increase
     the normal force → more braking budget, crests (negative) decrease it.
+
+    If *decel_array* is provided, each point uses the per-distance braking G
+    instead of the scalar ``params.max_decel_g``.
     """
     n = len(max_speed)
     v = np.empty(n, dtype=np.float64)
@@ -322,7 +331,14 @@ def _backward_pass(
         v_next = v[i + 1]
         avg_k = 0.5 * (abs_curvature[i + 1] + abs_curvature[i])
         lateral_g = v_next**2 * avg_k / G
-        decel_g = _available_accel(v_next, lateral_g, params, "decel")
+        decel_override = float(decel_array[i]) if decel_array is not None else None
+        decel_g = _available_accel(
+            v_next,
+            lateral_g,
+            params,
+            "decel",
+            decel_g_override=decel_override,
+        )
         # Vertical curvature scales traction via normal force
         if vertical_curvature is not None:
             kv = float(vertical_curvature[i])
@@ -410,6 +426,7 @@ def compute_optimal_profile(
     gradient_sin: np.ndarray | None = None,
     mu_array: np.ndarray | None = None,
     vertical_curvature: np.ndarray | None = None,
+    decel_array: np.ndarray | None = None,
 ) -> OptimalProfile:
     """Compute the physics-optimal velocity profile for a track.
 
@@ -441,6 +458,10 @@ def compute_optimal_profile(
         Positive = compression (more grip), negative = crest (less grip).
         If *None* (default), vertical curvature effects are ignored
         (backward compatible).
+    decel_array
+        Per-point braking G override for the backward pass.  If provided,
+        overrides the scalar ``params.max_decel_g`` at each point.  Points
+        outside braking zones typically keep the global decel value.
 
     Returns
     -------
@@ -473,9 +494,18 @@ def compute_optimal_profile(
         max_speed_3x = np.tile(max_corner_speed, 3)
         gradient_3x = np.tile(gradient_sin, 3) if gradient_sin is not None else None
         kv_3x = np.tile(vertical_curvature, 3) if vertical_curvature is not None else None
+        decel_3x = np.tile(decel_array, 3) if decel_array is not None else None
 
         forward_3x = _forward_pass(max_speed_3x, step_m, params, abs_k_3x, gradient_3x, kv_3x)
-        backward_3x = _backward_pass(max_speed_3x, step_m, params, abs_k_3x, gradient_3x, kv_3x)
+        backward_3x = _backward_pass(
+            max_speed_3x,
+            step_m,
+            params,
+            abs_k_3x,
+            gradient_3x,
+            kv_3x,
+            decel_array=decel_3x,
+        )
 
         optimal_3x = np.minimum(np.minimum(forward_3x, backward_3x), max_speed_3x)
         # Extract the middle copy (fully warmed-up from both directions)
@@ -486,7 +516,13 @@ def compute_optimal_profile(
             max_corner_speed, step_m, params, abs_k, gradient_sin, vertical_curvature
         )
         backward = _backward_pass(
-            max_corner_speed, step_m, params, abs_k, gradient_sin, vertical_curvature
+            max_corner_speed,
+            step_m,
+            params,
+            abs_k,
+            gradient_sin,
+            vertical_curvature,
+            decel_array=decel_array,
         )
         optimal = np.minimum(np.minimum(forward, backward), max_corner_speed)
 

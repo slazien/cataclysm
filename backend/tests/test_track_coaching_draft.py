@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
 
 import pytest
+from cataclysm.llm_gateway import set_routing_enabled_override, set_task_route_cache
 
 from backend.api.services.track_coaching_draft import (
     CornerCoachingDraft,
@@ -21,6 +23,16 @@ def _make_completion_response(text: str) -> MagicMock:
     response = MagicMock()
     response.text = text
     return response
+
+
+@pytest.fixture(autouse=True)
+def _reset_llm_routing_state() -> Iterator[None]:
+    """Keep global routing state from leaking between tests."""
+    set_routing_enabled_override(None, source="test")
+    set_task_route_cache({})
+    yield
+    set_routing_enabled_override(None, source="test")
+    set_task_route_cache({})
 
 
 class TestGenerateCoachingDrafts:
