@@ -323,14 +323,12 @@ export function BrakePointOverlay({
                 width: highlightRadius * 2,
                 height: highlightRadius * 2,
                 borderRadius: '50%',
-                backgroundColor: dot.isBest
-                  ? colors.motorsport.optimal
-                  : `${colors.motorsport.brake}${isHovered ? 'dd' : '88'}`,
+                backgroundColor: `${colors.motorsport.brake}${dot.isBest ? '' : isHovered ? 'dd' : '88'}`,
                 border: dot.isBest || isHovered ? '2px solid #fff' : 'none',
                 boxShadow: isHovered
                   ? `0 0 12px ${colors.motorsport.brake}cc`
                   : dot.isBest
-                    ? `0 0 8px ${colors.motorsport.optimal}88`
+                    ? `0 0 8px ${colors.motorsport.brake}88`
                     : 'none',
                 transition: 'all 150ms ease-out',
                 cursor: 'pointer',
@@ -341,14 +339,14 @@ export function BrakePointOverlay({
         );
       })}
 
-      {/* Best-lap brake line (solid blue) */}
+      {/* Best-lap brake line (solid red) */}
       {bestBrakeLine && (
         <Source id="best-brake-line" type="geojson" data={bestBrakeLine}>
           <Layer
             id="best-brake-line-layer"
             type="line"
             paint={{
-              'line-color': colors.motorsport.optimal,
+              'line-color': colors.motorsport.brake,
               'line-width': 3,
               'line-opacity': 0.9,
             }}
@@ -359,14 +357,14 @@ export function BrakePointOverlay({
         </Source>
       )}
 
-      {/* Optimal brake line (dashed green) */}
+      {/* Optimal brake line (dashed red) */}
       {optimalBrakeLine && (
         <Source id="optimal-brake-line" type="geojson" data={optimalBrakeLine}>
           <Layer
             id="optimal-brake-line-layer"
             type="line"
             paint={{
-              'line-color': colors.motorsport.throttle,
+              'line-color': colors.motorsport.brake,
               'line-width': 2.5,
               'line-opacity': 0.8,
               'line-dasharray': [4, 3],
@@ -400,13 +398,13 @@ export function BrakePointOverlay({
                 borderRight: `${size / 2}px solid transparent`,
                 borderBottom: `${size}px solid ${
                   dot.isBest
-                    ? colors.motorsport.optimal
+                    ? colors.motorsport.throttle
                     : `${colors.motorsport.throttle}${isHovered ? 'dd' : '88'}`
                 }`,
                 filter: isHovered
                   ? `drop-shadow(0 0 6px ${colors.motorsport.throttle}cc)`
                   : dot.isBest
-                    ? `drop-shadow(0 0 4px ${colors.motorsport.optimal}66)`
+                    ? `drop-shadow(0 0 4px ${colors.motorsport.throttle}66)`
                     : 'none',
                 transition: 'all 150ms ease-out',
                 cursor: 'pointer',
@@ -417,14 +415,14 @@ export function BrakePointOverlay({
         );
       })}
 
-      {/* Best-lap throttle line (solid blue) */}
+      {/* Best-lap throttle line (solid green) */}
       {bestThrottleLine && (
         <Source id="best-throttle-line" type="geojson" data={bestThrottleLine}>
           <Layer
             id="best-throttle-line-layer"
             type="line"
             paint={{
-              'line-color': colors.motorsport.optimal,
+              'line-color': colors.motorsport.throttle,
               'line-width': 3,
               'line-opacity': 0.9,
             }}
@@ -499,85 +497,57 @@ export function BrakePointOverlay({
           )}
           {stats.brakeGapM != null && Math.abs(stats.brakeGapM) >= 0.5 && (
             <p className="text-xs text-[var(--text-primary)]">
-              <span className="text-[var(--text-secondary)]">vs optimal: </span>
-              <span
-                className="font-semibold tabular-nums"
-                style={{
-                  color: stats.brakeGapM > 0 ? colors.motorsport.brake : colors.motorsport.throttle,
-                }}
-              >
-                {stats.brakeGapM > 0 ? `${stats.brakeGapM.toFixed(1)}m later` : `${Math.abs(stats.brakeGapM).toFixed(1)}m earlier`}
+              <span style={{ color: colors.motorsport.brake }} className="text-[var(--text-secondary)]">Brake gap: </span>
+              <span className="font-semibold tabular-nums">
+                {stats.brakeGapM > 0 ? `${stats.brakeGapM.toFixed(1)}m late` : `${Math.abs(stats.brakeGapM).toFixed(1)}m early`}
               </span>
             </p>
           )}
           {stats.throttleGapM != null && Math.abs(stats.throttleGapM) >= 0.5 && (
             <p className="text-xs text-[var(--text-primary)]">
-              <span className="text-[var(--text-secondary)]">throttle vs optimal: </span>
-              <span
-                className="font-semibold tabular-nums"
-                style={{
-                  color: stats.throttleGapM > 0 ? colors.motorsport.brake : colors.motorsport.throttle,
-                }}
-              >
-                {stats.throttleGapM > 0
-                  ? `${stats.throttleGapM.toFixed(1)}m later`
-                  : `${Math.abs(stats.throttleGapM).toFixed(1)}m earlier`}
+              <span style={{ color: colors.motorsport.throttle }} className="text-[var(--text-secondary)]">Throttle gap: </span>
+              <span className="font-semibold tabular-nums">
+                {stats.throttleGapM > 0 ? `${stats.throttleGapM.toFixed(1)}m late` : `${Math.abs(stats.throttleGapM).toFixed(1)}m early`}
               </span>
             </p>
           )}
-          <div className="mt-1.5 flex items-center gap-3 text-[10px] text-[var(--text-secondary)]">
-            <span className="flex items-center gap-1">
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  backgroundColor: `${colors.motorsport.brake}88`,
-                }}
-              />
-              Brakes
-            </span>
-            <span className="flex items-center gap-1">
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: 0,
-                  height: 0,
-                  borderLeft: '3px solid transparent',
-                  borderRight: '3px solid transparent',
-                  borderBottom: `6px solid ${colors.motorsport.throttle}88`,
-                }}
-              />
-              Throttle
-            </span>
-            <span className="flex items-center gap-1">
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: 8,
-                  height: 2,
-                  backgroundColor: colors.motorsport.optimal,
-                  borderRadius: 1,
-                }}
-              />
-              Your best
-            </span>
-            {(optimalBrakeLine || optimalThrottleLine) && (
+          <div className="mt-1.5 space-y-0.5 text-[10px] text-[var(--text-secondary)]">
+            {/* Brake row */}
+            <div className="flex items-center gap-2">
+              <span style={{ color: colors.motorsport.brake }} className="font-semibold">Brake</span>
               <span className="flex items-center gap-1">
-                <span
-                  style={{
-                    display: 'inline-block',
-                    width: 8,
-                    height: 2,
-                    backgroundColor: colors.motorsport.throttle,
-                    borderRadius: 1,
-                    borderTop: `1px dashed ${colors.motorsport.throttle}`,
-                  }}
-                />
-                Target
+                <span style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', backgroundColor: `${colors.motorsport.brake}88` }} />
+                per lap
               </span>
-            )}
+              <span className="flex items-center gap-1">
+                <span style={{ display: 'inline-block', width: 8, height: 2, backgroundColor: colors.motorsport.brake, borderRadius: 1 }} />
+                best
+              </span>
+              {optimalBrakeLine && (
+                <span className="flex items-center gap-1">
+                  <span style={{ display: 'inline-block', width: 8, height: 0, borderTop: `2px dashed ${colors.motorsport.brake}` }} />
+                  optimal
+                </span>
+              )}
+            </div>
+            {/* Throttle row */}
+            <div className="flex items-center gap-2">
+              <span style={{ color: colors.motorsport.throttle }} className="font-semibold">Throttle</span>
+              <span className="flex items-center gap-1">
+                <span style={{ display: 'inline-block', width: 0, height: 0, borderLeft: '3px solid transparent', borderRight: '3px solid transparent', borderBottom: `5px solid ${colors.motorsport.throttle}88` }} />
+                per lap
+              </span>
+              <span className="flex items-center gap-1">
+                <span style={{ display: 'inline-block', width: 8, height: 2, backgroundColor: colors.motorsport.throttle, borderRadius: 1 }} />
+                best
+              </span>
+              {optimalThrottleLine && (
+                <span className="flex items-center gap-1">
+                  <span style={{ display: 'inline-block', width: 8, height: 0, borderTop: `2px dashed ${colors.motorsport.throttle}` }} />
+                  optimal
+                </span>
+              )}
+            </div>
           </div>
         </div>
       )}
