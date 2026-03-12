@@ -380,8 +380,9 @@ def _format_optimal_comparison(result: OptimalComparisonResult) -> str:
 
     for opp in result.corner_opportunities[:10]:  # top 10
         brake_info = ""
-        if opp.brake_gap_m is not None:
-            brake_info = f", brakes {opp.brake_gap_m:.0f}m early"
+        if opp.brake_gap_m is not None and abs(opp.brake_gap_m) >= 0.5:
+            direction = "late" if opp.brake_gap_m > 0 else "early"
+            brake_info = f", brakes {abs(opp.brake_gap_m):.0f}m {direction}"
         lines.append(
             f"- T{opp.corner_number}: {opp.speed_gap_mph:+.1f} mph gap"
             f" ({opp.time_cost_s:.3f}s cost{brake_info})"

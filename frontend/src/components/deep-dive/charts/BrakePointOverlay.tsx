@@ -501,6 +501,11 @@ export function BrakePointOverlay({
               <span className="font-semibold tabular-nums">
                 {stats.brakeGapM > 0 ? `${stats.brakeGapM.toFixed(1)}m late` : `${Math.abs(stats.brakeGapM).toFixed(1)}m early`}
               </span>
+              {stats.brakeGapM > 15 && (
+                <span className="ml-1 text-[10px] text-amber-400" title="Your best lap brakes later than the physics model predicts — the model's grip estimate may be conservative for this corner">
+                  (model est.)
+                </span>
+              )}
             </p>
           )}
           {stats.throttleGapM != null && Math.abs(stats.throttleGapM) >= 0.5 && (
@@ -526,7 +531,9 @@ export function BrakePointOverlay({
               {optimalBrakeLine && (
                 <span className="flex items-center gap-1">
                   <span style={{ display: 'inline-block', width: 8, height: 0, borderTop: `2px dashed ${colors.motorsport.brake}` }} />
-                  optimal
+                  {stats?.brakeGapM != null && stats.brakeGapM > 15 ? (
+                    <span title="Your best lap outperforms the physics model's brake point estimate">optimal (est.)</span>
+                  ) : 'optimal'}
                 </span>
               )}
             </div>

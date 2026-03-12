@@ -1817,7 +1817,64 @@ class TestFormatOptimalComparison:
         )
         text = _format_optimal_comparison(result)
         assert "T3" in text
-        assert "brakes" in text
+        # brake_gap_m=15 positive → driver brakes later than optimal → "late"
+        assert "brakes 15m late" in text
+
+    def test_opportunity_with_negative_brake_gap(self) -> None:
+        """Negative brake_gap_m = driver brakes earlier than optimal → 'early'."""
+        import numpy as np
+
+        opp = CornerOpportunity(
+            corner_number=5,
+            actual_min_speed_mps=18.0,
+            optimal_min_speed_mps=22.0,
+            speed_gap_mps=4.0,
+            speed_gap_mph=8.9,
+            actual_brake_point_m=150.0,
+            optimal_brake_point_m=170.0,
+            brake_gap_m=-20.0,
+            throttle_gap_m=None,
+            time_cost_s=0.6,
+        )
+        result = OptimalComparisonResult(
+            corner_opportunities=[opp],
+            actual_lap_time_s=93.0,
+            optimal_lap_time_s=91.5,
+            total_gap_s=1.5,
+            speed_delta_mps=np.zeros(10),
+            distance_m=np.arange(10) * 0.7,
+        )
+        text = _format_optimal_comparison(result)
+        assert "T5" in text
+        assert "brakes 20m early" in text
+
+    def test_opportunity_with_tiny_brake_gap_omitted(self) -> None:
+        """Brake gap < 0.5m should be omitted (noise)."""
+        import numpy as np
+
+        opp = CornerOpportunity(
+            corner_number=2,
+            actual_min_speed_mps=25.0,
+            optimal_min_speed_mps=26.0,
+            speed_gap_mps=1.0,
+            speed_gap_mph=2.2,
+            actual_brake_point_m=200.0,
+            optimal_brake_point_m=200.3,
+            brake_gap_m=0.3,
+            throttle_gap_m=None,
+            time_cost_s=0.1,
+        )
+        result = OptimalComparisonResult(
+            corner_opportunities=[opp],
+            actual_lap_time_s=93.0,
+            optimal_lap_time_s=91.5,
+            total_gap_s=1.5,
+            speed_delta_mps=np.zeros(10),
+            distance_m=np.arange(10) * 0.7,
+        )
+        text = _format_optimal_comparison(result)
+        assert "T2" in text
+        assert "brakes" not in text
 
     def test_opportunity_without_brake_gap(self) -> None:
         import numpy as np
