@@ -191,12 +191,15 @@ export function BrakePointOverlay({
     return { type: 'FeatureCollection', features: [line] };
   }, [brakeDots, allLapCorners, bestLapNumber, cornerNumber, lapData]);
 
-  // Optimal brake line (dashed amber) — offset from best by brake_gap_m
+  // Optimal brake line (dashed) — offset from best by brake_gap_m
+  // Only shown when brake_gap_m < 0 (driver brakes earlier than physics model).
+  // When brake_gap_m > 0, the driver already outperforms the model — showing a
+  // "brake earlier" line would contradict the coaching advice.
   const optimalBrakeLine = useMemo((): GeoJSON.FeatureCollection | null => {
     const opp = optimalComparison?.corner_opportunities?.find(
       (o) => o.corner_number === cornerNumber,
     );
-    if (!opp?.brake_gap_m) return null;
+    if (!opp?.brake_gap_m || opp.brake_gap_m > 0) return null;
 
     const bestCorners = allLapCorners?.[String(bestLapNumber)];
     const bestCorner = bestCorners?.find((c) => c.number === cornerNumber);
@@ -501,11 +504,6 @@ export function BrakePointOverlay({
               <span className="font-semibold tabular-nums">
                 {stats.brakeGapM > 0 ? `${stats.brakeGapM.toFixed(1)}m late` : `${Math.abs(stats.brakeGapM).toFixed(1)}m early`}
               </span>
-              {stats.brakeGapM > 15 && (
-                <span className="ml-1 text-[10px] text-amber-400" title="Your best lap brakes later than the physics model predicts — the model's grip estimate may be conservative for this corner">
-                  (model est.)
-                </span>
-              )}
             </p>
           )}
           {stats.throttleGapM != null && Math.abs(stats.throttleGapM) >= 0.5 && (
@@ -531,9 +529,7 @@ export function BrakePointOverlay({
               {optimalBrakeLine && (
                 <span className="flex items-center gap-1">
                   <span style={{ display: 'inline-block', width: 8, height: 0, borderTop: `2px dashed ${colors.motorsport.brake}` }} />
-                  {stats?.brakeGapM != null && stats.brakeGapM > 15 ? (
-                    <span title="Your best lap outperforms the physics model's brake point estimate">optimal (est.)</span>
-                  ) : 'optimal'}
+                  optimal
                 </span>
               )}
             </div>

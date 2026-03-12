@@ -1792,7 +1792,8 @@ class TestFormatOptimalComparison:
         text = _format_optimal_comparison(self._make_result(opportunities=[]))
         assert "no corner data available" in text
 
-    def test_opportunity_with_brake_gap(self) -> None:
+    def test_opportunity_with_positive_brake_gap_suppressed(self) -> None:
+        """Positive brake_gap_m = driver outperforms model → brake info suppressed."""
         import numpy as np
 
         opp = CornerOpportunity(
@@ -1817,8 +1818,8 @@ class TestFormatOptimalComparison:
         )
         text = _format_optimal_comparison(result)
         assert "T3" in text
-        # brake_gap_m=15 positive → driver brakes later than optimal → "late"
-        assert "brakes 15m late" in text
+        # Positive gap = driver already outperforms model → no brake info shown
+        assert "brakes" not in text
 
     def test_opportunity_with_negative_brake_gap(self) -> None:
         """Negative brake_gap_m = driver brakes earlier than optimal → 'early'."""
