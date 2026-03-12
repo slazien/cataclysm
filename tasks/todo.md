@@ -23,6 +23,17 @@
 - [x] 4. Re-run `ruff`, `dmypy`, targeted physics tests, and full regression
 - [x] 5. Re-run real-session QA against `origin/staging` and quantify solver impact across the local corpus
 
+# Session TODO — 2026-03-12 (Physics Cache Version Bump)
+
+## Implementation
+- [x] 1. Version the in-memory physics cache keys so old warmed results stop being reused
+- [x] 2. Bump the shared physics code version used by the DB-backed cache
+- [x] 3. Update cache tests for the new key shape and old-version miss behavior
+
+## Verification
+- [x] 4. Re-run lint, type-checks, and targeted cache tests
+- [x] 5. Re-run the full backend/unit regression suite and push the branch
+
 # Session TODO — 2026-03-10 (Corner Enrichment Accuracy)
 
 ## Implementation

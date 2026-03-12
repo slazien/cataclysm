@@ -36,6 +36,7 @@ from cataclysm.velocity_profile import VehicleParams
 
 from backend.api.services import equipment_store
 from backend.api.services import pipeline as pipeline_module
+from backend.api.services.db_physics_cache import PHYSICS_CODE_VERSION
 from backend.api.services.pipeline import (
     _build_decel_array,
     _build_mu_array,
@@ -390,10 +391,20 @@ class TestPhysicsCacheFunctions:
     def test_get_physics_cached_expired_entry_returns_none(self) -> None:
         """An expired cache entry is treated as a miss."""
         data: dict[str, object] = {"distance_m": [0.0]}
-        cache_key = ("sess-expired:profile", "prof-2")
+        cache_key = ("sess-expired:profile", "prof-2", PHYSICS_CODE_VERSION)
         # Insert entry with a timestamp in the past
         pipeline_module._physics_cache[cache_key] = (data, time.time() - 99999)  # noqa: SLF001
         result = _get_physics_cached("sess-expired", "profile", "prof-2")
+        assert result is None
+
+    def test_get_physics_cached_old_version_returns_none(self) -> None:
+        """In-memory cache entries from an older physics version are ignored."""
+        data: dict[str, object] = {"distance_m": [0.0]}
+        old_cache_key = ("sess-old:profile", "prof-2", "1900-01-01.1")
+        pipeline_module._physics_cache[old_cache_key] = (data, time.time())  # noqa: SLF001
+
+        result = _get_physics_cached("sess-old", "profile", "prof-2")
+
         assert result is None
 
     def test_set_physics_cached_lru_eviction(self) -> None:
@@ -401,7 +412,7 @@ class TestPhysicsCacheFunctions:
         max_entries = pipeline_module.PHYSICS_CACHE_MAX_ENTRIES
         # Fill cache to exactly max_entries using direct dict manipulation
         for i in range(max_entries):
-            cache_key = (f"sess-lru-{i}:profile", None)
+            cache_key = (f"sess-lru-{i}:profile", None, PHYSICS_CODE_VERSION)
             pipeline_module._physics_cache[cache_key] = ({"x": i}, time.time() - (max_entries - i))  # noqa: SLF001
 
         # Insert one more via _set_physics_cached — triggers eviction

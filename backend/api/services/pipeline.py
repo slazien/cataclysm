@@ -73,6 +73,7 @@ from cataclysm.velocity_profile import (
 
 from backend.api.services import equipment_store
 from backend.api.services.db_physics_cache import (
+    PHYSICS_CODE_VERSION,
     db_get_cached,
     db_get_cached_by_track,
     db_invalidate_profile,
@@ -88,10 +89,10 @@ logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Physics result cache: avoids recomputing velocity solver on repeated requests.
-# Key = (f"{session_id}:{endpoint}", profile_id_or_None)
+# Key = (f"{session_id}:{endpoint}", profile_id_or_None, physics_code_version)
 # Value = (result_dict, timestamp)
 # ---------------------------------------------------------------------------
-_physics_cache: dict[tuple[str, str | None], tuple[dict[str, object], float]] = {}
+_physics_cache: dict[tuple[str, str | None, str], tuple[dict[str, object], float]] = {}
 PHYSICS_CACHE_TTL_S = 1800  # 30 minutes
 PHYSICS_CACHE_MAX_ENTRIES = 200  # ~100 sessions × 2 endpoints
 
@@ -109,7 +110,7 @@ def _get_physics_cached(
 ) -> dict[str, object] | None:
     if profile_id is None:
         profile_id = _current_profile_id(session_id)
-    cache_key = (f"{session_id}:{key_suffix}", profile_id)
+    cache_key = (f"{session_id}:{key_suffix}", profile_id, PHYSICS_CODE_VERSION)
     entry = _physics_cache.get(cache_key)
     if entry and (time.time() - entry[1]) < PHYSICS_CACHE_TTL_S:
         logger.debug("Physics cache HIT for %s", cache_key)
@@ -125,7 +126,7 @@ def _set_physics_cached(
 ) -> None:
     if profile_id is None:
         profile_id = _current_profile_id(session_id)
-    cache_key = (f"{session_id}:{key_suffix}", profile_id)
+    cache_key = (f"{session_id}:{key_suffix}", profile_id, PHYSICS_CODE_VERSION)
     _physics_cache[cache_key] = (result, time.time())
     # LRU eviction: drop oldest entry when cache exceeds max size
     if len(_physics_cache) > PHYSICS_CACHE_MAX_ENTRIES:
@@ -176,10 +177,10 @@ async def invalidate_profile_cache(profile_id: str) -> None:
 # Track-level physics cache: shares optimal profile across sessions on the
 # same track with the same equipment. Key includes calibrated_mu (2dp) so
 # sessions with materially different grip don't share.
-# Key = (f"{track_slug}:{endpoint}", profile_id_or_None, calibrated_mu_str)
+# Key = (f"{track_slug}:{endpoint}", profile_id_or_None, calibrated_mu_str, physics_code_version)
 # Value = (result_dict, timestamp)
 # ---------------------------------------------------------------------------
-_track_physics_cache: dict[tuple[str, str | None, str], tuple[dict[str, object], float]] = {}
+_track_physics_cache: dict[tuple[str, str | None, str, str], tuple[dict[str, object], float]] = {}
 TRACK_CACHE_TTL_S = 3600  # 1 hour — track geometry doesn't change
 
 _CORNER_METADATA_PROPAGATION_FIELDS: tuple[str, ...] = (
@@ -564,7 +565,12 @@ def _get_track_cached(
     profile_id: str | None,
     calibrated_mu: str,
 ) -> dict[str, object] | None:
-    cache_key = (f"{track_slug}:{key_suffix}", profile_id, calibrated_mu)
+    cache_key = (
+        f"{track_slug}:{key_suffix}",
+        profile_id,
+        calibrated_mu,
+        PHYSICS_CODE_VERSION,
+    )
     entry = _track_physics_cache.get(cache_key)
     if entry and (time.time() - entry[1]) < TRACK_CACHE_TTL_S:
         logger.debug("Track cache HIT for %s", cache_key)
@@ -579,7 +585,12 @@ def _set_track_cached(
     profile_id: str | None,
     calibrated_mu: str,
 ) -> None:
-    cache_key = (f"{track_slug}:{key_suffix}", profile_id, calibrated_mu)
+    cache_key = (
+        f"{track_slug}:{key_suffix}",
+        profile_id,
+        calibrated_mu,
+        PHYSICS_CODE_VERSION,
+    )
     _track_physics_cache[cache_key] = (result, time.time())
     if len(_track_physics_cache) > PHYSICS_CACHE_MAX_ENTRIES:
         oldest_key = min(_track_physics_cache, key=lambda k: _track_physics_cache[k][1])

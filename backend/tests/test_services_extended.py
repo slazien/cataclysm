@@ -28,6 +28,7 @@ from backend.api.services.coaching_store import (
     clear_all_coaching,
 )
 from backend.api.services.comparison import _normalize_track_name, validate_session_comparison
+from backend.api.services.db_physics_cache import PHYSICS_CODE_VERSION
 from backend.api.services.session_store import claim_session, sync_user_id
 from backend.tests.conftest import _TEST_USER, _test_session_factory
 
@@ -56,7 +57,7 @@ class TestPipelineCache:
 
     def test_get_physics_cached_returns_none_after_expiry(self) -> None:
         """_get_physics_cached returns None when entry is past TTL."""
-        cache_key = ("sess-expired:endpoint", None)
+        cache_key = ("sess-expired:endpoint", None, PHYSICS_CODE_VERSION)
         pipeline._physics_cache[cache_key] = (
             {"data": 1},
             time.time() - pipeline.PHYSICS_CACHE_TTL_S - 1,
@@ -87,23 +88,35 @@ class TestPipelineCache:
     ) -> None:
         """invalidate_profile_cache clears all entries using a specific profile."""
         # Manually insert cache entries with a profile id
-        pipeline._physics_cache[("sess1:optimal", "profile-abc")] = ({"r": 1}, time.time())
-        pipeline._physics_cache[("sess2:optimal", "profile-abc")] = ({"r": 2}, time.time())
-        pipeline._physics_cache[("sess3:optimal", "profile-xyz")] = ({"r": 3}, time.time())
+        pipeline._physics_cache[("sess1:optimal", "profile-abc", PHYSICS_CODE_VERSION)] = (
+            {"r": 1},
+            time.time(),
+        )
+        pipeline._physics_cache[("sess2:optimal", "profile-abc", PHYSICS_CODE_VERSION)] = (
+            {"r": 2},
+            time.time(),
+        )
+        pipeline._physics_cache[("sess3:optimal", "profile-xyz", PHYSICS_CODE_VERSION)] = (
+            {"r": 3},
+            time.time(),
+        )
 
         await pipeline.invalidate_profile_cache("profile-abc")
 
-        assert ("sess1:optimal", "profile-abc") not in pipeline._physics_cache
-        assert ("sess2:optimal", "profile-abc") not in pipeline._physics_cache
+        assert ("sess1:optimal", "profile-abc", PHYSICS_CODE_VERSION) not in pipeline._physics_cache
+        assert ("sess2:optimal", "profile-abc", PHYSICS_CODE_VERSION) not in pipeline._physics_cache
         # Unrelated profile entry should remain
-        assert ("sess3:optimal", "profile-xyz") in pipeline._physics_cache
+        assert ("sess3:optimal", "profile-xyz", PHYSICS_CODE_VERSION) in pipeline._physics_cache
         mock_db_inv.assert_awaited_once_with("profile-abc")
 
     def test_lru_eviction_when_cache_exceeds_max_entries(self) -> None:
         """LRU eviction removes the oldest entry when cache exceeds max size."""
         # Fill cache to just over the limit
         for i in range(pipeline.PHYSICS_CACHE_MAX_ENTRIES):
-            pipeline._physics_cache[(f"sess{i}:ep", None)] = ({"v": i}, time.time() - i)
+            pipeline._physics_cache[(f"sess{i}:ep", None, PHYSICS_CODE_VERSION)] = (
+                {"v": i},
+                time.time() - i,
+            )
 
         # Insert one more entry — should trigger eviction
         pipeline._set_physics_cached("new-sess", "endpoint", {"v": 999})

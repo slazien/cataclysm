@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## Physics Cache Invalidation Must Version Both DB And In-Memory Keys (2026-03-12)
+
+**Pattern**: When a physics-engine change should force recomputation of old sessions, bump a shared physics code version and include it in every cache layer's lookup key, not just the persistent DB filter. Versioning only the DB cache still leaves warm in-memory session/track caches serving stale results until TTL expiry or process restart.
+
+**Why**: The physics cache already stored `code_version` in PostgreSQL, but the in-memory `_physics_cache` and `_track_physics_cache` keys did not include it. That meant old results could survive inside a running backend even after a version bump, which violates the requirement that all previously computed sessions recompute after deploy.
+
+**Error signature**: Old sessions recompute after a cold restart but still return stale optimal-profile/comparison data on a warm backend, especially immediately after deploy. The DB cache appears correct, but repeated requests in the same process still hit RAM.
+
 ## Inverted Braking Zones Need Corner Geometry, Not Distance Heuristics (2026-03-12)
 
 **Pattern**: When `brake_point_m > entry_distance_m`, do not infer start/finish wrap from the inverted interval itself and do not use a fixed meter cutoff. Use corner geometry to decide whether the brake point is still inside the same corner: if brake onset lies before the apex, the local braking zone should run from `brake_point_m` through the apex; only treat it as wrap-around when the brake point lies past the local corner geometry.
