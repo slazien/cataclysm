@@ -1845,6 +1845,24 @@ class TestBuildDecelArray:
         assert result[idx_350] == pytest.approx(1.2)
         assert result[idx_500] == pytest.approx(1.2)
 
+    def test_wraparound_braking_zone_crosses_start_finish(self) -> None:
+        """Wrap-around braking zones apply decel at both lap end and lap start."""
+        distance_m = np.linspace(0.0, 1000.0, 1001)
+        corners = [self._corner(1, entry_m=40.0, exit_m=100.0, brake_point_m=950.0)]
+
+        result = _build_decel_array(
+            distance_m, corners, per_corner_decel={1: 1.2}, global_decel=0.9
+        )
+
+        idx_900 = np.searchsorted(distance_m, 900.0)
+        idx_960 = np.searchsorted(distance_m, 960.0)
+        idx_20 = np.searchsorted(distance_m, 20.0)
+        idx_60 = np.searchsorted(distance_m, 60.0)
+        assert result[idx_900] == pytest.approx(0.9)
+        assert result[idx_960] == pytest.approx(1.2)
+        assert result[idx_20] == pytest.approx(1.2)
+        assert result[idx_60] == pytest.approx(0.9)
+
 
 # ---------------------------------------------------------------------------
 # _collect_per_corner_mu

@@ -725,6 +725,31 @@ class TestCalibratePerCornerBrakingG:
 
         assert result == {}
 
+    def test_wraparound_braking_zone_at_start_finish(self) -> None:
+        """Braking zones that cross start/finish still collect samples."""
+        distance_m = np.array([900.0, 950.0, 980.0, 10.0, 25.0, 40.0, 80.0])
+        longitudinal_g = np.array([-0.1, -0.7, -0.9, -1.0, -0.8, -0.6, -0.1])
+
+        corners = [
+            Corner(
+                number=1,
+                entry_distance_m=40.0,
+                exit_distance_m=80.0,
+                apex_distance_m=60.0,
+                min_speed_mps=20.0,
+                brake_point_m=950.0,
+                peak_brake_g=1.0,
+                throttle_commit_m=70.0,
+                apex_type="mid",
+            ),
+        ]
+
+        from cataclysm.grip_calibration import calibrate_per_corner_braking_g
+
+        result = calibrate_per_corner_braking_g(longitudinal_g, distance_m, corners, min_points=4)
+
+        assert result[1] == pytest.approx(np.percentile([0.7, 0.9, 1.0, 0.8, 0.6], 95.0))
+
 
 # ---------------------------------------------------------------------------
 # GGV Surface Tests

@@ -315,6 +315,37 @@ def calibrate_per_corner_grip(
     return result
 
 
+def _braking_zone_mask(
+    distance_m: np.ndarray,
+    zone_start_m: float,
+    zone_end_m: float,
+) -> np.ndarray:
+    """Return a boolean mask for a braking zone, handling start/finish wrap."""
+    finite_distance = distance_m[np.isfinite(distance_m)]
+    if len(finite_distance) == 0:
+        return np.zeros(len(distance_m), dtype=bool)
+
+    if len(finite_distance) >= 2:
+        unique_distance = np.unique(finite_distance)
+        step_m = float(np.median(np.diff(unique_distance))) if len(unique_distance) >= 2 else 0.0
+    else:
+        step_m = 0.0
+
+    track_length_m = float(np.max(finite_distance) + max(step_m, 0.0))
+    if track_length_m <= 0.0:
+        return (distance_m >= zone_start_m) & (distance_m <= zone_end_m)
+
+    zone_span_m = zone_end_m - zone_start_m
+    if zone_span_m >= track_length_m:
+        return np.isfinite(distance_m)
+
+    zone_start_wrapped = zone_start_m % track_length_m
+    zone_end_wrapped = zone_end_m % track_length_m
+    if zone_start_wrapped <= zone_end_wrapped:
+        return (distance_m >= zone_start_wrapped) & (distance_m <= zone_end_wrapped)
+    return (distance_m >= zone_start_wrapped) | (distance_m <= zone_end_wrapped)
+
+
 def calibrate_per_corner_braking_g(
     longitudinal_g: np.ndarray,
     distance_m: np.ndarray,
@@ -345,7 +376,7 @@ def calibrate_per_corner_braking_g(
             else zone_end - braking_zone_margin_m
         )
 
-        zone_mask = (distance_m >= zone_start) & (distance_m <= zone_end) & (longitudinal_g < -0.2)
+        zone_mask = _braking_zone_mask(distance_m, zone_start, zone_end) & (longitudinal_g < -0.2)
         n_points = int(zone_mask.sum())
         if n_points < min_points:
             continue
