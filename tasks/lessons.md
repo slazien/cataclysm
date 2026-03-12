@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## Data Viz Color Encoding: Color = Category, Style = Source (2026-03-11)
+
+**Pattern**: In multi-category data visualizations (e.g., brake vs throttle), encode the **primary category** with color (red = brake, green = throttle) and the **data source** with line style (dots = per-lap, solid = best, dashed = optimal). Never use a color named after one concept for a different concept (e.g., `colors.motorsport.optimal` for "best lap" markers). When adding a symmetric feature (both brake and throttle), the legend must be symmetric too — same number of items per category.
+
+**Why**: Used `colors.motorsport.optimal` (blue) for best-lap references and `colors.motorsport.throttle` (green) for optimal references — the color names literally contradicted their visual meaning. Took 3 user iterations to fix: first renamed labels only (still confusing), then user identified the root cause was asymmetric representation + semantically backwards color assignment. A 2-row matrix legend (one row per pedal type, each with dot/solid/dashed) was immediately clear.
+
+**Error signature**: User says legend is "confusing" after a label rename → the problem is not the words, it's the color-meaning mismatch or asymmetric structure.
+
 ## Map Overlay Misplacement: Check Viewport Bounds Before Data Pipelines (2026-03-11)
 
 **Pattern**: When Mapbox/map markers appear "in the wrong place," first verify they're within the visible viewport (`fitBounds` area). Compute the marker GPS coords and check if they fall inside the current bounds. Only trace data/interpolation pipelines after confirming the markers ARE visible.
