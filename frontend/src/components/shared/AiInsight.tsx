@@ -22,7 +22,7 @@ export function AiInsight({ children, mode = 'card', className, badge }: AiInsig
           className,
         )}
       >
-        <span className="text-xs" role="img" aria-label="AI">&#x1F916;</span>
+        <Sparkles className="h-3.5 w-3.5 shrink-0" />
         {children}
       </span>
     );
@@ -72,9 +72,7 @@ export function AiInsight({ children, mode = 'card', className, badge }: AiInsig
         }}
       />
       <div className="flex items-start gap-2">
-        <span className="mt-0.5 text-sm text-[var(--ai-icon)]" role="img" aria-label="AI">
-          &#x1F916;
-        </span>
+        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ai-icon)]" />
         <div className="min-w-0 flex-1 text-sm text-[var(--text-primary)]">{children}</div>
       </div>
     </div>

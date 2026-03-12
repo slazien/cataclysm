@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Loader2, BrainCircuit } from 'lucide-react';
+import { Loader2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { fetchApi } from '@/lib/api';
 import { colors } from '@/lib/design-tokens';
@@ -178,7 +178,7 @@ export function ComparisonDeepDive({
       {/* 5. AI Coach Analysis */}
       <section className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
         <div className="mb-3 flex items-center gap-2">
-          <BrainCircuit className="h-4 w-4 text-[var(--ai-icon)]" />
+          <Sparkles className="h-4 w-4 text-[var(--ai-icon)]" />
           <h3 className="text-sm font-medium text-[var(--text-primary)]">
             AI Coach Analysis
           </h3>

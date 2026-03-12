@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { ContextChips } from '@/components/coach/ContextChips';
 import { SuggestedQuestions } from '@/components/coach/SuggestedQuestions';
 import { ChatMessages, ChatInput } from '@/components/coach/ChatInterface';
-import { Bot } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 export function ChatDrawer() {
   const panelOpen = useCoachStore((s) => s.panelOpen);
@@ -30,7 +30,7 @@ export function ChatDrawer() {
             >
               <SheetHeader className="border-b border-[var(--cata-border)] px-4 py-3">
                 <SheetTitle className="flex items-center gap-2 text-base font-semibold text-[var(--text-primary)]">
-                  <Bot className="h-4 w-4 text-[var(--cata-accent)]" />
+                  <Sparkles className="h-4 w-4 text-[var(--cata-accent)]" />
                   AI Coach
                 </SheetTitle>
               </SheetHeader>

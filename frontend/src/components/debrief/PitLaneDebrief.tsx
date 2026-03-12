@@ -25,18 +25,19 @@ import { SessionComparisonCard } from './SessionComparisonCard';
 import { TracksideCard } from './TracksideCard';
 import { CornerConsistencyTable } from './CornerConsistencyTable';
 import { ReviewChecklist } from './ReviewChecklist';
+import { Search, Cog, Zap, Timer, CheckCircle, type LucideIcon } from 'lucide-react';
 
 // ── Pattern labels and their icons for structured display ──
-const PATTERN_SECTIONS: { label: string; icon: string; color: string }[] = [
-  { label: 'ROOT CAUSE', icon: '🔍', color: 'text-amber-400' },
-  { label: 'MECHANISM', icon: '⚙️', color: 'text-blue-400' },
-  { label: 'CONSEQUENCE', icon: '⚡', color: 'text-orange-400' },
-  { label: 'TIME IMPACT', icon: '⏱️', color: 'text-red-400' },
-  { label: 'FIX', icon: '✅', color: 'text-emerald-400' },
+const PATTERN_SECTIONS: { label: string; Icon: LucideIcon; color: string }[] = [
+  { label: 'ROOT CAUSE', Icon: Search, color: 'text-amber-400' },
+  { label: 'MECHANISM', Icon: Cog, color: 'text-blue-400' },
+  { label: 'CONSEQUENCE', Icon: Zap, color: 'text-orange-400' },
+  { label: 'TIME IMPACT', Icon: Timer, color: 'text-red-400' },
+  { label: 'FIX', Icon: CheckCircle, color: 'text-emerald-400' },
 ];
 
 /** Parse a coaching pattern into a title + structured sections. */
-function parsePatternSections(text: string): { title: string; sections: { label: string; icon: string; color: string; body: string }[]; trailing: string } {
+function parsePatternSections(text: string): { title: string; sections: { label: string; Icon: LucideIcon; color: string; body: string }[]; trailing: string } {
   // Title is the bold text before the first section label
   const firstLabelIdx = PATTERN_SECTIONS.reduce((minIdx, s) => {
     const idx = text.indexOf(s.label + ':');
@@ -46,7 +47,7 @@ function parsePatternSections(text: string): { title: string; sections: { label:
   const title = firstLabelIdx > 0 ? text.slice(0, firstLabelIdx).trim() : '';
   const body = firstLabelIdx > 0 ? text.slice(firstLabelIdx) : text;
 
-  const sections: { label: string; icon: string; color: string; body: string }[] = [];
+  const sections: { label: string; Icon: LucideIcon; color: string; body: string }[] = [];
   let remaining = body;
 
   for (const sec of PATTERN_SECTIONS) {
@@ -107,7 +108,7 @@ function PatternCard({ pattern, resolveSpeed, coachingNav }: { pattern: string; 
       <div className="space-y-2.5">
         {sections.map((sec) => (
           <div key={sec.label} className="flex gap-2.5">
-            <span className="mt-0.5 shrink-0 text-xs">{sec.icon}</span>
+            <sec.Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <div className="min-w-0">
               <span className={`text-[11px] font-bold uppercase tracking-wider ${sec.color}`}>
                 {sec.label}
