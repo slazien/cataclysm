@@ -498,6 +498,7 @@ def _auto_detect_blind_crest(
         or lat is None
         or lon is None
         or len(distance) < 3
+        or len(altitude_profile) != len(distance)
     ):
         return
 
@@ -566,7 +567,11 @@ def _auto_generate_coaching_notes(corner: Corner) -> None:
         parts.append("Blind apex so commit to fixed reference points")
 
     if corner.corner_type_hint == "hairpin":
-        parts.append("Trail-brake to rotate. Slow in, fast out")
+        if corner.character == "brake":
+            # Already said "Trail-brake to apex" — just add the hairpin-specific tip
+            parts.append("Slow in, fast out")
+        else:
+            parts.append("Trail-brake to rotate. Slow in, fast out")
     elif corner.corner_type_hint == "sweeper":
         parts.append("Smooth, progressive steering. Maintain constant radius")
     elif corner.corner_type_hint == "kink":
