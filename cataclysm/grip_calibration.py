@@ -315,7 +315,7 @@ def calibrate_per_corner_grip(
     return result
 
 
-def _braking_zone_mask(
+def braking_zone_mask(
     distance_m: np.ndarray,
     zone_start_m: float,
     zone_end_m: float,
@@ -404,7 +404,7 @@ def calibrate_per_corner_braking_g(
             if corner.brake_point_m is not None and zone_start > zone_end
             else None
         )
-        zone_mask = _braking_zone_mask(
+        zone_mask = braking_zone_mask(
             distance_m,
             zone_start,
             zone_end,

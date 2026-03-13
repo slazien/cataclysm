@@ -44,6 +44,7 @@ from cataclysm.gps_quality import GPSQualityReport, assess_gps_quality
 from cataclysm.grip import estimate_grip_limit
 from cataclysm.grip_calibration import (
     apply_calibration_to_params,
+    braking_zone_mask,
     calibrate_grip_from_telemetry,
     calibrate_per_corner_braking_g,
     calibrate_per_corner_grip,
@@ -1318,56 +1319,6 @@ def _build_mu_array(
     return mu_arr
 
 
-def _build_braking_zone_mask(
-    distance_m: np.ndarray,
-    zone_start_m: float,
-    zone_end_m: float,
-    *,
-    local_zone_end_m: float | None = None,
-) -> np.ndarray:
-    """Return a boolean mask for a braking zone.
-
-    Only zones that extend before 0 m are treated as start/finish wrap. If the
-    brake point lies after entry but before the corner apex, treat it as a
-    local trail-braking interval rather than wrap-around.
-    """
-    finite_distance = distance_m[np.isfinite(distance_m)]
-    if len(finite_distance) == 0:
-        return np.zeros(len(distance_m), dtype=bool)
-
-    if len(finite_distance) >= 2:
-        unique_distance = np.unique(finite_distance)
-        step_m = float(np.median(np.diff(unique_distance))) if len(unique_distance) >= 2 else 0.0
-    else:
-        step_m = 0.0
-
-    track_length_m = float(np.max(finite_distance) + max(step_m, 0.0))
-    if track_length_m <= 0.0:
-        return (distance_m >= zone_start_m) & (distance_m <= zone_end_m)
-
-    zone_span_m = zone_end_m - zone_start_m
-    if zone_span_m >= track_length_m:
-        return np.asarray(np.isfinite(distance_m), dtype=bool)
-
-    if zone_start_m < 0.0:
-        zone_start_wrapped = zone_start_m % track_length_m
-        zone_end_wrapped = zone_end_m % track_length_m
-        if zone_start_wrapped <= zone_end_wrapped:
-            return (distance_m >= zone_start_wrapped) & (distance_m <= zone_end_wrapped)
-        return (distance_m >= zone_start_wrapped) | (distance_m <= zone_end_wrapped)
-
-    if zone_start_m > zone_end_m:
-        if local_zone_end_m is not None and zone_start_m <= local_zone_end_m:
-            return (distance_m >= zone_start_m) & (distance_m <= local_zone_end_m)
-        zone_start_wrapped = zone_start_m % track_length_m
-        zone_end_wrapped = zone_end_m % track_length_m
-        if zone_start_wrapped <= zone_end_wrapped:
-            return (distance_m >= zone_start_wrapped) & (distance_m <= zone_end_wrapped)
-        return (distance_m >= zone_start_wrapped) | (distance_m <= zone_end_wrapped)
-
-    return (distance_m >= zone_start_m) & (distance_m <= zone_end_m)
-
-
 def _build_decel_array(
     distance_m: np.ndarray,
     corners: list[Corner],
@@ -1391,7 +1342,7 @@ def _build_decel_array(
             if corner.brake_point_m is not None and zone_start > zone_end
             else None
         )
-        mask = _build_braking_zone_mask(
+        mask = braking_zone_mask(
             distance_m,
             zone_start,
             zone_end,
