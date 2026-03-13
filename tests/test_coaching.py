@@ -11,8 +11,10 @@ import pytest
 from cataclysm.coaching import (
     CoachingContext,
     CoachingReport,
+    CornerGrade,
     _build_coaching_prompt,
     _corner_label,
+    _enforce_novice_constraints,
     _format_all_laps_corners,
     _format_corner_analysis,
     _format_corner_priorities,
@@ -3153,3 +3155,83 @@ class TestSanitizeSpeedMarkers:
     def test_strips_percentage_context(self) -> None:
         text = "trail braking {{speed:0.08}} spread"
         assert _sanitize_speed_markers(text) == "trail braking 0.08 spread"
+
+
+# ---------------------------------------------------------------------------
+# _enforce_novice_constraints
+# ---------------------------------------------------------------------------
+
+
+class TestEnforceNoviceConstraints:
+    def test_forces_trail_braking_na_for_novice(self) -> None:
+        grades = [
+            CornerGrade(
+                corner=5,
+                braking="B",
+                trail_braking="A",
+                min_speed="C",
+                throttle="B",
+                notes="Good trail braking.",
+                trail_braking_reason="Smooth brake release into corner.",
+            ),
+        ]
+        report = CoachingReport(
+            summary="",
+            priority_corners=[],
+            corner_grades=grades,
+            patterns=[],
+            primary_focus="",
+        )
+        _enforce_novice_constraints(report)
+        assert grades[0].trail_braking == "N/A"
+        assert "novice" in grades[0].trail_braking_reason.lower()
+
+    def test_preserves_other_grades(self) -> None:
+        grades = [
+            CornerGrade(
+                corner=5,
+                braking="B",
+                trail_braking="B",
+                min_speed="C",
+                throttle="A",
+                notes="notes",
+                braking_reason="reason",
+                trail_braking_reason="reason",
+                min_speed_reason="reason",
+                throttle_reason="reason",
+            ),
+        ]
+        report = CoachingReport(
+            summary="s",
+            priority_corners=[],
+            corner_grades=grades,
+            patterns=[],
+            primary_focus="f",
+        )
+        _enforce_novice_constraints(report)
+        assert grades[0].braking == "B"
+        assert grades[0].min_speed == "C"
+        assert grades[0].throttle == "A"
+
+    def test_handles_multiple_corners(self) -> None:
+        grades = [
+            CornerGrade(
+                corner=i,
+                braking="B",
+                trail_braking="A",
+                min_speed="B",
+                throttle="B",
+                notes="n",
+            )
+            for i in range(1, 6)
+        ]
+        report = CoachingReport(
+            summary="s",
+            priority_corners=[],
+            corner_grades=grades,
+            patterns=[],
+            primary_focus="f",
+        )
+        _enforce_novice_constraints(report)
+        for g in grades:
+            assert g.trail_braking == "N/A"

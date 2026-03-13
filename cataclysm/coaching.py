@@ -1295,6 +1295,13 @@ def _sanitize_report_speed_markers(report: CoachingReport) -> None:
         grade.throttle_reason = _sanitize_speed_markers(grade.throttle_reason)
 
 
+def _enforce_novice_constraints(report: CoachingReport) -> None:
+    """Force novice-specific constraints that the LLM may have ignored."""
+    for grade in report.corner_grades:
+        grade.trail_braking = "N/A"
+        grade.trail_braking_reason = "Trail braking is not graded at novice skill level."
+
+
 def generate_coaching_report(
     summaries: list[LapSummary],
     all_lap_corners: dict[int, list[Corner]],
@@ -1424,6 +1431,15 @@ def generate_coaching_report(
             )
             report.validation_failed = True
             report.validation_violations = retry_validation.violations
+
+    # Deterministic novice constraints — override any LLM-ignored instructions.
+    effective_skill = (
+        skill_assessment.final_level
+        if skill_assessment is not None and skill_assessment.final_level is not None
+        else skill_level
+    )
+    if effective_skill == "novice":
+        _enforce_novice_constraints(report)
 
     # Filter out hallucinated corners beyond the actual corner count.
     num_corners = len(next(iter(all_lap_corners.values()), []))
