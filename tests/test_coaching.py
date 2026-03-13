@@ -24,6 +24,7 @@ from cataclysm.coaching import (
     _format_optimal_comparison,
     _format_weather_context,
     _parse_coaching_response,
+    _sanitize_speed_markers,
     ask_followup,
     build_track_introduction,
     generate_coaching_report,
@@ -3096,3 +3097,59 @@ class TestCornerLabel:
 
     def test_corner_number_formatting(self) -> None:
         assert _corner_label(12, "Esses") == "Esses (T12)"
+
+
+class TestSanitizeSpeedMarkers:
+    """Test speed marker sanitization — strips {{speed:X}} from non-speed values."""
+
+    def test_preserves_valid_speed_markers(self) -> None:
+        text = "Min speed was {{speed:62.4}} at T5"
+        assert _sanitize_speed_markers(text) == text
+
+    def test_preserves_speed_delta_markers(self) -> None:
+        text = "carried {{speed:2.3}} more through the apex"
+        assert _sanitize_speed_markers(text) == text
+
+    def test_preserves_speed_variance_markers(self) -> None:
+        text = "only {{speed:1.2}} variance across laps"
+        assert _sanitize_speed_markers(text) == text
+
+    def test_strips_gforce_in_speed_marker(self) -> None:
+        text = "Peak brake G averages 0.70G with {{speed:0.22}} spread"
+        assert _sanitize_speed_markers(text) == "Peak brake G averages 0.70G with 0.22 spread"
+
+    def test_strips_time_value_in_speed_marker(self) -> None:
+        text = "this is costing you {{speed:0.15}} per lap"
+        assert _sanitize_speed_markers(text) == "this is costing you 0.15 per lap"
+
+    def test_strips_correlation_in_speed_marker(self) -> None:
+        text = "inter-corner cascade shows {{speed:0.99}} correlation"
+        assert _sanitize_speed_markers(text) == "inter-corner cascade shows 0.99 correlation"
+
+    def test_fixes_broken_token_split_number(self) -> None:
+        text = "recover roughly {{speed:0}}.25s per lap"
+        result = _sanitize_speed_markers(text)
+        assert "{{speed:" not in result
+        assert "0.25s" in result
+
+    def test_fixes_broken_token_trailing_digits(self) -> None:
+        text = "reduce gap by {{speed:1}}.0 on two runs"
+        result = _sanitize_speed_markers(text)
+        assert "{{speed:" not in result
+        assert "1.0" in result
+
+    def test_strips_seconds_unit_context(self) -> None:
+        text = "fixing this recovers {{speed:0.25}}s per lap"
+        assert _sanitize_speed_markers(text) == "fixing this recovers 0.25s per lap"
+
+    def test_preserves_legitimate_low_speed(self) -> None:
+        text = "carrying {{speed:5.6}} more exit speed"
+        assert _sanitize_speed_markers(text) == text
+
+    def test_range_markers_preserved(self) -> None:
+        text = "within {{speed:1}}-{{speed:3}} of your best"
+        assert _sanitize_speed_markers(text) == text
+
+    def test_strips_percentage_context(self) -> None:
+        text = "trail braking {{speed:0.08}} spread"
+        assert _sanitize_speed_markers(text) == "trail braking 0.08 spread"

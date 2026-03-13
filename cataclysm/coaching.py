@@ -84,6 +84,56 @@ def resolve_speed_markers(text: str, *, metric: bool = False) -> str:
     return _SPEED_MARKER_RE.sub(_replace, result)
 
 
+_BROKEN_SPEED_TOKEN_RE = re.compile(
+    r"\{\{speed:(\d+(?:\.\d+)?)\}\}(\.\d+)",
+)
+
+_SPEED_CONTEXT_STRIP_RE = re.compile(r"\{\{speed:(\d+(?:\.\d+)?)\}\}")
+
+
+def _sanitize_speed_markers(text: str) -> str:
+    """Strip ``{{speed:X}}`` markers from non-speed values.
+
+    Keeps markers for actual speeds and speed deltas (mph).
+    Strips markers from G-forces, time values, correlations, and
+    fixes broken tokens where a number was split across the marker boundary.
+    """
+    # Phase 1: Fix broken tokens — {{speed:0}}.25 → 0.25
+    text = _BROKEN_SPEED_TOKEN_RE.sub(r"\1\2", text)
+
+    # Phase 2: Strip markers from values that are clearly not speeds.
+    # Heuristic: values < 1.0 are almost never actual speeds in mph
+    # (slowest car corner is ~15 mph). They're usually G-forces, time
+    # deltas, correlations, or percentages.
+    def _maybe_strip(match: re.Match[str]) -> str:
+        val_str = match.group(1)
+        val = float(val_str)
+
+        if val < 1.0:
+            return val_str
+
+        return match.group(0)  # Keep the marker
+
+    text = _SPEED_CONTEXT_STRIP_RE.sub(_maybe_strip, text)
+
+    # Phase 3: Context-aware stripping — values followed by "s " (seconds),
+    # "G" (G-force), or "%" (percentage) should not have speed markers.
+    text = re.sub(
+        r"\{\{speed:(\d+(?:\.\d+)?)\}\}(s\b|G\b|%)",
+        r"\1\2",
+        text,
+    )
+
+    # Phase 4: Strip markers from context words that indicate non-speed usage.
+    text = re.sub(
+        r"\{\{speed:(\d+(?:\.\d+)?)\}\}(\s+(?:correlation|per lap|per corner))",
+        r"\1\2",
+        text,
+    )
+
+    return text
+
+
 _validator: CoachingValidator | None = None
 
 
@@ -1217,6 +1267,27 @@ def _sanitize_report_forbidden_composites(report: CoachingReport) -> list[str]:
     return deduped
 
 
+def _sanitize_report_speed_markers(report: CoachingReport) -> None:
+    """Strip ``{{speed:X}}`` markers from non-speed values across all report text."""
+    report.summary = _sanitize_speed_markers(report.summary)
+    report.primary_focus = _sanitize_speed_markers(report.primary_focus)
+    report.patterns = [_sanitize_speed_markers(p) for p in report.patterns]
+    report.drills = [_sanitize_speed_markers(d) for d in report.drills]
+
+    for priority in report.priority_corners:
+        for field_name in ("issue", "tip"):
+            value = priority.get(field_name)
+            if isinstance(value, str):
+                priority[field_name] = _sanitize_speed_markers(value)
+
+    for grade in report.corner_grades:
+        grade.notes = _sanitize_speed_markers(grade.notes)
+        grade.braking_reason = _sanitize_speed_markers(grade.braking_reason)
+        grade.trail_braking_reason = _sanitize_speed_markers(grade.trail_braking_reason)
+        grade.min_speed_reason = _sanitize_speed_markers(grade.min_speed_reason)
+        grade.throttle_reason = _sanitize_speed_markers(grade.throttle_reason)
+
+
 def generate_coaching_report(
     summaries: list[LapSummary],
     all_lap_corners: dict[int, list[Corner]],
@@ -1314,6 +1385,7 @@ def generate_coaching_report(
                 retry_check.forbidden_composites,
             )
             removed = _sanitize_report_forbidden_composites(report)
+            _sanitize_report_speed_markers(report)
             report.content_warnings = retry_check.forbidden_composites + [
                 item for item in removed if item not in retry_check.forbidden_composites
             ]
@@ -1333,6 +1405,7 @@ def generate_coaching_report(
         retry_content = validate_coaching_content(response_text, input_values=input_values)
         if not retry_content.passed:
             removed = _sanitize_report_forbidden_composites(report)
+            _sanitize_report_speed_markers(report)
             report.content_warnings = retry_content.forbidden_composites + [
                 item for item in removed if item not in retry_content.forbidden_composites
             ]
