@@ -210,7 +210,8 @@ without quantifying its estimated time impact.
 
 ## Positive Framing
 Begin the report summary with 2-3 specific data-backed strengths \
-(e.g., "Your T7 consistency was excellent — only {{{{speed:0.1}}}} variance across laps"). \
+(e.g., "Your T7 consistency was excellent — \
+only {{{{speed:1.3}}}} min-speed variance across laps"). \
 Then transition to improvement areas. Cite specific data-backed strengths rather than \
 generic encouragement. Target ratio: approximately 60% positive observations / 40% \
 improvement areas across the entire report.
@@ -346,19 +347,19 @@ is inconclusive.
 
 You may ONLY cite metrics from this list. ANY metric not listed here is a hallucination.
 
-| Metric              | Unit      | Example phrasing                                    |
-|---------------------|-----------|-----------------------------------------------------|
-| Lap time            | mm:ss.ss  | "Best lap was 1:46.82 (L2)"                        |
-| Corner min speed    | mph       | "T5 minimum speed was {{{{speed:62.4}}}}"          |
-| Brake point distance| m         | "Brake point was 78m before apex"                   |
-| Peak brake G        | G         | "Peak braking reached 1.18G"                        |
-| Throttle commit     | m         | "Throttle commit 22m after apex"                    |
-| Apex type           | enum      | "Late apex" / "Early apex" / "Geometric apex"      |
-| Corner time delta   | s         | "T4→T5 lost 0.18s vs best"                          |
-| Speed gap to optimal| mph       | "Exit speed is {{{{speed:3.2}}}} below optimal"     |
-| Brake point std dev | m         | "Brake point scatter of 6m"                          |
-| Min speed std dev   | mph       | "Min speed variance of {{{{speed:1.2}}}}"           |
-| Throttle commit std | m         | "Throttle commit scatter of 4m"                      |
+| Metric           | Unit     | {{{{speed:}}}}? | Example                                    |
+|------------------|----------|-----------------|--------------------------------------------|
+| Lap time         | mm:ss.ss | NO              | "Best lap was 1:46.82 (L2)"               |
+| Corner min speed | mph      | YES             | "T5 min was {{{{speed:62.4}}}}"            |
+| Brake point dist | m        | NO              | "Brake point 78m before apex"              |
+| Peak brake G     | G        | NO              | "Peak braking reached 1.18G"               |
+| Throttle commit  | m        | NO              | "Throttle commit 22m after apex"           |
+| Apex type        | enum     | NO              | "Late apex" / "Early apex"                 |
+| Corner time delta| s        | NO              | "T4→T5 lost 0.18s vs best"                |
+| Speed gap optimal| mph      | YES             | "Exit {{{{speed:3.2}}}} below optimal"     |
+| Brake pt std dev | m        | NO              | "Brake point scatter of 6m"                |
+| Min speed std dev| mph      | YES             | "Min speed variance {{{{speed:1.2}}}}"     |
+| Throttle std dev | m        | NO              | "Throttle commit scatter of 4m"            |
 
 NEVER combine units across concepts. Forbidden examples:
 - "mph of grip" — NONSENSICAL (mph is speed, grip is G or %)

@@ -1119,7 +1119,14 @@ wrap every speed value with the marker {{{{speed:N}}}} where N is the numeric va
 For ranges, use TWO separate markers: {{{{speed:1}}}}-{{{{speed:2}}}}, NOT {{{{speed:1-2}}}}. \
 Example: "Carry {{{{speed:3}}}} more through the apex" or "Min speed was {{{{speed:42.5}}}}". \
 Example range: "within {{{{speed:1}}}}-{{{{speed:2}}}} of your best". \
-Never write bare "mph" or "km/h" in text fields — always use {{{{speed:N}}}}.
+Never write bare "mph" or "km/h" in text fields — always use {{{{speed:N}}}}. \
+\nNEVER use {{{{speed:N}}}} for: time values (seconds), G-forces, distances (meters), \
+correlations, percentages, or brake point scatter. These have their own units. \
+BAD: "costing you {{{{speed:0.15}}}} per lap" (0.15 is seconds, not mph) \
+BAD: "peak G of {{{{speed:1.05}}}}G" (G-force, not speed) \
+BAD: "{{{{speed:0.98}}}} correlation" (correlation coefficient) \
+GOOD: "costing you 0.15s per lap" \
+GOOD: "peak G of 1.05G"
 </instructions>"""
 
 
