@@ -145,7 +145,7 @@ def classify_corner(
         conf = _clamp_confidence(
             0.5
             + 0.2 * min((curv - HAIRPIN_MIN_CURVATURE) / 0.02, 1.0)
-            + 0.2 * min((heading - HAIRPIN_MIN_HEADING_DEG) / 60.0, 1.0)
+            + 0.2 * min(max(heading - HAIRPIN_MIN_HEADING_DEG, 0.0) / 60.0, 1.0)
             - arc_penalty
         )
         return CornerClassification(

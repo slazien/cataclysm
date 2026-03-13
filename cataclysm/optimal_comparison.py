@@ -27,6 +27,11 @@ _THROTTLE_SEARCH_AFTER_M = 100.0
 # Floor speed (mps) to avoid division-by-zero in time computations
 _MIN_SPEED_MPS = 1.0
 
+# Maximum exit-straight distance (m) attributed to a corner exit.
+# Beyond this, speed deficits are more likely vehicle/driver-related
+# (top speed, shifting, draft) than corner-exit-related.
+_MAX_EXIT_STRAIGHT_M = 500.0
+
 # Apex-centred window for computing optimal min speed.  The full entry-to-exit
 # zone includes acceleration/braking ramps whose speeds reflect the preceding/
 # following corner, not the current one.  A ±30% window around the apex captures
@@ -331,11 +336,18 @@ def compute_corner_opportunities(
             if first_entry > 0:
                 segments.append((0.0, first_entry))
 
-        # Compute time cost across all segments
+        # Cap total attributed distance to _MAX_EXIT_STRAIGHT_M so very long
+        # straights don't inflate a corner's coaching priority beyond what
+        # corner-exit speed actually affects.
         straight_cost = 0.0
+        remaining_budget = _MAX_EXIT_STRAIGHT_M
         for seg_start, seg_end in segments:
-            seg_mask = (optimal.distance_m >= seg_start) & (optimal.distance_m <= seg_end)
+            if remaining_budget <= 0.0:
+                break
+            capped_end = min(seg_end, seg_start + remaining_budget)
+            seg_mask = (optimal.distance_m >= seg_start) & (optimal.distance_m <= capped_end)
             if not seg_mask.any():
+                remaining_budget -= capped_end - seg_start
                 continue
 
             seg_optimal = optimal.optimal_speed_mps[seg_mask]
@@ -345,6 +357,7 @@ def compute_corner_opportunities(
                 optimal.distance_m[seg_mask],
             )
             straight_cost += _compute_time_cost(seg_actual, seg_optimal, step_m)
+            remaining_budget -= capped_end - seg_start
 
         # Sanity guard: cap at zero (same as corner time_cost)
         opp.exit_straight_time_cost_s = max(0.0, straight_cost)
