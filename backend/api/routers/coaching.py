@@ -446,6 +446,7 @@ async def _run_generation(
                 if s.user_id == sd.user_id
                 and s.parsed.metadata.track_name == track_name
                 and s.session_id != session_id
+                and s.processed.lap_summaries
             ]
             if same_track_sessions:
                 historical_best_s = min(

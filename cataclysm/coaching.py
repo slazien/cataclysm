@@ -220,7 +220,7 @@ _SKILL_PROMPTS: dict[str, str] = {
         "weight transfer, load transfer, lateral grip, yaw rate, slip angle\n"
         "- Reference corner EXIT speed impact on following straight (cite meters)\n"
         "- Link corners: 'T11 throttle timing cascades to T12 entry via the 68m link'\n"
-        "- Cite physics-optimal gaps when available: 'physics model shows {speed:2.3} more "
+        "- Cite physics-optimal gaps when available: 'physics model shows {{speed:2.3}} more "
         "is achievable at this corner'\n"
         "- Advanced drivers want DATA, not encouragement — lead with numbers\n"
     ),
@@ -1350,6 +1350,9 @@ def _sanitize_report_speed_markers(report: CoachingReport) -> None:
         grade.min_speed_reason = _sanitize_speed_markers(grade.min_speed_reason)
         grade.throttle_reason = _sanitize_speed_markers(grade.throttle_reason)
 
+    if report.raw_response:
+        report.raw_response = _sanitize_speed_markers(report.raw_response)
+
 
 def _enforce_novice_constraints(report: CoachingReport) -> None:
     """Force novice-specific constraints that the LLM may have ignored."""
@@ -1498,6 +1501,9 @@ def generate_coaching_report(
     )
     if effective_skill == "novice":
         _enforce_novice_constraints(report)
+
+    # Strip {{speed:X}} tokens from non-speed values (G-forces, times, etc.)
+    _sanitize_report_speed_markers(report)
 
     # Filter out hallucinated corners beyond the actual corner count.
     num_corners = len(next(iter(all_lap_corners.values()), []))
