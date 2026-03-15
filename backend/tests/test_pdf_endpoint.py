@@ -9,6 +9,7 @@ import pytest
 from cataclysm.coaching import CoachingReport, CornerGrade
 from httpx import AsyncClient
 
+from backend.api.routers.coaching import is_generating
 from backend.api.services.coaching_store import clear_all_coaching
 from backend.tests.conftest import build_synthetic_csv
 
@@ -91,8 +92,11 @@ async def test_pdf_download_success(client: AsyncClient) -> None:
             json={"skill_level": "intermediate"},
         )
         assert resp.status_code == 200
-        # Let the background task complete
-        await asyncio.sleep(0.01)
+        # Wait for background coaching generation to complete (up to 15s)
+        for _ in range(1500):
+            await asyncio.sleep(0.01)
+            if not is_generating(session_id, "intermediate"):
+                break
 
     # Verify coaching report is ready
     resp = await client.get(f"/api/coaching/{session_id}/report")

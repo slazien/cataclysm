@@ -11,6 +11,7 @@ from cataclysm.coaching import CoachingContext, CoachingReport, CornerGrade
 from httpx import AsyncClient
 
 from backend.api.db.models import Session as SessionModel
+from backend.api.routers.coaching import is_generating
 from backend.api.schemas.coaching import (
     CoachingReportResponse,
     CornerGradeSchema,
@@ -104,8 +105,11 @@ class TestAutoCoachingOnUpload:
             assert resp.status_code == 200
             session_id = resp.json()["session_ids"][0]
 
-            # Let background task finish
-            await asyncio.sleep(0.01)
+            # Wait for background coaching generation to complete (up to 15s)
+            for _ in range(1500):
+                await asyncio.sleep(0.01)
+                if not is_generating(session_id, "intermediate"):
+                    break
 
         # Report should now be available
         report_resp = await client.get(f"/api/coaching/{session_id}/report")

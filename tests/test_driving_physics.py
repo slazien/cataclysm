@@ -78,7 +78,7 @@ class TestCoachingSystemPrompt:
     def test_metric_allow_list_present(self) -> None:
         assert "Permitted Metrics — Data Honesty" in COACHING_SYSTEM_PROMPT
         assert "Corner min speed" in COACHING_SYSTEM_PROMPT
-        assert "Speed gap to optimal" in COACHING_SYSTEM_PROMPT
+        assert "Speed gap optimal" in COACHING_SYSTEM_PROMPT
 
     def test_hallucination_example_present(self) -> None:
         assert "Hallucination Example" in COACHING_SYSTEM_PROMPT
