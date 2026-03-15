@@ -3334,9 +3334,7 @@ class TestOutlierSessionContext:
         """Prompt should mention outlier when session is 20%+ slower than historical best."""
         summaries = self._make_summaries(131.0)  # 131s vs 107s historical = ~22% slower
         corners = self._make_corners(3)
-        prompt = _build_coaching_prompt(
-            summaries, corners, "Test Track", historical_best_s=107.0
-        )
+        prompt = _build_coaching_prompt(summaries, corners, "Test Track", historical_best_s=107.0)
         assert "Session Context" in prompt
         assert "slower" in prompt.lower()
         assert "107.00" in prompt
@@ -3346,18 +3344,14 @@ class TestOutlierSessionContext:
         """No outlier warning when within 20% of historical best."""
         summaries = self._make_summaries(112.0)  # 112 vs 107 = ~4.7% slower
         corners = self._make_corners(3)
-        prompt = _build_coaching_prompt(
-            summaries, corners, "Test Track", historical_best_s=107.0
-        )
+        prompt = _build_coaching_prompt(summaries, corners, "Test Track", historical_best_s=107.0)
         assert "Session Context" not in prompt
 
     def test_no_context_when_no_historical(self) -> None:
         """No outlier warning when historical_best_s is None."""
         summaries = self._make_summaries(131.0)
         corners = self._make_corners(3)
-        prompt = _build_coaching_prompt(
-            summaries, corners, "Test Track", historical_best_s=None
-        )
+        prompt = _build_coaching_prompt(summaries, corners, "Test Track", historical_best_s=None)
         assert "Session Context" not in prompt
 
     def test_no_context_when_historical_is_none_default(self) -> None:
@@ -3372,9 +3366,7 @@ class TestOutlierSessionContext:
         # 107 * 1.20 = 128.4; best lap = 128.4 exactly -> not > 128.4
         summaries = self._make_summaries(128.4)
         corners = self._make_corners(3)
-        prompt = _build_coaching_prompt(
-            summaries, corners, "Test Track", historical_best_s=107.0
-        )
+        prompt = _build_coaching_prompt(summaries, corners, "Test Track", historical_best_s=107.0)
         assert "Session Context" not in prompt
 
     def test_just_over_20_percent_triggers(self) -> None:
@@ -3382,7 +3374,5 @@ class TestOutlierSessionContext:
         # 107 * 1.20 = 128.4; best lap = 128.5 -> > 128.4
         summaries = self._make_summaries(128.5)
         corners = self._make_corners(3)
-        prompt = _build_coaching_prompt(
-            summaries, corners, "Test Track", historical_best_s=107.0
-        )
+        prompt = _build_coaching_prompt(summaries, corners, "Test Track", historical_best_s=107.0)
         assert "Session Context" in prompt
