@@ -153,7 +153,7 @@ def _generating_response(
     )
 
 
-_ABSOLUTE_PRIORITY_TIME_CAP_S = 5.0
+_ABSOLUTE_PRIORITY_TIME_CAP_S = 3.0
 
 # Track background coaching tasks to prevent GC collection and enable error logging
 _background_tasks: set[asyncio.Task[None]] = set()
@@ -436,6 +436,23 @@ async def _run_generation(
             _compute_optimal(),
         )
 
+        # Look up driver's historical best at this track
+        historical_best_s: float | None = None
+        if sd.user_id:
+            track_name = sd.parsed.metadata.track_name
+            same_track_sessions = [
+                s
+                for s in session_store.list_sessions()
+                if s.user_id == sd.user_id
+                and s.parsed.metadata.track_name == track_name
+                and s.session_id != session_id
+            ]
+            if same_track_sessions:
+                historical_best_s = min(
+                    min(ls.lap_time_s for ls in s.processed.lap_summaries)
+                    for s in same_track_sessions
+                )
+
         # Semaphore + retry with backoff for rate-limit errors
         logger.info("Coaching generation AWAITING semaphore for %s", session_id)
         async with _coaching_semaphore:
@@ -463,6 +480,7 @@ async def _run_generation(
                         flow_laps=flow_laps,
                         line_profiles=sd.corner_line_profiles,
                         track_layout=layout,
+                        historical_best_s=historical_best_s,
                     )
                     # Treat JSON parse failures as retryable errors
                     if "Could not parse" in (report.summary or ""):

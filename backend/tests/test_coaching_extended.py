@@ -195,7 +195,7 @@ class TestSanitizePriorityTimeCost:
         result = _sanitize_priority_time_cost(
             100.0, corner_num=3, per_corner_caps={}, session_cap_s=None
         )
-        assert result == 5.0  # _ABSOLUTE_PRIORITY_TIME_CAP_S = 5.0
+        assert result == 3.0  # _ABSOLUTE_PRIORITY_TIME_CAP_S = 3.0
 
     def test_session_cap_applied(self) -> None:
         result = _sanitize_priority_time_cost(

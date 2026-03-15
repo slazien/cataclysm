@@ -3235,3 +3235,154 @@ class TestEnforceNoviceConstraints:
         _enforce_novice_constraints(report)
         for g in grades:
             assert g.trail_braking == "N/A"
+
+
+class TestSmallSampleWarning:
+    """Tests for the small-sample warning injected when < 6 coaching laps."""
+
+    @staticmethod
+    def _make_summaries(n: int) -> list[LapSummary]:
+        return [
+            LapSummary(
+                lap_number=i,
+                lap_time_s=90.0 + i,
+                lap_distance_m=3800.0,
+                max_speed_mps=45.0,
+            )
+            for i in range(1, n + 1)
+        ]
+
+    @staticmethod
+    def _make_corners(n_laps: int) -> dict[int, list[Corner]]:
+        return {
+            i: [
+                Corner(1, 200.0, 350.0, 280.0, 22.0, 150.0, -0.8, 370.0, "mid"),
+            ]
+            for i in range(1, n_laps + 1)
+        }
+
+    def test_prompt_includes_warning_for_small_session(self) -> None:
+        """Prompt should warn about small samples when < 6 coaching laps."""
+        summaries = self._make_summaries(4)
+        corners = self._make_corners(4)
+        prompt = _build_coaching_prompt(summaries, corners, "TestTrack")
+        assert "small_sample_warning" in prompt
+        assert "only 4 coaching laps" in prompt
+        assert "SMALL SAMPLE" in prompt
+
+    def test_prompt_no_warning_for_normal_session(self) -> None:
+        """Prompt should NOT warn when >= 6 coaching laps."""
+        summaries = self._make_summaries(6)
+        corners = self._make_corners(6)
+        prompt = _build_coaching_prompt(summaries, corners, "TestTrack")
+        assert "small_sample_warning" not in prompt
+        assert "SMALL SAMPLE" not in prompt
+
+    def test_prompt_includes_warning_at_boundary(self) -> None:
+        """5 laps is still below threshold."""
+        summaries = self._make_summaries(5)
+        corners = self._make_corners(5)
+        prompt = _build_coaching_prompt(summaries, corners, "TestTrack")
+        assert "only 5 coaching laps" in prompt
+
+    def test_prompt_no_warning_for_large_session(self) -> None:
+        """10-lap session should have no warning."""
+        summaries = self._make_summaries(10)
+        corners = self._make_corners(10)
+        prompt = _build_coaching_prompt(summaries, corners, "TestTrack")
+        assert "small_sample_warning" not in prompt
+
+
+class TestOutlierSessionContext:
+    """Test historical_best_s parameter in _build_coaching_prompt."""
+
+    @staticmethod
+    def _make_summaries(best_time: float) -> list[LapSummary]:
+        """Create 3 summaries where the best lap is *best_time*."""
+        return [
+            LapSummary(
+                lap_number=1,
+                lap_time_s=best_time,
+                lap_distance_m=3800.0,
+                max_speed_mps=45.0,
+            ),
+            LapSummary(
+                lap_number=2,
+                lap_time_s=best_time + 2.0,
+                lap_distance_m=3810.0,
+                max_speed_mps=44.0,
+            ),
+            LapSummary(
+                lap_number=3,
+                lap_time_s=best_time + 1.5,
+                lap_distance_m=3805.0,
+                max_speed_mps=44.5,
+            ),
+        ]
+
+    @staticmethod
+    def _make_corners(n_laps: int) -> dict[int, list[Corner]]:
+        return {
+            i: [
+                Corner(1, 200.0, 350.0, 280.0, 22.0, 150.0, -0.8, 370.0, "mid"),
+                Corner(2, 800.0, 950.0, 870.0, 18.0, 750.0, -1.0, 970.0, "late"),
+            ]
+            for i in range(1, n_laps + 1)
+        }
+
+    def test_outlier_session_adds_context(self) -> None:
+        """Prompt should mention outlier when session is 20%+ slower than historical best."""
+        summaries = self._make_summaries(131.0)  # 131s vs 107s historical = ~22% slower
+        corners = self._make_corners(3)
+        prompt = _build_coaching_prompt(
+            summaries, corners, "Test Track", historical_best_s=107.0
+        )
+        assert "Session Context" in prompt
+        assert "slower" in prompt.lower()
+        assert "107.00" in prompt
+        assert "131.00" in prompt
+
+    def test_no_context_when_close_to_best(self) -> None:
+        """No outlier warning when within 20% of historical best."""
+        summaries = self._make_summaries(112.0)  # 112 vs 107 = ~4.7% slower
+        corners = self._make_corners(3)
+        prompt = _build_coaching_prompt(
+            summaries, corners, "Test Track", historical_best_s=107.0
+        )
+        assert "Session Context" not in prompt
+
+    def test_no_context_when_no_historical(self) -> None:
+        """No outlier warning when historical_best_s is None."""
+        summaries = self._make_summaries(131.0)
+        corners = self._make_corners(3)
+        prompt = _build_coaching_prompt(
+            summaries, corners, "Test Track", historical_best_s=None
+        )
+        assert "Session Context" not in prompt
+
+    def test_no_context_when_historical_is_none_default(self) -> None:
+        """No outlier warning when historical_best_s is omitted (defaults to None)."""
+        summaries = self._make_summaries(131.0)
+        corners = self._make_corners(3)
+        prompt = _build_coaching_prompt(summaries, corners, "Test Track")
+        assert "Session Context" not in prompt
+
+    def test_boundary_at_exactly_20_percent(self) -> None:
+        """Exactly 20% slower should NOT trigger (needs to be strictly >20%)."""
+        # 107 * 1.20 = 128.4; best lap = 128.4 exactly -> not > 128.4
+        summaries = self._make_summaries(128.4)
+        corners = self._make_corners(3)
+        prompt = _build_coaching_prompt(
+            summaries, corners, "Test Track", historical_best_s=107.0
+        )
+        assert "Session Context" not in prompt
+
+    def test_just_over_20_percent_triggers(self) -> None:
+        """Just over 20% slower should trigger the context."""
+        # 107 * 1.20 = 128.4; best lap = 128.5 -> > 128.4
+        summaries = self._make_summaries(128.5)
+        corners = self._make_corners(3)
+        prompt = _build_coaching_prompt(
+            summaries, corners, "Test Track", historical_best_s=107.0
+        )
+        assert "Session Context" in prompt

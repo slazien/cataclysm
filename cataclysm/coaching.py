@@ -833,6 +833,7 @@ def _build_coaching_prompt(
     flow_laps: FlowLapResult | None = None,
     line_profiles: list[CornerLineProfile] | None = None,
     track_layout: TrackLayout | None = None,
+    historical_best_s: float | None = None,
 ) -> str:
     """Build the full coaching prompt for Claude."""
     lap_text = _format_lap_summaries(summaries)
@@ -929,6 +930,44 @@ def _build_coaching_prompt(
             "because exit speed compounds across the following straight.\n"
         )
 
+    # Small sample warning — when < 6 coaching laps, variance stats are unreliable
+    n_coaching_laps = len(summaries)
+    small_sample_warning = ""
+    small_sample_instruction = ""
+    if n_coaching_laps < 6:
+        small_sample_warning = (
+            f"\n<small_sample_warning>\n"
+            f"This session has only {n_coaching_laps} coaching laps. "
+            f"With fewer than 6 laps, variance-based time costs are unreliable — "
+            f"one outlier lap (cool-down, off-track, traffic) can dominate the statistics. "
+            f"</small_sample_warning>\n"
+        )
+        small_sample_instruction = (
+            "\nSMALL SAMPLE: Use cautious language for time costs: 'up to' rather than "
+            "exact figures. Focus on qualitative observations (line, consistency) rather "
+            "than precise time deltas. Do NOT claim large time savings (>1.0s per corner) "
+            "from small samples.\n"
+        )
+
+    # Outlier session context — when the session is far off the driver's own best
+    outlier_context = ""
+    if historical_best_s is not None and summaries:
+        current_best = min(s.lap_time_s for s in summaries)
+        if current_best > historical_best_s * 1.20:
+            pct_slower = ((current_best / historical_best_s) - 1) * 100
+            outlier_context = (
+                f"\n## Session Context\n"
+                f"This session's best lap ({current_best:.2f}s) is {pct_slower:.0f}% slower "
+                f"than the driver's historical best at this track "
+                f"({historical_best_s:.2f}s). "
+                f"This may indicate wet/cold conditions, a learning session, "
+                f"cool-down laps, car problems, or a different car configuration. "
+                f"Acknowledge this context in your summary — don't praise "
+                f"'excellent speed' when the driver is well off their own pace. "
+                f"Focus on fundamentals and what can be learned from these laps "
+                f"rather than optimizing peak performance.\n"
+            )
+
     corner_analysis_section = ""
     corner_analysis_instruction = ""
     if corner_analysis is not None and corner_analysis.corners:
@@ -975,6 +1014,7 @@ Number of corners: {num_corners} (T1 through T{num_corners})
 {corner_text}
 </corner_kpis>
 {gains_section}{optimal_section}{landmark_section}{skill_section}\
+{small_sample_warning}{outlier_context}\
 {equipment_section}{weather_section}{causal_section}{archetype_section}{skill_section_auto}\
 {corners_gained_section}{flow_laps_section}
 {line_analysis_section}
@@ -989,6 +1029,7 @@ Number of corners: {num_corners} (T1 through T{num_corners})
 {landmark_instruction}\
 {line_instruction}\
 {track_intro_instruction}\
+{small_sample_instruction}\
 Analyze the FULL session. Look at every lap's data for each corner to identify:
 - Consistency: which corners are repeatable vs high-variance across laps
 - Trends: whether the driver improved or degraded through the session AND WHY \
@@ -1322,6 +1363,7 @@ def generate_coaching_report(
     flow_laps: FlowLapResult | None = None,
     line_profiles: list[CornerLineProfile] | None = None,
     track_layout: TrackLayout | None = None,
+    historical_best_s: float | None = None,
 ) -> CoachingReport:
     """Generate an AI coaching report using the Claude API.
 
@@ -1361,6 +1403,7 @@ def generate_coaching_report(
         flow_laps=flow_laps,
         line_profiles=line_profiles,
         track_layout=track_layout,
+        historical_best_s=historical_best_s,
     )
 
     system = COACHING_SYSTEM_PROMPT
