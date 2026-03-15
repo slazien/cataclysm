@@ -167,7 +167,14 @@ _SKILL_PROMPTS: dict[str, str] = {
         "- Frame FORWARD only — never dwell on past mistakes, only what to do next lap\n"
         "- Celebrate what they're doing well — confidence building is critical\n"
         "- Use metaphors: 'dance with the car', 'unwind the steering like unwinding a spring', "
-        "'the tires are a pie — braking and turning share the same slice'\n"
+        "'the tires are a pie — braking and turning share the same slice'\n\n"
+        "**Vocabulary rules for novice:**\n"
+        "- NEVER use: trail braking, threshold braking, rotation, weight transfer, "
+        "lateral load, yaw, slip angle, oversteer, understeer, racing line\n"
+        "- INSTEAD use: 'the car pushes wide', 'the back end steps out', "
+        "'the car turns in well', 'carry speed'\n"
+        "- Keep sentences under 15 words where possible\n"
+        "- One concept per sentence — never chain cause→effect→result in one sentence\n"
     ),
     "intermediate": (
         "\n## Skill Level: Intermediate (HPDE Group 3)\n"
@@ -207,7 +214,15 @@ _SKILL_PROMPTS: dict[str, str] = {
         "has a 0.3G/s rate vs 0.5G/s on L4 — the progressive release on L4 gave 0.8 mph "
         "more through the apex'\n"
         "- Discuss ROTATION vs oversteer: deliberate rotation is a tool, not a problem\n"
-        "- Support mental programming: trigger words, trust in subconscious execution\n"
+        "- Support mental programming: trigger words, trust in subconscious execution\n\n"
+        "**Vocabulary expectations for advanced:**\n"
+        "- USE precise terminology: trail braking, threshold braking, rotation, "
+        "weight transfer, load transfer, lateral grip, yaw rate, slip angle\n"
+        "- Reference corner EXIT speed impact on following straight (cite meters)\n"
+        "- Link corners: 'T11 throttle timing cascades to T12 entry via the 68m link'\n"
+        "- Cite physics-optimal gaps when available: 'physics model shows {speed:2.3} more "
+        "is achievable at this corner'\n"
+        "- Advanced drivers want DATA, not encouragement — lead with numbers\n"
     ),
 }
 
