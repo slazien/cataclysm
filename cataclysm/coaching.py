@@ -542,14 +542,15 @@ def _format_corner_analysis(
         # Min speed
         ms = ca.stats_min_speed
         lines.append(
-            f"  Min speed: best={ms.best:.1f} mph, mean={ms.mean:.1f} mph, std={ms.std:.1f} mph"
+            f"  Min speed (apex): best={ms.best:.1f} mph, mean={ms.mean:.1f} mph, "
+            f"std={ms.std:.1f} mph"
         )
 
         # Brake point
         if ca.stats_brake_point is not None:
             bp = ca.stats_brake_point
             brake_ref = _resolve_brake_ref(bp.best, landmarks)
-            lines.append(f"  Brake pt: {brake_ref} (best), spread \u00b1{bp.std:.1f} meters")
+            lines.append(f"  Brake pt: {brake_ref} (best), spread {bp.std:.1f} meters")
 
         # Peak brake g
         if ca.stats_peak_brake_g is not None:
@@ -560,7 +561,7 @@ def _format_corner_analysis(
         if ca.stats_throttle_commit is not None:
             tc = ca.stats_throttle_commit
             throttle_ref = _resolve_throttle_ref(tc.best, landmarks)
-            lines.append(f"  Throttle: {throttle_ref} (best), spread \u00b1{tc.std:.1f} meters")
+            lines.append(f"  Throttle: {throttle_ref} (best), spread {tc.std:.1f} meters")
 
         # Apex distribution
         apex_parts = [

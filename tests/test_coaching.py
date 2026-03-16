@@ -1115,6 +1115,31 @@ class TestFormatCornerAnalysis:
         assert "2/8 mid" in text
 
 
+class TestFormatCornerAnalysisDataClarity:
+    """Ensure data sent to LLM is unambiguous about units and location."""
+
+    def test_min_speed_labeled_as_apex(self) -> None:
+        """Min speed line must say 'apex' so LLM never confuses it with exit speed."""
+        analysis = _make_corner_analysis()
+        text = _format_corner_analysis(analysis)
+        assert "Min speed (apex)" in text
+
+    def test_no_plus_minus_in_spread(self) -> None:
+        """Spread values must NOT use ± symbol — contradicts 'never use ±' instruction."""
+        analysis = _make_corner_analysis()
+        text = _format_corner_analysis(analysis)
+        assert "\u00b1" not in text  # ± unicode character
+
+    def test_spread_uses_meters_label(self) -> None:
+        """Spread values must explicitly say 'meters' to prevent unit confusion."""
+        analysis = _make_corner_analysis()
+        text = _format_corner_analysis(analysis)
+        lines = [line for line in text.split("\n") if "spread" in line.lower()]
+        assert len(lines) > 0, "Should have at least one spread line"
+        for line in lines:
+            assert "meters" in line.lower(), f"Missing 'meters' unit label in: {line}"
+
+
 class TestBuildCoachingPromptWithCornerAnalysis:
     """Test corner_analysis parameter in _build_coaching_prompt."""
 
