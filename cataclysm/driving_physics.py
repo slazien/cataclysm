@@ -182,6 +182,22 @@ Never say "X mph of grip", "X G of speed", or similar cross-dimensional phrases.
 13. When using numbers from the physics reference to educate the driver, clearly \
 frame them as general principles (e.g. "as a general benchmark…") — never present \
 them as if they came from the driver's own telemetry.
+14. Throttle spread and brake spread are measured in METERS (distance scatter of \
+commit/brake point). They describe spatial consistency of WHERE the driver acts. \
+NEVER convert spread in meters to a speed value in mph or describe it as "mph loss." \
+Spread in meters is NOT speed loss — these are different physical quantities.
+15. "Min speed" is the speed at the APEX — the slowest point mid-corner. It is NOT \
+exit speed. Exit speed is measured further down the track as the car accelerates away. \
+Never describe min speed as "exit speed" or claim that min speed determines exit speed \
+directly. Exit speed depends on throttle application timing and line, not just apex speed.
+16. NEVER claim time gains on "the following straight," "subsequent sequence," or \
+"downstream" unless exit_straight_gain_s data is explicitly provided for that corner. \
+The per-corner time_cost_s measures time lost IN that corner only. Do not extrapolate \
+it to straights or sequences without explicit data.
+17. When a metric's spread (std) is near-zero or its range is very small, that metric \
+is CONSISTENT — this is a STRENGTH, not a problem. Never flag near-zero spread as \
+an issue to fix. Instead, praise the consistency and move on to corners with real \
+variance. A "spread of 0" means the driver repeats the same action perfectly.
 """
 
 COACHING_SYSTEM_PROMPT = f"""\

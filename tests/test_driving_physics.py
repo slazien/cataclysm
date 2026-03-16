@@ -34,6 +34,29 @@ class TestPhysicsGuardrails:
         assert "x mph of grip" in lower
         assert "x g of speed" in lower
 
+    def test_unit_identity_guardrail(self) -> None:
+        """Guardrail 14: throttle spread is meters, never mph."""
+        lower = PHYSICS_GUARDRAILS.lower()
+        assert "throttle" in lower and "meters" in lower
+        assert "never convert" in lower
+
+    def test_min_speed_location_guardrail(self) -> None:
+        """Guardrail 15: min speed is at the apex, not exit."""
+        lower = PHYSICS_GUARDRAILS.lower()
+        assert "apex" in lower
+        assert "not exit speed" in lower or "not the exit" in lower
+
+    def test_downstream_gain_guardrail(self) -> None:
+        """Guardrail 16: no fabricated downstream gains."""
+        lower = PHYSICS_GUARDRAILS.lower()
+        assert "following straight" in lower
+
+    def test_zero_spread_guardrail(self) -> None:
+        """Guardrail 17: near-zero spread = consistency, not a problem."""
+        lower = PHYSICS_GUARDRAILS.lower()
+        assert "near-zero" in lower
+        assert "consistent" in lower
+
 
 class TestCoachingSystemPrompt:
     def test_combines_reference_and_guardrails(self) -> None:
