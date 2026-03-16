@@ -3401,3 +3401,47 @@ class TestOutlierSessionContext:
         corners = self._make_corners(3)
         prompt = _build_coaching_prompt(summaries, corners, "Test Track", historical_best_s=107.0)
         assert "Session Context" in prompt
+
+
+class TestAntiHallucinationInstructions:
+    """Verify the coaching prompt contains anti-hallucination rules."""
+
+    def test_prompt_forbids_spread_as_speed_loss(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        prompt = _build_coaching_prompt(sample_summaries, sample_all_lap_corners, "Test Track")
+        assert "spread is not speed loss" in prompt.lower()
+
+    def test_prompt_defines_min_speed_as_apex(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        prompt = _build_coaching_prompt(sample_summaries, sample_all_lap_corners, "Test Track")
+        assert "min speed = apex speed" in prompt.lower()
+
+    def test_prompt_forbids_following_straight_claims(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        prompt = _build_coaching_prompt(sample_summaries, sample_all_lap_corners, "Test Track")
+        assert "following straight" in prompt.lower()
+
+    def test_prompt_instructs_zero_spread_is_strength(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        prompt = _build_coaching_prompt(sample_summaries, sample_all_lap_corners, "Test Track")
+        assert "near-zero spread = strength" in prompt.lower()
+
+    def test_prompt_instructs_natural_landmark_language(
+        self,
+        sample_summaries: list[LapSummary],
+        sample_all_lap_corners: dict[int, list[Corner]],
+    ) -> None:
+        prompt = _build_coaching_prompt(sample_summaries, sample_all_lap_corners, "Test Track")
+        assert "landmarks in natural language" in prompt.lower()

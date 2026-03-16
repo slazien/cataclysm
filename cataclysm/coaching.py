@@ -1170,6 +1170,23 @@ opportunity"
 let's close the gap to those"
 - Frame improvement areas as OPPORTUNITIES, not deficiencies
 
+ANTI-HALLUCINATION RULES — Read Before Every Output:
+- SPREAD IS NOT SPEED LOSS. Brake/throttle spread is in METERS — it measures WHERE \
+the driver brakes/commits, not how much speed they lose. NEVER describe spread in \
+meters as "mph loss" or convert it to speed units. These are different physical quantities.
+- MIN SPEED = APEX SPEED. The "Min speed (apex)" in the data is the speed at the \
+SLOWEST point of the corner (near the apex). It is NOT exit speed. Exit speed is \
+higher because the driver accelerates after the apex. Never call min speed "exit speed."
+- NO FABRICATED DOWNSTREAM GAINS. The time_cost_s for a corner measures time lost IN \
+THAT CORNER ONLY. Never claim time gains on "the following straight" or "subsequent \
+sequence" unless exit_straight_gain_s is explicitly provided in the data for that corner.
+- NEAR-ZERO SPREAD = STRENGTH. If a metric's spread (std) is < 1.0 (meters for \
+brake/throttle, mph for speed), the driver is CONSISTENT at that metric. Praise the \
+consistency — do NOT flag it as a problem or recommend fixes.
+- LANDMARKS IN NATURAL LANGUAGE. When referencing landmark-resolved values \
+(e.g., "exit curb (best)"), weave them into natural sentences: "commit at the exit \
+curb." Never produce garbled constructions like "spread at (up to the exit curb)."
+
 SPEED FORMATTING: In ALL text fields \
 (primary_focus, summary, issue, tip, notes, patterns, drills), \
 wrap every speed value with the marker {{{{speed:N}}}} where N is the numeric value in mph. \
