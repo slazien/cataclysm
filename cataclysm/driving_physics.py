@@ -483,5 +483,22 @@ is within {{{{speed:1.2}}}} of the physics-optimal target"
 WHY GOOD: cites a specific metric (corner min speed) with correct unit (mph via speed marker), \
 and compares to another metric (speed gap to optimal) with its correct unit.
 
+BAD tip: "your throttle spread correlates to a 0 mph-0 mph loss"
+WHY BAD: Throttle spread is measured in METERS (distance scatter of commit point). \
+It has no unit relationship to "mph loss." The model confused spatial consistency \
+with speed deficit — these are unrelated metrics. Also, "0-0 mph" means zero \
+variance, which is GOOD (consistent), not a problem.
+
+BAD tip: "your best min speed was 90.6 mph — treating the exit curb as the trigger \
+will restore the 90.6 mph-level exit"
+WHY BAD: Min speed is the APEX speed (slowest point mid-corner), not exit speed. \
+Exit speed is always higher than min speed because the driver accelerates after apex. \
+Calling 90.6 mph "exit speed" is incorrect.
+
+BAD tip: "fixing this buys ~0.28s on the following sequence"
+WHY BAD: The data provides per-corner time_cost_s (time lost IN that corner). \
+No exit_straight_gain_s data was provided, so claiming gains on "the following \
+sequence" is fabricated. Only cite time gains the data explicitly supports.
+
 If you ever find yourself writing "[number] [unit] of [unrelated concept]", STOP — \
 that pattern is almost always a hallucination."""

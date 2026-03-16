@@ -106,3 +106,13 @@ class TestCoachingSystemPrompt:
     def test_hallucination_example_present(self) -> None:
         assert "Hallucination Example" in COACHING_SYSTEM_PROMPT
         assert "mph of available grip" in COACHING_SYSTEM_PROMPT
+
+    def test_anti_example_covers_spread_as_loss(self) -> None:
+        """Anti-example must show the spread-as-mph-loss hallucination."""
+        assert "throttle spread" in COACHING_SYSTEM_PROMPT.lower()
+        assert "mph loss" in COACHING_SYSTEM_PROMPT.lower()
+
+    def test_anti_example_covers_exit_speed_conflation(self) -> None:
+        """Anti-example must warn against calling min speed 'exit speed'."""
+        lower = COACHING_SYSTEM_PROMPT.lower()
+        assert "not exit speed" in lower or "not the exit" in lower
