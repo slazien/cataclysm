@@ -1206,3 +1206,27 @@ el.getBoundingClientRect().right > window.innerWidth
 **Why**: `_make_weather()` test helper used bare `MagicMock()`. `store_session_db` accessed `w.timezone_name` (added after the mock was written). MagicMock auto-created it as a nested MagicMock. SQLAlchemy JSONB column tried to serialize it → `TypeError: Object of type MagicMock is not JSON serializable`. Two tests failed pre-existingly, unnoticed until this session.
 
 **Error signature**: `TypeError: Object of type MagicMock is not JSON serializable` in a DB write or API response path. The mock "has" the attribute (no AttributeError), but the value is a MagicMock object instead of a real value.
+
+## React Query onError: Invalidate Minimum — Never Broader Than the Failed Mutation's Scope (2026-03-17)
+
+**Pattern**: In React Query mutation `onError` handlers, only invalidate queries directly affected by the failed mutation (e.g., `session-equipment` for a failed equipment assignment). Never invalidate sibling queries (`equipment-profiles`) that the mutation didn't touch — refetching them during error recovery causes brief UI flash where data appears "gone."
+
+**Why**: `useAssignEquipment` `onError` invalidated `equipment-profiles` alongside `session-equipment`. A failed PUT to `/api/equipment/{id}/equipment` doesn't modify profiles at all — but invalidating them triggered a refetch that briefly showed empty profile list, making profiles "disappear" when navigating between tabs. Users reported profiles vanishing after a failed dropdown change.
+
+**Error signature**: UI data briefly disappears after a failed mutation, returns on page refresh. The invalidated query key belongs to a resource the mutation never modifies.
+
+## Backend Cache Layers Must All Be Cleared on Equipment Change (2026-03-17)
+
+**Pattern**: When equipment changes (profile switch or inline assignment), clear ALL downstream caches: physics cache (`invalidate_physics_cache`), coaching cache (`clear_coaching_data`), and frontend query invalidation (`coaching-report`, `optimal-comparison`). Missing any layer causes stale data — the dropdown updates but computed values (lap times, coaching) don't.
+
+**Why**: Backend equipment PUT endpoints cleared physics cache but not coaching cache. Coaching reports embed physics-derived data (optimal gaps, brake distances). After equipment switch, physics recomputed correctly but coaching still served the old report from cache. Users saw "dropdown updated but lap times didn't change."
+
+**Error signature**: Equipment badge/dropdown shows new profile, but coaching text, optimal target, or lap time comparisons still reflect the previous profile. Resolves on page refresh (coaching cache miss → fresh generation).
+
+## Mutation-Aware Dropdowns: Keep Open During Pending State (2026-03-17)
+
+**Pattern**: Dropdowns that trigger mutations should stay open while the mutation is pending, show a loading indicator on the selected item, and disable all interactions. Close only on success or error (with feedback). Never close the dropdown optimistically before the mutation resolves.
+
+**Why**: `AssignEquipmentButton` closed the dropdown immediately on click, before the PUT completed. If the mutation failed, the user had no feedback — the dropdown was gone, the badge might show stale data, and there was no error indication. Keeping the dropdown open with a spinner lets users see the result and provides a natural place for error feedback.
+
+**Error signature**: User clicks a dropdown option, dropdown closes instantly, nothing visibly changes. No error toast, no loading state. The mutation may have failed silently.
