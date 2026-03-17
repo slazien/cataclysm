@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## staleTime: Infinity + Mutable Fields → Optimistic Updates Are Mandatory (2026-03-17)
+
+**Pattern**: When a React Query has `staleTime: Infinity` (immutable data) but contains mutable sub-fields (e.g., `LapSummary.tags` on an otherwise-immutable telemetry query), `invalidateQueries` cannot fix stale data — the query won't refetch (`staleTime` prevents it), and even if forced, the browser HTTP cache (`Cache-Control: max-age=60`) serves the pre-mutation response. The ONLY reliable pattern is optimistic updates via `onMutate` + `setQueryData`.
+
+**Why**: Lap tag checkbox appeared to do nothing. The mutation PUT succeeded (server had correct tags), but `invalidateQueries(["session-laps"])` triggered a refetch that hit the browser HTTP cache → got stale pre-mutation data → React re-rendered checkbox as unchecked. Spent extended time in theoretical code analysis before browser-injected `MutationObserver` + property interceptor on the checkbox proved React was actively setting `checked = false` from stale cache data. Optimistic `setQueryData` bypasses both the `staleTime` gate and the HTTP cache entirely.
+
+**Error signature**: Mutation succeeds (network 200), but UI immediately reverts to pre-mutation state. `invalidateQueries` fires but data doesn't change. Especially suspect when the query uses `staleTime: Infinity` or the backend returns `Cache-Control: max-age`.
+
 ## Data Viz Color Encoding: Color = Category, Style = Source (2026-03-11)
 
 **Pattern**: In multi-category data visualizations (e.g., brake vs throttle), encode the **primary category** with color (red = brake, green = throttle) and the **data source** with line style (dots = per-lap, solid = best, dashed = optimal). Never use a color named after one concept for a different concept (e.g., `colors.motorsport.optimal` for "best lap" markers). When adding a symmetric feature (both brake and throttle), the legend must be symmetric too — same number of items per category.
