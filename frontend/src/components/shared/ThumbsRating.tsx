@@ -18,7 +18,7 @@ export function ThumbsRating({ rating, onRate, disabled }: ThumbsRatingProps) {
         onClick={() => onRate(rating === 1 ? 0 : 1)}
         title={rating === 1 ? 'Remove rating' : 'Helpful'}
         className={cn(
-          'rounded p-1 transition-colors',
+          'flex items-center justify-center rounded min-h-[44px] min-w-[44px] transition-colors',
           rating === 1
             ? 'text-emerald-400 bg-emerald-400/10'
             : 'text-[var(--text-muted)] hover:text-emerald-400 hover:bg-emerald-400/5',
@@ -33,7 +33,7 @@ export function ThumbsRating({ rating, onRate, disabled }: ThumbsRatingProps) {
         onClick={() => onRate(rating === -1 ? 0 : -1)}
         title={rating === -1 ? 'Remove rating' : 'Not helpful'}
         className={cn(
-          'rounded p-1 transition-colors',
+          'flex items-center justify-center rounded min-h-[44px] min-w-[44px] transition-colors',
           rating === -1
             ? 'text-red-400 bg-red-400/10'
             : 'text-[var(--text-muted)] hover:text-red-400 hover:bg-red-400/5',
