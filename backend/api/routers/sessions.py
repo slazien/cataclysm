@@ -53,9 +53,11 @@ from backend.api.services.db_session_store import (
     restore_weather_from_snapshot,
     store_session_db,
 )
+from backend.api.services.lap_tag_store import save_lap_tags
 from backend.api.services.pipeline import (
     invalidate_physics_cache,
     process_upload,
+    recalculate_coaching_laps,
     trigger_lidar_prefetch,
 )
 
@@ -1104,6 +1106,25 @@ async def set_lap_tags(
             detail=f"Lap {lap_number} not found in session {session_id}",
         )
 
-    # Clear existing tags and set new ones
+    # 1. Update in-memory tags
     sd.lap_tags.tags[lap_number] = set(tags)
+
+    # 2. Persist to DB
+    await save_lap_tags(db, session_id, sd.lap_tags)
+
+    # 3. Recalculate coaching_laps with tag-aware exclusion
+    all_laps = sorted(sd.processed.resampled_laps.keys())
+    in_out = {all_laps[0], all_laps[-1]} if len(all_laps) >= 2 else set()
+    sd.coaching_laps = recalculate_coaching_laps(
+        all_laps=all_laps,
+        anomalous=sd.anomalous_laps,
+        in_out=in_out,
+        best_lap=sd.processed.best_lap,
+        tags=sd.lap_tags,
+    )
+
+    # 4. Invalidate downstream caches so they regenerate with updated coaching_laps
+    invalidate_physics_cache(session_id)
+    await clear_coaching_data(session_id)
+
     return {"lap_number": lap_number, "tags": sorted(tags)}
