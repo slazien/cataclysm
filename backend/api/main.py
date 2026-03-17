@@ -105,7 +105,8 @@ async def _reload_sessions_from_db() -> int:
     from backend.api.db.models import Session as SessionModel
     from backend.api.db.models import SessionFile as SessionFileModel
     from backend.api.services.db_session_store import restore_weather_from_snapshot
-    from backend.api.services.pipeline import process_upload
+    from backend.api.services.lap_tag_store import load_lap_tags
+    from backend.api.services.pipeline import process_upload, recalculate_coaching_laps
     from backend.api.services.session_store import get_session
 
     loaded = 0
@@ -140,6 +141,19 @@ async def _reload_sessions_from_db() -> int:
                         logger.warning(
                             "Reload: %s has no session metadata — user_id unset",
                             sid,
+                        )
+
+                    # Overlay persisted lap tags and recalculate coaching_laps
+                    if sd is not None:
+                        sd.lap_tags = await load_lap_tags(db, sid)
+                        all_laps = sorted(sd.processed.resampled_laps.keys())
+                        in_out = {all_laps[0], all_laps[-1]} if len(all_laps) >= 2 else set()
+                        sd.coaching_laps = recalculate_coaching_laps(
+                            all_laps=all_laps,
+                            anomalous=sd.anomalous_laps,
+                            in_out=in_out,
+                            best_lap=sd.processed.best_lap,
+                            tags=sd.lap_tags,
                         )
 
                     loaded += 1

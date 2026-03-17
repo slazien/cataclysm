@@ -53,9 +53,11 @@ from backend.api.services.db_session_store import (
     restore_weather_from_snapshot,
     store_session_db,
 )
+from backend.api.services.lap_tag_store import save_lap_tags
 from backend.api.services.pipeline import (
     invalidate_physics_cache,
     process_upload,
+    recalculate_coaching_laps,
     trigger_lidar_prefetch,
 )
 
@@ -68,11 +70,9 @@ async def _auto_fetch_weather(sd: session_store.SessionData) -> None:
     """Auto-fetch weather for a session using its GPS centroid and date.
 
     Weather is immutable per session — fetched once and stored permanently.
-    Also determines the local timezone from GPS coordinates.
     """
     from datetime import UTC, datetime
 
-    from cataclysm.timezone_utils import get_timezone_name
     from cataclysm.weather_client import lookup_weather
 
     parsed = sd.parsed
@@ -82,9 +82,6 @@ async def _auto_fetch_weather(sd: session_store.SessionData) -> None:
 
     lat = float(df["lat"].mean())
     lon = float(df["lon"].mean())
-
-    # Determine local timezone from GPS coordinates
-    tz_name = get_timezone_name(lat, lon)
 
     # Parse session date + derive approximate hour from first timestamp
     date_str = parsed.metadata.session_date
@@ -121,14 +118,12 @@ async def _auto_fetch_weather(sd: session_store.SessionData) -> None:
 
     weather = await lookup_weather(lat, lon, session_dt)
     if weather is not None:
-        weather.timezone_name = tz_name
         sd.weather = weather
         logger.info(
-            "Auto-fetched weather for %s: %s, %.1f°C (tz=%s)",
+            "Auto-fetched weather for %s: %s, %.1f°C",
             sd.session_id,
             weather.track_condition.value,
             weather.ambient_temp_c or 0,
-            tz_name,
         )
 
 
@@ -146,21 +141,6 @@ def _weather_fields(
         w.track_condition.value if hasattr(w.track_condition, "value") else str(w.track_condition)
     )
     return w.ambient_temp_c, condition, w.humidity_pct, w.wind_speed_kmh, w.precipitation_mm
-
-
-def _local_date(sd: session_store.SessionData) -> str | None:
-    """Compute localized session date string from weather timezone, or ``None``."""
-    from cataclysm.timezone_utils import get_timezone_name, localize_session_date
-
-    tz = sd.weather.timezone_name if sd.weather else None
-    if not tz:
-        # Fallback: compute timezone from GPS centroid
-        df = sd.parsed.data
-        if not df.empty and "lat" in df.columns and "lon" in df.columns:
-            tz = get_timezone_name(lat=float(df["lat"].mean()), lon=float(df["lon"].mean()))
-    if not tz:
-        return None
-    return localize_session_date(sd.snapshot.metadata.session_date, tz)
 
 
 def _equipment_fields(session_id: str) -> tuple[str | None, str | None, str | None]:
@@ -578,7 +558,6 @@ async def list_sessions(
                     session_id=sd.session_id,
                     track_name=sd.snapshot.metadata.track_name,
                     session_date=sd.snapshot.metadata.session_date,
-                    session_date_local=_local_date(sd),
                     n_laps=sd.snapshot.n_laps,
                     n_clean_laps=sd.snapshot.n_clean_laps,
                     best_lap_time_s=sd.snapshot.best_lap_time_s,
@@ -608,26 +587,11 @@ async def list_sessions(
             snap = row.snapshot_json or {}
             w_data = snap.get("weather")
             gps_data = snap.get("gps_quality")
-            # Try to compute local date from snapshot timezone
-            db_tz = w_data.get("timezone_name") if w_data else None
-            db_raw_date = snap.get("metadata", {}).get("session_date", date_str)
-            if not db_tz:
-                from cataclysm.timezone_utils import get_timezone_name as _get_tz
-
-                centroid = snap.get("gps_centroid", {})
-                if centroid.get("lat") and centroid.get("lon"):
-                    db_tz = _get_tz(lat=centroid["lat"], lon=centroid["lon"])
-            db_local: str | None = None
-            if db_tz and db_raw_date:
-                from cataclysm.timezone_utils import localize_session_date
-
-                db_local = localize_session_date(db_raw_date, db_tz)
             items.append(
                 SessionSummary(
                     session_id=row.session_id,
                     track_name=row.track_name,
                     session_date=date_str,
-                    session_date_local=db_local,
                     n_laps=row.n_laps,
                     n_clean_laps=row.n_clean_laps,
                     best_lap_time_s=row.best_lap_time_s,
@@ -664,7 +628,6 @@ async def get_session(
         session_id=sd.session_id,
         track_name=sd.snapshot.metadata.track_name,
         session_date=sd.snapshot.metadata.session_date,
-        session_date_local=_local_date(sd),
         n_laps=sd.snapshot.n_laps,
         n_clean_laps=sd.snapshot.n_clean_laps,
         best_lap_time_s=sd.snapshot.best_lap_time_s,
@@ -833,7 +796,6 @@ async def get_session_weather(
 async def backfill_weather(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    force: bool = False,
 ) -> dict[str, object]:
     """Backfill weather for all user sessions missing it.
 
@@ -853,8 +815,8 @@ async def backfill_weather(
     for row in db_rows:
         snap = row.snapshot_json or {}
 
-        # Skip if weather already exists in snapshot (unless force re-fetch)
-        if snap.get("weather") and not force:
+        # Skip if weather already exists in snapshot
+        if snap.get("weather"):
             skipped += 1
             continue
 
@@ -880,7 +842,6 @@ async def backfill_weather(
                             "wind_direction_deg": w.wind_direction_deg,
                             "precipitation_mm": w.precipitation_mm,
                             "weather_source": w.weather_source,
-                            "timezone_name": w.timezone_name,
                         }
                         row.snapshot_json = snap
                         await db.flush()
@@ -925,7 +886,6 @@ async def backfill_weather(
                 "wind_direction_deg": w.wind_direction_deg,
                 "precipitation_mm": w.precipitation_mm,
                 "weather_source": w.weather_source,
-                "timezone_name": w.timezone_name,
             }
             row.snapshot_json = snap
             await db.flush()
@@ -1058,7 +1018,8 @@ async def get_lap_summaries(
             lap_time_s=s.lap_time_s,
             lap_distance_m=s.lap_distance_m,
             max_speed_mps=s.max_speed_mps,
-            is_clean=s.lap_number not in sd.anomalous_laps,
+            is_clean=s.lap_number not in sd.anomalous_laps
+            and s.lap_number not in sd.lap_tags.excluded_laps(),
             tags=sorted(sd.lap_tags.get_tags(s.lap_number)),
         )
         for s in sd.processed.lap_summaries
@@ -1146,6 +1107,25 @@ async def set_lap_tags(
             detail=f"Lap {lap_number} not found in session {session_id}",
         )
 
-    # Clear existing tags and set new ones
+    # 1. Update in-memory tags
     sd.lap_tags.tags[lap_number] = set(tags)
+
+    # 2. Persist to DB
+    await save_lap_tags(db, session_id, sd.lap_tags)
+
+    # 3. Recalculate coaching_laps with tag-aware exclusion
+    all_laps = sorted(sd.processed.resampled_laps.keys())
+    in_out = {all_laps[0], all_laps[-1]} if len(all_laps) >= 2 else set()
+    sd.coaching_laps = recalculate_coaching_laps(
+        all_laps=all_laps,
+        anomalous=sd.anomalous_laps,
+        in_out=in_out,
+        best_lap=sd.processed.best_lap,
+        tags=sd.lap_tags,
+    )
+
+    # 4. Invalidate downstream caches so they regenerate with updated coaching_laps
+    invalidate_physics_cache(session_id)
+    await clear_coaching_data(session_id)
+
     return {"lap_number": lap_number, "tags": sorted(tags)}

@@ -47,6 +47,7 @@ from cataclysm.grip_calibration import (
     calibrate_grip_from_telemetry,
     calibrate_per_corner_grip,
 )
+from cataclysm.lap_tags import LapTagStore
 from cataclysm.linked_corners import detect_linked_corners
 from cataclysm.optimal_comparison import (
     APEX_WINDOW_FRACTION,
@@ -600,6 +601,30 @@ def invalidate_track_physics_cache(track_slug: str) -> None:
         asyncio.get_running_loop().create_task(db_invalidate_track(track_slug))
 
 
+def recalculate_coaching_laps(
+    all_laps: list[int],
+    anomalous: set[int],
+    in_out: set[int],
+    best_lap: int,
+    tags: LapTagStore,
+) -> list[int]:
+    """Compute coaching laps, excluding anomalous, in/out, and user-tagged laps.
+
+    User-tagged exclusions (traffic, off-line, etc.) override the best-lap
+    re-inclusion rule — if a user explicitly marks their best lap as traffic,
+    we respect that intent.
+    """
+    user_excluded = tags.excluded_laps()
+    coaching = [
+        n for n in all_laps if n not in anomalous and n not in in_out and n not in user_excluded
+    ]
+    # Re-include best lap if excluded only by in/out (NOT by anomaly or user tag)
+    if best_lap not in anomalous and best_lap not in user_excluded and best_lap not in coaching:
+        coaching.append(best_lap)
+        coaching.sort()
+    return coaching
+
+
 def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
     """Synchronous pipeline: parse, process, analyse, snapshot.
 
@@ -616,14 +641,13 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
     anomalous: set[int] = find_anomalous_laps(summaries)
     all_laps = sorted(processed.resampled_laps.keys())
     in_out: set[int] = {all_laps[0], all_laps[-1]} if len(all_laps) >= 2 else set()
-    coaching_laps = [n for n in all_laps if n not in anomalous and n not in in_out]
-
-    # If the overall best lap was excluded as in/out, include it — a fast
-    # first/last lap is clearly not a warm-up or cooldown.
-    best = processed.best_lap
-    if best not in anomalous and best not in coaching_laps:
-        coaching_laps.append(best)
-        coaching_laps.sort()
+    coaching_laps = recalculate_coaching_laps(
+        all_laps=all_laps,
+        anomalous=anomalous,
+        in_out=in_out,
+        best_lap=processed.best_lap,
+        tags=LapTagStore(),
+    )
 
     # 3b. Assess GPS quality
     gps_quality: GPSQualityReport | None = None
