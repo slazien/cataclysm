@@ -174,6 +174,14 @@ export function LapGridSelector() {
         align="end"
         sideOffset={6}
         className="w-[calc(100vw-2rem)] border-[var(--cata-border)] bg-[var(--bg-surface)] p-3 sm:w-auto sm:min-w-[260px] sm:max-w-[360px]"
+        onPointerDownOutside={(e) => {
+          // Prevent grid popover from closing when clicking inside the
+          // nested tag popover (its content is portaled outside this DOM).
+          const target = e.detail.originalEvent.target as HTMLElement | null;
+          if (target?.closest?.('[data-tag-popover]')) {
+            e.preventDefault();
+          }
+        }}
       >
         <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
           Select up to 2 laps
@@ -305,6 +313,7 @@ export function LapGridSelector() {
                   sideOffset={4}
                   className="z-[60] w-44 border-[var(--cata-border)] bg-foreground p-2 text-background"
                   onOpenAutoFocus={(e) => e.preventDefault()}
+                  data-tag-popover=""
                 >
                   <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider opacity-70">
                     L{lap.lap_number} Tags
