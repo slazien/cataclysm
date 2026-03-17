@@ -150,9 +150,14 @@ def _weather_fields(
 
 def _local_date(sd: session_store.SessionData) -> str | None:
     """Compute localized session date string from weather timezone, or ``None``."""
-    from cataclysm.timezone_utils import localize_session_date
+    from cataclysm.timezone_utils import get_timezone_name, localize_session_date
 
     tz = sd.weather.timezone_name if sd.weather else None
+    if not tz:
+        # Fallback: compute timezone from GPS centroid
+        df = sd.parsed.data
+        if not df.empty and "lat" in df.columns and "lon" in df.columns:
+            tz = get_timezone_name(lat=float(df["lat"].mean()), lon=float(df["lon"].mean()))
     if not tz:
         return None
     return localize_session_date(sd.snapshot.metadata.session_date, tz)
@@ -606,6 +611,12 @@ async def list_sessions(
             # Try to compute local date from snapshot timezone
             db_tz = w_data.get("timezone_name") if w_data else None
             db_raw_date = snap.get("metadata", {}).get("session_date", date_str)
+            if not db_tz:
+                from cataclysm.timezone_utils import get_timezone_name as _get_tz
+
+                centroid = snap.get("gps_centroid", {})
+                if centroid.get("lat") and centroid.get("lon"):
+                    db_tz = _get_tz(lat=centroid["lat"], lon=centroid["lon"])
             db_local: str | None = None
             if db_tz and db_raw_date:
                 from cataclysm.timezone_utils import localize_session_date
