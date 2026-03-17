@@ -38,7 +38,7 @@ export function TracksideCard({
 
   const handleShare = useCallback(async () => {
     const lines = [
-      `${session.track_name ?? 'Track'} — ${session.session_date ?? ''}`,
+      `${session.track_name ?? 'Track'} — ${session.session_date_local ?? session.session_date ?? ''}`,
       '',
       `Best: ${bestLap != null ? formatLapTime(bestLap) : '—'}`,
       optimalLapTime != null ? `Optimal: ${formatLapTime(optimalLapTime)}` : null,
