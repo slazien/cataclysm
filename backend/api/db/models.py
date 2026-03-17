@@ -729,6 +729,26 @@ class LlmTaskRoute(Base):
     )
 
 
+class CoachingFeedback(Base):
+    """User thumbs-up/down feedback on coaching report sections."""
+
+    __tablename__ = "coaching_feedback"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    session_id: Mapped[str] = mapped_column(String, nullable=False)
+    user_id: Mapped[str] = mapped_column(String, nullable=False)
+    section: Mapped[str] = mapped_column(String, nullable=False)
+    rating: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("session_id", "user_id", "section", name="uq_feedback_per_section"),
+        CheckConstraint("rating IN (-1, 1)", name="ck_feedback_rating"),
+        Index("ix_coaching_feedback_session", "session_id"),
+    )
+
+
 class LapTag(Base):
     """Per-lap user tag for exclusion marking. Composite PK."""
 
