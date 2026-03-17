@@ -833,6 +833,7 @@ async def get_session_weather(
 async def backfill_weather(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    force: bool = False,
 ) -> dict[str, object]:
     """Backfill weather for all user sessions missing it.
 
@@ -852,8 +853,8 @@ async def backfill_weather(
     for row in db_rows:
         snap = row.snapshot_json or {}
 
-        # Skip if weather already exists in snapshot
-        if snap.get("weather"):
+        # Skip if weather already exists in snapshot (unless force re-fetch)
+        if snap.get("weather") and not force:
             skipped += 1
             continue
 
