@@ -5,7 +5,10 @@ import { TrendingUp, Target, ChevronDown, ChevronUp } from 'lucide-react';
 import { extractActionTitle, extractDetailText, formatCoachingText } from '@/lib/textUtils';
 import { useUnits } from '@/hooks/useUnits';
 import { useCoachingNav } from '@/hooks/useCoachingNav';
+import { useCoachingFeedback } from '@/hooks/useCoachingFeedback';
+import { useSessionStore } from '@/stores';
 import { MarkdownText } from '@/components/shared/MarkdownText';
+import { ThumbsRating } from '@/components/shared/ThumbsRating';
 import type { CoachingLinkHandlers } from '@/lib/coachingLinks';
 
 const DEFAULT_VISIBLE = 3;
@@ -55,52 +58,63 @@ export function PatternsAndDrillsSection({ patterns, drills }: PatternsAndDrills
   const [showAllPatterns, setShowAllPatterns] = useState(false);
   const { resolveSpeed } = useUnits();
   const coachingNav = useCoachingNav();
+  const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const { getRating, submitFeedback } = useCoachingFeedback(activeSessionId);
   const resolvedPatterns = patterns.map((t) => formatCoachingText(resolveSpeed(t)));
   const resolvedDrills = drills.map((t) => formatCoachingText(resolveSpeed(t)));
   const visiblePatterns = showAllPatterns ? resolvedPatterns : resolvedPatterns.slice(0, DEFAULT_VISIBLE);
   const hiddenCount = resolvedPatterns.length - DEFAULT_VISIBLE;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      {patterns.length > 0 && (
-        <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-[var(--cata-accent)]" />
-            <h4 className="font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-primary)]">Patterns</h4>
+    <div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {patterns.length > 0 && (
+          <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-[var(--cata-accent)]" />
+              <h4 className="font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-primary)]">Patterns</h4>
+            </div>
+            <ul className="space-y-1.5">
+              {visiblePatterns.map((p, i) => (
+                <ExpandableItem key={i} text={p} bullet="&bull;" linkHandlers={coachingNav} />
+              ))}
+            </ul>
+            {hiddenCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowAllPatterns(!showAllPatterns)}
+                className="mt-2 flex items-center gap-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-secondary)]"
+              >
+                {showAllPatterns ? (
+                  <>Show less <ChevronUp className="h-3 w-3" /></>
+                ) : (
+                  <>Show {hiddenCount} more <ChevronDown className="h-3 w-3" /></>
+                )}
+              </button>
+            )}
           </div>
-          <ul className="space-y-1.5">
-            {visiblePatterns.map((p, i) => (
-              <ExpandableItem key={i} text={p} bullet="&bull;" linkHandlers={coachingNav} />
-            ))}
-          </ul>
-          {hiddenCount > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowAllPatterns(!showAllPatterns)}
-              className="mt-2 flex items-center gap-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-secondary)]"
-            >
-              {showAllPatterns ? (
-                <>Show less <ChevronUp className="h-3 w-3" /></>
-              ) : (
-                <>Show {hiddenCount} more <ChevronDown className="h-3 w-3" /></>
-              )}
-            </button>
-          )}
-        </div>
-      )}
-      {drills.length > 0 && (
-        <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <Target className="h-4 w-4 text-[var(--cata-accent)]" />
-            <h4 className="font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-primary)]">Recommended Drills</h4>
+        )}
+        {drills.length > 0 && (
+          <div className="rounded-lg border border-[var(--cata-border)] bg-[var(--bg-surface)] p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <Target className="h-4 w-4 text-[var(--cata-accent)]" />
+              <h4 className="font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-primary)]">Recommended Drills</h4>
+            </div>
+            <ul className="space-y-1.5">
+              {resolvedDrills.map((d, i) => (
+                <ExpandableItem key={i} text={d} bullet={`${i + 1}.`} linkHandlers={coachingNav} />
+              ))}
+            </ul>
           </div>
-          <ul className="space-y-1.5">
-            {resolvedDrills.map((d, i) => (
-              <ExpandableItem key={i} text={d} bullet={`${i + 1}.`} linkHandlers={coachingNav} />
-            ))}
-          </ul>
-        </div>
-      )}
+        )}
+      </div>
+      <div className="mt-3 flex justify-end">
+        <ThumbsRating
+          rating={getRating('patterns')}
+          onRate={(r) => submitFeedback.mutate({ section: 'patterns', rating: r })}
+          disabled={submitFeedback.isPending}
+        />
+      </div>
     </div>
   );
 }

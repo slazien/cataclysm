@@ -3,9 +3,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { MarkdownText } from '@/components/shared/MarkdownText';
+import { ThumbsRating } from '@/components/shared/ThumbsRating';
 import { useUnits } from '@/hooks/useUnits';
 import { formatCoachingText } from '@/lib/textUtils';
 import { useCoachingNav } from '@/hooks/useCoachingNav';
+import { useCoachingFeedback } from '@/hooks/useCoachingFeedback';
+import { useSessionStore } from '@/stores';
 import type { CoachingReport } from '@/lib/types';
 
 interface CoachingSummaryHeroProps {
@@ -104,6 +107,8 @@ export function CoachingSummaryHero({ report, onRetry }: CoachingSummaryHeroProp
   const isLoading = !report || report.status === 'generating';
   const { resolveSpeed } = useUnits();
   const coachingNav = useCoachingNav();
+  const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const { getRating, submitFeedback } = useCoachingFeedback(activeSessionId);
   const summary = report?.summary ? formatCoachingText(resolveSpeed(report.summary)) : report?.summary;
   const primaryFocus = report?.primary_focus ? formatCoachingText(resolveSpeed(report.primary_focus)) : null;
 
@@ -155,6 +160,13 @@ export function CoachingSummaryHero({ report, onRetry }: CoachingSummaryHeroProp
                 </>
               );
             })()}
+          </div>
+          <div className="mt-3 flex justify-end">
+            <ThumbsRating
+              rating={getRating('summary')}
+              onRate={(r) => submitFeedback.mutate({ section: 'summary', rating: r })}
+              disabled={submitFeedback.isPending}
+            />
           </div>
         </div>
       ) : (
