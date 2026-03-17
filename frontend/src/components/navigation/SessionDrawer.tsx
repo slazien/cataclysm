@@ -223,7 +223,7 @@ export function SessionDrawer() {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-1.5">
                                 <p className="text-sm font-semibold text-[var(--text-primary)]">
-                                  {session.session_date}
+                                  {session.session_date_local ?? session.session_date}
                                 </p>
                                 {isPB && (
                                   <span title="Personal best at this track"><Star className="h-3 w-3 fill-purple-400 text-purple-400" /></span>

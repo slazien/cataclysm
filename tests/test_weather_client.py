@@ -158,6 +158,47 @@ async def test_zero_precipitation_returns_dry() -> None:
 
 
 @pytest.mark.asyncio
+async def test_accumulated_precip_detects_wet_track() -> None:
+    """If no rain now but significant rain in prior hours → track still wet."""
+    # 8 hours of data: heavy rain hours 0-3, dry hours 4-7, session at hour 7
+    response = {
+        "hourly": {
+            "time": [
+                "2025-02-15T06:00",
+                "2025-02-15T07:00",
+                "2025-02-15T08:00",
+                "2025-02-15T09:00",
+                "2025-02-15T10:00",
+                "2025-02-15T11:00",
+                "2025-02-15T12:00",
+                "2025-02-15T13:00",
+            ],
+            "temperature_2m": [15.0] * 8,
+            "relative_humidity_2m": [80.0] * 8,
+            "wind_speed_10m": [5.0] * 8,
+            "wind_direction_10m": [180.0] * 8,
+            # Rain early morning, dry by session time
+            "precipitation": [1.5, 2.0, 0.5, 0.3, 0.0, 0.0, 0.0, 0.0],
+        }
+    }
+    mock_response = _make_mock_response(response)
+
+    with patch("cataclysm.weather_client.httpx.AsyncClient") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_response
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_cls.return_value = mock_client
+
+        # Session at 13:00 UTC — current precip is 0, but 4.3mm fell in prior 6h
+        result = await lookup_weather(33.53, -86.62, SESSION_DT)
+
+    assert result is not None
+    assert result.precipitation_mm == 0.0  # current hour is dry
+    assert result.track_condition == TrackCondition.WET  # but lookback detects wet
+
+
+@pytest.mark.asyncio
 async def test_api_error_returns_none() -> None:
     """HTTP error from the API returns None gracefully."""
     mock_response = httpx.Response(

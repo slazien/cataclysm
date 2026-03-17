@@ -2,6 +2,7 @@ export interface SessionSummary {
   session_id: string;
   track_name: string;
   session_date: string;
+  session_date_local?: string | null;
   n_laps: number | null;
   n_clean_laps: number | null;
   best_lap_time_s: number | null;

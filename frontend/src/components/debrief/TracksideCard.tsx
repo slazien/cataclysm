@@ -85,7 +85,7 @@ export function TracksideCard({
         {session.track_name ?? 'Unknown Track'}
       </p>
       <p className="mb-4 text-[11px] text-[var(--text-secondary)]">
-        {session.session_date ?? ''}
+        {session.session_date_local ?? session.session_date ?? ''}
       </p>
 
       {/* Focus — biggest text, uses tip (concise actionable) */}

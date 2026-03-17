@@ -13,6 +13,7 @@ class SessionSummary(BaseModel):
     session_id: str
     track_name: str
     session_date: str
+    session_date_local: str | None = None
     n_laps: int | None = None
     n_clean_laps: int | None = None
     best_lap_time_s: float | None = None

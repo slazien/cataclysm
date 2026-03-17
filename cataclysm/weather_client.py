@@ -29,6 +29,19 @@ HOURLY_PARAMS = (
     "temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,precipitation"
 )
 
+# A track can stay wet for hours after rain stops. We look at accumulated
+# precipitation over this many hours *before* the session to detect residual
+# surface water that the current-hour reading would miss.
+LOOKBACK_HOURS = 6
+
+# Thresholds for accumulated precipitation (over LOOKBACK_HOURS)
+ACCUMULATED_WET_MM = 2.0
+ACCUMULATED_DAMP_MM = 0.5
+
+# Thresholds for current-hour precipitation (instant reading)
+INSTANT_WET_MM = 1.0
+INSTANT_DAMP_MM = 0.1
+
 
 def _pick_api_url(session_dt: datetime) -> str:
     """Return the forecast or archive URL based on session age."""
@@ -38,12 +51,27 @@ def _pick_api_url(session_dt: datetime) -> str:
     return ARCHIVE_URL
 
 
-def _infer_track_condition(precipitation_mm: float) -> TrackCondition:
-    """Map precipitation to a track surface condition."""
-    if precipitation_mm > 1.0:
+def _infer_track_condition(
+    current_precip_mm: float,
+    accumulated_precip_mm: float,
+) -> TrackCondition:
+    """Map precipitation to a track surface condition.
+
+    Uses both the current-hour reading and accumulated precipitation
+    over the lookback window to catch "rain stopped but track still wet".
+    """
+    # Current-hour takes priority for active rain
+    if current_precip_mm > INSTANT_WET_MM:
         return TrackCondition.WET
-    if precipitation_mm > 0.1:
+    if current_precip_mm > INSTANT_DAMP_MM:
         return TrackCondition.DAMP
+
+    # Lookback: recent accumulated rain → track surface still wet
+    if accumulated_precip_mm > ACCUMULATED_WET_MM:
+        return TrackCondition.WET
+    if accumulated_precip_mm > ACCUMULATED_DAMP_MM:
+        return TrackCondition.DAMP
+
     return TrackCondition.DRY
 
 
@@ -61,6 +89,16 @@ def _find_closest_hour_index(times: list[str], target: datetime) -> int:
     return best_idx
 
 
+def _sum_lookback_precipitation(
+    precip_values: list[float],
+    session_idx: int,
+    lookback_hours: int,
+) -> float:
+    """Sum precipitation over the *lookback_hours* ending at *session_idx*."""
+    start_idx = max(0, session_idx - lookback_hours)
+    return sum(float(precip_values[i]) for i in range(start_idx, session_idx + 1))
+
+
 async def lookup_weather(
     lat: float,
     lon: float,
@@ -73,6 +111,10 @@ async def lookup_weather(
     :class:`~cataclysm.equipment.SessionConditions`, or ``None`` on any
     error.
 
+    The query fetches the session day *plus* the preceding day so that
+    early-morning sessions have enough lookback data for accumulated
+    precipitation.
+
     Args:
         lat: Latitude in decimal degrees.
         lon: Longitude in decimal degrees.
@@ -83,13 +125,15 @@ async def lookup_weather(
         lookup failed.
     """
     api_url = _pick_api_url(session_datetime)
-    date_str = session_datetime.strftime("%Y-%m-%d")
+    # Fetch two days: previous day + session day for lookback window
+    prev_day = (session_datetime - timedelta(days=1)).strftime("%Y-%m-%d")
+    session_day = session_datetime.strftime("%Y-%m-%d")
     params = {
         "latitude": str(lat),
         "longitude": str(lon),
         "hourly": HOURLY_PARAMS,
-        "start_date": date_str,
-        "end_date": date_str,
+        "start_date": prev_day,
+        "end_date": session_day,
         "timezone": "UTC",
     }
 
@@ -101,7 +145,7 @@ async def lookup_weather(
         data = response.json()
         hourly = data.get("hourly")
         if not hourly or not hourly.get("time"):
-            logger.warning("Open-Meteo returned empty hourly data for %s", date_str)
+            logger.warning("Open-Meteo returned empty hourly data for %s", session_day)
             return None
 
         idx = _find_closest_hour_index(hourly["time"], session_datetime)
@@ -110,15 +154,23 @@ async def lookup_weather(
         humidity = hourly["relative_humidity_2m"][idx]
         wind_speed = hourly["wind_speed_10m"][idx]
         wind_dir = hourly["wind_direction_10m"][idx]
-        precip = hourly["precipitation"][idx]
+        current_precip = float(hourly["precipitation"][idx])
+
+        accumulated_precip = _sum_lookback_precipitation(
+            hourly["precipitation"],
+            idx,
+            LOOKBACK_HOURS,
+        )
+
+        condition = _infer_track_condition(current_precip, accumulated_precip)
 
         return SessionConditions(
-            track_condition=_infer_track_condition(precip),
+            track_condition=condition,
             ambient_temp_c=float(temp_c),
             humidity_pct=float(humidity),
             wind_speed_kmh=float(wind_speed),
             wind_direction_deg=float(wind_dir),
-            precipitation_mm=float(precip),
+            precipitation_mm=current_precip,
             weather_source="open-meteo",
         )
 
@@ -128,7 +180,7 @@ async def lookup_weather(
             exc.response.status_code,
             lat,
             lon,
-            date_str,
+            session_day,
         )
         return None
     except (httpx.RequestError, ValueError, KeyError, IndexError, TypeError) as exc:
@@ -136,7 +188,7 @@ async def lookup_weather(
             "Open-Meteo lookup failed for lat=%s lon=%s date=%s: %s",
             lat,
             lon,
-            date_str,
+            session_day,
             exc,
         )
         return None
