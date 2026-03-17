@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Upload, Sun, CloudDrizzle, CloudRain, Cloud, CheckCircle2, Loader2, Star, AlertTriangle } from 'lucide-react';
+import { Upload, Sun, CloudDrizzle, CloudRain, Cloud, CheckCircle2, Loader2, Star, AlertTriangle, ArrowLeftRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useUiStore, useSessionStore } from '@/stores';
 import { useSessions, useUploadSessions, useDeleteAllSessions } from '@/hooks/useSession';
 import { useUnits } from '@/hooks/useUnits';
@@ -59,11 +60,18 @@ export function SessionDrawer() {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const router = useRouter();
 
   const { data: sessionsData } = useSessions();
   const sessions = sessionsData?.items ?? [];
 
   const trackGroups = useMemo(() => groupSessionsByTrack(sessions), [sessions]);
+
+  const activeTrackName = useMemo(() => {
+    if (!activeSessionId) return null;
+    const active = sessions.find((s) => s.session_id === activeSessionId);
+    return active?.track_name ?? null;
+  }, [sessions, activeSessionId]);
 
   const uploadMutation = useUploadSessions();
   const deleteAllMutation = useDeleteAllSessions();
@@ -230,7 +238,27 @@ export function SessionDrawer() {
                                 )}
                                 <CoachingStatusIcon sessionId={session.session_id} />
                               </div>
-                              <SessionScoreBadge score={session.session_score ?? session.consistency_score} />
+                              <div className="flex items-center gap-1">
+                                {activeSessionId &&
+                                  session.session_id !== activeSessionId &&
+                                  activeTrackName === group.trackName && (
+                                    <button
+                                      type="button"
+                                      title="Compare with current session"
+                                      className="shrink-0 rounded p-1.5 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        router.push(
+                                          `/compare/${activeSessionId}?with=${session.session_id}`,
+                                        );
+                                        toggleDrawer();
+                                      }}
+                                    >
+                                      <ArrowLeftRight className="h-4 w-4" />
+                                    </button>
+                                  )}
+                                <SessionScoreBadge score={session.session_score ?? session.consistency_score} />
+                              </div>
                             </div>
                             <div className="mt-1 flex items-center gap-1.5">
                               <p className="text-xs text-[var(--text-secondary)]">
