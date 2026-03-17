@@ -9,7 +9,7 @@ from typing import Annotated, cast
 
 import numpy as np
 from cataclysm.constants import MPS_TO_MPH
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, UploadFile
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -1093,7 +1093,7 @@ async def get_lap_tags(
 async def set_lap_tags(
     session_id: str,
     lap_number: int,
-    tags: list[str],
+    tags: Annotated[list[str], Body()],
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, object]:

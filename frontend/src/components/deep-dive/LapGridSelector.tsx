@@ -219,7 +219,7 @@ export function LapGridSelector() {
                     whileHover={{ scale: 1.06 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                     className={cn(
-                      'relative flex min-h-[44px] flex-col items-center justify-center rounded-md px-1 py-2 text-center transition-[color,border-color,background-color]',
+                      'group relative flex min-h-[44px] flex-col items-center justify-center rounded-md px-1 py-2 text-center transition-[color,border-color,background-color]',
                       'cursor-pointer select-none',
                       (dimmed || excluded) && !isSelected && 'opacity-50',
                     )}
@@ -255,10 +255,27 @@ export function LapGridSelector() {
                       </motion.div>
                     )}
 
-                    {/* Excluded flag icon */}
-                    {excluded && !isPb && (
-                      <Flag className="absolute -right-0.5 -top-0.5 h-3 w-3 text-amber-400/80" />
-                    )}
+                    {/* Flag button — visible affordance for tagging */}
+                    <button
+                      type="button"
+                      aria-label={`Tag lap ${lap.lap_number}`}
+                      className={cn(
+                        'absolute -bottom-1 -right-1 z-10 flex h-6 w-6 items-center justify-center rounded-full transition-opacity',
+                        excluded
+                          ? 'bg-amber-500/90 opacity-100'
+                          : 'bg-black/50 opacity-0 group-hover:opacity-60',
+                        // Always show on touch devices via media query
+                        !excluded && 'sm:opacity-0 max-sm:opacity-40',
+                      )}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTagPopoverLap((prev) =>
+                          prev === lap.lap_number ? null : lap.lap_number,
+                        );
+                      }}
+                    >
+                      <Flag className="h-2.5 w-2.5 text-white" />
+                    </button>
 
                     {/* Role badge */}
                     {role && (
@@ -339,6 +356,10 @@ export function LapGridSelector() {
               }}
             />
             Excluded
+          </span>
+          <span className="flex items-center gap-1">
+            <Flag className="h-2.5 w-2.5 text-[var(--text-secondary)]" />
+            Tap to tag
           </span>
           <span className="opacity-50">Dimmed = warm-up/outlier</span>
         </div>
