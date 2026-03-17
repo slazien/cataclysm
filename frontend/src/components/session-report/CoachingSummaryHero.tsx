@@ -23,18 +23,52 @@ function splitSummary(text: string): { lead: string; rest: string } {
 }
 
 const GENERATION_TIMEOUT_S = 300;
+const MESSAGE_ROTATE_MS = 12_000;
+
+/** Ordered to feel like a real analysis pipeline progression. */
+const GENERATING_MESSAGES = [
+  'Analyzing telemetry data...',
+  'Processing lap times and sector splits...',
+  'Mapping braking points and turn-in markers...',
+  'Evaluating corner entry speeds...',
+  'Computing optimal racing lines...',
+  'Calculating physics-based speed targets...',
+  'Modeling weight transfer dynamics...',
+  'Analyzing throttle application patterns...',
+  'Comparing your laps to the physics optimal...',
+  'Identifying time-gain opportunities...',
+  'Ranking corners by improvement potential...',
+  'Evaluating trail braking consistency...',
+  'Assessing exit speed efficiency...',
+  'Cross-referencing with driving best practices...',
+  'Drafting personalized coaching insights...',
+  'Building your priority improvement plan...',
+  'Summarizing key focus areas...',
+  'Polishing your coaching report...',
+];
+
+function useRotatingMessage(messages: readonly string[], intervalMs: number) {
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      setIndex((i) => (i + 1) % messages.length);
+    }, intervalMs);
+    return () => clearInterval(id);
+  }, [messages, intervalMs]);
+  return { message: messages[index], index };
+}
 
 function GeneratingProgress({ startedAt, estimatedS, onRetry }: { startedAt?: string | null; estimatedS?: number | null; onRetry?: () => void }) {
   const [progress, setProgress] = useState(0);
   const [timedOut, setTimedOut] = useState(false);
   const mountedAt = useRef(Date.now());
+  const { message, index: msgIndex } = useRotatingMessage(GENERATING_MESSAGES, MESSAGE_ROTATE_MS);
 
   useEffect(() => {
     const startMs = startedAt ? new Date(startedAt).getTime() : NaN;
     const hasValidStart = !Number.isNaN(startMs);
 
     const tick = () => {
-      // Timeout: use server start time if available, otherwise time since mount
       const elapsedS = hasValidStart
         ? (Date.now() - startMs) / 1000
         : (Date.now() - mountedAt.current) / 1000;
@@ -85,15 +119,17 @@ function GeneratingProgress({ startedAt, estimatedS, onRetry }: { startedAt?: st
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-xs text-[var(--text-secondary)]">
-            Generating coaching insights... ~{Math.ceil(estimatedS)}s
+          <p key={msgIndex} className="animate-fade-in-up text-xs text-[var(--text-secondary)]">
+            {message}
           </p>
         </>
       ) : (
         <>
           <div className="h-4 w-3/4 animate-pulse rounded bg-[var(--bg-elevated)]" />
           <div className="h-4 w-1/2 animate-pulse rounded bg-[var(--bg-elevated)]" />
-          <p className="mt-2 text-xs text-[var(--text-secondary)]">Generating coaching insights...</p>
+          <p key={msgIndex} className="animate-fade-in-up mt-2 text-xs text-[var(--text-secondary)]">
+            {message}
+          </p>
         </>
       )}
     </div>
