@@ -265,7 +265,7 @@ export function TopBar() {
               </span>
             )}
             <ChevronRight className="h-3 w-3 text-[var(--text-secondary)]" />
-            <span className="hidden text-[var(--text-secondary)] sm:inline">{session?.session_date ?? ''}</span>
+            <span className="hidden text-[var(--text-secondary)] sm:inline">{session?.session_date_local ?? session?.session_date ?? ''}</span>
           </button>
 
           {/* Right: Lap pills (deep-dive only) */}

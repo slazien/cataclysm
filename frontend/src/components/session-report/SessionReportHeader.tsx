@@ -141,7 +141,7 @@ export function SessionReportHeader({ session, gpsQuality, sessionId }: SessionR
         <h1 className="truncate font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-[var(--text-primary)]">
           {session?.track_name ?? 'Loading...'}
         </h1>
-        <p className="text-sm text-[var(--text-secondary)]">{session?.session_date ?? ''}</p>
+        <p className="text-sm text-[var(--text-secondary)]">{session?.session_date_local ?? session?.session_date ?? ''}</p>
       </div>
 
       {/* Badges + Share actions */}

@@ -38,7 +38,7 @@ export function TracksideCard({
 
   const handleShare = useCallback(async () => {
     const lines = [
-      `${session.track_name ?? 'Track'} — ${session.session_date ?? ''}`,
+      `${session.track_name ?? 'Track'} — ${session.session_date_local ?? session.session_date ?? ''}`,
       '',
       `Best: ${bestLap != null ? formatLapTime(bestLap) : '—'}`,
       optimalLapTime != null ? `Optimal: ${formatLapTime(optimalLapTime)}` : null,
@@ -85,7 +85,7 @@ export function TracksideCard({
         {session.track_name ?? 'Unknown Track'}
       </p>
       <p className="mb-4 text-[11px] text-[var(--text-secondary)]">
-        {session.session_date ?? ''}
+        {session.session_date_local ?? session.session_date ?? ''}
       </p>
 
       {/* Focus — biggest text, uses tip (concise actionable) */}

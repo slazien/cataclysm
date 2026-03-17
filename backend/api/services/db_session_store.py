@@ -236,6 +236,7 @@ async def store_session_db(
             "wind_direction_deg": w.wind_direction_deg,
             "precipitation_mm": w.precipitation_mm,
             "weather_source": w.weather_source,
+            "timezone_name": w.timezone_name,
         }
 
     # GPS centroid (derived from session telemetry)
@@ -295,6 +296,7 @@ def restore_weather_from_snapshot(snapshot_json: dict | None) -> SessionConditio
         wind_direction_deg=w.get("wind_direction_deg"),
         precipitation_mm=w.get("precipitation_mm"),
         weather_source=w.get("weather_source"),
+        timezone_name=w.get("timezone_name"),
     )
 
 
