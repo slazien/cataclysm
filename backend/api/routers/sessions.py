@@ -1018,7 +1018,8 @@ async def get_lap_summaries(
             lap_time_s=s.lap_time_s,
             lap_distance_m=s.lap_distance_m,
             max_speed_mps=s.max_speed_mps,
-            is_clean=s.lap_number not in sd.anomalous_laps,
+            is_clean=s.lap_number not in sd.anomalous_laps
+            and s.lap_number not in sd.lap_tags.excluded_laps(),
             tags=sorted(sd.lap_tags.get_tags(s.lap_number)),
         )
         for s in sd.processed.lap_summaries
