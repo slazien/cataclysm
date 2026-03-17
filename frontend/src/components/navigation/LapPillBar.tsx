@@ -53,23 +53,28 @@ function ExcludeTagPopover({
           type="button"
           aria-label={`Tag lap ${lap.lap_number}`}
           className={cn(
-            'absolute -right-1 -top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full',
+            'absolute -right-3 -top-3 z-10 flex h-11 w-11 items-center justify-center',
             'transition-opacity duration-150',
-            // Desktop: show on group hover; Mobile: always show if excluded
             excluded
-              ? 'bg-amber-500/90 opacity-100'
-              : 'bg-[var(--bg-surface)]/80 opacity-0 group-hover:opacity-100',
-            // On touch devices, excluded laps always show the flag
+              ? 'opacity-100'
+              : 'opacity-0 group-hover:opacity-100',
             excluded && 'sm:opacity-100',
           )}
           onClick={(e) => e.stopPropagation()}
         >
-          <Flag
+          <span
             className={cn(
-              'h-3 w-3',
-              excluded ? 'text-white' : 'text-[var(--text-muted)]',
+              'flex h-5 w-5 items-center justify-center rounded-full',
+              excluded ? 'bg-amber-500/90' : 'bg-[var(--bg-surface)]/80',
             )}
-          />
+          >
+            <Flag
+              className={cn(
+                'h-3 w-3',
+                excluded ? 'text-white' : 'text-[var(--text-muted)]',
+              )}
+            />
+          </span>
         </button>
       </PopoverTrigger>
       <PopoverContent

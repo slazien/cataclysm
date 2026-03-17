@@ -297,7 +297,7 @@ export function LapGridSelector() {
                     return (
                       <label
                         key={tag}
-                        className="flex min-h-[36px] cursor-pointer items-center gap-2 rounded px-1.5 py-1 hover:bg-white/10"
+                        className="flex min-h-[44px] cursor-pointer items-center gap-2 rounded px-1.5 py-1 hover:bg-white/10"
                       >
                         <input
                           type="checkbox"
