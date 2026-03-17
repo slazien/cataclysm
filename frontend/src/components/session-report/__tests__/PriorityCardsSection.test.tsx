@@ -18,6 +18,15 @@ vi.mock('@/stores', () => ({
       selectCorner: typeof mockSelectCorner;
     }) => unknown,
   ) => selector({ setMode: mockSetMode, selectCorner: mockSelectCorner }),
+  useSessionStore: (selector: (state: { activeSessionId: string | null }) => unknown) =>
+    selector({ activeSessionId: 'test-session' }),
+}));
+
+vi.mock('@/hooks/useCoachingFeedback', () => ({
+  useCoachingFeedback: () => ({
+    getRating: () => 0,
+    submitFeedback: vi.fn(),
+  }),
 }));
 
 vi.mock('@/hooks/useUnits', () => ({
@@ -52,6 +61,12 @@ vi.mock('lucide-react', () => ({
   ),
   TrendingDown: ({ className }: { className?: string }) => (
     <svg data-testid="trending-down" className={className} />
+  ),
+  ThumbsUp: ({ className }: { className?: string }) => (
+    <svg data-testid="thumbs-up" className={className} />
+  ),
+  ThumbsDown: ({ className }: { className?: string }) => (
+    <svg data-testid="thumbs-down" className={className} />
   ),
 }));
 

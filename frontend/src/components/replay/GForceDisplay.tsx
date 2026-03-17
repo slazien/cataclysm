@@ -18,7 +18,7 @@ const MAX_G = 2.0;
  *
  * - Circular boundary representing MAX_G
  * - Cross-hair gridlines through center
- * - Quadrant labels: Brake (top) / Accel (bottom) / Left / Right
+ * - Quadrant labels: Accel (top) / Brake (bottom) / Left / Right
  * - Current dot with a short fading trail of recent positions
  */
 export function GForceDisplay({ lateralG, longitudinalG, trail }: GForceDisplayProps) {
@@ -86,8 +86,8 @@ export function GForceDisplay({ lateralG, longitudinalG, trail }: GForceDisplayP
     ctx.textAlign = 'center';
     ctx.fillStyle = colors.text.muted;
     ctx.globalAlpha = 0.6;
-    ctx.fillText('Brake', cx, cy - r - 6);
-    ctx.fillText('Accel', cx, cy + r + 14);
+    ctx.fillText('Accel', cx, cy - r - 6);
+    ctx.fillText('Brake', cx, cy + r + 14);
     ctx.fillText('L', cx - r - 10, cy + 4);
     ctx.fillText('R', cx + r + 10, cy + 4);
     ctx.globalAlpha = 1;
