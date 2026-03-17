@@ -141,8 +141,8 @@ function drawStatPill(
   value: string,
   label: string,
 ): void {
-  const w = 210;
-  const h = 105;
+  const w = 200;
+  const h = 100;
   ctx.fillStyle = 'rgba(255,255,255,0.06)';
   ctx.strokeStyle = 'rgba(255,255,255,0.12)';
   ctx.lineWidth = 1;
@@ -152,12 +152,12 @@ function drawStatPill(
   ctx.stroke();
 
   ctx.fillStyle = '#fff';
-  ctx.font = "bold 44px 'JetBrains Mono', monospace";
+  ctx.font = "bold 40px 'JetBrains Mono', monospace";
   ctx.textAlign = 'center';
-  ctx.fillText(value, x, y + 44);
+  ctx.fillText(value, x, y + 42);
   ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.font = "24px 'Barlow Semi Condensed', sans-serif";
-  ctx.fillText(label, x, y + 82);
+  ctx.font = "22px 'Barlow Semi Condensed', sans-serif";
+  ctx.fillText(label, x, y + 78);
 }
 
 function drawSkillRadar(
@@ -320,27 +320,27 @@ export async function renderSessionCard(
   }
 
   // 3 Stat pills
-  y = 890;
-  drawStatPill(ctx, CARD_W / 2 - 220, y, String(data.nLaps), 'LAPS');
+  y = 880;
+  drawStatPill(ctx, CARD_W / 2 - 240, y, String(data.nLaps), 'LAPS');
   if (data.consistencyScore != null) {
     drawStatPill(ctx, CARD_W / 2, y, `${Math.round(data.consistencyScore * 100)}%`, 'CONSISTENCY');
   }
   if (data.topSpeed != null) {
-    drawStatPill(ctx, CARD_W / 2 + 220, y, `${Math.round(data.topSpeed)} ${data.speedUnit}`, 'TOP SPEED');
+    drawStatPill(ctx, CARD_W / 2 + 240, y, `${Math.round(data.topSpeed)} ${data.speedUnit}`, 'TOP SPEED');
   }
 
   // Skill radar chart
   if (data.skillDimensions) {
-    drawSkillRadar(ctx, data.skillDimensions, CARD_W / 2, 1110, 110);
+    drawSkillRadar(ctx, data.skillDimensions, CARD_W / 2, 1160, 100);
   }
 
   // QR code
   if (data.viewUrl) {
-    await drawQRCode(ctx, data.viewUrl, CARD_W / 2, 1310, 140);
+    await drawQRCode(ctx, data.viewUrl, CARD_W / 2, 1350, 130);
     ctx.fillStyle = 'rgba(255,255,255,0.4)';
     ctx.font = "24px 'Barlow Semi Condensed', sans-serif";
     ctx.textAlign = 'center';
-    ctx.fillText('Scan to view full analysis', CARD_W / 2, 1470);
+    ctx.fillText('Scan to view full analysis', CARD_W / 2, 1500);
   }
 
   // Footer CTA
