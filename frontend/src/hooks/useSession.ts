@@ -38,8 +38,13 @@ export function useSession(sessionId: string | null) {
     staleTime: Infinity,
     // Poll every 30s while weather is missing — backend lazy-retries the
     // Open-Meteo fetch with a 5-min cooldown, stops once weather arrives.
-    refetchInterval: (query) =>
-      query.state.data?.weather_condition ? false : 30_000,
+    // Cap at 20 attempts (10 min) to avoid polling forever for permanently
+    // unfetchable sessions (no GPS, date too old, etc.).
+    refetchInterval: (query) => {
+      if (query.state.data?.weather_condition) return false;
+      const count = query.state.dataUpdateCount;
+      return count < 20 ? 30_000 : false;
+    },
   });
 }
 

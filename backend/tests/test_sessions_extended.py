@@ -1064,6 +1064,7 @@ async def test_get_weather_track_condition_string_fallback(
     mock_weather = MagicMock(spec=[])  # no attributes by default
     mock_weather.track_condition = "wet"  # plain string, not enum
     mock_weather.ambient_temp_c = 10.0
+    mock_weather.track_temp_c = 15.0
     mock_weather.humidity_pct = 90.0
     mock_weather.wind_speed_kmh = 20.0
     mock_weather.wind_direction_deg = 45.0

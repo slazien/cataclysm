@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import math
 from dataclasses import dataclass
@@ -60,6 +61,7 @@ from backend.api.services.pipeline import (
     recalculate_coaching_laps,
     trigger_lidar_prefetch,
 )
+from backend.api.services.weather_backfill import weather_to_dict
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +127,39 @@ async def _auto_fetch_weather(sd: session_store.SessionData) -> None:
             weather.track_condition.value,
             weather.ambient_temp_c or 0,
         )
+
+
+async def _lazy_weather_fetch(sd: session_store.SessionData, session_id: str) -> None:
+    """Fire-and-forget weather fetch: called from GET /sessions/{id}.
+
+    Uses its own DB session so the request handler isn't blocked.
+    """
+    from backend.api.db.database import async_session_factory
+    from backend.api.db.models import Session as SessionModel
+    from backend.api.services.weather_backfill import (
+        record_weather_attempt,
+        weather_to_dict,
+    )
+
+    record_weather_attempt(session_id)
+    try:
+        await _auto_fetch_weather(sd)
+        if sd.weather is not None:
+            async with async_session_factory() as db:
+                from sqlalchemy import select
+
+                row = (
+                    await db.execute(
+                        select(SessionModel).where(SessionModel.session_id == session_id)
+                    )
+                ).scalar_one_or_none()
+                if row is not None:
+                    snap = dict(row.snapshot_json or {})
+                    snap["weather"] = weather_to_dict(sd.weather)
+                    row.snapshot_json = snap
+                    await db.commit()
+    except Exception:
+        logger.warning("Lazy weather retry failed for %s", session_id, exc_info=True)
 
 
 def _weather_fields(
@@ -621,36 +656,16 @@ async def get_session(
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
-    # Lazy weather retry: if weather is missing, try fetching with cooldown
+    # Lazy weather retry: fire-and-forget background task to avoid stalling the response.
+    # React Query polls every 30s — weather will appear on the next fetch.
     if sd.weather is None:
-        from backend.api.services.weather_backfill import (
-            record_weather_attempt,
-            should_retry_weather,
-            weather_to_dict,
-        )
+        from backend.api.services.weather_backfill import should_retry_weather
 
         if should_retry_weather(session_id):
-            record_weather_attempt(session_id)
-            try:
-                await _auto_fetch_weather(sd)
-                if sd.weather is not None:
-                    # Persist to DB snapshot
-                    from sqlalchemy import select as _sel
-
-                    from backend.api.db.models import Session as _SessionModel
-
-                    row = (
-                        await db.execute(
-                            _sel(_SessionModel).where(_SessionModel.session_id == session_id)
-                        )
-                    ).scalar_one_or_none()
-                    if row is not None:
-                        snap = dict(row.snapshot_json or {})
-                        snap["weather"] = weather_to_dict(sd.weather)
-                        row.snapshot_json = snap
-                        await db.commit()
-            except (ValueError, TypeError, OSError):
-                logger.warning("Lazy weather retry failed for %s", session_id, exc_info=True)
+            asyncio.create_task(
+                _lazy_weather_fetch(sd, session_id),
+                name=f"lazy-weather-{session_id}",
+            )
 
     tire_model, compound_category, profile_name = _equipment_fields(sd.session_id)
     w_temp, w_cond, w_hum, w_wind, w_precip = _weather_fields(sd)
@@ -781,44 +796,16 @@ async def get_session_weather(
 
     # Return cached weather if available
     if sd.weather is not None:
-        w = sd.weather
-        return {
-            "session_id": session_id,
-            "weather": {
-                "track_condition": w.track_condition.value
-                if hasattr(w.track_condition, "value")
-                else str(w.track_condition),
-                "ambient_temp_c": w.ambient_temp_c,
-                "humidity_pct": w.humidity_pct,
-                "wind_speed_kmh": w.wind_speed_kmh,
-                "wind_direction_deg": w.wind_direction_deg,
-                "precipitation_mm": w.precipitation_mm,
-                "weather_source": w.weather_source,
-            },
-        }
+        return {"session_id": session_id, "weather": weather_to_dict(sd.weather)}
 
     # Try live fetch if not cached
     try:
         await _auto_fetch_weather(sd)
-    except (ValueError, TypeError, OSError):
+    except Exception:
         logger.warning("On-demand weather fetch failed for %s", session_id, exc_info=True)
 
     if sd.weather is not None:
-        w = sd.weather
-        return {
-            "session_id": session_id,
-            "weather": {
-                "track_condition": w.track_condition.value
-                if hasattr(w.track_condition, "value")
-                else str(w.track_condition),
-                "ambient_temp_c": w.ambient_temp_c,
-                "humidity_pct": w.humidity_pct,
-                "wind_speed_kmh": w.wind_speed_kmh,
-                "wind_direction_deg": w.wind_direction_deg,
-                "precipitation_mm": w.precipitation_mm,
-                "weather_source": w.weather_source,
-            },
-        }
+        return {"session_id": session_id, "weather": weather_to_dict(sd.weather)}
 
     return {"session_id": session_id, "weather": None}
 
@@ -861,24 +848,12 @@ async def backfill_weather(
                     await _auto_fetch_weather(sd)
                     if sd.weather is not None:
                         # Persist to DB snapshot_json
-                        w = sd.weather
-                        snap["weather"] = {
-                            "track_condition": w.track_condition.value
-                            if hasattr(w.track_condition, "value")
-                            else str(w.track_condition),
-                            "ambient_temp_c": w.ambient_temp_c,
-                            "track_temp_c": w.track_temp_c,
-                            "humidity_pct": w.humidity_pct,
-                            "wind_speed_kmh": w.wind_speed_kmh,
-                            "wind_direction_deg": w.wind_direction_deg,
-                            "precipitation_mm": w.precipitation_mm,
-                            "weather_source": w.weather_source,
-                        }
+                        snap["weather"] = weather_to_dict(sd.weather)
                         row.snapshot_json = snap
                         await db.flush()
                         backfilled += 1
                         continue
-                except (ValueError, TypeError, OSError):
+                except Exception:
                     logger.warning("Backfill via memory failed for %s", row.session_id)
             skipped += 1
             continue
@@ -905,19 +880,7 @@ async def backfill_weather(
                 continue
 
             # Update snapshot_json with weather
-            w = weather
-            snap["weather"] = {
-                "track_condition": w.track_condition.value
-                if hasattr(w.track_condition, "value")
-                else str(w.track_condition),
-                "ambient_temp_c": w.ambient_temp_c,
-                "track_temp_c": w.track_temp_c,
-                "humidity_pct": w.humidity_pct,
-                "wind_speed_kmh": w.wind_speed_kmh,
-                "wind_direction_deg": w.wind_direction_deg,
-                "precipitation_mm": w.precipitation_mm,
-                "weather_source": w.weather_source,
-            }
+            snap["weather"] = weather_to_dict(weather)
             row.snapshot_json = snap
             await db.flush()
 
@@ -930,12 +893,12 @@ async def backfill_weather(
             logger.info(
                 "Backfilled weather for %s: %s, %.1f°C",
                 row.session_id,
-                w.track_condition.value
-                if hasattr(w.track_condition, "value")
-                else str(w.track_condition),
-                w.ambient_temp_c or 0,
+                weather.track_condition.value
+                if hasattr(weather.track_condition, "value")
+                else str(weather.track_condition),
+                weather.ambient_temp_c or 0,
             )
-        except (ValueError, TypeError, OSError):
+        except Exception:
             logger.warning("Weather backfill failed for %s", row.session_id, exc_info=True)
             failed += 1
 

@@ -166,18 +166,19 @@ async def _run_backfill_scan() -> None:
                     await asyncio.sleep(REQUEST_DELAY_S)
                     continue
 
-                # Persist to DB
+                # Persist to DB (commit per-row so failures don't roll back others)
                 snap["weather"] = weather_to_dict(weather)
                 row.snapshot_json = snap
-                await db.flush()
+                await db.commit()
 
                 # Update in-memory store
                 sd = session_store.get_session(row.session_id)
                 if sd is not None:
                     sd.weather = weather
 
-                # Record successful fetch in cooldown tracker
-                record_weather_attempt(row.session_id)
+                # Evict from tracking dicts — this session is done
+                _weather_retry_cooldown.pop(row.session_id, None)
+                _retry_counts.pop(row.session_id, None)
 
                 backfilled += 1
                 logger.info(
@@ -190,14 +191,12 @@ async def _run_backfill_scan() -> None:
                 )
             except asyncio.CancelledError:
                 raise
-            except (ValueError, TypeError, OSError):
+            except Exception:
                 logger.warning("Weather backfill failed for %s", row.session_id, exc_info=True)
                 _retry_counts[row.session_id] = _retry_counts.get(row.session_id, 0) + 1
 
             # Rate limit between requests
             await asyncio.sleep(REQUEST_DELAY_S)
-
-        await db.commit()
 
         if backfilled:
             logger.info("Weather backfill complete: %d session(s) updated", backfilled)
