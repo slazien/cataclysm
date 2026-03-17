@@ -2,15 +2,17 @@
 
 import { useState } from 'react';
 import { ArrowRight, ChevronDown, ChevronUp, TrendingUp, TrendingDown } from 'lucide-react';
-import { useUiStore, useAnalysisStore } from '@/stores';
+import { useUiStore, useAnalysisStore, useSessionStore } from '@/stores';
 import type { PriorityCorner, CornerGrade, OptimalComparisonData } from '@/lib/types';
 import type { CornerDelta } from '@/hooks/usePreviousSessionDelta';
 import { useUnits } from '@/hooks/useUnits';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
 import { useCoachingNav } from '@/hooks/useCoachingNav';
+import { useCoachingFeedback } from '@/hooks/useCoachingFeedback';
 import { worstGrade } from '@/lib/gradeUtils';
 import { extractActionTitle, formatCoachingText } from '@/lib/textUtils';
 import { MarkdownText } from '@/components/shared/MarkdownText';
+import { ThumbsRating } from '@/components/shared/ThumbsRating';
 
 /** Maps a grade letter to the CSS variable for left-border color */
 const GRADE_BORDER_COLORS: Record<string, string> = {
@@ -42,6 +44,9 @@ function PriorityCard({
   isRefreshing,
   delta,
   onExplore,
+  feedbackRating,
+  onRate,
+  feedbackPending,
 }: {
   p: PriorityCorner;
   isNovice: boolean;
@@ -50,6 +55,9 @@ function PriorityCard({
   isRefreshing?: boolean;
   delta?: CornerDelta | null;
   onExplore: (corner: number) => void;
+  feedbackRating: number;
+  onRate: (rating: number) => void;
+  feedbackPending: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const { resolveSpeed } = useUnits();
@@ -140,6 +148,13 @@ function PriorityCard({
           )}
         </div>
       )}
+      <div className="mt-3 flex justify-end">
+        <ThumbsRating
+          rating={feedbackRating}
+          onRate={onRate}
+          disabled={feedbackPending}
+        />
+      </div>
     </div>
   );
 }
@@ -150,6 +165,8 @@ export function PriorityCardsSection({ priorities, isNovice, cornerGrades, optim
   const selectCorner = useAnalysisStore((s) => s.selectCorner);
   const { showFeature } = useSkillLevel();
   const showTrailBraking = showFeature('trail_braking_grade');
+  const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const { getRating, submitFeedback } = useCoachingFeedback(activeSessionId);
 
   function handleExploreCorner(cornerNum: number) {
     selectCorner(`T${cornerNum}`);
@@ -181,6 +198,7 @@ export function PriorityCardsSection({ priorities, isNovice, cornerGrades, optim
           const liveTimeCost = optimalComparison?.corner_opportunities?.find(
             (o) => o.corner_number === p.corner,
           )?.time_cost_s || undefined;
+          const section = `priority_corner_${p.corner}`;
           return (
             <PriorityCard
               key={p.corner}
@@ -191,6 +209,9 @@ export function PriorityCardsSection({ priorities, isNovice, cornerGrades, optim
               isRefreshing={isOptimalRefreshing}
               delta={cornerDeltas?.get(p.corner)}
               onExplore={handleExploreCorner}
+              feedbackRating={getRating(section)}
+              onRate={(r) => submitFeedback.mutate({ section, rating: r })}
+              feedbackPending={submitFeedback.isPending}
             />
           );
         })}

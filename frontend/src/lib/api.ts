@@ -7,6 +7,7 @@ import type {
   SessionConsistency,
   TrackFolder,
   CoachingReport,
+  CoachingFeedback,
   IdealLapData,
   TrendAnalysisResponse,
   MilestoneResponse,
@@ -280,6 +281,24 @@ export async function downloadPdfReport(sessionId: string): Promise<void> {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+export async function submitCoachingFeedback(
+  sessionId: string,
+  section: string,
+  rating: number,
+  comment?: string,
+): Promise<CoachingFeedback> {
+  return fetchApi('/api/coaching/feedback', {
+    method: 'PUT',
+    body: JSON.stringify({ session_id: sessionId, section, rating, comment }),
+  });
+}
+
+export async function getCoachingFeedback(
+  sessionId: string,
+): Promise<{ feedback: CoachingFeedback[] }> {
+  return fetchApi(`/api/coaching/${sessionId}/feedback`);
 }
 
 export async function getIdealLap(sessionId: string) {

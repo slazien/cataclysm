@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useSession as useAuthSession, signIn, signOut } from 'next-auth/react';
-import { Upload, Settings, ChevronRight, LogOut, Sparkles, Award } from 'lucide-react';
+import { Upload, Settings, ChevronRight, LogOut, Sparkles, Award, ArrowLeftRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useUiStore, useSessionStore } from '@/stores';
 import { useSession, useUploadSessions } from '@/hooks/useSession';
 import { cn } from '@/lib/utils';
@@ -32,6 +33,7 @@ export function TopBar() {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const [wrappedOpen, setWrappedOpen] = useState(false);
   const [badgesOpen, setBadgesOpen] = useState(false);
+  const router = useRouter();
 
   // Close user menu on click-outside or Escape
   useEffect(() => {
@@ -175,6 +177,18 @@ export function TopBar() {
               <Award className="h-4 w-4" />
             </Button>
           </div>
+          {activeSessionId && (
+            <Button
+              variant="ghost"
+              size="icon-touch"
+              onClick={() => router.push(`/compare/${activeSessionId}`)}
+              title="Compare with another session"
+              aria-label="Compare with another session"
+              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            >
+              <ArrowLeftRight className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon-touch"

@@ -2,12 +2,13 @@
 
 import { useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Upload, ChevronDown, Target, Check, BookOpen, TrendingDown, MessageSquare } from 'lucide-react';
-import { useSessionStore, useUiStore } from '@/stores';
+import { Upload, ChevronDown, Target, Check, HelpCircle, TrendingDown, MessageSquare } from 'lucide-react';
+import { useSessionStore } from '@/stores';
 import { useUploadSessions } from '@/hooks/useSession';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 import { SkillLevelPicker, shouldShowSkillPicker } from './SkillLevelPicker';
 import { EquipmentInterstitial } from '@/components/equipment/EquipmentInterstitial';
 
@@ -42,7 +43,6 @@ const SAMPLE_GRADES = [
 export function WelcomeScreen() {
   const uploadMutation = useUploadSessions();
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
-  const toggleHowItWorks = useUiStore((s) => s.toggleHowItWorks);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -374,16 +374,15 @@ export function WelcomeScreen() {
           ))}
         </div>
 
-        {/* How the analysis works — contextual link */}
+        {/* How it works — link to dedicated page */}
         <div className="mt-4 text-center">
-          <button
-            type="button"
-            onClick={toggleHowItWorks}
-            className="inline-flex min-h-[44px] items-center gap-1.5 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+          <Link
+            href="/how-it-works"
+            className="inline-flex min-h-[44px] items-center gap-1.5 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
           >
-            <BookOpen className="h-3.5 w-3.5" />
-            How the analysis works
-          </button>
+            <HelpCircle className="h-4 w-4" />
+            How it works
+          </Link>
         </div>
       </motion.div>
 

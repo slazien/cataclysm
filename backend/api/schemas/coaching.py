@@ -85,3 +85,34 @@ class ChatRequest(BaseModel):
 
     content: str
     context: dict[str, object] = Field(default_factory=dict)
+
+
+class CoachingFeedbackSubmit(BaseModel):
+    """Submit thumbs-up/down feedback on a coaching report section."""
+
+    session_id: str
+    section: str  # "summary", "corner_N", "patterns", "drills", "corner_grades"
+    rating: int  # 1 = thumbs up, -1 = thumbs down, 0 = remove
+    comment: str | None = None
+
+    @field_validator("rating")
+    @classmethod
+    def validate_rating(cls, v: int) -> int:
+        if v not in (-1, 0, 1):
+            raise ValueError("rating must be -1, 0, or 1")
+        return v
+
+
+class CoachingFeedbackResponse(BaseModel):
+    """A single feedback entry returned from the API."""
+
+    session_id: str
+    section: str
+    rating: int
+    comment: str | None = None
+
+
+class CoachingFeedbackListResponse(BaseModel):
+    """List of all feedback entries for a session."""
+
+    feedback: list[CoachingFeedbackResponse]

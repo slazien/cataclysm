@@ -24,9 +24,11 @@ from cataclysm.topic_guardrail import (
 )
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.db.database import get_db
+from backend.api.db.models import CoachingFeedback
 from backend.api.dependencies import (
     AuthenticatedUser,
     authenticate_websocket,
@@ -36,6 +38,9 @@ from backend.api.dependencies import (
 from backend.api.rate_limit import limiter
 from backend.api.schemas.coaching import (
     ChatRequest,
+    CoachingFeedbackListResponse,
+    CoachingFeedbackResponse,
+    CoachingFeedbackSubmit,
     CoachingReportResponse,
     CornerGradeSchema,
     FollowUpMessage,
@@ -817,6 +822,72 @@ async def coaching_chat_http(
 
     await store_coaching_context(session_id, ctx)
     return FollowUpMessage(role="assistant", content=answer)
+
+
+@router.put("/feedback", response_model=CoachingFeedbackResponse)
+async def submit_feedback(
+    body: CoachingFeedbackSubmit,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> CoachingFeedbackResponse:
+    """Submit or update thumbs up/down feedback on a coaching section."""
+    # Delete existing feedback for this user+session+section
+    await db.execute(
+        delete(CoachingFeedback).where(
+            CoachingFeedback.session_id == body.session_id,
+            CoachingFeedback.user_id == current_user.user_id,
+            CoachingFeedback.section == body.section,
+        )
+    )
+
+    if body.rating != 0:
+        fb = CoachingFeedback(
+            session_id=body.session_id,
+            user_id=current_user.user_id,
+            section=body.section,
+            rating=body.rating,
+            comment=body.comment,
+        )
+        db.add(fb)
+
+    await db.commit()
+
+    return CoachingFeedbackResponse(
+        session_id=body.session_id,
+        section=body.section,
+        rating=body.rating,
+        comment=body.comment,
+    )
+
+
+@router.get(
+    "/{session_id}/feedback",
+    response_model=CoachingFeedbackListResponse,
+)
+async def get_feedback(
+    session_id: str,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> CoachingFeedbackListResponse:
+    """Get all feedback for a coaching report from the current user."""
+    result = await db.execute(
+        select(CoachingFeedback).where(
+            CoachingFeedback.session_id == session_id,
+            CoachingFeedback.user_id == current_user.user_id,
+        )
+    )
+    rows = result.scalars().all()
+    return CoachingFeedbackListResponse(
+        feedback=[
+            CoachingFeedbackResponse(
+                session_id=r.session_id,
+                section=r.section,
+                rating=r.rating,
+                comment=r.comment,
+            )
+            for r in rows
+        ]
+    )
 
 
 @router.websocket("/{session_id}/chat")

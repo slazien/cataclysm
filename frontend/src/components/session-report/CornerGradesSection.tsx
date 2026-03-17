@@ -2,16 +2,18 @@
 
 import { useState, useCallback, Fragment } from 'react';
 import { motion as m, AnimatePresence } from 'motion/react';
-import { useUiStore, useAnalysisStore } from '@/stores';
+import { useUiStore, useAnalysisStore, useSessionStore } from '@/stores';
 import { GradeChip } from '@/components/shared/GradeChip';
 import { AiInsight } from '@/components/shared/AiInsight';
 import { MarkdownText } from '@/components/shared/MarkdownText';
+import { ThumbsRating } from '@/components/shared/ThumbsRating';
 import { motion as motionTokens } from '@/lib/design-tokens';
 import { useUnits } from '@/hooks/useUnits';
 import { formatCoachingText } from '@/lib/textUtils';
 import { InfoTooltip } from '@/components/shared/InfoTooltip';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
 import { useCoachingNav } from '@/hooks/useCoachingNav';
+import { useCoachingFeedback } from '@/hooks/useCoachingFeedback';
 import type { CornerGrade } from '@/lib/types';
 
 const rowVariants = {
@@ -31,6 +33,8 @@ export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
   const { showFeature, isNovice } = useSkillLevel();
   const showTrailBraking = showFeature('trail_braking_grade');
   const coachingNav = useCoachingNav();
+  const activeSessionId = useSessionStore((s) => s.activeSessionId);
+  const { getRating, submitFeedback } = useCoachingFeedback(activeSessionId);
   const [expandedCorner, setExpandedCorner] = useState<number | null>(null);
 
   const handleCornerClick = useCallback(
@@ -151,9 +155,16 @@ export function CornerGradesSection({ grades }: CornerGradesSectionProps) {
       {/* Right-edge fade indicator for horizontal scroll on mobile */}
       <div className="pointer-events-none absolute inset-y-0 right-0 w-8 rounded-r-lg bg-gradient-to-l from-[var(--bg-surface)] to-transparent" />
       </div>
-      <p className="mt-2 text-xs text-[var(--text-secondary)]">
-        Click any row to deep dive. Use the arrow icon to expand coaching notes.
-      </p>
+      <div className="mt-2 flex items-center justify-between">
+        <p className="text-xs text-[var(--text-secondary)]">
+          Click any row to deep dive. Use the arrow icon to expand coaching notes.
+        </p>
+        <ThumbsRating
+          rating={getRating('corner_grades')}
+          onRate={(r) => submitFeedback.mutate({ section: 'corner_grades', rating: r })}
+          disabled={submitFeedback.isPending}
+        />
+      </div>
     </div>
   );
 }
