@@ -727,3 +727,14 @@ class LlmTaskRoute(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class LapTag(Base):
+    """Per-lap user tag for exclusion marking. Composite PK."""
+
+    __tablename__ = "lap_tags"
+
+    session_id: Mapped[str] = mapped_column(String, primary_key=True)
+    lap_number: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tag: Mapped[str] = mapped_column(String, primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
