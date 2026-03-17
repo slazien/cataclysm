@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ArrowRight } from 'lucide-react';
 
 interface ChecklistItem {
   id: string;
@@ -39,6 +41,7 @@ interface ReviewChecklistProps {
 }
 
 export function ReviewChecklist({ sessionId }: ReviewChecklistProps) {
+  const router = useRouter();
   const [checked, setChecked] = useState<Set<string>>(() => loadChecked(sessionId));
 
   const toggle = useCallback(
@@ -105,6 +108,20 @@ export function ReviewChecklist({ sessionId }: ReviewChecklistProps) {
                 >
                   {item.label}
                 </span>
+                {item.id === 'comparison' && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      router.push(`/compare/${sessionId}`);
+                    }}
+                    className="ml-auto flex shrink-0 items-center gap-1 text-xs text-[var(--cata-accent)] hover:underline"
+                  >
+                    Compare
+                    <ArrowRight className="h-3 w-3" />
+                  </button>
+                )}
               </label>
             </li>
           );
