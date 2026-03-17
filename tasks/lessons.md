@@ -1198,3 +1198,11 @@ el.getBoundingClientRect().right > window.innerWidth
 **Why**: Attempted to click specific bars in OptimalGapChart via Playwright at calculated Y coordinates. The clicks either missed the bars entirely or hit the wrong region due to DPR scaling, margin offsets, and canvas-to-viewport coordinate translation. Code review confirmed the hit regions use identical `barHeight`/`barSpacing`/`margins.top` as the rendering loop — sufficient verification.
 
 **Error signature**: Playwright `browser_click` on canvas at calculated coordinates produces no navigation or wrong corner navigation. Hit-test works correctly in manual browser testing.
+
+## MagicMock Without spec= Creates Auto-Attributes That Break JSON Serialization (2026-03-17)
+
+**Pattern**: When a mock object's attributes are serialized (JSON, DB snapshot, API response), use `MagicMock(spec=[...])` with an explicit attribute list, and set all accessed attributes explicitly. Bare `MagicMock()` auto-creates any accessed attribute as a nested MagicMock — which is not JSON-serializable and passes silently until a serialization boundary (DB write, API response).
+
+**Why**: `_make_weather()` test helper used bare `MagicMock()`. `store_session_db` accessed `w.timezone_name` (added after the mock was written). MagicMock auto-created it as a nested MagicMock. SQLAlchemy JSONB column tried to serialize it → `TypeError: Object of type MagicMock is not JSON serializable`. Two tests failed pre-existingly, unnoticed until this session.
+
+**Error signature**: `TypeError: Object of type MagicMock is not JSON serializable` in a DB write or API response path. The mock "has" the attribute (no AttributeError), but the value is a MagicMock object instead of a real value.
