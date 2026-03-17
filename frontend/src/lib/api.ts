@@ -148,6 +148,17 @@ export async function getSessionLaps(id: string) {
   return fetchApi<LapSummary[]>(`/api/sessions/${id}/laps`);
 }
 
+export async function setLapTags(
+  sessionId: string,
+  lapNumber: number,
+  tags: string[],
+): Promise<{ lap_number: number; tags: string[] }> {
+  return fetchApi(`/api/sessions/${sessionId}/laps/${lapNumber}/tags`, {
+    method: "PUT",
+    body: JSON.stringify(tags),
+  });
+}
+
 export async function getLapData(id: string, lap: number) {
   return fetchApi<LapData>(`/api/sessions/${id}/laps/${lap}/data`);
 }

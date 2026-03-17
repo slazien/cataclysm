@@ -31,6 +31,7 @@ export interface LapSummary {
   is_clean: boolean;
   lap_distance_m: number;
   max_speed_mps: number;
+  tags: string[];
 }
 
 export interface LapData {
