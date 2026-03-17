@@ -455,9 +455,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 _auto_triggered,
             )
 
+    # Start background weather backfill for sessions missing weather data
+    from backend.api.services.weather_backfill import (
+        start_weather_backfill,
+        stop_weather_backfill,
+    )
+
+    start_weather_backfill()
+
     try:
         yield
     finally:
+        await stop_weather_backfill()
         set_usage_event_sink(None)
         if usage_persistence_started:
             await stop_llm_usage_persistence_worker()

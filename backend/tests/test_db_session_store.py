@@ -95,7 +95,11 @@ def _make_weather(
     """Return a minimal SessionConditions mock."""
     from cataclysm.equipment import TrackCondition
 
-    weather = MagicMock()
+    weather = MagicMock(spec=[
+        "track_condition", "ambient_temp_c", "track_temp_c", "humidity_pct",
+        "wind_speed_kmh", "wind_direction_deg", "precipitation_mm",
+        "weather_source", "timezone_name",
+    ])
     weather.track_condition = TrackCondition(track_condition)
     weather.ambient_temp_c = ambient_temp_c
     weather.track_temp_c = track_temp_c
@@ -104,6 +108,7 @@ def _make_weather(
     weather.wind_direction_deg = wind_direction_deg
     weather.precipitation_mm = precipitation_mm
     weather.weather_source = weather_source
+    weather.timezone_name = None
     return weather
 
 

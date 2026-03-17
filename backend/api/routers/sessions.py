@@ -621,6 +621,37 @@ async def get_session(
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
+    # Lazy weather retry: if weather is missing, try fetching with cooldown
+    if sd.weather is None:
+        from backend.api.services.weather_backfill import (
+            record_weather_attempt,
+            should_retry_weather,
+            weather_to_dict,
+        )
+
+        if should_retry_weather(session_id):
+            record_weather_attempt(session_id)
+            try:
+                await _auto_fetch_weather(sd)
+                if sd.weather is not None:
+                    # Persist to DB snapshot
+                    from sqlalchemy import select as _sel
+
+                    from backend.api.db.models import Session as _SessionModel
+
+                    row = (
+                        await db.execute(
+                            _sel(_SessionModel).where(_SessionModel.session_id == session_id)
+                        )
+                    ).scalar_one_or_none()
+                    if row is not None:
+                        snap = dict(row.snapshot_json or {})
+                        snap["weather"] = weather_to_dict(sd.weather)
+                        row.snapshot_json = snap
+                        await db.commit()
+            except (ValueError, TypeError, OSError):
+                logger.warning("Lazy weather retry failed for %s", session_id, exc_info=True)
+
     tire_model, compound_category, profile_name = _equipment_fields(sd.session_id)
     w_temp, w_cond, w_hum, w_wind, w_precip = _weather_fields(sd)
     score = await _compute_session_score(sd)

@@ -35,7 +35,11 @@ export function useSession(sessionId: string | null) {
     queryKey: ["session", sessionId],
     queryFn: () => getSession(sessionId!),
     enabled: !!sessionId,
-    ...IMMUTABLE,
+    staleTime: Infinity,
+    // Poll every 30s while weather is missing — backend lazy-retries the
+    // Open-Meteo fetch with a 5-min cooldown, stops once weather arrives.
+    refetchInterval: (query) =>
+      query.state.data?.weather_condition ? false : 30_000,
   });
 }
 
