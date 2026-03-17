@@ -157,10 +157,10 @@ describe('renderSessionCard', () => {
     } as unknown as HTMLCanvasElement;
   });
 
-  it('sets canvas dimensions to 1080x1920', async () => {
+  it('sets canvas dimensions to 1080x1620', async () => {
     await renderSessionCard(canvas, baseData);
     expect(canvas.width).toBe(1080);
-    expect(canvas.height).toBe(1920);
+    expect(canvas.height).toBe(1620);
   });
 
   it('calls getContext with 2d', async () => {
@@ -424,6 +424,6 @@ describe('renderSessionCard', () => {
     };
     await renderSessionCard(canvas, minimalData);
     expect(canvas.width).toBe(1080);
-    expect(canvas.height).toBe(1920);
+    expect(canvas.height).toBe(1620);
   });
 });
