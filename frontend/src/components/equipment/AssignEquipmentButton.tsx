@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Settings2, ChevronDown, Check, Pencil, Star } from 'lucide-react';
+import { Settings2, ChevronDown, Check, Pencil, Star, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUiStore } from '@/stores';
 import {
@@ -21,6 +21,7 @@ export function AssignEquipmentButton({ sessionId }: AssignEquipmentButtonProps)
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<EquipmentProfile | null>(null);
   const toggleSettingsPanel = useUiStore((s) => s.toggleSettingsPanel);
+  const addToast = useUiStore((s) => s.addToast);
 
   const { data: profilesData } = useEquipmentProfiles();
   const { data: currentEquipment } = useSessionEquipment(sessionId);
@@ -28,24 +29,42 @@ export function AssignEquipmentButton({ sessionId }: AssignEquipmentButtonProps)
 
   const profiles = profilesData?.items ?? [];
 
+  // Track which profile is being switched to (for loading indicator)
+  const pendingProfileId = assignMutation.isPending
+    ? (assignMutation.variables?.body as { profile_id?: string })?.profile_id ?? null
+    : null;
+
   function handleAssign(profileId: string) {
     if (assignMutation.isPending) return;
-    setDropdownOpen(false);
-    assignMutation.mutate({
-      sessionId,
-      body: { profile_id: profileId },
-    });
+    assignMutation.mutate(
+      { sessionId, body: { profile_id: profileId } },
+      {
+        onSuccess: () => setDropdownOpen(false),
+        onError: () => {
+          setDropdownOpen(false);
+          addToast({ message: 'Equipment switch failed — please try again', type: 'info' });
+        },
+      },
+    );
   }
 
   function handleManageProfiles() {
+    if (assignMutation.isPending) return;
     setDropdownOpen(false);
     toggleSettingsPanel();
   }
 
   function handleEditProfile(profile: EquipmentProfile) {
+    if (assignMutation.isPending) return;
     setDropdownOpen(false);
     setEditingProfile(profile);
     setEditModalOpen(true);
+  }
+
+  function handleDropdownClose() {
+    // Don't allow closing while mutation is in-flight — user needs to see the result
+    if (assignMutation.isPending) return;
+    setDropdownOpen(false);
   }
 
   // If equipment is assigned, show a compact badge
@@ -68,8 +87,9 @@ export function AssignEquipmentButton({ sessionId }: AssignEquipmentButtonProps)
           <EquipmentDropdown
             profiles={profiles}
             currentProfileId={currentEquipment.profile_id}
+            pendingProfileId={pendingProfileId}
             onSelect={handleAssign}
-            onClose={() => setDropdownOpen(false)}
+            onClose={handleDropdownClose}
             onManageProfiles={handleManageProfiles}
             onEditProfile={handleEditProfile}
           />
@@ -105,8 +125,9 @@ export function AssignEquipmentButton({ sessionId }: AssignEquipmentButtonProps)
         <EquipmentDropdown
           profiles={profiles}
           currentProfileId={null}
+          pendingProfileId={pendingProfileId}
           onSelect={handleAssign}
-          onClose={() => setDropdownOpen(false)}
+          onClose={handleDropdownClose}
           onManageProfiles={handleManageProfiles}
           onEditProfile={handleEditProfile}
         />
@@ -125,6 +146,7 @@ export function AssignEquipmentButton({ sessionId }: AssignEquipmentButtonProps)
 interface EquipmentDropdownProps {
   profiles: EquipmentProfile[];
   currentProfileId: string | null;
+  pendingProfileId: string | null;
   onSelect: (profileId: string) => void;
   onClose: () => void;
   onManageProfiles: () => void;
@@ -134,11 +156,14 @@ interface EquipmentDropdownProps {
 function EquipmentDropdown({
   profiles,
   currentProfileId,
+  pendingProfileId,
   onSelect,
   onClose,
   onManageProfiles,
   onEditProfile,
 }: EquipmentDropdownProps) {
+  const isSwitching = pendingProfileId != null;
+
   return (
     <>
       {/* Backdrop */}
@@ -150,50 +175,63 @@ function EquipmentDropdown({
         <p className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
           Equipment Profiles
         </p>
-        {profiles.map((profile) => (
-          <div
-            key={profile.id}
-            className="flex items-center justify-between px-3 py-2 transition-colors hover:bg-[var(--bg-elevated)]"
-          >
-            <button
-              type="button"
-              onClick={() => onSelect(profile.id)}
-              disabled={profile.id === currentProfileId}
-              className="flex flex-1 items-center justify-between text-left disabled:opacity-50"
-            >
-              <div>
-                <p className="flex items-center gap-1 text-sm text-[var(--text-primary)]">
-                  {profile.name}
-                  {profile.is_default && (
-                    <Star className="h-2.5 w-2.5 shrink-0 fill-amber-400 text-amber-400" />
-                  )}
-                </p>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  {profile.tires.model}
-                </p>
-              </div>
-              {profile.id === currentProfileId && (
-                <Check className="h-3.5 w-3.5 text-[var(--cata-accent)]" />
+        {profiles.map((profile) => {
+          const isCurrent = profile.id === currentProfileId;
+          const isPending = profile.id === pendingProfileId;
+
+          return (
+            <div
+              key={profile.id}
+              className={cn(
+                'flex items-center justify-between px-3 py-2 transition-colors hover:bg-[var(--bg-elevated)]',
+                isPending && 'bg-[var(--bg-elevated)]',
               )}
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEditProfile(profile);
-              }}
-              className="ml-2 rounded p-1 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface)] hover:text-[var(--text-secondary)]"
-              title="Edit profile"
             >
-              <Pencil className="h-3 w-3" />
-            </button>
-          </div>
-        ))}
+              <button
+                type="button"
+                onClick={() => onSelect(profile.id)}
+                disabled={isCurrent || isSwitching}
+                className="flex flex-1 items-center justify-between text-left disabled:opacity-50"
+              >
+                <div>
+                  <p className="flex items-center gap-1 text-sm text-[var(--text-primary)]">
+                    {profile.name}
+                    {profile.is_default && (
+                      <Star className="h-2.5 w-2.5 shrink-0 fill-amber-400 text-amber-400" />
+                    )}
+                  </p>
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    {profile.tires.model}
+                  </p>
+                </div>
+                {isCurrent && !isPending && (
+                  <Check className="h-3.5 w-3.5 text-[var(--cata-accent)]" />
+                )}
+                {isPending && (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--cata-accent)]" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditProfile(profile);
+                }}
+                disabled={isSwitching}
+                className="ml-2 rounded p-1 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface)] hover:text-[var(--text-secondary)] disabled:opacity-30"
+                title="Edit profile"
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
+            </div>
+          );
+        })}
         <div className="mx-2 my-1 border-t border-[var(--cata-border)]" />
         <button
           type="button"
           onClick={onManageProfiles}
-          className="flex w-full items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)]"
+          disabled={isSwitching}
+          className="flex w-full items-center gap-2 px-3 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] disabled:opacity-50"
         >
           <Settings2 className="h-3.5 w-3.5" />
           Manage Profiles

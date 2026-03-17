@@ -43,6 +43,7 @@ from backend.api.schemas.equipment import (
     VehicleSpecSchema,
 )
 from backend.api.services import equipment_store
+from backend.api.services.coaching_store import clear_coaching_data
 from backend.api.services.db_session_store import get_session_for_user_with_db_sync
 from backend.api.services.pipeline import invalidate_physics_cache, invalidate_profile_cache
 
@@ -622,6 +623,7 @@ async def set_session_equipment(
     )
     equipment_store.store_session_equipment(se)
     invalidate_physics_cache(session_id)
+    await clear_coaching_data(session_id)
     # Fire-and-forget: in-memory store is authoritative, DB is crash recovery.
     # Don't block the HTTP response for the Postgres round-trip.
     _fire_and_forget(equipment_store.db_persist_session_equipment(se))
@@ -691,6 +693,7 @@ async def set_session_equipment_inline(
     se = SessionEquipment(session_id=session_id, profile_id=profile_id)
     equipment_store.store_session_equipment(se)
     invalidate_physics_cache(session_id)
+    await clear_coaching_data(session_id)
 
     # Only persist to DB for authenticated users; anon profiles migrate on claim.
     if current_user.user_id != "anon":

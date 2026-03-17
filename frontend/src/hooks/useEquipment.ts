@@ -35,6 +35,7 @@ export function useEquipmentProfiles() {
       fetchApi<{ items: EquipmentProfile[]; total: number }>(
         "/api/equipment/profiles",
       ),
+    staleTime: 60_000,
   });
 }
 
@@ -66,6 +67,7 @@ export function useDeleteProfile() {
       queryClient.invalidateQueries({ queryKey: ["equipment-profiles"] });
       // Deleted profile may have been assigned to sessions
       invalidatePhysicsQueries(queryClient);
+      queryClient.invalidateQueries({ queryKey: ["coaching-report"] });
     },
   });
 }
@@ -80,13 +82,19 @@ export function useSessionEquipment(sessionId: string | null) {
         return await fetchApi<SessionEquipmentResponse>(
           `/api/equipment/${sessionId}/equipment`,
         );
-      } catch {
-        // 404 is expected when no equipment is assigned to the session
-        return null;
+      } catch (err) {
+        // 404 is expected when no equipment is assigned to the session.
+        // Any other error (500, network) should propagate so React Query
+        // retries / shows error state instead of hiding the failure.
+        if (err instanceof Error && err.message.includes("404")) {
+          return null;
+        }
+        throw err;
       }
     },
     enabled: !!sessionId,
     retry: false,
+    staleTime: 30_000,
   });
 }
 
@@ -110,6 +118,17 @@ export function useAssignEquipmentInline() {
     onSuccess: (data, variables) => {
       queryClient.setQueryData(["session-equipment", variables.sessionId], data);
       queryClient.invalidateQueries({ queryKey: ["session", variables.sessionId] });
+      queryClient.invalidateQueries({
+        queryKey: ["optimal-comparison", variables.sessionId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["coaching-report", variables.sessionId],
+      });
+    },
+    onError: (_err, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["session-equipment", variables.sessionId],
+      });
     },
   });
 }
@@ -151,6 +170,21 @@ export function useAssignEquipment() {
       queryClient.invalidateQueries({
         queryKey: ["optimal-comparison", variables.sessionId],
       });
+      // Backend clears coaching cache on equipment switch — invalidate
+      // frontend coaching queries so next render triggers a fresh fetch.
+      queryClient.invalidateQueries({
+        queryKey: ["coaching-report", variables.sessionId],
+      });
+    },
+    onError: (_err, variables) => {
+      // Mutation failed — refetch to restore the correct server state.
+      // Without this, the dropdown closes but the UI shows stale data.
+      // Only invalidate session-equipment (to revert the badge) — profiles
+      // themselves are unaffected by a failed assignment and invalidating
+      // them caused a brief flash where they appeared "gone".
+      queryClient.invalidateQueries({
+        queryKey: ["session-equipment", variables.sessionId],
+      });
     },
   });
 }
@@ -181,6 +215,7 @@ export function useUpdateProfile() {
       queryClient.invalidateQueries({ queryKey: ["session"] });
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       invalidatePhysicsQueries(queryClient);
+      queryClient.invalidateQueries({ queryKey: ["coaching-report"] });
     },
   });
 }
