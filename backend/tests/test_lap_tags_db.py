@@ -47,8 +47,8 @@ class TestLapTagCreate:
         """Multiple distinct tags can be attached to the same (session, lap)."""
         tags = [
             LapTag(session_id="sess-2", lap_number=5, tag="traffic"),
-            LapTag(session_id="sess-2", lap_number=5, tag="off_track"),
-            LapTag(session_id="sess-2", lap_number=5, tag="mechanical"),
+            LapTag(session_id="sess-2", lap_number=5, tag="off-line"),
+            LapTag(session_id="sess-2", lap_number=5, tag="rain"),
         ]
         db_session.add_all(tags)
         await db_session.commit()
@@ -61,7 +61,7 @@ class TestLapTagCreate:
         )
         rows = result.scalars().all()
         assert len(rows) == 3
-        assert {r.tag for r in rows} == {"traffic", "off_track", "mechanical"}
+        assert {r.tag for r in rows} == {"traffic", "off-line", "rain"}
 
     @pytest.mark.asyncio
     async def test_same_tag_different_laps(self, db_session: AsyncSession) -> None:
@@ -118,7 +118,7 @@ class TestLapTagCompositePK:
         """Rows sharing only part of the composite PK do not conflict."""
         # Same session_id + lap_number, different tag — allowed
         t1 = LapTag(session_id="sess-pk", lap_number=2, tag="traffic")
-        t2 = LapTag(session_id="sess-pk", lap_number=2, tag="slow")
+        t2 = LapTag(session_id="sess-pk", lap_number=2, tag="rain")
         # Same session_id + tag, different lap_number — allowed
         t3 = LapTag(session_id="sess-pk", lap_number=3, tag="traffic")
         db_session.add_all([t1, t2, t3])
