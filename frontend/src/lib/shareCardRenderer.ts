@@ -67,15 +67,15 @@ function drawTrackGlow(
     maxLon = Math.max(...lon);
   const rangeX = maxLon - minLon || 1e-6;
   const rangeY = maxLat - minLat || 1e-6;
-  const size = 400;
+  const size = 380;
   const scale = size / Math.max(rangeX, rangeY);
   const cx = CARD_W / 2;
-  const cy = 550;
+  const cy = 350;
 
   ctx.save();
-  ctx.globalAlpha = 0.12;
+  ctx.globalAlpha = 0.22;
   ctx.strokeStyle = ACCENT;
-  ctx.lineWidth = 6;
+  ctx.lineWidth = 7;
   ctx.shadowColor = ACCENT_GLOW;
   ctx.shadowBlur = 40;
   ctx.beginPath();
@@ -99,8 +99,8 @@ function drawScoreRing(
   cy: number,
 ): void {
   const display = getShareScoreDisplay(score);
-  const r = 100;
-  const lineW = 14;
+  const r = 110;
+  const lineW = 16;
   const startAngle = -Math.PI / 2;
   const endAngle = startAngle + 2 * Math.PI * display.fraction;
 
@@ -125,13 +125,13 @@ function drawScoreRing(
 
   // Score text
   ctx.fillStyle = '#fff';
-  ctx.font = "bold 64px 'Barlow Semi Condensed', sans-serif";
+  ctx.font = "bold 80px 'Barlow Semi Condensed', sans-serif";
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(display.valueText, cx, cy - 8);
-  ctx.font = "24px 'Barlow Semi Condensed', sans-serif";
+  ctx.fillText(display.valueText, cx, cy - 10);
+  ctx.font = "28px 'Barlow Semi Condensed', sans-serif";
   ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.fillText(display.scaleText, cx, cy + 32);
+  ctx.fillText(display.scaleText, cx, cy + 40);
 }
 
 function drawStatPill(
@@ -141,8 +141,8 @@ function drawStatPill(
   value: string,
   label: string,
 ): void {
-  const w = 180;
-  const h = 90;
+  const w = 210;
+  const h = 105;
   ctx.fillStyle = 'rgba(255,255,255,0.06)';
   ctx.strokeStyle = 'rgba(255,255,255,0.12)';
   ctx.lineWidth = 1;
@@ -152,12 +152,12 @@ function drawStatPill(
   ctx.stroke();
 
   ctx.fillStyle = '#fff';
-  ctx.font = "bold 32px 'JetBrains Mono', monospace";
+  ctx.font = "bold 40px 'JetBrains Mono', monospace";
   ctx.textAlign = 'center';
-  ctx.fillText(value, x, y + 36);
+  ctx.fillText(value, x, y + 42);
   ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.font = "18px 'Barlow Semi Condensed', sans-serif";
-  ctx.fillText(label, x, y + 68);
+  ctx.font = "22px 'Barlow Semi Condensed', sans-serif";
+  ctx.fillText(label, x, y + 78);
 }
 
 function drawSkillRadar(
@@ -224,7 +224,7 @@ function drawSkillRadar(
   ctx.shadowBlur = 0;
 
   // Axis labels
-  ctx.font = "18px 'Barlow Semi Condensed', sans-serif";
+  ctx.font = "22px 'Barlow Semi Condensed', sans-serif";
   ctx.fillStyle = 'rgba(255,255,255,0.5)';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -272,25 +272,25 @@ export async function renderSessionCard(
   drawBackground(ctx);
 
   // Track name + date at top
-  let y = 100;
+  let y = 80;
   ctx.textAlign = 'center';
   ctx.fillStyle = 'rgba(255,255,255,0.7)';
-  ctx.font = "28px 'Barlow Semi Condensed', sans-serif";
+  ctx.font = "40px 'Barlow Semi Condensed', sans-serif";
   ctx.fillText(data.trackName, CARD_W / 2, y);
-  y += 40;
+  y += 45;
   ctx.fillStyle = 'rgba(255,255,255,0.4)';
-  ctx.font = "22px 'Barlow Semi Condensed', sans-serif";
+  ctx.font = "28px 'Barlow Semi Condensed', sans-serif";
   ctx.fillText(data.sessionDate, CARD_W / 2, y);
 
-  // Track outline glow (shifted up and smaller to make room for new elements)
+  // Track outline glow (background decoration)
   if (data.gpsCoords && data.gpsCoords.lat.length > 10) {
     drawTrackGlow(ctx, data.gpsCoords);
   }
 
   // Identity label
-  y = 860;
+  y = 660;
   ctx.fillStyle = '#fff';
-  ctx.font = "bold 96px 'Barlow Semi Condensed', sans-serif";
+  ctx.font = "bold 120px 'Barlow Semi Condensed', sans-serif";
   ctx.textAlign = 'center';
   ctx.fillText(data.identityLabel, CARD_W / 2, y);
 
@@ -298,55 +298,55 @@ export async function renderSessionCard(
   ctx.strokeStyle = 'rgba(255,255,255,0.15)';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(CARD_W / 2 - 200, y + 20);
-  ctx.lineTo(CARD_W / 2 + 200, y + 20);
+  ctx.moveTo(CARD_W / 2 - 220, y + 24);
+  ctx.lineTo(CARD_W / 2 + 220, y + 24);
   ctx.stroke();
 
   // Score ring
   if (data.sessionScore != null) {
-    drawScoreRing(ctx, data.sessionScore, CARD_W / 2, 1000);
+    drawScoreRing(ctx, data.sessionScore, CARD_W / 2, 840);
   }
 
   // Best lap time
-  y = 1170;
+  y = 1030;
   if (data.bestLapTime != null) {
     ctx.fillStyle = '#fff';
-    ctx.font = "bold 56px 'JetBrains Mono', monospace";
+    ctx.font = "bold 72px 'JetBrains Mono', monospace";
     ctx.textAlign = 'center';
     ctx.fillText(formatLapTime(data.bestLapTime), CARD_W / 2, y);
     ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.font = "22px 'Barlow Semi Condensed', sans-serif";
-    ctx.fillText('BEST LAP', CARD_W / 2, y + 36);
+    ctx.font = "26px 'Barlow Semi Condensed', sans-serif";
+    ctx.fillText('BEST LAP', CARD_W / 2, y + 42);
   }
 
   // 3 Stat pills
-  y = 1280;
-  drawStatPill(ctx, CARD_W / 2 - 200, y, String(data.nLaps), 'LAPS');
+  y = 1150;
+  drawStatPill(ctx, CARD_W / 2 - 220, y, String(data.nLaps), 'LAPS');
   if (data.consistencyScore != null) {
     drawStatPill(ctx, CARD_W / 2, y, `${Math.round(data.consistencyScore * 100)}%`, 'CONSISTENCY');
   }
   if (data.topSpeed != null) {
-    drawStatPill(ctx, CARD_W / 2 + 200, y, `${Math.round(data.topSpeed)} ${data.speedUnit}`, 'TOP SPEED');
+    drawStatPill(ctx, CARD_W / 2 + 220, y, `${Math.round(data.topSpeed)} ${data.speedUnit}`, 'TOP SPEED');
   }
 
   // Skill radar chart
   if (data.skillDimensions) {
-    drawSkillRadar(ctx, data.skillDimensions, CARD_W / 2, 1510, 80);
+    drawSkillRadar(ctx, data.skillDimensions, CARD_W / 2, 1420, 100);
   }
 
   // QR code
   if (data.viewUrl) {
-    await drawQRCode(ctx, data.viewUrl, CARD_W / 2, 1650, 120);
+    await drawQRCode(ctx, data.viewUrl, CARD_W / 2, 1580, 130);
     ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.font = "18px 'Barlow Semi Condensed', sans-serif";
+    ctx.font = "22px 'Barlow Semi Condensed', sans-serif";
     ctx.textAlign = 'center';
-    ctx.fillText('Scan to view full analysis', CARD_W / 2, 1790);
+    ctx.fillText('Scan to view full analysis', CARD_W / 2, 1730);
   }
 
   // Footer CTA
-  y = 1860;
+  y = 1820;
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  ctx.font = "22px 'Barlow Semi Condensed', sans-serif";
+  ctx.font = "26px 'Barlow Semi Condensed', sans-serif";
   ctx.textAlign = 'center';
   ctx.fillText('\u2500\u2500\u2500 cataclysm.app \u2500\u2500\u2500', CARD_W / 2, y);
 }
