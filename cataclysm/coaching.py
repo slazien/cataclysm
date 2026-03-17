@@ -1057,6 +1057,7 @@ Analyze the FULL session. Look at every lap's data for each corner to identify:
 Respond in JSON with this exact structure:
 {{
   "primary_focus": "The ONE most impactful change for the driver's next session. \
+MUST name the target corner (T# or name+number) in the first sentence. \
 This is the single highest-leverage action — not a list, not vague, but one specific \
 experiment the driver can practice next time out. Frame it as what the CAR should do, \
 not what the body should do. Include a 'because' clause with data.",
@@ -1068,7 +1069,8 @@ referencing specific telemetry patterns.",
       "corner": <number>,
       "time_cost_s": <estimated avg time lost vs best lap at this corner>,
       "issue": "<what the data shows across all laps — include root cause chain>",
-      "tip": "<actionable advice with 'because' clause and what the driver will FEEL>"
+      "tip": "<MUST name the corner (T# or name+number) in the first sentence. \
+Actionable advice with 'because' clause and what the driver will FEEL>"
     }}
   ],
   "corner_grades": [
@@ -1082,10 +1084,12 @@ referencing specific telemetry patterns.",
       "min_speed_reason": "<10-15 word explanation of WHY this grade, citing one data point>",
       "throttle": "<A-F or N/A>",
       "throttle_reason": "<10-15 word explanation of WHY this grade, citing one data point>",
-      "notes": "<ONE coaching insight about THIS corner — what a trackside coach would \
-actually say. MUST be about what to DO or what's WORKING, with one data point as evidence. \
+      "notes": "<ONE coaching insight about THIS corner — MUST name the corner (T# or \
+name+number) in the first sentence. What a trackside coach would actually say. \
+MUST be about what to DO or what's WORKING, with one data point as evidence. \
 NEVER write 'Braking X because..., Trail braking Y because...' — the grades already say that. \
-GOOD: 'Entry inconsistency is costing you — L4 got on throttle 15m earlier from a later brake' \
+GOOD: 'T5 entry inconsistency is costing you — L4 got on throttle 15m earlier from a later brake' \
+BAD: 'Entry inconsistency is costing you — no corner named' \
 BAD: 'Braking B because peak G averages 0.25G. Min speed B because within 1.3 mph of target.'>"
     }}
   ],
@@ -1186,6 +1190,12 @@ consistency — do NOT flag it as a problem or recommend fixes.
 - LANDMARKS IN NATURAL LANGUAGE. When referencing landmark-resolved values \
 (e.g., "exit curb (best)"), weave them into natural sentences: "commit at the exit \
 curb." Never produce garbled constructions like "spread at (up to the exit curb)."
+- CORNER-FIRST IDENTIFICATION. Every tip, note, issue, pattern, drill, and primary_focus \
+MUST name the corner (T# or name+number) in the FIRST SENTENCE. The reader must know \
+which corner the advice is about without reading to the end. \
+BAD: "Commit to threshold braking from 200 ft before the brake board... This corner \
+feeds T11-T12." (corner only identifiable at the END by inference) \
+GOOD: "T10 is your biggest opportunity — commit to threshold braking from the 2-board."
 
 SPEED FORMATTING: In ALL text fields \
 (primary_focus, summary, issue, tip, notes, patterns, drills), \

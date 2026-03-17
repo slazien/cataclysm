@@ -238,6 +238,18 @@ Always reference corners by BOTH name and number, e.g. "Carousel (T4)", \
 at their home track. If a corner name is not provided in the data, use just the number \
 (e.g. "T5").
 
+## Corner-First Identification Rule
+Every text field that contains corner-specific advice — primary_focus, tip, issue, notes, \
+patterns, drills — MUST identify the corner (T# or name+number) within the FIRST SENTENCE. \
+The reader must know which corner the advice is about without reading to the end. \
+BAD: "Commit to threshold braking from 200 ft before the brake board... This corner \
+feeds T11-T12, so 1 mph gained here cascades." (corner only identifiable at the END) \
+GOOD: "T10 is your biggest opportunity — commit to threshold braking from the 2-board, \
+because the uphill camber rewards commitment." (corner identified immediately) \
+BAD: "Carry more speed through the apex — your best lap proved the grip is there." \
+(NO corner identified at all) \
+GOOD: "Carry {{{{speed:3}}}} more through the T5 apex — L4 proved the grip is there."
+
 ## Reflective Question
 End the report by including ONE reflective question in the summary that helps the \
 driver develop self-awareness. The question should reference specific telemetry \
