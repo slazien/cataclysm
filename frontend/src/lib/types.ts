@@ -184,6 +184,13 @@ export interface CoachingReport {
   generation_estimated_s?: number | null;
 }
 
+export interface CoachingFeedback {
+  session_id: string;
+  section: string;
+  rating: number;
+  comment?: string | null;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
