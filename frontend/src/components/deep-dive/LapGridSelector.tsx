@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { ChevronDown, Star, Flag } from 'lucide-react';
 import { useSessionStore, useAnalysisStore } from '@/stores';
 import { useSessionLaps } from '@/hooks/useSession';
-import { isUserExcluded, useToggleLapTag, EXCLUDE_TAGS } from '@/hooks/useLapTags';
+import { isUserExcluded, useToggleLapTag, useFlushTagInvalidation, EXCLUDE_TAGS } from '@/hooks/useLapTags';
 import { formatLapTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import {
@@ -63,6 +63,7 @@ export function LapGridSelector() {
   const selectLaps = useAnalysisStore((s) => s.selectLaps);
   const { data: laps } = useSessionLaps(activeSessionId);
   const toggleTag = useToggleLapTag(activeSessionId);
+  const flushTags = useFlushTagInvalidation(activeSessionId);
 
   // All laps visible in the grid: clean OR user-tagged (excluded laps still shown)
   const visibleLaps = useMemo(
@@ -153,7 +154,7 @@ export function LapGridSelector() {
   const timeRange = worstLapTime - bestLapTime;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) flushTags(); }}>
       <PopoverTrigger asChild>
         <button
           type="button"

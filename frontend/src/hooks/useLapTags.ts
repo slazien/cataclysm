@@ -1,6 +1,7 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
+import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { setLapTags } from "@/lib/api";
 import type { LapSummary } from "@/lib/types";
 
@@ -8,6 +9,62 @@ export const EXCLUDE_TAGS = new Set(["traffic", "off-line", "experimental", "col
 
 export function isUserExcluded(lap: LapSummary): boolean {
   return lap.tags.some((t) => EXCLUDE_TAGS.has(t));
+}
+
+// ---------------------------------------------------------------------------
+// Debounced downstream invalidation
+//
+// Tag toggles are instant (optimistic UI), but coaching/physics recomputation
+// is expensive (~30-60s). We batch invalidations so that a user tagging
+// multiple laps over several minutes only triggers ONE backend recompute —
+// either when the debounce timer fires (30s of inactivity) or when the
+// tagging UI is explicitly closed (flush).
+// ---------------------------------------------------------------------------
+
+const DEBOUNCE_MS = 30_000;
+
+/** Per-session pending flush timers (module-level singleton). */
+const pendingFlush = new Map<string, ReturnType<typeof setTimeout>>();
+
+function invalidateDownstream(qc: QueryClient, sessionId: string) {
+  qc.invalidateQueries({ queryKey: ["coaching", sessionId] });
+  qc.invalidateQueries({ queryKey: ["optimal-comparison", sessionId] });
+  qc.invalidateQueries({ queryKey: ["ideal-lap", sessionId] });
+  qc.invalidateQueries({ queryKey: ["sectors", sessionId] });
+}
+
+function scheduleInvalidation(qc: QueryClient, sessionId: string) {
+  const existing = pendingFlush.get(sessionId);
+  if (existing) clearTimeout(existing);
+
+  const timer = setTimeout(() => {
+    pendingFlush.delete(sessionId);
+    invalidateDownstream(qc, sessionId);
+  }, DEBOUNCE_MS);
+
+  pendingFlush.set(sessionId, timer);
+}
+
+/** Immediately flush any pending invalidation for this session. */
+function flushInvalidation(qc: QueryClient, sessionId: string) {
+  const existing = pendingFlush.get(sessionId);
+  if (existing) {
+    clearTimeout(existing);
+    pendingFlush.delete(sessionId);
+    invalidateDownstream(qc, sessionId);
+  }
+}
+
+/**
+ * Call when the tagging UI closes (e.g. LapGridSelector popover dismissed).
+ * If any tag changes are pending, this triggers the downstream recompute
+ * immediately instead of waiting for the 30s debounce.
+ */
+export function useFlushTagInvalidation(sessionId: string | null) {
+  const qc = useQueryClient();
+  return useCallback(() => {
+    if (sessionId) flushInvalidation(qc, sessionId);
+  }, [qc, sessionId]);
 }
 
 export function useToggleLapTag(sessionId: string | null) {
@@ -36,12 +93,10 @@ export function useToggleLapTag(sessionId: string | null) {
       return setLapTags(sessionId, lapNumber, newTags);
     },
     onMutate: async ({ lapNumber, tag, enable }) => {
-      // Cancel any in-flight refetch so it doesn't overwrite our optimistic update
       await qc.cancelQueries({ queryKey });
 
       const previous = qc.getQueryData<LapSummary[]>(queryKey);
 
-      // Optimistic update: immediately reflect the tag change in the cache
       qc.setQueryData<LapSummary[]>(queryKey, (old) => {
         if (!old) return old;
         return old.map((lap) => {
@@ -57,17 +112,15 @@ export function useToggleLapTag(sessionId: string | null) {
       return { previous };
     },
     onError: (_err, _vars, context) => {
-      // Rollback on failure
       if (context?.previous) {
         qc.setQueryData(queryKey, context.previous);
       }
     },
     onSettled: () => {
-      // Invalidate downstream queries that depend on which laps are clean
-      qc.invalidateQueries({ queryKey: ["coaching", sessionId] });
-      qc.invalidateQueries({ queryKey: ["optimal-comparison", sessionId] });
-      qc.invalidateQueries({ queryKey: ["ideal-lap", sessionId] });
-      qc.invalidateQueries({ queryKey: ["sectors", sessionId] });
+      // Schedule (or reset) the debounced downstream invalidation.
+      // Actual invalidation fires after 30s of no tag activity,
+      // or immediately when the tagging UI closes (via useFlushTagInvalidation).
+      if (sessionId) scheduleInvalidation(qc, sessionId);
     },
   });
 }
