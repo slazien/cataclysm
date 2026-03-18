@@ -324,12 +324,12 @@ async def _persist_sidebar_fields(
         "compound_category": compound_category,
         "profile_name": profile_name,
     }
-    # Only write if changed
+    # Only write if changed — flush (not commit) so list_sessions' get_db auto-commits
     if snap.get("scores") != new_scores or snap.get("equipment") != new_eq:
         snap["scores"] = new_scores
         snap["equipment"] = new_eq
         row.snapshot_json = snap
-        await db.commit()
+        await db.flush()
 
 
 @router.post("/upload", response_model=UploadResponse)
@@ -666,7 +666,7 @@ async def list_sessions(
                     profile_name,
                 )
             except Exception:
-                logger.debug(
+                logger.warning(
                     "Failed to persist sidebar fields for %s",
                     sd.session_id,
                     exc_info=True,

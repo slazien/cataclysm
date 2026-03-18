@@ -607,7 +607,7 @@ async def _run_generation(
                     profile_name,
                 )
         except Exception:  # noqa: BLE001
-            logger.debug(
+            logger.warning(
                 "Failed to persist scores after coaching for %s",
                 session_id,
                 exc_info=True,
