@@ -174,7 +174,10 @@ class SessionConditionsSchema(BaseModel):
     wind_speed_kmh: float | None = None
     wind_direction_deg: float | None = None
     precipitation_mm: float | None = None
+    surface_water_mm: float | None = None
     weather_source: str | None = None
+    weather_confidence: float | None = None
+    dew_point_c: float | None = None
 
 
 class InlineEquipmentSet(BaseModel):
