@@ -1326,3 +1326,19 @@ el.getBoundingClientRect().right > window.innerWidth
 **Why**: Open-Meteo archive API returns `None` for individual array entries when data is missing for older dates. The surface water model called `float(v)` on raw API values → `TypeError: float() argument must be a string or a real number, not 'NoneType'` on 31 of 37 sessions during rebackfill.
 
 **Error signature**: `TypeError: float() argument must be a string or a real number, not 'NoneType'` in any code consuming external API array data. Typically surfaces only on older/archive data, not recent sessions.
+
+## Dockerfile COPY vs .dockerignore — Check Exclusions First (2026-03-18)
+
+**Pattern**: Before adding any `COPY` line to a Dockerfile, check `.dockerignore` for exclusion patterns that would block the source files from the build context. Docker silently fails or errors when the source doesn't exist in the context — it doesn't tell you ".dockerignore blocked this."
+
+**Why**: Added `COPY data/track_reference/*.npz /app/data/track_reference/` to seed NPZ files, but `.dockerignore` had a blanket `data` exclude. Build failed with `lstat /data/track_reference: no such file or directory`. Required a second commit to add `!data/track_reference` and `!data/track_reference/*.npz` negation rules.
+
+**Error signature**: `Build Failed: lstat /<path>: no such file or directory` when the path exists locally but is excluded from Docker build context by `.dockerignore`.
+
+## Startup Side Effects — Audit Before Reusing process_upload() (2026-03-18)
+
+**Pattern**: When reusing `process_upload()` for startup tasks (backfill, track reference building), audit ALL downstream side effects. In particular, `trigger_auto_coaching()` is called OUTSIDE `process_upload()` but auto-coaching at startup is wired in `lifespan()` — any new startup code that rehydrates sessions could accidentally trigger coaching if placed in the wrong order.
+
+**Why**: User caught that a score backfill using `process_upload()` would also trigger LLM coaching regeneration for ~16 sessions, wasting tokens. The fix was safe (auto-coaching is called separately, not inside `process_upload()`), but the risk wasn't flagged proactively.
+
+**Error signature**: Unexpected LLM API calls / token spend after a backend restart. Check startup logs for coaching generation that shouldn't be happening.
