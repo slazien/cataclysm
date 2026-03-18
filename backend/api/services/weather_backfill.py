@@ -81,7 +81,6 @@ def weather_to_dict(w: SessionConditions) -> dict[str, object]:
 # Re-backfill (admin-triggered, re-runs surface water model on all sessions)
 # ---------------------------------------------------------------------------
 
-REBACKFILL_CONCURRENCY = 3
 REBACKFILL_BATCH_DELAY_S = 0.5
 
 
@@ -112,8 +111,6 @@ async def rebackfill_all_sessions() -> dict[str, int]:
         )
         rows = (await db.execute(stmt)).scalars().all()
         stats["total"] = len(rows)
-
-        sem = asyncio.Semaphore(REBACKFILL_CONCURRENCY)
 
         for row in rows:
             snap = dict(row.snapshot_json or {})
@@ -155,47 +152,47 @@ async def rebackfill_all_sessions() -> dict[str, int]:
                 stats["skipped_no_coords"] += 1
                 continue
 
-            async with sem:
-                try:
-                    weather = await lookup_weather(lat, lon, session_dt)
-                    if weather is None:
-                        stats["failed"] += 1
-                        await asyncio.sleep(REBACKFILL_BATCH_DELAY_S)
-                        continue
-
-                    # Preserve track_temp_c and timezone_name from old data
-                    if existing_weather.get("track_temp_c") is not None:
-                        weather.track_temp_c = existing_weather["track_temp_c"]
-                    if existing_weather.get("timezone_name") is not None:
-                        weather.timezone_name = existing_weather["timezone_name"]
-
-                    snap["weather"] = weather_to_dict(weather)
-                    row.snapshot_json = snap
-                    await db.commit()
-
-                    # Update in-memory store
-                    sd = session_store.get_session(row.session_id)
-                    if sd is not None:
-                        sd.weather = weather
-
-                    stats["updated"] += 1
-                    logger.info(
-                        "Rebackfilled weather for %s: %s (%.2f confidence)",
-                        row.session_id,
-                        weather.track_condition.value
-                        if hasattr(weather.track_condition, "value")
-                        else str(weather.track_condition),
-                        weather.weather_confidence or 0,
-                    )
-                except Exception:
-                    logger.warning(
-                        "Rebackfill failed for %s",
-                        row.session_id,
-                        exc_info=True,
-                    )
+            try:
+                weather = await lookup_weather(lat, lon, session_dt)
+                if weather is None:
                     stats["failed"] += 1
+                    await asyncio.sleep(REBACKFILL_BATCH_DELAY_S)
+                    continue
 
-                await asyncio.sleep(REBACKFILL_BATCH_DELAY_S)
+                # Preserve track_temp_c and timezone_name from old data
+                if existing_weather.get("track_temp_c") is not None:
+                    weather.track_temp_c = existing_weather["track_temp_c"]
+                if existing_weather.get("timezone_name") is not None:
+                    weather.timezone_name = existing_weather["timezone_name"]
+
+                snap["weather"] = weather_to_dict(weather)
+                row.snapshot_json = snap
+                await db.commit()
+
+                # Update in-memory store
+                sd = session_store.get_session(row.session_id)
+                if sd is not None:
+                    sd.weather = weather
+
+                stats["updated"] += 1
+                logger.info(
+                    "Rebackfilled weather for %s: %s (%.2f confidence)",
+                    row.session_id,
+                    weather.track_condition.value
+                    if hasattr(weather.track_condition, "value")
+                    else str(weather.track_condition),
+                    weather.weather_confidence or 0,
+                )
+            except Exception:
+                logger.warning(
+                    "Rebackfill failed for %s",
+                    row.session_id,
+                    exc_info=True,
+                )
+                await db.rollback()
+                stats["failed"] += 1
+
+            await asyncio.sleep(REBACKFILL_BATCH_DELAY_S)
 
     logger.info("Weather rebackfill complete: %s", stats)
     return stats

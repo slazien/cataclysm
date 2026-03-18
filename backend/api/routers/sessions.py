@@ -1165,11 +1165,14 @@ async def override_track_condition(
 
     if body.condition is None:
         # Clear manual override — re-derive from model
+        old_is_manual = sd.weather.track_condition_is_manual
         sd.weather.track_condition_is_manual = False
         # Re-run weather lookup to get model-derived condition
         try:
             await _auto_fetch_weather(sd)
         except Exception:
+            # Restore manual flag — can't re-derive, keep user's tag
+            sd.weather.track_condition_is_manual = old_is_manual
             logger.warning(
                 "Weather re-fetch failed while clearing override for %s",
                 session_id,
@@ -1178,6 +1181,21 @@ async def override_track_condition(
     else:
         sd.weather.track_condition = TrackCondition(body.condition)
         sd.weather.track_condition_is_manual = True
+
+    # Persist to snapshot_json so the override survives backend restarts
+    from sqlalchemy import select
+
+    from backend.api.db.models import Session as SessionModel
+    from backend.api.services.weather_backfill import weather_to_dict
+
+    row = (
+        await db.execute(select(SessionModel).where(SessionModel.session_id == session_id))
+    ).scalar_one_or_none()
+    if row is not None:
+        snap = dict(row.snapshot_json or {})
+        snap["weather"] = weather_to_dict(sd.weather)
+        row.snapshot_json = snap
+        await db.commit()
 
     # Invalidate downstream caches (coaching depends on track condition)
     invalidate_physics_cache(session_id)

@@ -89,6 +89,10 @@ def compute_evaporation_rate(
     Returns >= 0.0; cannot produce negative (condensation is separate).
     """
     t_surface = surface_temp_c if surface_temp_c is not None else temp_c
+    # Clamp to physically reasonable range (guards against corrupt API data
+    # and the Tetens denominator singularity at -237.3°C)
+    t_surface = max(-80.0, min(80.0, t_surface))
+    temp_c = max(-80.0, min(80.0, temp_c))
     # Tetens formula: saturation vapor pressure (hPa)
     e_s_surface = 6.1078 * math.exp(17.27 * t_surface / (t_surface + 237.3))
     e_s_air = 6.1078 * math.exp(17.27 * temp_c / (temp_c + 237.3))
