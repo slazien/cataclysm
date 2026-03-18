@@ -19,6 +19,24 @@ from evaluation.schema_checks import run_schema_checks
 from evaluation.types import AssessmentResult, Verdict
 
 
+def _extract_coaching_text(report: dict) -> str:
+    """Extract human-readable coaching prose from a parsed report dict.
+
+    Avoids feeding raw JSON to citation grounding / LLM judges, which would
+    pick up structural numbers like ``"corner": 5`` as coaching claims.
+    """
+    parts: list[str] = [report.get("summary", "")]
+    for pc in report.get("priority_corners", []):
+        parts.append(pc.get("tip", ""))
+        parts.append(pc.get("feedback", ""))
+    for cg in report.get("corner_grades", []):
+        parts.append(cg.get("notes", ""))
+    parts.extend(report.get("patterns", []))
+    parts.append(report.get("primary_focus", ""))
+    parts.extend(report.get("drills", []))
+    return " ".join(p for p in parts if p)
+
+
 def assess_single(
     case: dict,
     *,
@@ -38,7 +56,10 @@ def assess_single(
     # Stage 2: Soft checks
     report_dict = json.loads(raw_output)
     soft = run_constraint_checks(report_dict)
-    soft.append(check_citation_grounding(raw_output, telemetry))
+
+    # Extract coaching prose (not raw JSON) for text-quality checks
+    coaching_text = _extract_coaching_text(report_dict)
+    soft.append(check_citation_grounding(coaching_text, telemetry))
 
     # Stage 3: LLM judge
     judge_results = []
@@ -46,7 +67,7 @@ def assess_single(
         from evaluation.llm_judges import run_all_judges
 
         telemetry_context = json.dumps(telemetry, indent=2)[:4000]
-        judge_results = run_all_judges(raw_output, telemetry_context)
+        judge_results = run_all_judges(coaching_text, telemetry_context)
 
     # Stage 4: Aggregation
     return aggregate(case_id, hard_gates, soft, judge_results)

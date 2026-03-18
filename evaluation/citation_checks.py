@@ -56,14 +56,8 @@ def flatten_telemetry(data: dict[str, Any] | list[Any] | Any) -> list[float]:
 
 def _is_grounded(value: float, reference_numbers: set[float]) -> bool:
     """Check if a value matches any reference number within tolerance."""
-    if value == 0.0:
-        return 0.0 in reference_numbers
     for ref in reference_numbers:
-        if ref == 0.0:
-            if value == 0.0:
-                return True
-            continue
-        if abs(value - ref) / max(abs(ref), 1e-9) <= TOLERANCE:
+        if abs(value - ref) / max(abs(ref), abs(value), 1e-9) <= TOLERANCE:
             return True
     return False
 

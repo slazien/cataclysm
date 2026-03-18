@@ -10,11 +10,29 @@ import pytest
 from evaluation.runner import assess_single
 
 
-@pytest.mark.parametrize("case_idx", range(100))
-def test_golden_case(golden_set: list[dict], case_idx: int, use_llm_judge: bool) -> None:
+def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
+    """Dynamically parametrize golden cases based on actual dataset size."""
+    if "case_idx" in metafunc.fixturenames:
+        golden = metafunc.config.getoption("--golden-set", "evaluation/golden_set.jsonl")
+        from pathlib import Path
+
+        path = Path(golden)
+        count = (
+            sum(1 for line in path.read_text().splitlines() if line.strip()) if path.exists() else 0
+        )
+        metafunc.parametrize("case_idx", range(count), ids=[f"case-{i}" for i in range(count)])
+
+
+@pytest.mark.eval
+def test_golden_case(
+    request: pytest.FixtureRequest,
+    golden_set: list[dict],
+    case_idx: int,
+    use_llm_judge: bool,
+) -> None:
     """Assess a single golden case."""
-    if case_idx >= len(golden_set):
-        pytest.skip(f"Only {len(golden_set)} cases in golden set")
+    if not request.config.getoption("--run-assessment", default=False):
+        pytest.skip("assessment suite requires --run-assessment")
 
     case = golden_set[case_idx]
     result = assess_single(case, use_llm_judge=use_llm_judge)
