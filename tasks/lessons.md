@@ -1,5 +1,21 @@
 # Lessons Learned
 
+## Deep Dive Has 3 Independent Map Renderers — Feature Must Hit All (2026-03-18)
+
+**Pattern**: When adding any feature to the Deep Dive track map (cursor dots, overlays, click handlers), implement it in ALL three renderers: `TrackMapSatellite.tsx` (Mapbox, **default**), `TrackMapInteractive.tsx` (SVG, 2D), `TrackMap3D.tsx` (Three.js, 3D). `TrackMapContainer.tsx` switches between them based on `satEnabled` (default `true`) and `mapMode`. SAT is the default — if you only implement in 2D, most users never see it.
+
+**Why**: Ghost dot feature was implemented in `TrackMapInteractive` (2D SVG) but missed `TrackMapSatellite` (the default Mapbox view). Discovered during QA that the feature was invisible to users because SAT mode loads by default. Each renderer uses different tech: Mapbox `<Marker>` + CSS animations (SAT), SVG `<circle>` + SMIL `<animate>` (2D), Three.js mesh (3D).
+
+**Error signature**: Feature works when toggling to 2D mode but is absent in the default satellite view. Or: accessibility snapshot shows `Map marker` elements (Mapbox) vs `img` with corner children (SVG) — different DOM structure reveals which renderer is active.
+
+## Computed Fields in List Views Must Be DB-Persisted (2026-03-18)
+
+**Pattern**: When a `SessionSummary` field is computed from in-memory state (e.g., `session_score` from RAM-resident `SessionData`), it MUST also be persisted to the DB (via `snapshot_json` or a column) and read back in the DB fallback path. List endpoints can't lazily rehydrate every item — sessions evicted from memory return `None` for any non-persisted computed field.
+
+**Why**: `list_sessions` has two paths: Path A (in-memory, full data) and Path B (DB fallback, partial data). Scores were computed on-the-fly in Path A but never written to DB. After any backend restart, ALL sessions hit Path B → sidebar showed no scores for any session. Silent `None` return, no errors in logs. Users saw empty score badges for all sessions until they clicked each one individually (triggering lazy rehydration). Fix: write-aside to `snapshot_json` at computation time + read in Path B.
+
+**Error signature**: A `SessionSummary` field that works after upload but disappears after backend restart. No errors in logs — just `None` values in the API response. Field appears when you click the individual session (lazy rehydration) but the list view stays empty.
+
 ## Never Dismiss User-Reported Data Inconsistencies as Transient (2026-03-18)
 
 **Pattern**: When a user reports that two views show different values for the same metric, investigate the data path immediately. Never respond with "probably lazy loading" or "transient" without proof. Treat data mismatches as real bugs until proven otherwise.

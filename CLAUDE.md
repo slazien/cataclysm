@@ -104,6 +104,7 @@ Check: text clip, horiz overflow, touch targets ≥44px, chart scale.
 - Touch tooltips: never Radix `Tooltip` for info icons (hover-only, vanishes ~100ms on mobile). Use Radix `Popover` with `className="bg-foreground text-background ..."` on `PopoverContent`.
 - Overlay/floating UI: idle state = minimum footprint (small dot/pin, not wide bars). Expanded = dark glassmorphic (`bg-[var(--bg-surface)]/70 backdrop-blur-xl`), never opaque pastels. This is a dark-theme data-dense app.
 - **Platform parity**: ANY UI change → implement identically on mobile + desktop simultaneously. Same position, same interaction, same visual. Never one-platform-first.
+- **Deep Dive map parity**: 3 independent renderers — `TrackMapSatellite` (Mapbox, **default**), `TrackMapInteractive` (SVG/2D), `TrackMap3D` (Three.js). Any track map feature (dots, overlays, clicks) → implement in ALL three. SAT is default (`satEnabled=true`).
 
 ### Tier 2 — Specific
 
