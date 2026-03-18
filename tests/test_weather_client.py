@@ -675,3 +675,61 @@ class TestQuarterHourly:
         data = _make_hourly_data(24)
         peak = compute_surface_water(data, session_idx=20, lookback=12, forward=2)
         assert peak == pytest.approx(0.0)
+
+
+# ---------------------------------------------------------------------------
+# Task 8: Track temperature proxy (soil_temperature_0cm)
+# ---------------------------------------------------------------------------
+
+
+class TestEvaporationSurfaceTemp:
+    """Tests for surface_temp_c parameter in compute_evaporation_rate."""
+
+    def test_higher_with_surface_temp(self) -> None:
+        """Hot asphalt (45C) evaporates faster than air temp (25C) alone."""
+        rate_air = compute_evaporation_rate(
+            temp_c=25.0,
+            rh_pct=50.0,
+            wind_kmh=10.0,
+            radiation_wm2=500.0,
+        )
+        rate_surface = compute_evaporation_rate(
+            temp_c=25.0,
+            rh_pct=50.0,
+            wind_kmh=10.0,
+            radiation_wm2=500.0,
+            surface_temp_c=45.0,
+        )
+        assert rate_surface > rate_air
+
+    def test_ignores_when_none(self) -> None:
+        """surface_temp_c=None gives identical result to omitting it."""
+        rate_a = compute_evaporation_rate(
+            temp_c=25.0,
+            rh_pct=50.0,
+            wind_kmh=10.0,
+            radiation_wm2=500.0,
+        )
+        rate_b = compute_evaporation_rate(
+            temp_c=25.0,
+            rh_pct=50.0,
+            wind_kmh=10.0,
+            radiation_wm2=500.0,
+            surface_temp_c=None,
+        )
+        assert rate_a == pytest.approx(rate_b)
+
+    def test_surface_water_with_soil_temp(self) -> None:
+        """Hot soil temp accelerates drying in the balance model."""
+        rain = [0.0] * 24
+        rain[15] = 0.5
+        data_no_soil = _make_hourly_data(24, rain=rain)
+        data_with_soil = _make_hourly_data(24, rain=rain)
+        data_with_soil["soil_temperature_0cm"] = [45.0] * 24
+
+        peak_no_soil = compute_surface_water(data_no_soil, session_idx=20, lookback=12, forward=2)
+        peak_with_soil = compute_surface_water(
+            data_with_soil, session_idx=20, lookback=12, forward=2
+        )
+        # Hot soil dries faster -> lower peak water
+        assert peak_with_soil <= peak_no_soil

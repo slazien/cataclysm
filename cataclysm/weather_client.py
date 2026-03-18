@@ -39,7 +39,7 @@ FORECAST_WINDOW_DAYS = 16
 
 HOURLY_PARAMS = (
     "temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,"
-    "rain,showers,direct_radiation,dew_point_2m,cloud_cover"
+    "rain,showers,direct_radiation,dew_point_2m,cloud_cover,soil_temperature_0cm"
 )
 MINUTELY_15_PARAMS = "rain,showers"
 
@@ -74,26 +74,32 @@ def compute_evaporation_rate(
     rh_pct: float,
     wind_kmh: float,
     radiation_wm2: float,
+    surface_temp_c: float | None = None,
 ) -> float:
     """Bulk-transfer evaporation rate from wet asphalt (mm/hr).
 
     Based on Penman aerodynamic term: E = C * u * VPD, plus a
-    radiation enhancement term. VPD (vapor pressure deficit) is the
-    difference between saturation and actual vapor pressure -- when
-    humidity is 100%, VPD=0 and evaporation stops.
+    radiation enhancement term. VPD is computed between the saturation
+    pressure at the *evaporating surface* and the actual vapor pressure
+    in the air. When ``surface_temp_c`` is provided (e.g. from
+    soil_temperature_0cm as an asphalt proxy), it replaces the air
+    temperature for the surface saturation term, giving a more
+    realistic evaporation rate on sun-heated asphalt.
 
     Returns >= 0.0; cannot produce negative (condensation is separate).
     """
+    t_surface = surface_temp_c if surface_temp_c is not None else temp_c
     # Tetens formula: saturation vapor pressure (hPa)
-    e_s = 6.1078 * math.exp(17.27 * temp_c / (temp_c + 237.3))
-    e_a = e_s * (rh_pct / 100.0)
-    vpd = max(0.0, e_s - e_a)
+    e_s_surface = 6.1078 * math.exp(17.27 * t_surface / (t_surface + 237.3))
+    e_s_air = 6.1078 * math.exp(17.27 * temp_c / (temp_c + 237.3))
+    e_a = e_s_air * (rh_pct / 100.0)
+    vpd = max(0.0, e_s_surface - e_a)
 
     wind_ms = max(_MIN_WIND_MS, wind_kmh / 3.6)
     rad = max(0.0, radiation_wm2)
 
     aero = _AERO_COEFF * wind_ms * vpd
-    rad_boost = _RAD_COEFF * rad * vpd / max(e_s, 1.0)
+    rad_boost = _RAD_COEFF * rad * vpd / max(e_s_surface, 1.0)
     return aero + rad_boost
 
 
@@ -150,6 +156,8 @@ def compute_surface_water(
     start = max(0, session_step - lookback_steps)
     end = min(n, session_step + forward_steps + 1)
 
+    surface_temps = hourly.get("soil_temperature_0cm")
+
     water = 0.0
     peak_session = 0.0
 
@@ -161,6 +169,7 @@ def compute_surface_water(
                 rh_pct=float(hourly["relative_humidity_2m"][i]),
                 wind_kmh=float(hourly["wind_speed_10m"][i]),
                 radiation_wm2=float(hourly["direct_radiation"][i]),
+                surface_temp_c=float(surface_temps[i]) if surface_temps else None,
             )
             * timestep_h
         )
@@ -239,6 +248,7 @@ _INTERPOLATED_FIELDS = (
     "direct_radiation",
     "dew_point_2m",
     "cloud_cover",
+    "soil_temperature_0cm",
 )
 
 
@@ -403,6 +413,10 @@ async def lookup_weather(
                 "direct_radiation": [float(v) for v in hourly["direct_radiation"]],
                 "dew_point_2m": [float(v) for v in hourly["dew_point_2m"]],
             }
+            if "soil_temperature_0cm" in hourly:
+                hourly_floats["soil_temperature_0cm"] = [
+                    float(v) for v in hourly["soil_temperature_0cm"]
+                ]
 
             # Use 15-min native precip when available for better storm timing
             if minutely_15 and "rain" in minutely_15:
