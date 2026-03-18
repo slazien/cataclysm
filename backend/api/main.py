@@ -184,6 +184,86 @@ async def _reload_sessions_from_db() -> int:
     return loaded
 
 
+async def _ensure_track_references() -> int:
+    """Build missing track reference NPZ files for all unique tracks in the DB.
+
+    After startup rehydration (which is capped by STARTUP_REHYDRATION_LIMIT),
+    some tracks may lack NPZ files because none of their sessions were in the
+    rehydration window.  This function queries all distinct track names, checks
+    which NPZ files are missing, and processes ONE session per missing track
+    to generate the reference.
+    """
+    import re
+    from pathlib import Path
+
+    from sqlalchemy import distinct, select
+
+    from backend.api.db.database import async_session_factory
+    from backend.api.db.models import Session as SessionModel
+    from backend.api.db.models import SessionFile as SessionFileModel
+    from backend.api.services.pipeline import process_upload
+
+    track_ref_dir = Path(
+        os.environ.get(
+            "TRACK_REF_DIR",
+            str(Path(__file__).resolve().parent.parent.parent / "data" / "track_reference"),
+        )
+    )
+    track_ref_dir.mkdir(parents=True, exist_ok=True)
+
+    built = 0
+    try:
+        async with async_session_factory() as db:
+            # Get all unique track names from sessions table
+            result = await db.execute(
+                select(distinct(SessionModel.track_name)).where(
+                    SessionModel.track_name.isnot(None),
+                    SessionModel.track_name != "",
+                )
+            )
+            track_names: list[str] = [row[0] for row in result.all()]
+
+            for track_name in track_names:
+                # Slugify using the same logic as track_slug_from_layout
+                slug = re.sub(r"[^a-z0-9]+", "-", track_name.lower().strip()).strip("-")
+                npz_path = track_ref_dir / f"{slug}.npz"
+
+                if npz_path.exists():
+                    continue
+
+                # Find one session file for this track to build the reference from
+                sf_result = await db.execute(
+                    select(SessionFileModel)
+                    .join(SessionModel, SessionModel.session_id == SessionFileModel.session_id)
+                    .where(SessionModel.track_name == track_name)
+                    .order_by(SessionFileModel.created_at.desc())
+                    .limit(1)
+                )
+                sf_row = sf_result.scalar_one_or_none()
+                if sf_row is None:
+                    continue
+
+                try:
+                    await process_upload(sf_row.csv_bytes, sf_row.filename)
+                    if npz_path.exists():
+                        built += 1
+                        logger.info(
+                            "Built missing track reference for %s (%s)",
+                            track_name,
+                            slug,
+                        )
+                except (ValueError, KeyError, IndexError, OSError) as exc:
+                    logger.warning(
+                        "Failed to build track reference for %s: %s",
+                        track_name,
+                        exc,
+                    )
+    except (SQLAlchemyError, OSError):
+        logger.warning("Track reference build failed", exc_info=True)
+
+    return built
+
+
 async def _reload_sessions_from_disk() -> int:
     """Re-process CSV files from the data directory into the in-memory store.
 
@@ -383,6 +463,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         n_sessions = await _reload_sessions_from_disk()
         if n_sessions:
             logger.info("Reloaded %d session(s) from disk", n_sessions)
+
+    # Build missing track references for tracks not covered by rehydration
+    n_refs = await _ensure_track_references()
+    if n_refs:
+        logger.info("Built %d missing track reference(s) at startup", n_refs)
 
     # Clean up any expired anonymous sessions from a previous run
     from backend.api.services.session_store import cleanup_expired_anonymous, list_sessions
