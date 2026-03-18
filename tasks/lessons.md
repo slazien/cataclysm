@@ -1,5 +1,29 @@
 # Lessons Learned
 
+## Never Dismiss User-Reported Data Inconsistencies as Transient (2026-03-18)
+
+**Pattern**: When a user reports that two views show different values for the same metric, investigate the data path immediately. Never respond with "probably lazy loading" or "transient" without proof. Treat data mismatches as real bugs until proven otherwise.
+
+**Why**: User reported sidebar score of 2 vs actual score of 41. Response was "the score issue was transient (likely lazy loading)" — user called this out angrily. The root cause was a `?? consistency_score` fallback showing a semantically different metric. The "lazy loading" framing delayed the real fix and eroded trust.
+
+**Error signature**: Any thought like "the data will fix itself after X loads/refreshes" when the user is reporting a mismatch between two concurrent views of the same data.
+
+## Never Fall Back to a Semantically Different Metric for Display (2026-03-18)
+
+**Pattern**: When a computed field (e.g., `session_score`) is `null`, show "—" or nothing — never fall back to a different metric (`consistency_score`) with `??`. Two metrics with the same numeric range but different semantics will always produce confusing mismatches. The frontend should make `null` visible, not paper over it with wrong data.
+
+**Why**: `SessionScoreBadge` used `session.session_score ?? session.consistency_score`. For sessions not in memory, `session_score` was null and `consistency_score` (raw lap variance 0-100) was shown as the "score." This produced values like 2 or 36 where the real composite score was 41 or 65. Wrong data is always worse than no data.
+
+**Error signature**: A `??` or `||` fallback where the two operands are different metrics that happen to share a numeric range. Or: user reports "score changed after clicking."
+
+## Auto-Behavior Additions Break Absence-Assumption Tests (2026-03-18)
+
+**Pattern**: When adding automatic background behavior (auto-weather-fetch, auto-coaching, auto-anything), grep for tests that assume the ABSENCE of that behavior and update them. Tests written before the auto-behavior existed often assert on the "no data" state that the auto-behavior now populates.
+
+**Why**: `test_patch_track_condition_no_weather_returns_409` assumed `sd.weather is None` after upload. When auto-weather-fetch was added to the upload flow, weather was always populated, turning the 409 test into a permanent failure. Fix: explicitly clear `sd.weather = None` after upload in the test.
+
+**Error signature**: A test that previously passed now fails because it expects a null/empty state that a recently-added auto-behavior now fills.
+
 ## Dual Code Paths for Same Operation Must Mirror Each Other (2026-03-17)
 
 **Pattern**: When two code paths perform the same logical operation (e.g., startup rehydration vs lazy rehydration), they MUST restore identical metadata. When adding/modifying one path, grep for the other and update both. Extract shared logic into a helper if paths diverge beyond 2 fields.
