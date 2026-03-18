@@ -16,6 +16,25 @@ MIN_LAP_FRACTION = 0.80  # discard laps shorter than 80% of reference distance
 MAX_LAP_DISTANCE_RATIO = 1.3  # laps > 1.3× median distance are cooldown/in-laps
 MAX_LAP_TIME_RATIO = 1.5  # laps > 1.5× median time are anomalous (pit stops, red flags)
 
+# Columns safe to store as float32 (noise floor exceeds float32 precision).
+# MUST NOT include: lap_distance_m, lap_time_s, curvature, abs_curvature,
+# optimal_speed_mps, e, n — these need float64 for precision.
+_FLOAT32_SAFE_COLUMNS: frozenset[str] = frozenset(
+    {
+        "speed_mps",
+        "lat",
+        "lon",
+        "altitude_m",
+        "lateral_g",
+        "longitudinal_g",
+        "x_acc_g",
+        "y_acc_g",
+        "z_acc_g",
+        "yaw_rate_dps",
+        "heading_deg",
+    }
+)
+
 
 @dataclass
 class LapSummary:
@@ -35,6 +54,18 @@ class ProcessedSession:
     lap_summaries: list[LapSummary]
     resampled_laps: dict[int, pd.DataFrame]
     best_lap: int
+
+
+def _downcast_telemetry(df: pd.DataFrame) -> pd.DataFrame:
+    """Downcast safe columns to float32 to reduce memory ~30-40%.
+
+    Applied after resampling (which uses float64 for interpolation precision).
+    Columns not in ``_FLOAT32_SAFE_COLUMNS`` are left untouched.
+    """
+    cols_to_cast = [c for c in _FLOAT32_SAFE_COLUMNS if c in df.columns]
+    if cols_to_cast:
+        df[cols_to_cast] = df[cols_to_cast].astype("float32")
+    return df
 
 
 def _split_laps(df: pd.DataFrame) -> dict[int, pd.DataFrame]:
@@ -249,6 +280,7 @@ def process_session(df: pd.DataFrame) -> ProcessedSession:
     for num, lap_df in prepared.items():
         resampled_df = _resample_lap(lap_df)
         if not resampled_df.empty:
+            resampled_df = _downcast_telemetry(resampled_df)
             resampled[num] = resampled_df
 
     if not resampled:

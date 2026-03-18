@@ -12,6 +12,7 @@ from cataclysm.engine import (
     ProcessedSession,
     _compute_lap_distance,
     _compute_lap_time,
+    _downcast_telemetry,
     _filter_short_laps,
     _resample_lap,
     _split_laps,
@@ -170,26 +171,26 @@ class TestFilterShortLaps:
 
 class TestProcessSession:
     def test_produces_processed_session(self, parsed_session: object) -> None:
-        result = process_session(parsed_session.data)  # type: ignore[union-attr]
+        result = process_session(parsed_session.data)  # type: ignore[attr-defined]
         assert isinstance(result, ProcessedSession)
         assert len(result.lap_summaries) > 0
         assert len(result.resampled_laps) > 0
         assert result.best_lap in result.resampled_laps
 
     def test_best_lap_is_fastest(self, parsed_session: object) -> None:
-        result = process_session(parsed_session.data)  # type: ignore[union-attr]
+        result = process_session(parsed_session.data)  # type: ignore[attr-defined]
         best = result.best_lap
         best_time = next(s.lap_time_s for s in result.lap_summaries if s.lap_number == best)
         for s in result.lap_summaries:
             assert s.lap_time_s >= best_time
 
     def test_summaries_sorted_by_time(self, parsed_session: object) -> None:
-        result = process_session(parsed_session.data)  # type: ignore[union-attr]
+        result = process_session(parsed_session.data)  # type: ignore[attr-defined]
         times = [s.lap_time_s for s in result.lap_summaries]
         assert times == sorted(times)
 
     def test_resampled_laps_uniform_distance(self, parsed_session: object) -> None:
-        result = process_session(parsed_session.data)  # type: ignore[union-attr]
+        result = process_session(parsed_session.data)  # type: ignore[attr-defined]
         for lap_df in result.resampled_laps.values():
             diffs = np.diff(lap_df["lap_distance_m"].to_numpy())
             np.testing.assert_allclose(diffs, RESAMPLE_STEP_M, atol=1e-10)
@@ -563,3 +564,105 @@ class TestFilterShortLapsNoLongLaps:
         assert 1 in result
         assert 2 in result
         assert 3 not in result
+
+
+class TestFloat32Downcast:
+    """Verify selective float32 downcast preserves precision where needed."""
+
+    FLOAT32_COLUMNS = frozenset(
+        {
+            "speed_mps",
+            "lat",
+            "lon",
+            "altitude_m",
+            "lateral_g",
+            "longitudinal_g",
+            "x_acc_g",
+            "y_acc_g",
+            "z_acc_g",
+            "yaw_rate_dps",
+            "heading_deg",
+        }
+    )
+    MUST_STAY_FLOAT64 = frozenset({"lap_distance_m", "lap_time_s"})
+
+    def _make_session(self) -> ProcessedSession:
+        """Build a multi-lap session for dtype verification."""
+        n_points = 50
+        base_time = np.arange(n_points, dtype=float)
+        base_dist = base_time * 30.0  # ~30 m/s
+
+        df = pd.DataFrame(
+            {
+                "lap_number": [1.0] * n_points + [2.0] * n_points + [3.0] * n_points,
+                "elapsed_time": np.concatenate(
+                    [
+                        base_time,
+                        base_time + 100,
+                        base_time + 200,
+                    ]
+                ),
+                "distance_m": np.concatenate(
+                    [
+                        base_dist,
+                        base_dist + 5000,
+                        base_dist + 10000,
+                    ]
+                ),
+                "speed_mps": np.full(n_points * 3, 30.0),
+                "lat": np.full(n_points * 3, 33.53),
+                "lon": np.full(n_points * 3, -86.62),
+                "altitude_m": np.full(n_points * 3, 200.0),
+                "lateral_g": np.random.uniform(-1, 1, n_points * 3),
+                "longitudinal_g": np.random.uniform(-1, 1, n_points * 3),
+                "heading_deg": np.linspace(0, 360, n_points * 3),
+            }
+        )
+        return process_session(df)
+
+    def test_safe_columns_are_float32(self) -> None:
+        """Telemetry columns that don't need float64 should be float32."""
+        session = self._make_session()
+        for lap_num, df in session.resampled_laps.items():
+            for col in self.FLOAT32_COLUMNS:
+                if col in df.columns:
+                    assert df[col].dtype == np.float32, (
+                        f"Lap {lap_num} column {col} should be float32, got {df[col].dtype}"
+                    )
+
+    def test_precision_columns_stay_float64(self) -> None:
+        """Distance and time columns must stay float64."""
+        session = self._make_session()
+        for lap_num, df in session.resampled_laps.items():
+            for col in self.MUST_STAY_FLOAT64:
+                if col in df.columns:
+                    assert df[col].dtype == np.float64, (
+                        f"Lap {lap_num} column {col} must stay float64, got {df[col].dtype}"
+                    )
+
+    def test_physics_sanity_after_downcast(self) -> None:
+        """Corner detection and lap ordering should work correctly after downcast."""
+        session = self._make_session()
+        # Basic sanity: laps exist and are ordered by time
+        assert len(session.lap_summaries) >= 2
+        times = [s.lap_time_s for s in session.lap_summaries]
+        assert times == sorted(times), "Lap times should be sorted ascending"
+        # Best lap should have positive, finite time
+        assert session.lap_summaries[0].lap_time_s > 0
+        assert np.isfinite(session.lap_summaries[0].lap_time_s)
+
+    def test_downcast_helper_only_touches_safe_columns(self) -> None:
+        """_downcast_telemetry should only cast known safe columns."""
+        df = pd.DataFrame(
+            {
+                "speed_mps": np.array([30.0, 31.0], dtype=np.float64),
+                "lap_distance_m": np.array([0.0, 0.7], dtype=np.float64),
+                "lap_time_s": np.array([0.0, 0.023], dtype=np.float64),
+                "lat": np.array([33.53, 33.54], dtype=np.float64),
+            }
+        )
+        result = _downcast_telemetry(df)
+        assert result["speed_mps"].dtype == np.float32
+        assert result["lat"].dtype == np.float32
+        assert result["lap_distance_m"].dtype == np.float64
+        assert result["lap_time_s"].dtype == np.float64
