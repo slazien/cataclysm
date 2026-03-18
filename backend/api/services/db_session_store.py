@@ -295,8 +295,12 @@ def restore_weather_from_snapshot(snapshot_json: dict | None) -> SessionConditio
         wind_speed_kmh=w.get("wind_speed_kmh"),
         wind_direction_deg=w.get("wind_direction_deg"),
         precipitation_mm=w.get("precipitation_mm"),
+        surface_water_mm=w.get("surface_water_mm"),
         weather_source=w.get("weather_source"),
+        weather_confidence=w.get("weather_confidence"),
+        dew_point_c=w.get("dew_point_c"),
         timezone_name=w.get("timezone_name"),
+        track_condition_is_manual=w.get("track_condition_is_manual", False),
     )
 
 

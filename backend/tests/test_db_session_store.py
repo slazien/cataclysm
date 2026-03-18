@@ -338,7 +338,12 @@ class TestRestoreWeatherFromSnapshot:
                 "wind_speed_kmh": 20.0,
                 "wind_direction_deg": 90.0,
                 "precipitation_mm": 1.5,
+                "surface_water_mm": 0.05,
                 "weather_source": "open-meteo",
+                "weather_confidence": 0.82,
+                "dew_point_c": 14.2,
+                "timezone_name": "America/New_York",
+                "track_condition_is_manual": False,
             }
         }
         result = restore_weather_from_snapshot(snapshot)
@@ -350,7 +355,12 @@ class TestRestoreWeatherFromSnapshot:
         assert result.wind_speed_kmh == pytest.approx(20.0)
         assert result.wind_direction_deg == pytest.approx(90.0)
         assert result.precipitation_mm == pytest.approx(1.5)
+        assert result.surface_water_mm == pytest.approx(0.05)
         assert result.weather_source == "open-meteo"
+        assert result.weather_confidence == pytest.approx(0.82)
+        assert result.dew_point_c == pytest.approx(14.2)
+        assert result.timezone_name == "America/New_York"
+        assert result.track_condition_is_manual is False
 
     def test_missing_optional_weather_keys_default_to_none(self) -> None:
         """Partial weather dict (only track_condition) fills others as None."""
@@ -363,7 +373,11 @@ class TestRestoreWeatherFromSnapshot:
         assert result.wind_speed_kmh is None
         assert result.wind_direction_deg is None
         assert result.precipitation_mm is None
+        assert result.surface_water_mm is None
         assert result.weather_source is None
+        assert result.weather_confidence is None
+        assert result.dew_point_c is None
+        assert result.track_condition_is_manual is False
 
     def test_wet_track_condition(self) -> None:
         from cataclysm.equipment import TrackCondition
@@ -383,6 +397,55 @@ class TestRestoreWeatherFromSnapshot:
         result = restore_weather_from_snapshot(snapshot)
         assert result is not None
         assert result.weather_source == "manual_entry"
+
+    def test_manual_override_flag_preserved(self) -> None:
+        snapshot = {
+            "weather": {
+                "track_condition": "wet",
+                "track_condition_is_manual": True,
+            }
+        }
+        result = restore_weather_from_snapshot(snapshot)
+        assert result is not None
+        assert result.track_condition_is_manual is True
+
+    def test_round_trip_weather_to_dict_and_restore(self) -> None:
+        """weather_to_dict → restore_weather_from_snapshot preserves all fields."""
+        from cataclysm.equipment import SessionConditions, TrackCondition
+
+        from backend.api.services.weather_backfill import weather_to_dict
+
+        original = SessionConditions(
+            track_condition=TrackCondition.WET,
+            ambient_temp_c=15.0,
+            track_temp_c=22.0,
+            humidity_pct=90.0,
+            wind_speed_kmh=12.0,
+            wind_direction_deg=180.0,
+            precipitation_mm=3.5,
+            surface_water_mm=0.15,
+            weather_source="open-meteo-archive",
+            weather_confidence=0.75,
+            dew_point_c=13.0,
+            timezone_name="America/New_York",
+            track_condition_is_manual=True,
+        )
+        serialized = weather_to_dict(original)
+        restored = restore_weather_from_snapshot({"weather": serialized})
+        assert restored is not None
+        assert restored.track_condition == original.track_condition
+        assert restored.ambient_temp_c == original.ambient_temp_c
+        assert restored.track_temp_c == original.track_temp_c
+        assert restored.humidity_pct == original.humidity_pct
+        assert restored.wind_speed_kmh == original.wind_speed_kmh
+        assert restored.wind_direction_deg == original.wind_direction_deg
+        assert restored.precipitation_mm == original.precipitation_mm
+        assert restored.surface_water_mm == original.surface_water_mm
+        assert restored.weather_source == original.weather_source
+        assert restored.weather_confidence == original.weather_confidence
+        assert restored.dew_point_c == original.dew_point_c
+        assert restored.timezone_name == original.timezone_name
+        assert restored.track_condition_is_manual == original.track_condition_is_manual
 
 
 # ---------------------------------------------------------------------------
