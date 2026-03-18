@@ -12,6 +12,7 @@ import numpy as np
 from cataclysm.constants import MPS_TO_MPH
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, UploadFile
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -293,6 +294,42 @@ async def _compute_session_score(sd: session_store.SessionData) -> ScoreResult:
     total_weight = sum(w for _, w in components)
     result.total = sum(v * (w / total_weight) for v, w in components)
     return result
+
+
+async def _persist_sidebar_fields(
+    db: AsyncSession,
+    session_id: str,
+    score: ScoreResult,
+    tire_model: str | None,
+    compound_category: str | None,
+    profile_name: str | None,
+) -> None:
+    """Write sidebar-visible fields to snapshot_json so they survive restarts."""
+    from backend.api.db.models import Session as SessionModel
+
+    result = await db.execute(select(SessionModel).where(SessionModel.session_id == session_id))
+    row = result.scalar_one_or_none()
+    if row is None:
+        return
+    snap = dict(row.snapshot_json or {})
+    new_scores = {
+        "total": score.total,
+        "consistency": score.consistency,
+        "pace": score.pace,
+        "technique": score.technique,
+        "optimal_lap_time_s": score.optimal_lap_time_s,
+    }
+    new_eq = {
+        "tire_model": tire_model,
+        "compound_category": compound_category,
+        "profile_name": profile_name,
+    }
+    # Only write if changed
+    if snap.get("scores") != new_scores or snap.get("equipment") != new_eq:
+        snap["scores"] = new_scores
+        snap["equipment"] = new_eq
+        row.snapshot_json = snap
+        await db.commit()
 
 
 @router.post("/upload", response_model=UploadResponse)
@@ -619,6 +656,21 @@ async def list_sessions(
                     weather_precipitation_mm=w_precip,
                 )
             )
+            try:
+                await _persist_sidebar_fields(
+                    db,
+                    sd.session_id,
+                    score,
+                    tire_model,
+                    compound_category,
+                    profile_name,
+                )
+            except Exception:
+                logger.debug(
+                    "Failed to persist sidebar fields for %s",
+                    sd.session_id,
+                    exc_info=True,
+                )
         else:
             # Fallback to DB metadata (telemetry not in memory — needs re-upload)
             snap = row.snapshot_json or {}
