@@ -308,9 +308,8 @@ async def rehydrate_session(
                 csv_bytes=file_row.csv_bytes,
                 filename=file_row.filename,
             )
-            if sd is not None:
-                sd.user_id = meta_row.user_id
-                logger.info("Lazy-rehydrated session %s", session_id)
+            sd.user_id = meta_row.user_id
+            logger.info("Lazy-rehydrated session %s", session_id)
             return sd
         except Exception:
             logger.exception("Failed to rehydrate session %s", session_id)

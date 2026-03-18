@@ -1045,15 +1045,14 @@ async def reprocess_session_from_csv(
     session_id: str,
     csv_bytes: bytes,
     filename: str,
-) -> SessionData | None:
+) -> SessionData:
     """Reprocess a session from CSV bytes without side effects.
 
     Used for lazy rehydration on cache miss. Does NOT generate a new session_id,
     does NOT insert DB rows, does NOT trigger auto-coaching or weather fetching.
+    Raises on corrupt/invalid CSV (caller must catch).
     """
     sd = await asyncio.to_thread(_run_pipeline_sync, csv_bytes, filename)
-    if sd is None:
-        return None
     # Override session_id to match the original (deterministic IDs should match,
     # but this guarantees it even if filename changed)
     sd.session_id = session_id
