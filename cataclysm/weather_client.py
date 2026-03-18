@@ -41,6 +41,7 @@ HOURLY_PARAMS = (
     "temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,"
     "rain,showers,direct_radiation,dew_point_2m,cloud_cover"
 )
+MINUTELY_15_PARAMS = "rain,showers"
 
 # --- Legacy fallback constants (used when new API fields unavailable) ---
 LOOKBACK_HOURS = 6
@@ -128,37 +129,52 @@ def compute_surface_water(
     session_idx: int,
     lookback: int = 12,
     forward: int = 2,
+    timestep_h: float = 1.0,
 ) -> float:
     """Compute peak surface water (mm) during the session window.
 
-    Steps hourly through (session_idx - lookback) to (session_idx + forward),
-    maintaining W(t) = max(0, W(t-1) + precipitation + condensation
+    When ``timestep_h=0.25``, expects quarter-hourly data from
+    :func:`prepare_quarter_hourly`. All ``session_idx``/``lookback``/
+    ``forward`` args are in **hours** -- internally converted to step indices.
+
+    Maintains W(t) = max(0, W(t-1) + precipitation + condensation
                               - evaporation - runoff).
-    Returns max W observed during session window (indices >= session_idx).
+    Returns max W observed during session window (indices >= session step).
     """
+    steps_per_hour = round(1.0 / timestep_h)
+    session_step = session_idx * steps_per_hour
+    lookback_steps = lookback * steps_per_hour
+    forward_steps = forward * steps_per_hour
+
     n = len(hourly["rain"])
-    start = max(0, session_idx - lookback)
-    end = min(n, session_idx + forward + 1)
+    start = max(0, session_step - lookback_steps)
+    end = min(n, session_step + forward_steps + 1)
 
     water = 0.0
     peak_session = 0.0
 
     for i in range(start, end):
         precip = float(hourly["rain"][i]) + float(hourly.get("showers", [0.0] * n)[i])
-        evap = compute_evaporation_rate(
-            temp_c=float(hourly["temperature_2m"][i]),
-            rh_pct=float(hourly["relative_humidity_2m"][i]),
-            wind_kmh=float(hourly["wind_speed_10m"][i]),
-            radiation_wm2=float(hourly["direct_radiation"][i]),
+        evap = (
+            compute_evaporation_rate(
+                temp_c=float(hourly["temperature_2m"][i]),
+                rh_pct=float(hourly["relative_humidity_2m"][i]),
+                wind_kmh=float(hourly["wind_speed_10m"][i]),
+                radiation_wm2=float(hourly["direct_radiation"][i]),
+            )
+            * timestep_h
         )
-        cond = compute_condensation(
-            temp_c=float(hourly["temperature_2m"][i]),
-            dew_point_c=float(hourly["dew_point_2m"][i]),
-            wind_kmh=float(hourly["wind_speed_10m"][i]),
+        cond = (
+            compute_condensation(
+                temp_c=float(hourly["temperature_2m"][i]),
+                dew_point_c=float(hourly["dew_point_2m"][i]),
+                wind_kmh=float(hourly["wind_speed_10m"][i]),
+            )
+            * timestep_h
         )
-        ro = compute_runoff(water)
+        ro = compute_runoff(water) * timestep_h
         water = max(0.0, water + precip + cond - evap - ro)
-        if i >= session_idx:
+        if i >= session_step:
             peak_session = max(peak_session, water)
 
     return round(peak_session, 4)
@@ -210,6 +226,55 @@ def compute_weather_confidence(
         conf -= 0.2
 
     return round(max(0.0, min(1.0, conf)), 2)
+
+
+# ---------------------------------------------------------------------------
+# 15-minute resolution support
+# ---------------------------------------------------------------------------
+
+_INTERPOLATED_FIELDS = (
+    "temperature_2m",
+    "relative_humidity_2m",
+    "wind_speed_10m",
+    "direct_radiation",
+    "dew_point_2m",
+    "cloud_cover",
+)
+
+
+def prepare_quarter_hourly(
+    hourly: dict[str, list[float]],
+    minutely_15_precip: dict[str, list[float]] | None,
+) -> dict[str, list[float]]:
+    """Upsample hourly weather data to 15-minute resolution.
+
+    Precipitation uses native 15-min data when available (better timing
+    for convective storms). Other fields are linearly interpolated.
+    """
+    n_hours = len(hourly["temperature_2m"])
+    result: dict[str, list[float]] = {}
+
+    for key in _INTERPOLATED_FIELDS:
+        vals = hourly.get(key, [0.0] * n_hours)
+        interp: list[float] = []
+        for i in range(n_hours):
+            v0 = vals[i]
+            v1 = vals[i + 1] if i + 1 < n_hours else vals[i]
+            for q in range(4):
+                interp.append(v0 + (q / 4.0) * (v1 - v0))
+        result[key] = interp
+
+    for precip_key in ("rain", "showers"):
+        if minutely_15_precip and precip_key in minutely_15_precip:
+            native = minutely_15_precip[precip_key]
+            n_qh = n_hours * 4
+            result[precip_key] = list(native[:n_qh]) + [0.0] * max(0, n_qh - len(native))
+        else:
+            result[precip_key] = [
+                v / 4.0 for v in hourly.get(precip_key, [0.0] * n_hours) for _ in range(4)
+            ]
+
+    return result
 
 
 def _pick_api_url(session_dt: datetime) -> str:
@@ -304,6 +369,7 @@ async def lookup_weather(
         "latitude": str(lat),
         "longitude": str(lon),
         "hourly": HOURLY_PARAMS,
+        "minutely_15": MINUTELY_15_PARAMS,
         "start_date": prev_day,
         "end_date": session_day,
         "timezone": "UTC",
@@ -316,6 +382,7 @@ async def lookup_weather(
 
         data = response.json()
         hourly = data.get("hourly")
+        minutely_15 = data.get("minutely_15")
         if not hourly or not hourly.get("time"):
             logger.warning("Open-Meteo returned empty hourly data for %s", session_day)
             return None
@@ -337,7 +404,20 @@ async def lookup_weather(
                 "dew_point_2m": [float(v) for v in hourly["dew_point_2m"]],
             }
 
-            peak_water = compute_surface_water(hourly_floats, idx, lookback=12, forward=2)
+            # Use 15-min native precip when available for better storm timing
+            if minutely_15 and "rain" in minutely_15:
+                qh_data = prepare_quarter_hourly(
+                    hourly_floats,
+                    minutely_15_precip={
+                        "rain": [float(v) for v in minutely_15["rain"]],
+                        "showers": [float(v) for v in minutely_15.get("showers", [])],
+                    },
+                )
+                peak_water = compute_surface_water(
+                    qh_data, idx, lookback=12, forward=2, timestep_h=0.25
+                )
+            else:
+                peak_water = compute_surface_water(hourly_floats, idx, lookback=12, forward=2)
             condition = classify_surface_water(peak_water)
 
             # Confidence from session window (session hour +/- 3)

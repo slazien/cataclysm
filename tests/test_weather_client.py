@@ -17,6 +17,7 @@ from cataclysm.weather_client import (
     compute_surface_water,
     compute_weather_confidence,
     lookup_weather,
+    prepare_quarter_hourly,
 )
 
 # ---------------------------------------------------------------------------
@@ -608,3 +609,69 @@ async def test_legacy_fallback_when_new_fields_missing() -> None:
     assert result.surface_water_mm is None
     assert result.weather_confidence is None
     assert result.dew_point_c is None
+
+
+# ---------------------------------------------------------------------------
+# Task 7: 15-minute precipitation resolution
+# ---------------------------------------------------------------------------
+
+
+class TestQuarterHourly:
+    """Tests for prepare_quarter_hourly and timestep_h support."""
+
+    def test_interpolates_continuous_fields(self) -> None:
+        hourly: dict[str, list[float]] = {
+            "temperature_2m": [20.0, 24.0],
+            "relative_humidity_2m": [50.0, 50.0],
+            "wind_speed_10m": [10.0, 10.0],
+            "direct_radiation": [300.0, 300.0],
+            "dew_point_2m": [10.0, 10.0],
+            "cloud_cover": [30.0, 30.0],
+            "rain": [0.0, 0.0],
+            "showers": [0.0, 0.0],
+        }
+        qh = prepare_quarter_hourly(hourly, minutely_15_precip=None)
+        assert len(qh["temperature_2m"]) == 8
+        assert qh["temperature_2m"][0] == pytest.approx(20.0)
+        assert qh["temperature_2m"][4] == pytest.approx(24.0)
+        assert qh["temperature_2m"][2] == pytest.approx(22.0)
+
+    def test_uses_native_15min_precip(self) -> None:
+        hourly: dict[str, list[float]] = {
+            "temperature_2m": [20.0, 20.0],
+            "relative_humidity_2m": [50.0, 50.0],
+            "wind_speed_10m": [10.0, 10.0],
+            "direct_radiation": [300.0, 300.0],
+            "dew_point_2m": [10.0, 10.0],
+            "cloud_cover": [30.0, 30.0],
+            "rain": [1.0, 0.0],
+            "showers": [0.0, 0.0],
+        }
+        minutely_15: dict[str, list[float]] = {
+            "rain": [0.0, 0.0, 0.5, 0.5, 0.0, 0.0, 0.0, 0.0],
+            "showers": [0.0] * 8,
+        }
+        qh = prepare_quarter_hourly(hourly, minutely_15_precip=minutely_15)
+        assert qh["rain"][2] == pytest.approx(0.5)
+        assert qh["rain"][0] == pytest.approx(0.0)
+
+    def test_spreads_hourly_precip_without_15min(self) -> None:
+        hourly: dict[str, list[float]] = {
+            "temperature_2m": [20.0],
+            "relative_humidity_2m": [50.0],
+            "wind_speed_10m": [10.0],
+            "direct_radiation": [300.0],
+            "dew_point_2m": [10.0],
+            "cloud_cover": [30.0],
+            "rain": [1.0],
+            "showers": [0.0],
+        }
+        qh = prepare_quarter_hourly(hourly, minutely_15_precip=None)
+        assert len(qh["rain"]) == 4
+        assert all(v == pytest.approx(0.25) for v in qh["rain"])
+
+    def test_quarter_hourly_balance_backward_compat(self) -> None:
+        """Existing hourly tests still work with default timestep_h=1.0."""
+        data = _make_hourly_data(24)
+        peak = compute_surface_water(data, session_idx=20, lookback=12, forward=2)
+        assert peak == pytest.approx(0.0)
