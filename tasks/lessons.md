@@ -1246,3 +1246,19 @@ el.getBoundingClientRect().right > window.innerWidth
 **Why**: `AssignEquipmentButton` closed the dropdown immediately on click, before the PUT completed. If the mutation failed, the user had no feedback — the dropdown was gone, the badge might show stale data, and there was no error indication. Keeping the dropdown open with a spinner lets users see the result and provides a natural place for error feedback.
 
 **Error signature**: User clicks a dropdown option, dropdown closes instantly, nothing visibly changes. No error toast, no loading state. The mutation may have failed silently.
+
+## Serializer/Deserializer Must Stay Symmetric (2026-03-18)
+
+**Pattern**: When adding fields to a serialization function (e.g. `weather_to_dict`), ALWAYS update the corresponding deserialization function (e.g. `restore_weather_from_snapshot`) in the same commit. Add a round-trip test: `deserialize(serialize(obj))` must equal original.
+
+**Why**: `weather_to_dict` was updated with 4 new fields (`surface_water_mm`, `weather_confidence`, `dew_point_c`, `track_condition_is_manual`) but `restore_weather_from_snapshot` was not. On backend restart, sessions lost their surface water classification — all reverted to whatever stale `track_condition` string was in the DB. Related to "Dual Code Paths" lesson but distinct: this is write-path vs read-path, not two write-paths.
+
+**Error signature**: Data appears correct after initial computation but reverts to stale/default values after backend restart. The DB has the correct data (verified via SQL), but in-memory state doesn't match.
+
+## External APIs Return None in Arrays — Always Coalesce (2026-03-18)
+
+**Pattern**: When consuming array data from external APIs (Open-Meteo, etc.), never call `float(v)` directly. Always coalesce: `float(v) if v is not None else default`. For core fields where None makes the computation meaningless (temperature, humidity), fall back to a simpler classification path instead.
+
+**Why**: Open-Meteo archive API returns `None` for individual array entries when data is missing for older dates. The surface water model called `float(v)` on raw API values → `TypeError: float() argument must be a string or a real number, not 'NoneType'` on 31 of 37 sessions during rebackfill.
+
+**Error signature**: `TypeError: float() argument must be a string or a real number, not 'NoneType'` in any code consuming external API array data. Typically surfaces only on older/archive data, not recent sessions.
