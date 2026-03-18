@@ -621,8 +621,12 @@ async def list_sessions(
             )
         else:
             # Fallback to DB metadata (telemetry not in memory — needs re-upload)
-            date_str = row.session_date.isoformat() if row.session_date else ""
             snap = row.snapshot_json or {}
+            # Prefer the original display string saved at upload time;
+            # fall back to strftime (no raw isoformat with +00:00 timezone).
+            date_str = snap.get("session_date_display") or (
+                row.session_date.strftime("%d/%m/%Y %H:%M") if row.session_date else ""
+            )
             w_data = snap.get("weather")
             gps_data = snap.get("gps_quality")
             items.append(

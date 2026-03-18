@@ -223,8 +223,8 @@ export function SessionDrawer() {
                               session.session_id === activeSessionId
                                 ? 'border-[var(--cata-accent)] bg-[var(--cata-accent)]/10'
                                 : 'border-[var(--cata-border)] hover:border-[var(--text-muted)] hover:bg-[var(--bg-elevated)]',
-                              (session.session_score ?? session.consistency_score) != null &&
-                                Math.round(normalizeScore(session.session_score ?? session.consistency_score!)) < 40 &&
+                              session.session_score != null &&
+                                Math.round(normalizeScore(session.session_score)) < 40 &&
                                 'opacity-60',
                             )}
                           >
@@ -257,7 +257,7 @@ export function SessionDrawer() {
                                       <ArrowLeftRight className="h-4 w-4" />
                                     </button>
                                   )}
-                                <SessionScoreBadge score={session.session_score ?? session.consistency_score} />
+                                <SessionScoreBadge score={session.session_score} />
                               </div>
                             </div>
                             <div className="mt-1 flex items-center gap-1.5">

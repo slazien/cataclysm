@@ -222,6 +222,10 @@ async def store_session_db(
     # These are computed/fetched once and never change for a given session.
     snapshot_json: dict[str, object] = {}
 
+    # Preserve the raw session date string for display (avoids isoformat +00:00)
+    if snap.metadata.session_date:
+        snapshot_json["session_date_display"] = snap.metadata.session_date
+
     # Weather conditions (fetched from Open-Meteo on upload)
     if session_data.weather is not None:
         w = session_data.weather

@@ -124,7 +124,10 @@ async def test_patch_track_condition_no_weather_returns_409(
 ) -> None:
     """PATCH on a session with no weather data returns 409."""
     session_id = await _upload(client)
-    # Don't inject weather — sd.weather is None
+    # Clear any auto-fetched weather so sd.weather is None
+    sd = session_store.get_session(session_id)
+    assert sd is not None
+    sd.weather = None
 
     resp = await client.patch(
         f"/api/sessions/{session_id}/track-condition",
