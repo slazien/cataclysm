@@ -69,9 +69,136 @@ def weather_to_dict(w: SessionConditions) -> dict[str, object]:
         "wind_speed_kmh": w.wind_speed_kmh,
         "wind_direction_deg": w.wind_direction_deg,
         "precipitation_mm": w.precipitation_mm,
+        "surface_water_mm": w.surface_water_mm,
         "weather_source": w.weather_source,
+        "weather_confidence": w.weather_confidence,
+        "dew_point_c": w.dew_point_c,
         "track_condition_is_manual": w.track_condition_is_manual,
     }
+
+
+# ---------------------------------------------------------------------------
+# Re-backfill (admin-triggered, re-runs surface water model on all sessions)
+# ---------------------------------------------------------------------------
+
+REBACKFILL_CONCURRENCY = 3
+REBACKFILL_BATCH_DELAY_S = 0.5
+
+
+async def rebackfill_all_sessions() -> dict[str, int]:
+    """Re-run the surface water model for all existing sessions.
+
+    Returns stats: {updated, skipped_manual, skipped_no_coords, failed, total}.
+    Respects manual overrides (track_condition_is_manual=True).
+    Uses a semaphore to avoid hammering Open-Meteo.
+    """
+    from sqlalchemy import select
+
+    from backend.api.db.database import async_session_factory
+    from backend.api.db.models import Session as SessionModel
+    from backend.api.services import session_store
+
+    stats: dict[str, int] = {
+        "updated": 0,
+        "skipped_manual": 0,
+        "skipped_no_coords": 0,
+        "failed": 0,
+        "total": 0,
+    }
+
+    async with async_session_factory() as db:
+        stmt = select(SessionModel).where(
+            SessionModel.snapshot_json.isnot(None),
+        )
+        rows = (await db.execute(stmt)).scalars().all()
+        stats["total"] = len(rows)
+
+        sem = asyncio.Semaphore(REBACKFILL_CONCURRENCY)
+
+        for row in rows:
+            snap = dict(row.snapshot_json or {})
+            existing_weather = snap.get("weather", {})
+
+            # Skip manual overrides
+            if existing_weather.get("track_condition_is_manual", False):
+                stats["skipped_manual"] += 1
+                continue
+
+            # Extract GPS centroid
+            centroid = snap.get("gps_centroid")
+            lat: float | None = None
+            lon: float | None = None
+            if centroid:
+                lat = centroid.get("lat")
+                lon = centroid.get("lon")
+
+            if lat is None or lon is None:
+                # Try in-memory session for GPS data
+                sd = session_store.get_session(row.session_id)
+                if sd is not None and hasattr(sd, "parsed"):
+                    df = sd.parsed.data
+                    if not df.empty and "lat" in df.columns and "lon" in df.columns:
+                        lat = float(df["lat"].mean())
+                        lon = float(df["lon"].mean())
+
+            if lat is None or lon is None:
+                stats["skipped_no_coords"] += 1
+                continue
+
+            # Parse session date
+            session_dt: datetime | None = None
+            if row.session_date:
+                dt = row.session_date
+                session_dt = dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt
+
+            if session_dt is None:
+                stats["skipped_no_coords"] += 1
+                continue
+
+            async with sem:
+                try:
+                    weather = await lookup_weather(lat, lon, session_dt)
+                    if weather is None:
+                        stats["failed"] += 1
+                        await asyncio.sleep(REBACKFILL_BATCH_DELAY_S)
+                        continue
+
+                    # Preserve track_temp_c and timezone_name from old data
+                    if existing_weather.get("track_temp_c") is not None:
+                        weather.track_temp_c = existing_weather["track_temp_c"]
+                    if existing_weather.get("timezone_name") is not None:
+                        weather.timezone_name = existing_weather["timezone_name"]
+
+                    snap["weather"] = weather_to_dict(weather)
+                    row.snapshot_json = snap
+                    await db.commit()
+
+                    # Update in-memory store
+                    sd = session_store.get_session(row.session_id)
+                    if sd is not None:
+                        sd.weather = weather
+
+                    stats["updated"] += 1
+                    logger.info(
+                        "Rebackfilled weather for %s: %s (%.2f confidence)",
+                        row.session_id,
+                        weather.track_condition.value
+                        if hasattr(weather.track_condition, "value")
+                        else str(weather.track_condition),
+                        weather.weather_confidence or 0,
+                    )
+                except Exception:
+                    logger.warning(
+                        "Rebackfill failed for %s",
+                        row.session_id,
+                        exc_info=True,
+                    )
+                    stats["failed"] += 1
+
+                await asyncio.sleep(REBACKFILL_BATCH_DELAY_S)
+
+    logger.info("Weather rebackfill complete: %s", stats)
+    return stats
 
 
 # ---------------------------------------------------------------------------

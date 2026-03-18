@@ -555,3 +555,22 @@ async def delete_task_route(
         await db.commit()
     await sync_task_routes_once()
     return {"status": "deleted", "task": task}
+
+
+# ---------------------------------------------------------------------------
+# Weather re-backfill
+# ---------------------------------------------------------------------------
+
+
+@router.post("/weather/rebackfill")
+async def trigger_weather_rebackfill(
+    _user: Annotated[AuthenticatedUser, Depends(require_admin)],
+) -> dict[str, int]:
+    """Re-run the surface water model for all sessions.
+
+    Skips sessions where the user has manually tagged the condition.
+    Returns stats: {updated, skipped_manual, skipped_no_coords, failed, total}.
+    """
+    from backend.api.services.weather_backfill import rebackfill_all_sessions
+
+    return await rebackfill_all_sessions()
