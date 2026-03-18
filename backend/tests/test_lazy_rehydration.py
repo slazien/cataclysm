@@ -39,7 +39,7 @@ async def _upload_and_get_sid(client: AsyncClient) -> str:
     data = resp.json()
     sids = data["session_ids"]
     assert len(sids) == 1
-    return sids[0]
+    return str(sids[0])
 
 
 async def test_evicted_session_rehydrates_on_access(client: AsyncClient) -> None:
