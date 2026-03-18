@@ -13,6 +13,7 @@ import { BrakePointOverlay } from './BrakePointOverlay';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { colors } from '@/lib/design-tokens';
 import { worstGrade } from '@/lib/gradeUtils';
+import { computeGhostDistance } from '@/lib/trackProjection';
 import type { LapData, DeltaData, Corner, CornerGrade } from '@/lib/types';
 import type { MapRef } from 'react-map-gl/mapbox';
 import type { GeoJSON } from 'geojson';
@@ -183,13 +184,14 @@ export function TrackMapSatellite({
 
   const { data: lapDataArr, isLoading: lapsLoading } = useMultiLapData(
     sessionId,
-    selectedLaps.length > 0 ? [selectedLaps[0]] : [],
+    selectedLaps,
   );
   const { data: corners } = useCorners(sessionId);
   const { data: delta } = useDelta(sessionId, refLap, compLap);
   const { data: report } = useCoachingReport(sessionId);
 
   const lapData = lapDataArr[0] ?? null;
+  const compLapData = lapDataArr.length >= 2 ? lapDataArr[1] : null;
 
   // Build GeoJSON for the track trace
   const geoJson = useMemo(() => {
@@ -208,6 +210,16 @@ export function TrackMapSatellite({
     if (cursorDistance === null || !lapData) return null;
     return interpolateLatLon(cursorDistance, lapData);
   }, [cursorDistance, lapData]);
+
+  // Ghost dot: where the comparison lap would be at the same elapsed time
+  const ghostPos = useMemo(() => {
+    if (cursorDistance === null || !lapData || !compLapData) return null;
+    const ghostDist = computeGhostDistance(cursorDistance, lapData, compLapData);
+    if (ghostDist === null) return null;
+    return interpolateLatLon(ghostDist, compLapData);
+  }, [cursorDistance, lapData, compLapData]);
+
+  const isComparing = compLapData !== null;
 
   // S/F position
   const sfPos = useMemo((): [number, number] | null => {
@@ -485,7 +497,32 @@ export function TrackMapSatellite({
           );
         })}
 
-        {/* Cursor dot with pulse animation */}
+        {/* Ghost dot (comparison lap position at same elapsed time) */}
+        {ghostPos && (
+          <Marker longitude={ghostPos[0]} latitude={ghostPos[1]} anchor="center">
+            <div
+              className="sat-ghost-pulse"
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                backgroundColor: colors.comparison.compare,
+                border: '2px solid #fff',
+                boxShadow: `0 0 6px ${colors.comparison.compare}88`,
+                opacity: 0.8,
+              }}
+            />
+            <style>{`
+              @keyframes sat-ghost-pulse {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.3); }
+              }
+              .sat-ghost-pulse { animation: sat-ghost-pulse 1s ease-in-out infinite; }
+            `}</style>
+          </Marker>
+        )}
+
+        {/* Cursor dot — blue when comparing, green when single lap */}
         {cursorPos && (
           <Marker longitude={cursorPos[0]} latitude={cursorPos[1]} anchor="center">
             <div
@@ -494,9 +531,9 @@ export function TrackMapSatellite({
                 width: 12,
                 height: 12,
                 borderRadius: '50%',
-                backgroundColor: colors.motorsport.optimal,
+                backgroundColor: isComparing ? colors.comparison.reference : colors.motorsport.optimal,
                 border: '2px solid #fff',
-                boxShadow: `0 0 6px ${colors.motorsport.optimal}88`,
+                boxShadow: `0 0 6px ${(isComparing ? colors.comparison.reference : colors.motorsport.optimal)}88`,
               }}
             />
             <style>{`
