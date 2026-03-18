@@ -306,6 +306,22 @@
 
 **Why**: Playwright's `click` requires the element to be interactable/in viewport. Close buttons and dismiss actions always have keyboard equivalents. `browser_press_key` with `"Escape"` closes virtually all dialogs/modals/drawers.
 
+## Track Video: "Moving to the Right" = Car Placement, NOT Turn Direction (2026-03-18)
+
+**Pattern**: In track coaching videos, phrases like "coming to the right side of the track" or "moving left" describe CAR PLACEMENT (where the driver positions the car across the track width), NOT the turn direction. Turn direction = which way the steering wheel rotates. A driver may "move to the right side" as a setup for a LEFT turn. Always verify turn direction against telemetry curvature data (positive = LEFT, negative = RIGHT), never from verbal driving descriptions alone.
+
+**Why**: Misread AMP T1 as a right turn because the coach said "coming to the right side of the track" — that was the setup line for a LEFT-hand corner. This error cascaded to T6 (described as "inverse of T1"). User caught it: "T1 is actually left, how come the vid says its to the right?" Curvature data confirmed T1=left. The same ambiguity exists in every track guide video.
+
+**Error signature**: Flagging a direction as wrong based on a verbal phrase containing "left"/"right" without checking whether the context is car positioning (track left/right) vs steering direction. Or: curvature data says LEFT but video transcript contains "right" near that turn.
+
+## Uniform Metadata Values Across All Corners = Copy-Paste Artifact (2026-03-18)
+
+**Pattern**: When reviewing track metadata, if ALL corners share the same value for a field (e.g., `camber="positive"` on 9/9 corners), treat this as a copy-paste artifact until proven otherwise. Real tracks have varying camber, elevation, and character. Cross-reference at least 3 independent sources before accepting uniform values.
+
+**Why**: Roebling Road had `camber="positive"` on all 9 corners. Professional sources confirmed only T7 is truly positive-cambered (uphill banking). T4 and T6 are off-camber (the coaching system would generate wrong entry-speed advice). The uniform value was never validated against external sources — it was likely copied from a template when the track profile was first created.
+
+**Error signature**: Every corner in a TrackLayout sharing the same `camber`, `elevation_trend`, or `corner_type` value. Real tracks have variation — uniform values mean nobody checked.
+
 ## React Query 3-Retry Default Delays Public Error State ~5s (2026-03-08)
 
 **Pattern**: Public pages using React Query (e.g., `/share/[token]`) show a loading spinner for ~5 seconds before displaying 404/not-found error state. This is NOT a bug — it's React Query's default retry behavior (3 retries with exponential backoff). When testing public 404 routes with Playwright, wait 5-6 seconds before asserting error state.
