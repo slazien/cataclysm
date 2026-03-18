@@ -104,13 +104,13 @@ def set_session_weather(session_id: str, weather: SessionConditions) -> None:
 
 
 def _evict_oldest() -> None:
-    """Evict the oldest session(s) when the store exceeds MAX_SESSIONS."""
+    """Evict the least-recently-used session(s) when the store exceeds MAX_SESSIONS."""
     while len(_store) > MAX_SESSIONS:
-        oldest_id = next(iter(_store))
-        _store.pop(oldest_id)
+        lru_id = next(iter(_store))
+        _store.pop(lru_id)
         logger.info(
-            "Evicted oldest session %s (store at %d/%d)",
-            oldest_id,
+            "Evicted LRU session %s (store at %d/%d)",
+            lru_id,
             len(_store),
             MAX_SESSIONS,
         )
