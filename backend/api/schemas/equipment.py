@@ -178,6 +178,7 @@ class SessionConditionsSchema(BaseModel):
     weather_source: str | None = None
     weather_confidence: float | None = None
     dew_point_c: float | None = None
+    track_condition_is_manual: bool = False
 
 
 class InlineEquipmentSet(BaseModel):

@@ -70,6 +70,7 @@ def weather_to_dict(w: SessionConditions) -> dict[str, object]:
         "wind_direction_deg": w.wind_direction_deg,
         "precipitation_mm": w.precipitation_mm,
         "weather_source": w.weather_source,
+        "track_condition_is_manual": w.track_condition_is_manual,
     }
 
 

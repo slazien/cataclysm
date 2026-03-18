@@ -213,6 +213,7 @@ class SessionConditions:
     weather_confidence: float | None = None
     dew_point_c: float | None = None
     timezone_name: str | None = None
+    track_condition_is_manual: bool = False
 
 
 @dataclass

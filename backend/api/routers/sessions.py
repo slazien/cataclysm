@@ -6,11 +6,12 @@ import asyncio
 import logging
 import math
 from dataclasses import dataclass
-from typing import Annotated, cast
+from typing import Annotated, Literal, cast
 
 import numpy as np
 from cataclysm.constants import MPS_TO_MPH
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, UploadFile
+from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -1123,3 +1124,67 @@ async def set_lap_tags(
     await clear_coaching_data(session_id)
 
     return {"lap_number": lap_number, "tags": sorted(tags)}
+
+
+# ---------------------------------------------------------------------------
+# Manual track-condition override
+# ---------------------------------------------------------------------------
+
+
+class TrackConditionOverride(BaseModel):
+    """Body for manually overriding the track surface condition."""
+
+    condition: Literal["dry", "damp", "wet"] | None
+
+
+@router.patch("/{session_id}/track-condition")
+async def override_track_condition(
+    session_id: str,
+    body: TrackConditionOverride,
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, object]:
+    """Override or clear the manual track-condition tag.
+
+    - If ``condition`` is a valid value (``dry`` / ``damp`` / ``wet``),
+      sets the condition and marks ``track_condition_is_manual = True``.
+    - If ``condition`` is ``null``, clears the manual flag and re-derives
+      the condition from weather data.
+    """
+    from cataclysm.equipment import TrackCondition
+
+    sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
+    if sd is None:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+    if sd.weather is None:
+        raise HTTPException(
+            status_code=409,
+            detail="No weather data available for this session yet",
+        )
+
+    if body.condition is None:
+        # Clear manual override — re-derive from model
+        sd.weather.track_condition_is_manual = False
+        # Re-run weather lookup to get model-derived condition
+        try:
+            await _auto_fetch_weather(sd)
+        except Exception:
+            logger.warning(
+                "Weather re-fetch failed while clearing override for %s",
+                session_id,
+                exc_info=True,
+            )
+    else:
+        sd.weather.track_condition = TrackCondition(body.condition)
+        sd.weather.track_condition_is_manual = True
+
+    # Invalidate downstream caches (coaching depends on track condition)
+    invalidate_physics_cache(session_id)
+    await clear_coaching_data(session_id)
+
+    cond = sd.weather.track_condition
+    return {
+        "track_condition": cond.value if hasattr(cond, "value") else str(cond),
+        "track_condition_is_manual": sd.weather.track_condition_is_manual,
+    }
