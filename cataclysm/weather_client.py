@@ -27,7 +27,8 @@ REQUEST_TIMEOUT_S = 10.0
 FORECAST_WINDOW_DAYS = 16
 
 HOURLY_PARAMS = (
-    "temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,precipitation"
+    "temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,"
+    "rain,showers,direct_radiation,dew_point_2m,cloud_cover"
 )
 
 # A track can stay wet for hours after rain stops. We look at accumulated
@@ -312,29 +313,64 @@ async def lookup_weather(
             return None
 
         idx = _find_closest_hour_index(hourly["time"], session_datetime)
+        n_hours = len(hourly["time"])
+        has_full_window = idx >= 12 and idx + 2 < n_hours
 
-        temp_c = hourly["temperature_2m"][idx]
-        humidity = hourly["relative_humidity_2m"][idx]
-        wind_speed = hourly["wind_speed_10m"][idx]
-        wind_dir = hourly["wind_direction_10m"][idx]
-        current_precip = float(hourly["precipitation"][idx])
+        # Prefer new model (rain+showers); fall back to legacy (precipitation)
+        if "rain" in hourly and "dew_point_2m" in hourly and "direct_radiation" in hourly:
+            # Build hourly dict with float lists for the balance model
+            hourly_floats: dict[str, list[float]] = {
+                "rain": [float(v) for v in hourly["rain"]],
+                "showers": [float(v) for v in hourly.get("showers", [0.0] * n_hours)],
+                "temperature_2m": [float(v) for v in hourly["temperature_2m"]],
+                "relative_humidity_2m": [float(v) for v in hourly["relative_humidity_2m"]],
+                "wind_speed_10m": [float(v) for v in hourly["wind_speed_10m"]],
+                "direct_radiation": [float(v) for v in hourly["direct_radiation"]],
+                "dew_point_2m": [float(v) for v in hourly["dew_point_2m"]],
+            }
 
-        accumulated_precip = _sum_lookback_precipitation(
-            hourly["precipitation"],
-            idx,
-            LOOKBACK_HOURS,
-        )
+            peak_water = compute_surface_water(hourly_floats, idx, lookback=12, forward=2)
+            condition = classify_surface_water(peak_water)
 
-        condition = _infer_track_condition(current_precip, accumulated_precip)
+            # Confidence from session window (session hour +/- 3)
+            win_start = max(0, idx - 3)
+            win_end = min(n_hours, idx + 4)
+            cloud_win = [
+                float(v) for v in hourly.get("cloud_cover", [50.0] * n_hours)[win_start:win_end]
+            ]
+            precip_win = [
+                hourly_floats["rain"][i] + hourly_floats["showers"][i]
+                for i in range(win_start, win_end)
+            ]
+            confidence = compute_weather_confidence(cloud_win, precip_win, has_full_window)
+
+            current_precip = hourly_floats["rain"][idx] + hourly_floats["showers"][idx]
+            dew_pt: float | None = float(hourly["dew_point_2m"][idx])
+        else:
+            # Legacy fallback
+            logger.info("Falling back to legacy precipitation classification")
+            current_precip = float(hourly.get("precipitation", [0.0] * n_hours)[idx])
+            accumulated = _sum_lookback_precipitation(
+                hourly.get("precipitation", [0.0] * n_hours),
+                idx,
+                LOOKBACK_HOURS,
+            )
+            condition = _infer_track_condition(current_precip, accumulated)
+            peak_water = None
+            confidence = None
+            dew_pt = None
 
         return SessionConditions(
             track_condition=condition,
-            ambient_temp_c=float(temp_c),
-            humidity_pct=float(humidity),
-            wind_speed_kmh=float(wind_speed),
-            wind_direction_deg=float(wind_dir),
+            ambient_temp_c=float(hourly["temperature_2m"][idx]),
+            humidity_pct=float(hourly["relative_humidity_2m"][idx]),
+            wind_speed_kmh=float(hourly["wind_speed_10m"][idx]),
+            wind_direction_deg=float(hourly["wind_direction_10m"][idx]),
             precipitation_mm=current_precip,
             weather_source="open-meteo",
+            surface_water_mm=peak_water,
+            weather_confidence=confidence,
+            dew_point_c=dew_pt,
         )
 
     except httpx.HTTPStatusError as exc:

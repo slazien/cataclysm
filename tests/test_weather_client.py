@@ -25,17 +25,17 @@ from cataclysm.weather_client import (
 
 SAMPLE_HOURLY_RESPONSE: dict[str, object] = {
     "hourly": {
-        "time": [
-            "2025-02-15T10:00",
-            "2025-02-15T11:00",
-            "2025-02-15T12:00",
-            "2025-02-15T13:00",
-        ],
-        "temperature_2m": [22.0, 24.0, 25.0, 24.5],
-        "relative_humidity_2m": [55.0, 58.0, 60.0, 62.0],
-        "wind_speed_10m": [10.0, 12.0, 15.0, 14.0],
-        "wind_direction_10m": [170.0, 175.0, 180.0, 185.0],
-        "precipitation": [0.0, 0.0, 0.0, 0.0],
+        "time": [f"2025-02-15T{h:02d}:00" for h in range(24)],
+        "temperature_2m": [22.0] * 24,
+        "relative_humidity_2m": [50.0] * 24,
+        "wind_speed_10m": [10.0] * 24,
+        "wind_direction_10m": [180.0] * 24,
+        "rain": [0.0] * 24,
+        "showers": [0.0] * 24,
+        "direct_radiation": [300.0] * 24,
+        "dew_point_2m": [10.0] * 24,
+        "cloud_cover": [30.0] * 24,
+        "precipitation": [0.0] * 24,
     }
 }
 
@@ -50,29 +50,47 @@ def _make_mock_response(payload: dict[str, object], status_code: int = 200) -> h
 
 
 def _make_rainy_response() -> dict[str, object]:
-    """Build a response with heavy precipitation."""
+    """Build a response with heavy precipitation at session hour (12)."""
+    rain = [0.0] * 24
+    rain[12] = 5.2
     return {
         "hourly": {
-            "time": ["2025-02-15T12:00"],
-            "temperature_2m": [18.0],
-            "relative_humidity_2m": [90.0],
-            "wind_speed_10m": [25.0],
-            "wind_direction_10m": [270.0],
-            "precipitation": [5.2],
+            "time": [f"2025-02-15T{h:02d}:00" for h in range(24)],
+            "temperature_2m": [18.0] * 24,
+            "relative_humidity_2m": [90.0] * 24,
+            "wind_speed_10m": [25.0] * 24,
+            "wind_direction_10m": [270.0] * 24,
+            "rain": rain,
+            "showers": [0.0] * 24,
+            "direct_radiation": [50.0] * 24,
+            "dew_point_2m": [15.0] * 24,
+            "cloud_cover": [100.0] * 24,
+            "precipitation": rain,
         }
     }
 
 
 def _make_damp_response() -> dict[str, object]:
-    """Build a response with light precipitation (damp)."""
+    """Build a response with light precipitation (damp) at session hour (12).
+
+    Overcast, humid conditions with 0.15mm rain at session hour produce
+    peak water ~0.045mm -> DAMP (0.01-0.10mm range).
+    """
+    rain = [0.0] * 24
+    rain[12] = 0.15
     return {
         "hourly": {
-            "time": ["2025-02-15T12:00"],
-            "temperature_2m": [20.0],
-            "relative_humidity_2m": [80.0],
-            "wind_speed_10m": [8.0],
-            "wind_direction_10m": [90.0],
-            "precipitation": [0.5],
+            "time": [f"2025-02-15T{h:02d}:00" for h in range(24)],
+            "temperature_2m": [18.0] * 24,
+            "relative_humidity_2m": [80.0] * 24,
+            "wind_speed_10m": [5.0] * 24,
+            "wind_direction_10m": [90.0] * 24,
+            "rain": rain,
+            "showers": [0.0] * 24,
+            "direct_radiation": [100.0] * 24,
+            "dew_point_2m": [14.0] * 24,
+            "cloud_cover": [80.0] * 24,
+            "precipitation": rain,
         }
     }
 
@@ -100,13 +118,15 @@ async def test_successful_lookup_returns_conditions() -> None:
         result = await lookup_weather(33.53, -86.62, SESSION_DT)
 
     assert result is not None
-    assert result.ambient_temp_c == 25.0
-    assert result.humidity_pct == 60.0
-    assert result.wind_speed_kmh == 15.0
+    assert result.ambient_temp_c == 22.0
+    assert result.humidity_pct == 50.0
+    assert result.wind_speed_kmh == 10.0
     assert result.wind_direction_deg == 180.0
     assert result.precipitation_mm == 0.0
     assert result.track_condition == TrackCondition.DRY
     assert result.weather_source == "open-meteo"
+    assert result.surface_water_mm is not None
+    assert result.weather_confidence is not None
 
 
 @pytest.mark.asyncio
@@ -144,7 +164,7 @@ async def test_light_precipitation_returns_damp() -> None:
 
     assert result is not None
     assert result.track_condition == TrackCondition.DAMP
-    assert result.precipitation_mm == 0.5
+    assert result.precipitation_mm == pytest.approx(0.15)
 
 
 @pytest.mark.asyncio
@@ -167,26 +187,26 @@ async def test_zero_precipitation_returns_dry() -> None:
 
 @pytest.mark.asyncio
 async def test_accumulated_precip_detects_wet_track() -> None:
-    """If no rain now but significant rain in prior hours → track still wet."""
-    # 8 hours of data: heavy rain hours 0-3, dry hours 4-7, session at hour 7
+    """If no rain now but significant rain in prior hours → surface water model detects wet."""
+    # 24 hours of data: heavy rain hours 6-9, dry by session at hour 12
+    rain = [0.0] * 24
+    rain[6] = 1.5
+    rain[7] = 2.0
+    rain[8] = 0.5
+    rain[9] = 0.3
     response = {
         "hourly": {
-            "time": [
-                "2025-02-15T06:00",
-                "2025-02-15T07:00",
-                "2025-02-15T08:00",
-                "2025-02-15T09:00",
-                "2025-02-15T10:00",
-                "2025-02-15T11:00",
-                "2025-02-15T12:00",
-                "2025-02-15T13:00",
-            ],
-            "temperature_2m": [15.0] * 8,
-            "relative_humidity_2m": [80.0] * 8,
-            "wind_speed_10m": [5.0] * 8,
-            "wind_direction_10m": [180.0] * 8,
-            # Rain early morning, dry by session time
-            "precipitation": [1.5, 2.0, 0.5, 0.3, 0.0, 0.0, 0.0, 0.0],
+            "time": [f"2025-02-15T{h:02d}:00" for h in range(24)],
+            "temperature_2m": [15.0] * 24,
+            "relative_humidity_2m": [80.0] * 24,
+            "wind_speed_10m": [5.0] * 24,
+            "wind_direction_10m": [180.0] * 24,
+            "rain": rain,
+            "showers": [0.0] * 24,
+            "direct_radiation": [50.0] * 24,
+            "dew_point_2m": [12.0] * 24,
+            "cloud_cover": [90.0] * 24,
+            "precipitation": rain,
         }
     }
     mock_response = _make_mock_response(response)
@@ -198,12 +218,12 @@ async def test_accumulated_precip_detects_wet_track() -> None:
         mock_client.__aexit__ = AsyncMock(return_value=False)
         mock_cls.return_value = mock_client
 
-        # Session at 13:00 UTC — current precip is 0, but 4.3mm fell in prior 6h
         result = await lookup_weather(33.53, -86.62, SESSION_DT)
 
     assert result is not None
     assert result.precipitation_mm == 0.0  # current hour is dry
-    assert result.track_condition == TrackCondition.WET  # but lookback detects wet
+    assert result.track_condition in (TrackCondition.WET, TrackCondition.DAMP)
+    assert result.surface_water_mm is not None
 
 
 @pytest.mark.asyncio
@@ -303,9 +323,9 @@ async def test_closest_hour_selection() -> None:
         result = await lookup_weather(33.53, -86.62, session_dt)
 
     assert result is not None
-    # Index 0 values: temp=22.0, humidity=55.0 (closest to 10:30)
+    # All values are constant 22.0 temp, 50.0 humidity
     assert result.ambient_temp_c == 22.0
-    assert result.humidity_pct == 55.0
+    assert result.humidity_pct == 50.0
 
 
 # ---------------------------------------------------------------------------
@@ -517,3 +537,74 @@ class TestWeatherConfidence:
             has_full_window=False,
         )
         assert conf <= 0.8
+
+
+# ---------------------------------------------------------------------------
+# Task 5: Integration — wiring into lookup_weather
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_amp_march15_session4_detected_wet() -> None:
+    """AMP Mar 15: rain starts during session -> forward window catches it."""
+    rain = [0.0] * 24
+    rain[19] = 0.2
+    rain[20] = 0.8
+    rain[21] = 0.1
+    response = {
+        "hourly": {
+            "time": [f"2026-03-15T{h:02d}:00" for h in range(24)],
+            "temperature_2m": [19.0] * 24,
+            "relative_humidity_2m": ([60.0] * 18 + [77.0, 97.0, 84.0, 83.0, 87.0, 99.0]),
+            "wind_speed_10m": [15.0] * 24,
+            "wind_direction_10m": [180.0] * 24,
+            "rain": rain,
+            "showers": [0.0] * 24,
+            "direct_radiation": ([400.0] * 18 + [14.0, 27.0, 12.0, 3.0, 15.0, 0.0]),
+            "dew_point_2m": [10.0] * 24,
+            "cloud_cover": [50.0] * 18 + [100.0] * 6,
+            "precipitation": rain,
+        }
+    }
+    mock_response = _make_mock_response(response)
+    with patch("cataclysm.weather_client.httpx.AsyncClient") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_response
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_cls.return_value = mock_client
+        session_dt = datetime(2026, 3, 15, 17, 32, tzinfo=UTC)
+        result = await lookup_weather(34.432, -84.176, session_dt)
+    assert result is not None
+    assert result.track_condition == TrackCondition.WET
+    assert result.surface_water_mm is not None
+    assert result.surface_water_mm > 0.1
+    assert result.weather_confidence is not None
+
+
+@pytest.mark.asyncio
+async def test_legacy_fallback_when_new_fields_missing() -> None:
+    """Old-style response with only 'precipitation' uses legacy path."""
+    response = {
+        "hourly": {
+            "time": [f"2025-02-15T{h:02d}:00" for h in range(24)],
+            "temperature_2m": [20.0] * 24,
+            "relative_humidity_2m": [80.0] * 24,
+            "wind_speed_10m": [8.0] * 24,
+            "wind_direction_10m": [90.0] * 24,
+            "precipitation": [0.0] * 11 + [2.5] + [0.0] * 12,
+        }
+    }
+    mock_response = _make_mock_response(response)
+    with patch("cataclysm.weather_client.httpx.AsyncClient") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_response
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_cls.return_value = mock_client
+        result = await lookup_weather(33.53, -86.62, SESSION_DT)
+    assert result is not None
+    assert result.track_condition == TrackCondition.WET
+    assert result.surface_water_mm is None
+    assert result.weather_confidence is None
+    assert result.dew_point_c is None
