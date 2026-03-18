@@ -12,16 +12,19 @@ from cataclysm.llm_gateway import (
     call_text_completion,
     get_recent_usage_events,
     get_usage_summary,
+    set_routing_enabled_override,
     set_task_route_cache,
 )
 
 
 @pytest.fixture(autouse=True)
-def _clean_task_route_cache() -> Iterator[None]:
-    """Ensure task route cache doesn't leak between tests."""
+def _clean_llm_gateway_state() -> Iterator[None]:
+    """Ensure task route cache and routing override don't leak between tests."""
     set_task_route_cache({})
+    set_routing_enabled_override(None, source="test-reset")
     yield
     set_task_route_cache({})
+    set_routing_enabled_override(None, source="test-reset")
 
 
 def _clear_events() -> None:

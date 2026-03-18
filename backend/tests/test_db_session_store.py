@@ -234,8 +234,8 @@ class TestStoreSessionDb:
         assert q["is_usable"] is True
 
     @pytest.mark.asyncio
-    async def test_snapshot_json_none_when_no_extras(self) -> None:
-        """Without weather/gps, snapshot_json is None (not an empty dict)."""
+    async def test_snapshot_json_minimal_when_no_extras(self) -> None:
+        """Without weather/gps, snapshot_json has only session_date_display."""
         parsed = _make_parsed_without_gps()
         sd = _make_session_data(weather=None, gps_quality=None, parsed=parsed)
 
@@ -246,7 +246,12 @@ class TestStoreSessionDb:
         async with _test_session_factory() as db:
             rows = await list_sessions_for_user(db, _TEST_USER.user_id)
 
-        assert rows[0].snapshot_json is None
+        snap = rows[0].snapshot_json
+        # session_date_display is always persisted; weather/gps keys absent
+        assert snap is not None
+        assert "session_date_display" in snap
+        assert "weather" not in snap
+        assert "gps_quality" not in snap
 
     @pytest.mark.asyncio
     async def test_merge_semantics_on_re_upload(self) -> None:

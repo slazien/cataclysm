@@ -629,6 +629,8 @@ async def list_sessions(
             )
             w_data = snap.get("weather")
             gps_data = snap.get("gps_quality")
+            score_data = snap.get("scores")
+            eq_data = snap.get("equipment")
             items.append(
                 SessionSummary(
                     session_id=row.session_id,
@@ -640,8 +642,16 @@ async def list_sessions(
                     top3_avg_time_s=row.top3_avg_time_s,
                     avg_lap_time_s=row.avg_lap_time_s,
                     consistency_score=row.consistency_score,
+                    session_score=score_data.get("total") if score_data else None,
+                    score_consistency=score_data.get("consistency") if score_data else None,
+                    score_pace=score_data.get("pace") if score_data else None,
+                    score_technique=score_data.get("technique") if score_data else None,
+                    optimal_lap_time_s=score_data.get("optimal_lap_time_s") if score_data else None,
                     gps_quality_score=gps_data.get("overall_score") if gps_data else None,
                     gps_quality_grade=gps_data.get("grade") if gps_data else None,
+                    tire_model=eq_data.get("tire_model") if eq_data else None,
+                    compound_category=eq_data.get("compound_category") if eq_data else None,
+                    equipment_profile_name=eq_data.get("profile_name") if eq_data else None,
                     weather_temp_c=w_data.get("ambient_temp_c") if w_data else None,
                     weather_condition=w_data.get("track_condition") if w_data else None,
                     weather_humidity_pct=w_data.get("humidity_pct") if w_data else None,

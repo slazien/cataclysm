@@ -99,6 +99,19 @@ def _reset_coaching_validator() -> None:
     _coaching_mod._validator = None
 
 
+@pytest.fixture(autouse=True)
+def _reset_llm_routing_override() -> None:
+    """Clear LLM routing override between tests.
+
+    The global ``_ROUTING_ENABLED_OVERRIDE`` in llm_gateway persists across
+    tests in the same process. Tests that set ``LLM_ROUTING_ENABLED`` via
+    env var expect the override to be ``None`` so the env var takes effect.
+    """
+    from cataclysm.llm_gateway import set_routing_enabled_override
+
+    set_routing_enabled_override(None, source="test-reset")
+
+
 @pytest.fixture
 def racechrono_csv_text() -> str:
     """Minimal valid RaceChrono CSV v3 text with 2 laps."""
