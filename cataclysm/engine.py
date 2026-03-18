@@ -19,11 +19,11 @@ MAX_LAP_TIME_RATIO = 1.5  # laps > 1.5× median time are anomalous (pit stops, r
 # Columns safe to store as float32 (noise floor exceeds float32 precision).
 # MUST NOT include: lap_distance_m, lap_time_s, curvature, abs_curvature,
 # optimal_speed_mps, e, n — these need float64 for precision.
+# lat/lon excluded: float32 at lat≈33° has ~0.44m granularity, which causes
+# catastrophic cancellation in gps_quality.py lateral scatter (sub-meter diffs).
 _FLOAT32_SAFE_COLUMNS: frozenset[str] = frozenset(
     {
         "speed_mps",
-        "lat",
-        "lon",
         "altitude_m",
         "lateral_g",
         "longitudinal_g",

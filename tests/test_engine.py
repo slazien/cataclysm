@@ -572,8 +572,6 @@ class TestFloat32Downcast:
     FLOAT32_COLUMNS = frozenset(
         {
             "speed_mps",
-            "lat",
-            "lon",
             "altitude_m",
             "lateral_g",
             "longitudinal_g",
@@ -663,6 +661,6 @@ class TestFloat32Downcast:
         )
         result = _downcast_telemetry(df)
         assert result["speed_mps"].dtype == np.float32
-        assert result["lat"].dtype == np.float32
+        assert result["lat"].dtype == np.float64  # lat excluded: sub-meter precision needed
         assert result["lap_distance_m"].dtype == np.float64
         assert result["lap_time_s"].dtype == np.float64
