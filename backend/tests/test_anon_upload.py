@@ -658,6 +658,21 @@ class TestAnonUploadEndpoint:
         mock_rl.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_csv_bytes_cleared_after_upload(
+        self, client: AsyncClient, synthetic_csv_bytes: bytes, _anon_user: None
+    ) -> None:
+        """csv_bytes on SessionData should be None after upload — DB has the copy."""
+        response = await client.post(
+            "/api/sessions/upload",
+            files=[("files", ("test.csv", synthetic_csv_bytes, "text/csv"))],
+        )
+        assert response.status_code == 200
+        sid = response.json()["session_ids"][0]
+        sd = session_store.get_session(sid)
+        assert sd is not None
+        assert sd.csv_bytes is None, "csv_bytes should be cleared after DB persistence"
+
+    @pytest.mark.asyncio
     async def test_anonymous_session_is_retrievable_by_id(
         self, client: AsyncClient, synthetic_csv_bytes: bytes, _anon_user: None
     ) -> None:

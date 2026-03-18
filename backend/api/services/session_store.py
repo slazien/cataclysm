@@ -62,7 +62,7 @@ class SessionData:
     layout: TrackLayout | None = None
     # Corner override content hash (None = no override or pre-versioning)
     corner_override_version: str | None = None
-    # Raw CSV bytes retained for anonymous sessions so they can be persisted on claim
+    # Transient: nulled after DB persistence. Only DB copy (SessionFileModel) is authoritative.
     csv_bytes: bytes | None = field(default=None, repr=False)
 
 

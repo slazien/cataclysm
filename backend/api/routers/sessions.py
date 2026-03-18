@@ -418,6 +418,8 @@ async def upload_sessions(
                         )
                     )
                     await db.commit()
+                    # Free in-memory CSV bytes — DB has the authoritative copy
+                    sd.csv_bytes = None
                 except SQLAlchemyError:
                     logger.warning("Failed to persist CSV bytes for %s", sid, exc_info=True)
                     await db.rollback()
