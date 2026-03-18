@@ -264,6 +264,92 @@ async def _ensure_track_references() -> int:
     return built
 
 
+async def _backfill_sidebar_scores() -> int:
+    """Backfill snapshot_json.scores for sessions that lack persisted scores.
+
+    Temporarily rehydrates each session (via process_upload) to compute scores,
+    persists them to snapshot_json, then evicts the session from memory to keep
+    RAM stable.  Does NOT trigger auto-coaching.
+    """
+    from sqlalchemy import select
+
+    from backend.api.db.database import async_session_factory
+    from backend.api.db.models import Session as SessionModel
+    from backend.api.db.models import SessionFile as SessionFileModel
+    from backend.api.routers.sessions import _compute_session_score, _equipment_fields
+    from backend.api.routers.sessions import (
+        _persist_sidebar_fields as persist_sidebar,
+    )
+    from backend.api.services.pipeline import process_upload
+    from backend.api.services.session_store import delete_session, get_session
+
+    backfilled = 0
+    try:
+        async with async_session_factory() as db:
+            # Find sessions missing scores in snapshot_json
+            result = await db.execute(select(SessionModel).where(SessionModel.user_id.isnot(None)))
+            rows = result.scalars().all()
+            missing = [r for r in rows if not (r.snapshot_json or {}).get("scores")]
+
+            if not missing:
+                return 0
+
+            logger.info("Score backfill: %d session(s) need scores", len(missing))
+
+            for row in missing:
+                # Check if already in memory (from rehydration)
+                already_in_memory = get_session(row.session_id) is not None
+
+                if not already_in_memory:
+                    # Need CSV bytes to rehydrate
+                    sf_result = await db.execute(
+                        select(SessionFileModel).where(
+                            SessionFileModel.session_id == row.session_id
+                        )
+                    )
+                    sf_row = sf_result.scalar_one_or_none()
+                    if sf_row is None:
+                        continue
+
+                    try:
+                        await process_upload(sf_row.csv_bytes, sf_row.filename)
+                    except (ValueError, KeyError, IndexError, OSError) as exc:
+                        logger.warning(
+                            "Score backfill: failed to rehydrate %s: %s",
+                            row.session_id,
+                            exc,
+                        )
+                        continue
+
+                sd = get_session(row.session_id)
+                if sd is None:
+                    continue
+
+                try:
+                    score = await _compute_session_score(sd)
+                    tire_model, compound_category, profile_name = _equipment_fields(sd.session_id)
+                    await persist_sidebar(
+                        db, sd.session_id, score, tire_model, compound_category, profile_name
+                    )
+                    await db.commit()
+                    backfilled += 1
+                except Exception:
+                    logger.warning(
+                        "Score backfill: failed to compute/persist for %s",
+                        row.session_id,
+                        exc_info=True,
+                    )
+
+                # Evict from memory if we loaded it just for backfill
+                if not already_in_memory:
+                    delete_session(row.session_id)
+
+    except (SQLAlchemyError, OSError):
+        logger.warning("Score backfill failed", exc_info=True)
+
+    return backfilled
+
+
 async def _reload_sessions_from_disk() -> int:
     """Re-process CSV files from the data directory into the in-memory store.
 
@@ -468,6 +554,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     n_refs = await _ensure_track_references()
     if n_refs:
         logger.info("Built %d missing track reference(s) at startup", n_refs)
+
+    # Backfill sidebar scores for sessions that predate score persistence
+    n_backfilled = await _backfill_sidebar_scores()
+    if n_backfilled:
+        logger.info("Backfilled sidebar scores for %d session(s)", n_backfilled)
 
     # Clean up any expired anonymous sessions from a previous run
     from backend.api.services.session_store import cleanup_expired_anonymous, list_sessions
