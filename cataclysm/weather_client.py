@@ -1,12 +1,23 @@
 """Async client for the Open-Meteo weather API.
 
 Fetches historical or forecast weather data for a given GPS coordinate and
-datetime, then maps it to a :class:`~cataclysm.equipment.SessionConditions`
-dataclass.  The API is free and requires no API key.
+datetime, then classifies the track surface condition (dry/damp/wet) using
+a physics-based surface water balance model.
+
+The model tracks effective surface water as a time series over a 12-hour
+lookback + 2-hour forward window, accounting for:
+- Precipitation (rain + showers)
+- Evaporation (bulk-transfer: VPD x wind + radiation boost)
+- Runoff (exponential drainage above asphalt holding capacity)
+- Condensation (dew formation when near dew point)
 
 Two endpoints are used depending on session age:
 - **Forecast** (``api.open-meteo.com``) for sessions within the last ~16 days.
 - **Historical** (``archive-api.open-meteo.com``) for older sessions.
+
+Falls back to legacy precipitation-threshold classification when the API
+response lacks the required fields (rain, showers, dew_point_2m,
+direct_radiation).
 """
 
 from __future__ import annotations
@@ -31,16 +42,10 @@ HOURLY_PARAMS = (
     "rain,showers,direct_radiation,dew_point_2m,cloud_cover"
 )
 
-# A track can stay wet for hours after rain stops. We look at accumulated
-# precipitation over this many hours *before* the session to detect residual
-# surface water that the current-hour reading would miss.
+# --- Legacy fallback constants (used when new API fields unavailable) ---
 LOOKBACK_HOURS = 6
-
-# Thresholds for accumulated precipitation (over LOOKBACK_HOURS)
 ACCUMULATED_WET_MM = 2.0
 ACCUMULATED_DAMP_MM = 0.5
-
-# Thresholds for current-hour precipitation (instant reading)
 INSTANT_WET_MM = 1.0
 INSTANT_DAMP_MM = 0.1
 
@@ -213,6 +218,9 @@ def _pick_api_url(session_dt: datetime) -> str:
     if (now - session_dt) <= timedelta(days=FORECAST_WINDOW_DAYS):
         return FORECAST_URL
     return ARCHIVE_URL
+
+
+# --- Legacy fallback (used when new API fields unavailable) ---
 
 
 def _infer_track_condition(
