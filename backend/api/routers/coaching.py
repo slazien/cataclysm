@@ -585,6 +585,33 @@ async def _run_generation(
 
         await store_coaching_report(session_id, response, skill_level)
         logger.info("Coaching generation COMPLETED for %s", session_id)
+
+        # Persist scores to snapshot_json so sidebar shows them after restart
+        try:
+            from backend.api.db.database import async_session_factory
+            from backend.api.routers.sessions import (
+                _compute_session_score,
+                _equipment_fields,
+                _persist_sidebar_fields,
+            )
+
+            score = await _compute_session_score(sd)
+            tire_model, compound_category, profile_name = _equipment_fields(session_id)
+            async with async_session_factory() as db_session:
+                await _persist_sidebar_fields(
+                    db_session,
+                    session_id,
+                    score,
+                    tire_model,
+                    compound_category,
+                    profile_name,
+                )
+        except Exception:  # noqa: BLE001
+            logger.debug(
+                "Failed to persist scores after coaching for %s",
+                session_id,
+                exc_info=True,
+            )
     except Exception:  # noqa: BLE001 — intentionally broad for background task resilience
         logger.exception("Failed to generate coaching report for %s", session_id)
         await store_coaching_report(
