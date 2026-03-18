@@ -240,6 +240,16 @@ def _patch_coaching_db_factory() -> Generator[None, None, None]:
 
 
 @pytest.fixture(autouse=True)
+def _patch_physics_cache_db_factory() -> Generator[None, None, None]:
+    """Route physics cache DB writes to the test SQLite database."""
+    with patch(
+        "backend.api.services.db_physics_cache.async_session_factory",
+        _test_session_factory,
+    ):
+        yield
+
+
+@pytest.fixture(autouse=True)
 def _mock_auth() -> Generator[None, None, None]:
     """Override the auth dependency so all test requests are authenticated."""
     from backend.api.routers.admin import require_admin

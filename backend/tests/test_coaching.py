@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import math
 from unittest.mock import patch
 
@@ -442,7 +443,10 @@ async def test_trigger_auto_coaching_fires_task_when_no_report(client: AsyncClie
     ):
         await trigger_auto_coaching(session_id, sd)
         mock_track.assert_called_once()
-        await asyncio.sleep(0.01)
+        # Await the background task to prevent CancelledError at teardown
+        task = mock_track.call_args[0][0]
+        with contextlib.suppress(Exception):
+            await task
 
 
 # ---------------------------------------------------------------------------
