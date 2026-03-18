@@ -10,7 +10,12 @@ import { useAnalysisStore, useSessionStore } from '@/stores';
 import { CircularProgress } from '@/components/shared/CircularProgress';
 import { colors } from '@/lib/design-tokens';
 import { worstGrade } from '@/lib/gradeUtils';
-import { computeProjection, applyProjection, interpolateCursorPosition } from '@/lib/trackProjection';
+import {
+  computeProjection,
+  applyProjection,
+  interpolateCursorPosition,
+  computeGhostDistance,
+} from '@/lib/trackProjection';
 // GradeChip cannot be used inside SVG <foreignObject> reliably, so grade badges are rendered inline
 import type { Corner, LapData, DeltaData, CornerGrade } from '@/lib/types';
 
@@ -175,11 +180,11 @@ export function TrackMapInteractive({ sessionId }: TrackMapInteractiveProps) {
   const lapData = lapDataArr[0] ?? null;
   const compLapData = lapDataArr.length >= 2 ? lapDataArr[1] : null;
 
-  const { projected, segments, cornerLabels, sfLine, compPolyline } = useMemo(() => {
+  const { projected, segments, cornerLabels, sfLine, compPolyline, compProjected } = useMemo(() => {
     if (!lapData || !corners) {
       return {
         projected: null, segments: [], cornerLabels: [],
-        sfLine: null, compPolyline: null,
+        sfLine: null, compPolyline: null, compProjected: null,
       };
     }
 
@@ -192,7 +197,7 @@ export function TrackMapInteractive({ sessionId }: TrackMapInteractiveProps) {
     if (!projParams) {
       return {
         projected: null, segments: [], cornerLabels: [],
-        sfLine: null, compPolyline: null,
+        sfLine: null, compPolyline: null, compProjected: null,
       };
     }
 
@@ -220,19 +225,18 @@ export function TrackMapInteractive({ sessionId }: TrackMapInteractiveProps) {
 
     // Project comparison lap using same coordinate frame
     let compPolyline: string | null = null;
-    if (compLapData) {
-      const compProj = applyProjection(
-        compLapData.lat, compLapData.lon, projParams,
-      );
-      if (compProj.x.length >= 2) {
-        const pts = compProj.x.map((x, i) => `${x},${compProj.y[i]}`);
-        compPolyline = 'M' + pts.join('L');
-      }
+    const compProj = compLapData
+      ? applyProjection(compLapData.lat, compLapData.lon, projParams)
+      : null;
+    if (compProj && compProj.x.length >= 2) {
+      const { x: cx, y: cy } = compProj;
+      const pts = cx.map((xv, i) => `${xv},${cy[i]}`);
+      compPolyline = 'M' + pts.join('L');
     }
 
     return {
       projected: proj, segments: segs, cornerLabels: labels,
-      sfLine, compPolyline,
+      sfLine, compPolyline, compProjected: compProj,
     };
   }, [lapData, compLapData, corners, delta, report]);
 
@@ -240,6 +244,16 @@ export function TrackMapInteractive({ sessionId }: TrackMapInteractiveProps) {
     if (cursorDistance === null || !lapData || !projected) return null;
     return interpolateCursorPosition(cursorDistance, lapData, projected);
   }, [cursorDistance, lapData, projected]);
+
+  // Ghost dot: where the comparison lap would be at the same elapsed time
+  const ghostPos = useMemo(() => {
+    if (cursorDistance === null || !lapData || !compLapData || !compProjected) return null;
+    const ghostDist = computeGhostDistance(cursorDistance, lapData, compLapData);
+    if (ghostDist === null) return null;
+    return interpolateCursorPosition(ghostDist, compLapData, compProjected);
+  }, [cursorDistance, lapData, compLapData, compProjected]);
+
+  const isComparing = compLapData !== null;
 
   const handleCornerClick = (cornerNumber: number) => {
     const cornerId = `T${cornerNumber}`;
@@ -392,13 +406,33 @@ export function TrackMapInteractive({ sessionId }: TrackMapInteractiveProps) {
           );
         })}
 
-        {/* Animated cursor dot */}
+        {/* Ghost dot (comparison lap position at same elapsed time) */}
+        {ghostPos && (
+          <circle
+            cx={ghostPos.cx}
+            cy={ghostPos.cy}
+            r={4}
+            fill={colors.comparison.compare}
+            stroke="#fff"
+            strokeWidth={1.5}
+            opacity={0.7}
+          >
+            <animate
+              attributeName="r"
+              values="3;5;3"
+              dur="1s"
+              repeatCount="indefinite"
+            />
+          </circle>
+        )}
+
+        {/* Animated cursor dot — blue when comparing, green when single lap */}
         {cursorPos && (
           <circle
             cx={cursorPos.cx}
             cy={cursorPos.cy}
             r={5}
-            fill={colors.motorsport.optimal}
+            fill={isComparing ? colors.comparison.reference : colors.motorsport.optimal}
             stroke="#fff"
             strokeWidth={1.5}
           >

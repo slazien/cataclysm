@@ -36,6 +36,7 @@ export function useAutoReport(sessionId: string | null): UseAutoReportResult {
   const queryClient = useQueryClient();
   const skillLevel = useUiStore((s) => s.skillLevel);
   const hasTriggered = useRef(false);
+  const wasReady = useRef(false);
 
   const generateReportRef = useRef(generateReport);
   useEffect(() => { generateReportRef.current = generateReport; });
@@ -57,7 +58,20 @@ export function useAutoReport(sessionId: string | null): UseAutoReportResult {
   // Reset trigger flag when session changes
   useEffect(() => {
     hasTriggered.current = false;
+    wasReady.current = false;
   }, [sessionId]);
+
+  const isGenerating = report?.status === 'generating' || generateReport.isPending;
+  const hasError = generateReport.isError || report?.status === 'error';
+  const isReady = report?.status === 'ready';
+
+  // When coaching transitions generating → ready, refresh sessions list so sidebar scores update
+  useEffect(() => {
+    if (isReady && !wasReady.current) {
+      void queryClient.invalidateQueries({ queryKey: ['sessions'] });
+    }
+    wasReady.current = isReady;
+  }, [isReady, queryClient]);
 
   const retry = useCallback(() => {
     if (sessionId !== null) {
@@ -76,10 +90,6 @@ export function useAutoReport(sessionId: string | null): UseAutoReportResult {
       });
     }
   }, [sessionId, skillLevel, queryClient]);
-
-  const isGenerating = report?.status === 'generating' || generateReport.isPending;
-  const hasError = generateReport.isError || report?.status === 'error';
-  const isReady = report?.status === 'ready';
 
   // Detect mismatch between report's skill level and current user setting
   const isSkillMismatch =
