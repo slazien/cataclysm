@@ -13,6 +13,7 @@ from cataclysm.weather_client import (
     compute_condensation,
     compute_evaporation_rate,
     compute_runoff,
+    compute_surface_water,
     lookup_weather,
 )
 
@@ -371,3 +372,94 @@ class TestCondensation:
     def test_condensation_small_magnitude(self) -> None:
         rate = compute_condensation(temp_c=8.0, dew_point_c=7.0, wind_kmh=10.0)
         assert 0.0 < rate < 0.1
+
+
+# ---------------------------------------------------------------------------
+# Task 3: Surface water balance model
+# ---------------------------------------------------------------------------
+
+
+def _make_hourly_data(n_hours: int, **overrides: list[float]) -> dict[str, list[float]]:
+    """Build synthetic hourly data for n hours."""
+    defaults: dict[str, list[float]] = {
+        "rain": [0.0] * n_hours,
+        "showers": [0.0] * n_hours,
+        "temperature_2m": [20.0] * n_hours,
+        "relative_humidity_2m": [50.0] * n_hours,
+        "wind_speed_10m": [10.0] * n_hours,
+        "direct_radiation": [300.0] * n_hours,
+        "dew_point_2m": [10.0] * n_hours,
+    }
+    defaults.update(overrides)
+    return defaults
+
+
+class TestSurfaceWaterBalance:
+    """Tests for compute_surface_water."""
+
+    def test_surface_water_dry_stays_dry(self) -> None:
+        data = _make_hourly_data(24)
+        peak = compute_surface_water(data, session_idx=20, lookback=12, forward=2)
+        assert peak == pytest.approx(0.0)
+
+    def test_surface_water_active_rain(self) -> None:
+        rain = [0.0] * 24
+        rain[20] = 2.0
+        rain[21] = 1.0
+        data = _make_hourly_data(24, rain=rain)
+        peak = compute_surface_water(data, session_idx=20, lookback=12, forward=2)
+        assert peak > 0.5
+
+    def test_surface_water_rain_before_sunshine_dries(self) -> None:
+        rain = [0.0] * 24
+        rain[10] = 1.0
+        data = _make_hourly_data(
+            24,
+            rain=rain,
+            temperature_2m=[25.0] * 24,
+            relative_humidity_2m=[40.0] * 24,
+            wind_speed_10m=[15.0] * 24,
+            direct_radiation=[500.0] * 24,
+        )
+        peak = compute_surface_water(data, session_idx=20, lookback=12, forward=2)
+        assert peak < 0.05
+
+    def test_surface_water_rain_before_overcast_stays_damp(self) -> None:
+        rain = [0.0] * 24
+        rain[16] = 0.5
+        data = _make_hourly_data(
+            24,
+            rain=rain,
+            temperature_2m=[15.0] * 24,
+            relative_humidity_2m=[90.0] * 24,
+            wind_speed_10m=[5.0] * 24,
+            direct_radiation=[50.0] * 24,
+        )
+        peak = compute_surface_water(data, session_idx=20, lookback=12, forward=2)
+        assert peak > 0.01
+
+    def test_surface_water_forward_window_catches_rain(self) -> None:
+        rain = [0.0] * 24
+        rain[21] = 1.5
+        data = _make_hourly_data(24, rain=rain)
+        peak = compute_surface_water(data, session_idx=20, lookback=12, forward=2)
+        assert peak > 0.5
+
+    def test_surface_water_dew_overnight(self) -> None:
+        data = _make_hourly_data(
+            24,
+            temperature_2m=[8.0] * 24,
+            relative_humidity_2m=[98.0] * 24,
+            dew_point_2m=[7.5] * 24,
+            direct_radiation=[0.0] * 24,
+            wind_speed_10m=[3.0] * 24,
+        )
+        peak = compute_surface_water(data, session_idx=20, lookback=12, forward=2)
+        assert peak > 0.0
+
+    def test_surface_water_heavy_rain_runoff(self) -> None:
+        rain = [5.0] * 24
+        data = _make_hourly_data(24, rain=rain, relative_humidity_2m=[95.0] * 24)
+        peak = compute_surface_water(data, session_idx=20, lookback=12, forward=2)
+        # Runoff should cap accumulation well below total input (60mm over 12h)
+        assert peak < 15.0

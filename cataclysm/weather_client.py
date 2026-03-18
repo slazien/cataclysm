@@ -112,6 +112,52 @@ def compute_condensation(
     return _DEW_COEFF * wind_ms * fraction
 
 
+# ---------------------------------------------------------------------------
+# Surface water balance model
+# ---------------------------------------------------------------------------
+
+
+def compute_surface_water(
+    hourly: dict[str, list[float]],
+    session_idx: int,
+    lookback: int = 12,
+    forward: int = 2,
+) -> float:
+    """Compute peak surface water (mm) during the session window.
+
+    Steps hourly through (session_idx - lookback) to (session_idx + forward),
+    maintaining W(t) = max(0, W(t-1) + precipitation + condensation
+                              - evaporation - runoff).
+    Returns max W observed during session window (indices >= session_idx).
+    """
+    n = len(hourly["rain"])
+    start = max(0, session_idx - lookback)
+    end = min(n, session_idx + forward + 1)
+
+    water = 0.0
+    peak_session = 0.0
+
+    for i in range(start, end):
+        precip = float(hourly["rain"][i]) + float(hourly.get("showers", [0.0] * n)[i])
+        evap = compute_evaporation_rate(
+            temp_c=float(hourly["temperature_2m"][i]),
+            rh_pct=float(hourly["relative_humidity_2m"][i]),
+            wind_kmh=float(hourly["wind_speed_10m"][i]),
+            radiation_wm2=float(hourly["direct_radiation"][i]),
+        )
+        cond = compute_condensation(
+            temp_c=float(hourly["temperature_2m"][i]),
+            dew_point_c=float(hourly["dew_point_2m"][i]),
+            wind_kmh=float(hourly["wind_speed_10m"][i]),
+        )
+        ro = compute_runoff(water)
+        water = max(0.0, water + precip + cond - evap - ro)
+        if i >= session_idx:
+            peak_session = max(peak_session, water)
+
+    return round(peak_session, 4)
+
+
 def _pick_api_url(session_dt: datetime) -> str:
     """Return the forecast or archive URL based on session age."""
     now = datetime.now(UTC)
