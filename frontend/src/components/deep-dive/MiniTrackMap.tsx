@@ -9,6 +9,7 @@ import {
   computeProjection,
   applyProjection,
   interpolateCursorPosition,
+  computeGhostDistance,
 } from '@/lib/trackProjection';
 
 const MINI_W = 144;
@@ -61,22 +62,20 @@ export function MiniTrackMap({ sessionId, trackMapRef }: MiniTrackMapProps) {
   // Fetch lap data — React Query deduplicates with the main TrackMapInteractive
   const { data: lapDataArr } = useMultiLapData(sessionId, selectedLaps);
   const lapData = lapDataArr?.[0] ?? null;
+  const compLapData = lapDataArr && lapDataArr.length >= 2 ? lapDataArr[1] : null;
 
   // Build simplified track outline (single polyline, no segments/colors)
-  const { projected, polyline } = useMemo(() => {
-    if (!lapData) return { projected: null, polyline: null };
+  const { projected, polyline, compProjected } = useMemo(() => {
+    if (!lapData) return { projected: null, polyline: null, compProjected: null };
 
-    const proj = computeProjection(
-      [lapData.lat],
-      [lapData.lon],
-      MINI_W,
-      MINI_H,
-      MINI_PAD,
-    );
-    if (!proj) return { projected: null, polyline: null };
+    // Include both laps in projection bounds for consistent coordinate frame
+    const allLats = compLapData ? [lapData.lat, compLapData.lat] : [lapData.lat];
+    const allLons = compLapData ? [lapData.lon, compLapData.lon] : [lapData.lon];
+    const proj = computeProjection(allLats, allLons, MINI_W, MINI_H, MINI_PAD);
+    if (!proj) return { projected: null, polyline: null, compProjected: null };
 
     const pts = applyProjection(lapData.lat, lapData.lon, proj);
-    if (pts.x.length < 2) return { projected: null, polyline: null };
+    if (pts.x.length < 2) return { projected: null, polyline: null, compProjected: null };
 
     // Downsample for performance — keep every Nth point
     const step = Math.max(1, Math.floor(pts.x.length / 200));
@@ -88,14 +87,30 @@ export function MiniTrackMap({ sessionId, trackMapRef }: MiniTrackMapProps) {
     const last = pts.x.length - 1;
     coords.push(`${pts.x[last].toFixed(1)},${pts.y[last].toFixed(1)}`);
 
-    return { projected: pts, polyline: 'M' + coords.join('L') };
-  }, [lapData]);
+    // Project comp lap for ghost dot interpolation
+    let compProj: { x: number[]; y: number[] } | null = null;
+    if (compLapData) {
+      compProj = applyProjection(compLapData.lat, compLapData.lon, proj);
+    }
+
+    return { projected: pts, polyline: 'M' + coords.join('L'), compProjected: compProj };
+  }, [lapData, compLapData]);
+
+  const isComparing = compLapData !== null;
 
   // Interpolate cursor position on the projected track
   const cursorPos = useMemo(() => {
     if (cursorDistance === null || !lapData || !projected) return null;
     return interpolateCursorPosition(cursorDistance, lapData, projected);
   }, [cursorDistance, lapData, projected]);
+
+  // Ghost dot for comparison lap
+  const ghostPos = useMemo(() => {
+    if (cursorDistance === null || !lapData || !compLapData || !compProjected) return null;
+    const ghostDist = computeGhostDistance(cursorDistance, lapData, compLapData);
+    if (ghostDist === null) return null;
+    return interpolateCursorPosition(ghostDist, compLapData, compProjected);
+  }, [cursorDistance, lapData, compLapData, compProjected]);
 
   // Don't render anything on desktop or when we have no data
   if (!isMobile || !polyline) return null;
@@ -139,13 +154,33 @@ export function MiniTrackMap({ sessionId, trackMapRef }: MiniTrackMapProps) {
           strokeLinejoin="round"
         />
 
-        {/* Cursor dot */}
+        {/* Ghost dot (comparison lap) */}
+        {ghostPos && (
+          <circle
+            cx={ghostPos.cx}
+            cy={ghostPos.cy}
+            r={3}
+            fill={colors.comparison.compare}
+            stroke="#fff"
+            strokeWidth={1}
+            opacity={0.7}
+          >
+            <animate
+              attributeName="r"
+              values="2;4;2"
+              dur="1s"
+              repeatCount="indefinite"
+            />
+          </circle>
+        )}
+
+        {/* Cursor dot — blue when comparing, green when single lap */}
         {cursorPos && (
           <circle
             cx={cursorPos.cx}
             cy={cursorPos.cy}
             r={4}
-            fill={colors.motorsport.optimal}
+            fill={isComparing ? colors.comparison.reference : colors.motorsport.optimal}
             stroke="#fff"
             strokeWidth={1.5}
           >

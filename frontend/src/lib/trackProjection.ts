@@ -64,6 +64,61 @@ export function applyProjection(
   return { x, y };
 }
 
+/**
+ * Given the cursor distance on the reference lap, compute the distance
+ * the comparison lap has covered at the same elapsed time.
+ *
+ * This powers the "ghost dot": if the comp lap is slower, ghostDistance < cursorDistance
+ * (the ghost trails behind). If faster, ghostDistance > cursorDistance (ghost leads).
+ *
+ * Both lap_time_s arrays are monotonically increasing, so inverse lookup is a bisection.
+ */
+export function computeGhostDistance(
+  cursorDistance: number,
+  refLap: LapData,
+  compLap: LapData,
+): number | null {
+  if (
+    refLap.lap_time_s.length < 2 ||
+    compLap.lap_time_s.length < 2 ||
+    refLap.distance_m.length < 2 ||
+    compLap.distance_m.length < 2
+  ) {
+    return null;
+  }
+
+  // 1. Find elapsed time on ref lap at cursorDistance
+  const refIdx = d3.bisectLeft(refLap.distance_m, cursorDistance);
+  let refTime: number;
+  if (refIdx <= 0) {
+    refTime = refLap.lap_time_s[0];
+  } else if (refIdx >= refLap.distance_m.length) {
+    refTime = refLap.lap_time_s[refLap.lap_time_s.length - 1];
+  } else {
+    const d0 = refLap.distance_m[refIdx - 1];
+    const d1 = refLap.distance_m[refIdx];
+    const t = d1 !== d0 ? (cursorDistance - d0) / (d1 - d0) : 0;
+    refTime =
+      refLap.lap_time_s[refIdx - 1] +
+      t * (refLap.lap_time_s[refIdx] - refLap.lap_time_s[refIdx - 1]);
+  }
+
+  // 2. Find distance on comp lap at refTime (inverse lookup on lap_time_s → distance_m)
+  const compTimeIdx = d3.bisectLeft(compLap.lap_time_s, refTime);
+  if (compTimeIdx <= 0) return compLap.distance_m[0];
+  if (compTimeIdx >= compLap.lap_time_s.length) {
+    return compLap.distance_m[compLap.distance_m.length - 1];
+  }
+
+  const t0 = compLap.lap_time_s[compTimeIdx - 1];
+  const t1 = compLap.lap_time_s[compTimeIdx];
+  const frac = t1 !== t0 ? (refTime - t0) / (t1 - t0) : 0;
+  return (
+    compLap.distance_m[compTimeIdx - 1] +
+    frac * (compLap.distance_m[compTimeIdx] - compLap.distance_m[compTimeIdx - 1])
+  );
+}
+
 export function interpolateCursorPosition(
   cursorDistance: number,
   lapData: LapData,
