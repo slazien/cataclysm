@@ -350,7 +350,12 @@ async def get_session_for_user_with_db_sync(
     # Session might exist with stale user_id — check if it's in memory at all
     sd = get_session(session_id)
     if sd is None:
-        return None  # Session truly doesn't exist in memory
+        # Attempt lazy rehydration from DB-stored CSV
+        from backend.api.services.session_store import rehydrate_session
+
+        sd = await rehydrate_session(session_id, db)
+    if sd is None:
+        return None  # Session truly doesn't exist
 
     # Verify ownership in DB (which ensure_user_exists keeps up to date)
     if await verify_session_owner(db, session_id, user_id):

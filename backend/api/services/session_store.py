@@ -11,6 +11,7 @@ Eviction: when the store exceeds ``MAX_SESSIONS``, the oldest sessions
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
@@ -75,6 +76,21 @@ ANON_SESSION_TTL: int = 86400
 
 # Module-level in-memory store
 _store: dict[str, SessionData] = {}
+
+# --- Rehydration concurrency controls ---
+_REHYDRATION_LOCKS: dict[str, asyncio.Lock] = {}
+MAX_CONCURRENT_REHYDRATIONS: int = 4
+_REHYDRATION_SEMAPHORE: asyncio.Semaphore | None = None
+_REHYDRATION_FAILURES: dict[str, float] = {}  # session_id -> failure timestamp
+REHYDRATION_FAILURE_TTL_S: int = 300  # 5 min
+
+
+def _get_semaphore() -> asyncio.Semaphore:
+    """Lazy-init the global semaphore (must be created inside a running loop)."""
+    global _REHYDRATION_SEMAPHORE  # noqa: PLW0603
+    if _REHYDRATION_SEMAPHORE is None:
+        _REHYDRATION_SEMAPHORE = asyncio.Semaphore(MAX_CONCURRENT_REHYDRATIONS)
+    return _REHYDRATION_SEMAPHORE
 
 
 def set_session_weather(session_id: str, weather: SessionConditions) -> None:
@@ -220,3 +236,70 @@ def claim_session(session_id: str, user_id: str) -> bool:
     sd.user_id = user_id
     logger.info("Session %s claimed by user %s", session_id, user_id)
     return True
+
+
+async def rehydrate_session(
+    session_id: str,
+    db: object,  # AsyncSession — typed loosely to avoid import cycle
+) -> SessionData | None:
+    """Re-process a session from DB-stored CSV on cache miss.
+
+    Concurrency-safe: per-session lock (singleflight) + global semaphore
+    (backpressure). Negative cache prevents repeated attempts on corrupt CSVs.
+    """
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import AsyncSession as _AsyncSession
+
+    from backend.api.db.models import Session as SessionModel
+    from backend.api.db.models import SessionFile
+
+    assert isinstance(db, _AsyncSession)
+
+    # Check negative cache
+    fail_ts = _REHYDRATION_FAILURES.get(session_id)
+    if fail_ts and (time.time() - fail_ts) < REHYDRATION_FAILURE_TTL_S:
+        logger.debug("Skipping rehydration for %s (negative cache hit)", session_id)
+        return None
+
+    # Get or create per-session lock (singleflight)
+    if session_id not in _REHYDRATION_LOCKS:
+        _REHYDRATION_LOCKS[session_id] = asyncio.Lock()
+
+    async with _get_semaphore(), _REHYDRATION_LOCKS[session_id]:
+        # Double-check after acquiring lock — another request may have rehydrated
+        sd = get_session(session_id)
+        if sd is not None:
+            return sd
+
+        # Check session exists in DB
+        meta = await db.execute(
+            select(SessionModel).where(SessionModel.session_id == session_id)
+        )
+        meta_row = meta.scalar_one_or_none()
+        if meta_row is None:
+            return None
+
+        # Fetch CSV bytes
+        file_result = await db.execute(
+            select(SessionFile).where(SessionFile.session_id == session_id)
+        )
+        file_row = file_result.scalar_one_or_none()
+        if file_row is None or file_row.csv_bytes is None:
+            return None
+
+        try:
+            from backend.api.services.pipeline import reprocess_session_from_csv
+
+            sd = await reprocess_session_from_csv(
+                session_id=session_id,
+                csv_bytes=file_row.csv_bytes,
+                filename=file_row.filename,
+            )
+            if sd is not None:
+                sd.user_id = meta_row.user_id
+                logger.info("Lazy-rehydrated session %s", session_id)
+            return sd
+        except Exception:
+            logger.exception("Failed to rehydrate session %s", session_id)
+            _REHYDRATION_FAILURES[session_id] = time.time()
+            return None

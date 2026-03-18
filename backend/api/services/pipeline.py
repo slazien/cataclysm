@@ -1041,6 +1041,27 @@ async def _try_auto_discover_track(session_data: SessionData) -> None:
         logger.warning("Failed to persist auto-discovered track", exc_info=True)
 
 
+async def reprocess_session_from_csv(
+    session_id: str,
+    csv_bytes: bytes,
+    filename: str,
+) -> SessionData | None:
+    """Reprocess a session from CSV bytes without side effects.
+
+    Used for lazy rehydration on cache miss. Does NOT generate a new session_id,
+    does NOT insert DB rows, does NOT trigger auto-coaching or weather fetching.
+    """
+    sd = await asyncio.to_thread(_run_pipeline_sync, csv_bytes, filename)
+    if sd is None:
+        return None
+    # Override session_id to match the original (deterministic IDs should match,
+    # but this guarantees it even if filename changed)
+    sd.session_id = session_id
+    sd.snapshot.session_id = session_id
+    store_session(session_id, sd)
+    return sd
+
+
 async def process_upload(file_bytes: bytes, filename: str) -> dict[str, object]:
     """Parse a RaceChrono CSV and run the full processing pipeline.
 
