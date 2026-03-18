@@ -261,11 +261,11 @@ export function SessionDrawer() {
                               </div>
                             </div>
                             <div className="mt-1 flex items-center gap-1.5">
-                              <p className="text-xs text-[var(--text-secondary)]">
+                              <p className="shrink-0 text-xs text-[var(--text-secondary)]">
                                 {session.n_laps ?? 0} laps | Best: {formatLapTime(session.best_lap_time_s ?? 0)}
                               </p>
                               {session.tire_model && (
-                                <span className="rounded bg-[var(--bg-elevated)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-secondary)]">
+                                <span className="min-w-0 truncate rounded bg-[var(--bg-elevated)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-secondary)]">
                                   {session.tire_model}
                                 </span>
                               )}
@@ -350,7 +350,7 @@ function WeatherBadge({
           : Cloud;
 
   return (
-    <span className="inline-flex items-center gap-1 rounded bg-[var(--bg-elevated)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-secondary)]">
+    <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded bg-[var(--bg-elevated)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-secondary)]">
       <Icon className="h-2.5 w-2.5" />
       {tempC != null && formatTemp(tempC)}
     </span>
