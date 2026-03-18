@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useMultiLapData } from '@/hooks/useAnalysis';
 import { useAnalysisStore } from '@/stores';
 import { useIsMobile } from '@/hooks/useMediaQuery';
@@ -121,7 +122,10 @@ export function MiniTrackMap({ sessionId, trackMapRef }: MiniTrackMapProps) {
     ? `opacity ${TRANSITION_MS}ms ease-out, transform ${TRANSITION_MS}ms ease-out`
     : `opacity ${TRANSITION_MS}ms ease-out ${FADE_OUT_DELAY_MS}ms, transform ${TRANSITION_MS}ms ease-out ${FADE_OUT_DELAY_MS}ms`;
 
-  return (
+  // Portal to document.body so position:fixed works correctly.
+  // ViewRouter's motion.div keeps transform:translateY(0) after animation,
+  // which creates a containing block and breaks position:fixed on descendants.
+  return createPortal(
     <div
       aria-hidden="true"
       className={`
@@ -193,6 +197,7 @@ export function MiniTrackMap({ sessionId, trackMapRef }: MiniTrackMapProps) {
           </circle>
         )}
       </svg>
-    </div>
+    </div>,
+    document.body,
   );
 }
