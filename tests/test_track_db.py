@@ -364,13 +364,19 @@ class TestAMPEnrichedData:
         assert c.direction == "right"
         assert c.blind is True
 
-    def test_t10_compression(self) -> None:
+    def test_t10_downhill_right(self) -> None:
         c = self._get_corner(10)
-        assert c.elevation_trend == "compression"
+        assert c.elevation_trend == "downhill"
+        assert c.direction == "right"
 
-    def test_t14_eau_rouge(self) -> None:
+    def test_t11_dip_compression(self) -> None:
+        c = self._get_corner(11)
+        assert c.elevation_trend == "compression"
+        assert "dip" in c.name.lower()
+
+    def test_t14_final_carousel(self) -> None:
         c = self._get_corner(14)
-        assert "eau rouge" in c.name.lower() or "eau rouge" in (c.coaching_notes or "").lower()
+        assert "carousel" in c.name.lower()
 
     def test_t16_blind_final(self) -> None:
         c = self._get_corner(16)

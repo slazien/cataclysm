@@ -335,9 +335,11 @@ _AMP_LANDMARKS: list[Landmark] = [
     # --- T10-T11 ---
     Landmark("T10 brake board", 1796.0, LandmarkType.brake_board),
     Landmark("The Dip compression", 1889.0, LandmarkType.natural, description="Compression dip"),
-    # --- Eau Rouge complex (T13-T15) ---
-    Landmark("Eau Rouge entry curb", 2044.0, LandmarkType.curbing),
-    Landmark("Eau Rouge crest", 2090.0, LandmarkType.natural, description="Crest of Eau Rouge"),
+    # --- Final Carousel (T13-T15) ---
+    Landmark("T13 entry curb", 2044.0, LandmarkType.curbing),
+    Landmark(
+        "T14 carousel crest", 2090.0, LandmarkType.natural, description="Crest of final carousel"
+    ),
     # --- Final section ---
     Landmark("T16 apex curb", 2759.0, LandmarkType.curbing),
     Landmark("victory lane", 2840.0, LandmarkType.structure, description="Near front straight"),
@@ -363,8 +365,10 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
             elevation_trend="downhill",
             camber="off-camber",
             coaching_notes=(
-                "Most dangerous turn on track. Heavy braking from top speed into "
-                "downhill off-camber left. Don't overdrive — grip drops fast."
+                "Biggest mistake opportunity on the lap. Downhill braking zone — "
+                "grip drops as the track falls away. Late apex to set up the long "
+                "run to T3. Turn-in reference: end of the curve on your right. "
+                "The track levels out at the exit — use that compression to finish."
             ),
         ),
         OfficialCorner(
@@ -387,7 +391,11 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
             corner_type="sweeper",
             elevation_trend="uphill",
             camber="positive",
-            coaching_notes="Right-hand bend approaching the Carousel. Trail-brake into entry.",
+            coaching_notes=(
+                "Right-hand bend wrapping into the Carousel climb. Two-stage curbs: "
+                "use the outer black-and-blue curb, NOT the inner solid blue. "
+                "Trail-brake through T2 into T3."
+            ),
         ),
         OfficialCorner(
             4,
@@ -395,11 +403,13 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
             0.237,
             direction="left",
             corner_type="sweeper",
-            elevation_trend="crest",
+            elevation_trend="uphill",
             camber="positive",
             coaching_notes=(
-                "Long constant-radius left. Single steering angle — more throttle "
-                "pushes you wide, less throttle tightens the line."
+                "Long left — cut distance along the inside curb. Uphill entry gives "
+                "free braking and extra grip, so charge in. Mid-corner the track "
+                "levels out and understeer kicks in — maintenance throttle, stay "
+                "tight. Late apex at the end of the curbing to set up T5."
             ),
         ),
         OfficialCorner(
@@ -410,7 +420,10 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
             direction="right",
             corner_type="kink",
             elevation_trend="downhill",
-            coaching_notes="Right-hand bend on the descent from the Carousel. Brief lift.",
+            coaching_notes=(
+                "Non-event if T4 exit is good. Drops downhill significantly — "
+                "left side comes up fast. Creates acceleration zone T5→T6 braking."
+            ),
         ),
         OfficialCorner(
             6,
@@ -418,36 +431,41 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
             0.373,
             direction="right",
             corner_type="hairpin",
-            elevation_trend="downhill",
-            camber="off-camber",
+            elevation_trend="uphill",
+            camber="positive",
             blind=True,
             coaching_notes=(
-                "Blind braking zone with countdown boards (3, 2, 1). "
-                "Downhill increases stopping distance. Commit to brake markers."
+                "Inverse of T1 — uphill braking gives grip so you can charge the "
+                "entry. But grip disappears as the track levels out at the exit: "
+                "FWD understeers, RWD kicks the rear. Late apex, use all paved "
+                "runoff on the left at exit. Countdown boards (3, 2, 1) for reference."
             ),
         ),
         OfficialCorner(
             7,
-            "Chicane Right",
+            "Positioning Right",
             0.448,
             direction="right",
             corner_type="kink",
             elevation_trend="flat",
             coaching_notes=(
-                "Right entry of the chicane. Set up wide for a quick "
-                "direction change into the left of T8."
+                "T7-8-9 is effectively a straight — car placement is everything. "
+                "After T6 exit, stay left over the crest, then cross to the right "
+                "to be parallel with the T8 apex. This sets up a straight braking "
+                "zone to T10."
             ),
         ),
         OfficialCorner(
             8,
-            "Chicane Left",
+            "Positioning Left",
             0.508,
             direction="left",
-            corner_type="sweeper",
+            corner_type="kink",
             elevation_trend="flat",
             coaching_notes=(
-                "Left exit of the chicane onto the back straight. "
-                "Sacrifice T7 entry for T8 exit speed — biggest laptime opportunity."
+                "Continuation of the positioning straight. End up parallel to the "
+                "right side by here. Lazy placement through this section costs time "
+                "at T10 — especially with high horsepower."
             ),
         ),
         OfficialCorner(
@@ -457,76 +475,95 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
             direction="right",
             corner_type="sweeper",
             elevation_trend="downhill",
-            coaching_notes="Right sweeper near the pedestrian bridge. Smooth and committed.",
+            coaching_notes=(
+                "Right sweeper near the pedestrian bridge. Quick transition — "
+                "braking for T10 happens very fast after this."
+            ),
         ),
         OfficialCorner(
             10,
-            "The Dip",
+            "Downhill Right",
             0.608,
             direction="right",
-            corner_type="hairpin",
-            elevation_trend="compression",
+            corner_type="sweeper",
+            elevation_trend="downhill",
             coaching_notes=(
-                "Car compresses through the dip, giving extra grip. "
-                "Trust the grip — the compression rewards commitment."
+                "Not much of a corner but the downhill pushes the car wide. "
+                "Light brake pressure, turn in early, roll speed through. "
+                "Momentum matters more here than hard braking."
             ),
         ),
         OfficialCorner(
             11,
-            "Dip Exit Left",
+            "The Dip",
             0.638,
             direction="left",
             corner_type="sweeper",
-            elevation_trend="uphill",
+            elevation_trend="compression",
             coaching_notes=(
-                "Sharp left exiting the dip. Uphill adds grip. Begin accelerating through the exit."
+                "Massive elevation drop into a compression that catches the car. "
+                "Get left early after T10 — the later you cross, the less time to "
+                "set up. Charge in hard: the compression at the apex hooks the car "
+                "around. Braking reference: end of the access road on the left."
             ),
         ),
         OfficialCorner(
             12,
-            "Downhill Left Kink",
+            "Blind Uphill Left",
             0.650,
-            character="lift",
             direction="left",
-            corner_type="kink",
-            elevation_trend="downhill",
-            coaching_notes="Quick left, downhill. Brief lift — transition into Eau Rouge complex.",
+            corner_type="sweeper",
+            elevation_trend="uphill",
+            blind=True,
+            coaching_notes=(
+                "Most challenging corner to figure out — completely blind, heading "
+                "straight uphill. Late apex, then draw a straight line from T12 "
+                "apex to T13 apex. Muscle memory corner — reference the end of the "
+                "tire wall at the crest before turning left for T13."
+            ),
         ),
         OfficialCorner(
             13,
-            "Eau Rouge Approach",
+            "Final Carousel Entry",
             0.690,
-            character="flat",
             direction="left",
             corner_type="sweeper",
             elevation_trend="downhill",
-            coaching_notes="Beginning of the Eau Rouge tribute. Flat out — do NOT lift.",
+            coaching_notes=(
+                "Start of the long final carousel. Cut distance along the inside "
+                "curb. At the exit the track levels out with a compression — "
+                "that's the heavy acceleration point. Be patient with placement."
+            ),
         ),
         OfficialCorner(
             14,
-            "Eau Rouge Entry",
+            "Final Carousel Crest",
             0.712,
             character="flat",
             direction="left",
-            corner_type="esses",
+            corner_type="sweeper",
             elevation_trend="uphill",
             camber="positive",
             coaching_notes=(
-                "Main Eau Rouge sweep. Flat out — uphill entry, smooth steering through the esses."
+                "Three-lane trick: from inside lane, let the car track to middle "
+                "or outside, then draw a smooth arc back to the inside lane by "
+                "the crest here at T14. Accelerate through."
             ),
         ),
         OfficialCorner(
             15,
-            "Eau Rouge Mid",
+            "Final Carousel Exit",
             0.814,
             character="flat",
             direction="left",
-            corner_type="esses",
+            corner_type="sweeper",
             elevation_trend="flat",
             camber="positive",
             coaching_notes=(
-                "Long on-ramp style sweeper — continue accelerating. "
-                "Balance throttle through the gentle left."
+                "Track levels out — you can finally see the exit. Let the car wash "
+                "to the middle lane, then get back to the inside/left before T16. "
+                "Ending up on the left here is the most important part of the "
+                "entire carousel."
             ),
         ),
         OfficialCorner(
@@ -539,8 +576,10 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
             camber="positive",
             blind=True,
             coaching_notes=(
-                "Blind quick right before start/finish. Keep your line and hit your marks. "
-                "Exit speed onto the main straight is critical."
+                "Fastest section of the track (100+ mph). Blind but less is more — "
+                "10-15° of steering lock max. Turn in when the access road on your "
+                "left ends. Look for the flag stand on the right to draw a straight "
+                "line through. Exit speed onto the main straight is critical."
             ),
         ),
     ],
