@@ -1,5 +1,21 @@
 # Lessons Learned
 
+## Dual Code Paths for Same Operation Must Mirror Each Other (2026-03-17)
+
+**Pattern**: When two code paths perform the same logical operation (e.g., startup rehydration vs lazy rehydration), they MUST restore identical metadata. When adding/modifying one path, grep for the other and update both. Extract shared logic into a helper if paths diverge beyond 2 fields.
+
+**Why**: `rehydrate_session()` (lazy, on cache miss) only restored `user_id`, while startup rehydration in `main.py` restored 5 things: `user_id`, `is_anonymous`, `weather`, `lap_tags`, `coaching_laps`. Users hitting lazily-rehydrated sessions got no weather data, wrong coaching laps (untagged laps included), and anonymous flag missing. Code review caught it — would have been a silent data quality regression in prod.
+
+**Error signature**: Feature works for sessions loaded at startup but fails for sessions loaded on-demand (cache miss after eviction). Or: metadata present in DB but missing from in-memory `SessionData` after lazy load.
+
+## Store Cache Entry AFTER All Metadata Is Populated (2026-03-17)
+
+**Pattern**: When building a cache entry that other requests can read, call `store(key, entry)` AFTER all metadata fields are set — not inside the builder function with the caller adding metadata after. A brief window where the entry is visible with incomplete data causes race conditions.
+
+**Why**: `reprocess_session_from_csv()` called `store_session(session_id, sd)` internally. The caller (`rehydrate_session`) then set `sd.user_id`, `sd.weather`, etc. AFTER store. Another concurrent request hitting `get_session()` between store and metadata-set would get a session with `user_id=None`, no weather, no lap tags. Fix: moved `store_session` to caller, after all metadata populated.
+
+**Error signature**: Intermittent missing metadata on sessions — only reproducible under concurrent load. Session appears in cache but fields are None/default despite being present in DB.
+
 ## staleTime: Infinity + Mutable Fields → Optimistic Updates Are Mandatory (2026-03-17)
 
 **Pattern**: When a React Query has `staleTime: Infinity` (immutable data) but contains mutable sub-fields (e.g., `LapSummary.tags` on an otherwise-immutable telemetry query), `invalidateQueries` cannot fix stale data — the query won't refetch (`staleTime` prevents it), and even if forced, the browser HTTP cache (`Cache-Control: max-age=60`) serves the pre-mutation response. The ONLY reliable pattern is optimistic updates via `onMutate` + `setQueryData`.
