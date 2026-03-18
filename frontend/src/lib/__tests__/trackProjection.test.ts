@@ -71,6 +71,17 @@ describe('computeGhostDistance', () => {
     expect(ghost).toBe(400);
   });
 
+  it('handles cursor at exact sample boundary', () => {
+    const refLap = makeLapData({ lap_time_s: [0, 4, 8, 12, 16] });
+    const compLap = makeLapData({ lap_time_s: [0, 5, 10, 15, 20] });
+
+    // At cursor distance exactly 100 (a sample point):
+    // ref time = 4s, comp at 4s → between t=0 (d=0) and t=5 (d=100)
+    // frac = 4/5 = 0.8 → distance = 0 + 0.8*100 = 80
+    const ghost = computeGhostDistance(100, refLap, compLap);
+    expect(ghost).toBeCloseTo(80);
+  });
+
   it('interpolates between distance samples', () => {
     const refLap = makeLapData({ lap_time_s: [0, 4, 8, 12, 16] });
     const compLap = makeLapData({ lap_time_s: [0, 5, 10, 15, 20] });

@@ -87,13 +87,15 @@ export function computeGhostDistance(
     return null;
   }
 
+  // Defensive: clamp indices against the shorter of distance_m / lap_time_s
+  const refN = Math.min(refLap.distance_m.length, refLap.lap_time_s.length);
+  const compN = Math.min(compLap.distance_m.length, compLap.lap_time_s.length);
+
   // 1. Find elapsed time on ref lap at cursorDistance
-  const refIdx = d3.bisectLeft(refLap.distance_m, cursorDistance);
+  const refIdx = Math.min(d3.bisectLeft(refLap.distance_m, cursorDistance), refN - 1);
   let refTime: number;
   if (refIdx <= 0) {
     refTime = refLap.lap_time_s[0];
-  } else if (refIdx >= refLap.distance_m.length) {
-    refTime = refLap.lap_time_s[refLap.lap_time_s.length - 1];
   } else {
     const d0 = refLap.distance_m[refIdx - 1];
     const d1 = refLap.distance_m[refIdx];
@@ -104,11 +106,10 @@ export function computeGhostDistance(
   }
 
   // 2. Find distance on comp lap at refTime (inverse lookup on lap_time_s → distance_m)
-  const compTimeIdx = d3.bisectLeft(compLap.lap_time_s, refTime);
-  if (compTimeIdx <= 0) return compLap.distance_m[0];
-  if (compTimeIdx >= compLap.lap_time_s.length) {
-    return compLap.distance_m[compLap.distance_m.length - 1];
-  }
+  const rawCompIdx = d3.bisectLeft(compLap.lap_time_s, refTime);
+  if (rawCompIdx <= 0) return compLap.distance_m[0];
+  if (rawCompIdx >= compN) return compLap.distance_m[compN - 1];
+  const compTimeIdx = rawCompIdx;
 
   const t0 = compLap.lap_time_s[compTimeIdx - 1];
   const t1 = compLap.lap_time_s[compTimeIdx];
