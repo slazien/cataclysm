@@ -123,12 +123,6 @@ def store_session(session_id: str, data: SessionData) -> None:
     logger.info("Storing session %s (total: %d)", session_id, len(_store))
 
 
-def touch_session(session_id: str) -> None:
-    """Move session to end of OrderedDict (most recently used) to prevent LRU eviction."""
-    if session_id in _store:
-        _store.move_to_end(session_id)
-
-
 def get_session(session_id: str) -> SessionData | None:
     """Retrieve a session by ID, or None if not found.
 
@@ -155,15 +149,19 @@ def get_session_for_user(session_id: str, user_id: str) -> SessionData | None:
 
     Anonymous sessions (``is_anonymous=True``) are accessible by session_id
     regardless of user_id, since they have no owner yet.
+
+    Promotes the session in LRU on successful access.
     """
     sd = _store.get(session_id)
     if sd is None:
         return None
     # Anonymous sessions are accessible to anyone with the session_id
     if sd.is_anonymous:
+        _store.move_to_end(session_id)
         return sd
     # Skip ownership check for dev users or sessions without user_id set
     if user_id == "dev-user" or sd.user_id is None:
+        _store.move_to_end(session_id)
         return sd
     if sd.user_id != user_id:
         logger.warning(
@@ -173,6 +171,7 @@ def get_session_for_user(session_id: str, user_id: str) -> SessionData | None:
             user_id,
         )
         return None
+    _store.move_to_end(session_id)
     return sd
 
 
@@ -276,11 +275,10 @@ async def rehydrate_session(
         logger.debug("Skipping rehydration for %s (negative cache hit)", session_id)
         return None
 
-    # Get or create per-session lock (singleflight)
-    if session_id not in _REHYDRATION_LOCKS:
-        _REHYDRATION_LOCKS[session_id] = asyncio.Lock()
+    # Get or create per-session lock (singleflight) — setdefault is atomic
+    lock = _REHYDRATION_LOCKS.setdefault(session_id, asyncio.Lock())
 
-    async with _get_semaphore(), _REHYDRATION_LOCKS[session_id]:
+    async with _get_semaphore(), lock:
         # Double-check after acquiring lock — another request may have rehydrated
         sd = get_session(session_id)
         if sd is not None:
@@ -301,14 +299,43 @@ async def rehydrate_session(
             return None
 
         try:
-            from backend.api.services.pipeline import reprocess_session_from_csv
+            from backend.api.services.db_session_store import restore_weather_from_snapshot
+            from backend.api.services.lap_tag_store import load_lap_tags
+            from backend.api.services.pipeline import (
+                recalculate_coaching_laps,
+                reprocess_session_from_csv,
+            )
 
             sd = await reprocess_session_from_csv(
                 session_id=session_id,
                 csv_bytes=file_row.csv_bytes,
                 filename=file_row.filename,
             )
+
+            # Restore metadata from DB (mirrors startup rehydration in main.py)
             sd.user_id = meta_row.user_id
+            if meta_row.user_id is None:
+                sd.is_anonymous = True
+            if meta_row.snapshot_json:
+                weather = restore_weather_from_snapshot(meta_row.snapshot_json)
+                if weather is not None:
+                    sd.weather = weather
+
+            # Restore lap tags and recalculate coaching_laps
+            sd.lap_tags = await load_lap_tags(db, session_id)
+            all_laps = sorted(sd.processed.resampled_laps.keys())
+            in_out = {all_laps[0], all_laps[-1]} if len(all_laps) >= 2 else set()
+            sd.coaching_laps = recalculate_coaching_laps(
+                all_laps=all_laps,
+                anomalous=sd.anomalous_laps,
+                in_out=in_out,
+                best_lap=sd.processed.best_lap,
+                tags=sd.lap_tags,
+            )
+
+            # Store AFTER all metadata is populated (prevents brief window
+            # where session is visible with incomplete data)
+            store_session(session_id, sd)
             logger.info("Lazy-rehydrated session %s", session_id)
             return sd
         except Exception:

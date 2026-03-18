@@ -1057,7 +1057,10 @@ async def reprocess_session_from_csv(
     # but this guarantees it even if filename changed)
     sd.session_id = session_id
     sd.snapshot.session_id = session_id
-    store_session(session_id, sd)
+    # Caller (rehydrate_session) is responsible for setting metadata
+    # (user_id, weather, lap_tags, etc.) and calling store_session AFTER
+    # all fields are populated — prevents a brief window where the session
+    # is visible in the cache with incomplete metadata.
     return sd
 
 
