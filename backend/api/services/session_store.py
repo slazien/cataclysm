@@ -1,19 +1,22 @@
 """In-memory session data store with LRU eviction.
 
-Provides a dict-based store for session data. Each session holds all
-pipeline outputs (parsed, processed, corners, consistency, gains, grip)
-keyed by session_id. PostgreSQL persists metadata and raw CSV bytes;
-this in-memory store provides fast access to the processed telemetry.
+Provides an OrderedDict-based store for session data. Each session holds
+all pipeline outputs (parsed, processed, corners, consistency, gains,
+grip) keyed by session_id. PostgreSQL persists metadata and raw CSV
+bytes; this in-memory store provides fast access to the processed
+telemetry.
 
-Eviction: when the store exceeds ``MAX_SESSIONS``, the oldest sessions
-(by insertion order) are evicted to prevent unbounded memory growth.
+Eviction: when the store exceeds ``MAX_SESSIONS``, the least-recently-
+used sessions are evicted.  Lazy rehydration handles cache misses.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
+from collections import OrderedDict
 from dataclasses import dataclass, field
 
 from cataclysm.consistency import SessionConsistency
@@ -67,15 +70,15 @@ class SessionData:
     csv_bytes: bytes | None = field(default=None, repr=False)
 
 
-# Maximum sessions to keep in memory before evicting oldest.
-# Each session uses ~5-20MB; 200 sessions ≈ 1-4GB RAM.
-MAX_SESSIONS: int = 200
+# Maximum sessions to keep in memory before evicting LRU.
+# Configurable via env var for tuning without redeploy.
+MAX_SESSIONS: int = int(os.environ.get("MAX_SESSIONS", "100"))
 
 # Anonymous session TTL in seconds (24 hours)
 ANON_SESSION_TTL: int = 86400
 
-# Module-level in-memory store
-_store: dict[str, SessionData] = {}
+# Module-level in-memory store (OrderedDict for LRU eviction)
+_store: OrderedDict[str, SessionData] = OrderedDict()
 
 # --- Rehydration concurrency controls ---
 _REHYDRATION_LOCKS: dict[str, asyncio.Lock] = {}
@@ -120,10 +123,22 @@ def store_session(session_id: str, data: SessionData) -> None:
     logger.info("Storing session %s (total: %d)", session_id, len(_store))
 
 
+def touch_session(session_id: str) -> None:
+    """Move session to end of OrderedDict (most recently used) to prevent LRU eviction."""
+    if session_id in _store:
+        _store.move_to_end(session_id)
+
+
 def get_session(session_id: str) -> SessionData | None:
-    """Retrieve a session by ID, or None if not found."""
+    """Retrieve a session by ID, or None if not found.
+
+    On cache hit the session is moved to the end of the OrderedDict
+    so that recently accessed sessions survive LRU eviction.
+    """
     result = _store.get(session_id)
-    if result is None and _store:
+    if result is not None:
+        _store.move_to_end(session_id)
+    elif _store:
         logger.debug(
             "Session %s not found in memory store (store has %d sessions)",
             session_id,
@@ -272,9 +287,7 @@ async def rehydrate_session(
             return sd
 
         # Check session exists in DB
-        meta = await db.execute(
-            select(SessionModel).where(SessionModel.session_id == session_id)
-        )
+        meta = await db.execute(select(SessionModel).where(SessionModel.session_id == session_id))
         meta_row = meta.scalar_one_or_none()
         if meta_row is None:
             return None

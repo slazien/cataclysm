@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import logging.config
+import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import UTC
@@ -91,6 +92,10 @@ _configure_logging()
 
 logger = logging.getLogger(__name__)
 
+# Only rehydrate the N most-recent sessions at startup.  Older sessions
+# are lazily rehydrated on demand (2-5 s).
+STARTUP_REHYDRATION_LIMIT: int = int(os.environ.get("STARTUP_REHYDRATION_LIMIT", "100"))
+
 
 async def _reload_sessions_from_db() -> int:
     """Re-process CSV files stored in the database into the in-memory store.
@@ -112,9 +117,18 @@ async def _reload_sessions_from_db() -> int:
     loaded = 0
     try:
         async with async_session_factory() as db:
-            result = await db.execute(select(SessionFileModel))
+            stmt = (
+                select(SessionFileModel)
+                .order_by(SessionFileModel.created_at.desc())
+                .limit(STARTUP_REHYDRATION_LIMIT)
+            )
+            result = await db.execute(stmt)
             rows = result.scalars().all()
-            logger.info("Found %d session file(s) in database", len(rows))
+            logger.info(
+                "Found %d session file(s) in database (limit %d)",
+                len(rows),
+                STARTUP_REHYDRATION_LIMIT,
+            )
 
             # Build a lookup of session metadata (for snapshot_json) keyed by session_id
             sess_result = await db.execute(select(SessionModel))

@@ -83,6 +83,7 @@ class TestGenerateCoachingDrafts:
                 {"LLM_ROUTING_ENABLED": "1", "OPENAI_API_KEY": "sk-openai"},
                 clear=True,
             ),
+            patch(_PATCH_IS_TASK_AVAILABLE, return_value=True),
             patch(_PATCH_CALL_TEXT_COMPLETION, return_value=response) as mock_call,
         ):
             drafts = await generate_coaching_drafts(corners, track_name="Test")
