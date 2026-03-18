@@ -657,6 +657,9 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
     except (ValueError, KeyError, IndexError):
         logger.warning("Failed to assess GPS quality for %s", filename, exc_info=True)
 
+    # Free unfiltered DataFrame — only needed for GPS quality assessment above
+    parsed.raw_data = None
+
     # 3c. Line analysis: GPS traces + reference centerline (requires grade A/B)
     gps_traces = []
     reference_centerline = None

@@ -212,19 +212,19 @@ class TestRunPipelineSyncErrorPaths:
 
     def test_gps_quality_uses_raw_parsed_data_when_available(self) -> None:
         """GPS quality should receive raw parsed telemetry, not filtered session data."""
+        raw_df_ref: MagicMock | None = None
 
         def _setup(mocks: dict[str, MagicMock]) -> None:
-            raw_df = MagicMock(name="raw_df")
+            nonlocal raw_df_ref
+            raw_df_ref = MagicMock(name="raw_df")
             filtered_df = MagicMock(name="filtered_df")
             parsed = mocks["parse_racechrono_csv"].return_value
-            parsed.raw_data = raw_df
+            parsed.raw_data = raw_df_ref
             parsed.data = filtered_df
 
         _, mocks = self._run_with_patches(_setup)
-        assert (
-            mocks["assess_gps_quality"].call_args.args[0]
-            is mocks["parse_racechrono_csv"].return_value.raw_data
-        )
+        # raw_data is nulled after GPS assessment, so compare against our saved ref
+        assert mocks["assess_gps_quality"].call_args.args[0] is raw_df_ref
 
     def test_detect_corners_fallback_when_no_track_layout(self) -> None:
         """detect_corners is called when detect_track_or_lookup returns None."""
@@ -504,3 +504,70 @@ class TestPropagateCornerMetadata:
 
         assert lap_1.character == "flat"
         assert lap_3.character is None
+
+
+# ---------------------------------------------------------------------------
+# raw_data memory cleanup
+# ---------------------------------------------------------------------------
+
+
+class TestRawDataCleanup:
+    """Verify raw_data is freed after GPS quality assessment."""
+
+    def test_raw_data_cleared_after_processing(self) -> None:
+        """raw_data should be None after pipeline — only used for GPS quality."""
+        parsed = _make_parsed()
+        import pandas as pd
+
+        parsed.raw_data = pd.DataFrame({"lat": [33.53], "lon": [-86.62]})
+        processed = _make_processed(n_laps=3)
+        snap = _make_snapshot()
+
+        with (
+            patch("backend.api.services.pipeline.parse_racechrono_csv") as m_parse,
+            patch("backend.api.services.pipeline.process_session") as m_process,
+            patch("backend.api.services.pipeline.find_anomalous_laps") as m_anom,
+            patch("backend.api.services.pipeline.detect_track_or_lookup") as m_track,
+            patch("backend.api.services.pipeline.locate_official_corners") as m_corners_official,
+            patch("backend.api.services.pipeline.extract_corner_kpis_for_lap") as m_extract,
+            patch("backend.api.services.pipeline.detect_corners") as m_detect_corners,
+            patch("backend.api.services.pipeline.compute_corner_elevation") as m_elev,
+            patch("backend.api.services.pipeline.enrich_corners_with_elevation") as m_enrich,
+            patch("backend.api.services.pipeline.assess_gps_quality") as m_gps,
+            patch("backend.api.services.pipeline.compute_session_consistency") as m_consist,
+            patch("backend.api.services.pipeline.estimate_gains") as m_gains,
+            patch("backend.api.services.pipeline.estimate_grip_limit") as m_grip,
+            patch("backend.api.services.pipeline.build_session_snapshot") as m_snap,
+            patch("backend.api.services.pipeline._fallback_lap_consistency") as m_fallback,
+            patch(
+                "backend.api.services.pipeline.get_corner_override_version",
+                return_value=None,
+            ),
+            patch(
+                "backend.api.services.pipeline.track_slug_from_layout",
+                return_value="test-track",
+            ),
+        ):
+            mocks = {
+                "parse_racechrono_csv": m_parse,
+                "process_session": m_process,
+                "find_anomalous_laps": m_anom,
+                "detect_track_or_lookup": m_track,
+                "locate_official_corners": m_corners_official,
+                "extract_corner_kpis_for_lap": m_extract,
+                "detect_corners": m_detect_corners,
+                "compute_corner_elevation": m_elev,
+                "enrich_corners_with_elevation": m_enrich,
+                "assess_gps_quality": m_gps,
+                "compute_session_consistency": m_consist,
+                "estimate_gains": m_gains,
+                "estimate_grip_limit": m_grip,
+                "build_session_snapshot": m_snap,
+                "_fallback_lap_consistency": m_fallback,
+            }
+            m_fallback.return_value = MagicMock()
+            _apply_base_mocks(mocks, parsed, processed, snap)
+
+            result = pipeline_module._run_pipeline_sync(b"fake_csv", "test.csv")  # noqa: SLF001
+
+        assert result.parsed.raw_data is None, "raw_data should be cleared after pipeline"

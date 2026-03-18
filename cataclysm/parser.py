@@ -58,6 +58,7 @@ class ParsedSession:
 
     metadata: SessionMetadata
     data: pd.DataFrame
+    # Transient: nulled after pipeline GPS quality assessment to save memory.
     raw_data: pd.DataFrame | None = None
 
 
