@@ -17,8 +17,8 @@ from cataclysm.grip_calibration import calibrate_grip_from_telemetry
 
 def simulate_telemetry(
     rng: np.random.Generator,
-    n_hard_corners: int = 400,   # near-limit cornering: 0.6-1.1G
-    n_soft_corners: int = 600,   # below-limit (sweepers, lane changes): 0.05-0.28G
+    n_hard_corners: int = 400,  # near-limit cornering: 0.6-1.1G
+    n_soft_corners: int = 600,  # below-limit (sweepers, lane changes): 0.05-0.28G
     n_braking: int = 300,
     n_accel: int = 200,
     noise_sigma: float = 0.05,
@@ -39,7 +39,9 @@ def simulate_telemetry(
     lon_parts.append(hard_lon)
 
     # Soft cornering — dilutes OLD model's distribution
-    soft_lat = rng.uniform(0.05, 0.28, size=n_soft_corners) * rng.choice([-1, 1], size=n_soft_corners)
+    soft_lat = rng.uniform(0.05, 0.28, size=n_soft_corners) * rng.choice(
+        [-1, 1], size=n_soft_corners
+    )
     soft_lon = rng.uniform(-0.15, 0.15, size=n_soft_corners)  # still pure lateral
     lat_parts.append(soft_lat)
     lon_parts.append(soft_lon)
@@ -56,8 +58,12 @@ def simulate_telemetry(
     lat_parts.append(accel_lat)
     lon_parts.append(accel_lon)
 
-    lat = np.concatenate(lat_parts) + rng.normal(0, noise_sigma, size=sum([n_hard_corners, n_soft_corners, n_braking, n_accel]))
-    lon = np.concatenate(lon_parts) + rng.normal(0, noise_sigma, size=sum([n_hard_corners, n_soft_corners, n_braking, n_accel]))
+    lat = np.concatenate(lat_parts) + rng.normal(
+        0, noise_sigma, size=sum([n_hard_corners, n_soft_corners, n_braking, n_accel])
+    )
+    lon = np.concatenate(lon_parts) + rng.normal(
+        0, noise_sigma, size=sum([n_hard_corners, n_soft_corners, n_braking, n_accel])
+    )
     return lat, lon
 
 
@@ -88,13 +94,17 @@ def run_comparison() -> None:
     print(f"\nLateral samples used:")
     print(f"  OLD filter (|lat| >= 0.0G): {lat_mask_old.sum()} samples")
     print(f"  NEW filter (|lat| >= 0.3G): {lat_mask_new.sum()} samples")
-    print(f"  Soft cornering excluded by new filter: {lat_mask_old.sum() - lat_mask_new.sum()} samples")
+    print(
+        f"  Soft cornering excluded by new filter: {lat_mask_old.sum() - lat_mask_new.sum()} samples"
+    )
 
     print(f"\nCalibrated max_lateral_g (mu):")
     print(f"  OLD model (p90, no floor): {old.max_lateral_g:.3f}G")
     print(f"  NEW model (p95, >=0.3G):   {new.max_lateral_g:.3f}G")
-    print(f"  Improvement: +{new.max_lateral_g - old.max_lateral_g:.3f}G "
-          f"({(new.max_lateral_g/old.max_lateral_g - 1)*100:.1f}%)")
+    print(
+        f"  Improvement: +{new.max_lateral_g - old.max_lateral_g:.3f}G "
+        f"({(new.max_lateral_g / old.max_lateral_g - 1) * 100:.1f}%)"
+    )
 
     # True tire limit in simulation is uniform(0.6, 1.1) → mean=0.85, p95≈1.05
     # The "correct" calibration should find ~1.0G (p95 of hard corners only)
@@ -139,14 +149,16 @@ def run_comparison() -> None:
     rng2 = np.random.default_rng(123)
     lat2, lon2 = simulate_telemetry(
         rng2,
-        n_hard_corners=200,   # fewer hard corners (short session)
+        n_hard_corners=200,  # fewer hard corners (short session)
         n_soft_corners=1200,  # lots of sweepers on a flowing track
     )
     old2 = calibrate_grip_from_telemetry(lat2, lon2, percentile=90.0, min_lateral_g=0.0)
     new2 = calibrate_grip_from_telemetry(lat2, lon2, percentile=95.0, min_lateral_g=0.3)
     if old2 and new2:
-        print(f"  OLD: {old2.max_lateral_g:.3f}G | NEW: {new2.max_lateral_g:.3f}G | "
-              f"Delta: +{new2.max_lateral_g - old2.max_lateral_g:.3f}G")
+        print(
+            f"  OLD: {old2.max_lateral_g:.3f}G | NEW: {new2.max_lateral_g:.3f}G | "
+            f"Delta: +{new2.max_lateral_g - old2.max_lateral_g:.3f}G"
+        )
         print(f"  Confidence: OLD={old2.confidence} | NEW={new2.confidence}")
 
     # --- Scenario 3: Short session (fewer laps) ---
@@ -156,8 +168,10 @@ def run_comparison() -> None:
     old3 = calibrate_grip_from_telemetry(lat3, lon3, percentile=90.0, min_lateral_g=0.0)
     new3 = calibrate_grip_from_telemetry(lat3, lon3, percentile=95.0, min_lateral_g=0.3)
     if old3 and new3:
-        print(f"  OLD: {old3.max_lateral_g:.3f}G | NEW: {new3.max_lateral_g:.3f}G | "
-              f"Delta: +{new3.max_lateral_g - old3.max_lateral_g:.3f}G")
+        print(
+            f"  OLD: {old3.max_lateral_g:.3f}G | NEW: {new3.max_lateral_g:.3f}G | "
+            f"Delta: +{new3.max_lateral_g - old3.max_lateral_g:.3f}G"
+        )
         print(f"  Confidence: OLD={old3.confidence} | NEW={new3.confidence}")
 
 

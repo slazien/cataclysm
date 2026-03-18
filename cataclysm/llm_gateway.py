@@ -287,7 +287,13 @@ def _estimate_cost_usd(provider: Provider, model: str, usage: LLMUsage) -> float
             in_rate, out_rate = 0.10, 0.40
         elif "gemini-2.5-flash" in m:
             in_rate, out_rate = 0.30, 2.50
-    return (usage.input_tokens * in_rate + usage.output_tokens * out_rate) / 1_000_000
+    # Anthropic prompt caching: cached reads = 0.1x, cache writes (1h) = 2.0x
+    cached_read = usage.cached_input_tokens
+    cache_write = usage.cache_creation_input_tokens
+    normal_input = usage.input_tokens - cached_read - cache_write
+
+    input_cost = normal_input * in_rate + cached_read * in_rate * 0.1 + cache_write * in_rate * 2.0
+    return (input_cost + usage.output_tokens * out_rate) / 1_000_000
 
 
 def _record_event(event: UsageEvent) -> None:
@@ -391,7 +397,13 @@ def _call_anthropic(
         "messages": [{"role": "user", "content": user_content}],
     }
     if system:
-        kwargs["system"] = system
+        kwargs["system"] = [
+            {
+                "type": "text",
+                "text": system,
+                "cache_control": {"type": "ephemeral", "ttl": "1h"},
+            }
+        ]
     if temperature is not None:
         kwargs["temperature"] = temperature
     message = client.messages.create(**kwargs)

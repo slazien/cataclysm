@@ -1,0 +1,161 @@
+#!/usr/bin/env python3
+"""Seed golden dataset from synthetic starter cases.
+
+Usage: python scripts/seed_golden_set.py
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+OUTPUT = Path("evaluation/golden_set.jsonl")
+
+
+def create_synthetic_starter() -> list[dict]:
+    """Create 3 synthetic golden cases for initial framework testing."""
+    return [
+        {
+            "case_id": "synthetic-good-report",
+            "expected_verdict": "pass",
+            "telemetry": {
+                "track": "barber_motorsports_park",
+                "corners": {
+                    "t5": {
+                        "min_speed_mph": 85.3,
+                        "optimal_speed_mph": 89.3,
+                        "speed_gap_mph": 4.0,
+                        "brake_point_m": 42.0,
+                        "brake_gap_m": 3.0,
+                        "time_loss_s": 0.2,
+                    },
+                    "t11": {
+                        "min_speed_mph": 62.1,
+                        "brake_point_m": 28.5,
+                        "time_loss_s": 0.15,
+                    },
+                },
+                "total_time_gain_s": 0.35,
+                "best_lap_time_s": 92.5,
+                "laps": 18,
+            },
+            "coaching_output": json.dumps(
+                {
+                    "summary": (
+                        "Solid session at Barber with 18 laps. Your best lap of 92.5s "
+                        "shows good pace. Turn 5 and Turn 11 are your biggest opportunities "
+                        "-- together they account for 0.35s of potential improvement."
+                    ),
+                    "priority_corners": [
+                        {
+                            "corner": 5,
+                            "tip": (
+                                "At Turn 5, you can brake about 3m later because your "
+                                "current 42m brake point leaves margin. Your 85.3 mph min speed "
+                                "is 4 mph below the optimal -- carrying more entry speed will "
+                                "let the car rotate naturally through the apex."
+                            ),
+                            "time_gain_s": 0.2,
+                        },
+                        {
+                            "corner": 11,
+                            "tip": (
+                                "At Turn 11, focus on a smoother brake release because "
+                                "your 28.5m brake zone is creating a sharp weight transfer. "
+                                "Your 62.1 mph min speed suggests the car is scrubbing speed "
+                                "mid-corner -- trail the brakes deeper to keep the nose loaded."
+                            ),
+                            "time_gain_s": 0.15,
+                        },
+                    ],
+                    "corner_grades": [
+                        {
+                            "corner": 5,
+                            "braking": "B+",
+                            "trail_braking": "C+",
+                            "min_speed": "B",
+                            "throttle": "A-",
+                            "notes": "Good throttle application, brake point can move later.",
+                        },
+                        {
+                            "corner": 11,
+                            "braking": "B",
+                            "trail_braking": "C",
+                            "min_speed": "B-",
+                            "throttle": "B",
+                            "notes": "Trail braking technique needs refinement.",
+                        },
+                    ],
+                    "patterns": [
+                        "Consistent braking points but slightly early across T5 and T11",
+                        "Good throttle discipline -- no early lift-off patterns",
+                    ],
+                    "primary_focus": "Trail braking technique at T5 and T11",
+                    "drills": [
+                        "Next session: move your T5 brake marker 2m later each run",
+                        "Practice trail braking at T11 -- maintain light pressure past turn-in",
+                    ],
+                }
+            ),
+        },
+        {
+            "case_id": "synthetic-bad-hallucination",
+            "expected_verdict": "fail",
+            "telemetry": {
+                "track": "barber_motorsports_park",
+                "corners": {
+                    "t5": {"min_speed_mph": 85.0, "time_loss_s": 0.2},
+                },
+                "best_lap_time_s": 92.5,
+                "laps": 10,
+            },
+            "coaching_output": json.dumps(
+                {
+                    "summary": (
+                        "You completed 10 laps with a best time of 87.2s. "
+                        "Turn 5 showed a 1.5s time loss."
+                    ),
+                    "priority_corners": [
+                        {
+                            "corner": 5,
+                            "tip": (
+                                "At Turn 5, you lost 1.5s because your 120 mph entry was too fast."
+                            ),
+                        },
+                    ],
+                    "corner_grades": [
+                        {
+                            "corner": 5,
+                            "braking": "D",
+                            "trail_braking": "C",
+                            "min_speed": "F",
+                            "throttle": "B",
+                            "notes": "Major issues.",
+                        },
+                    ],
+                    "patterns": ["Overdriving corners"],
+                    "primary_focus": "Speed control",
+                    "drills": ["Slow down"],
+                }
+            ),
+        },
+        {
+            "case_id": "synthetic-invalid-json",
+            "expected_verdict": "fail",
+            "telemetry": {"track": "test"},
+            "coaching_output": '{"summary": "incomplete json',
+        },
+    ]
+
+
+def main() -> None:
+    cases = create_synthetic_starter()
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    with OUTPUT.open("w") as f:
+        for case in cases:
+            f.write(json.dumps(case) + "\n")
+    print(f"Wrote {len(cases)} cases to {OUTPUT}")
+
+
+if __name__ == "__main__":
+    main()

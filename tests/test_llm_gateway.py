@@ -9,6 +9,7 @@ import pytest
 from cataclysm import llm_gateway
 from cataclysm.llm_gateway import (
     LLMUsage,
+    _estimate_cost_usd,
     call_text_completion,
     get_recent_usage_events,
     get_usage_summary,
@@ -345,3 +346,155 @@ def test_openai_json_mode_sets_text_format(monkeypatch) -> None:
         max_retries=1,
     )
     assert "text" not in captured
+
+
+# ---------------------------------------------------------------------------
+# Prompt caching: _call_anthropic cache_control
+# ---------------------------------------------------------------------------
+
+
+def test_call_anthropic_sends_cache_control(monkeypatch) -> None:
+    """Verify _call_anthropic sends system as content block list with cache_control."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+
+    captured_kwargs: dict = {}
+
+    class _FakeUsage:
+        input_tokens = 100
+        output_tokens = 50
+        cache_read_input_tokens = 0
+        cache_creation_input_tokens = 0
+
+    class _FakeBlock:
+        text = "response text"
+
+    class _FakeMessage:
+        content = [_FakeBlock()]
+        usage = _FakeUsage()
+
+    class _FakeMessages:
+        def create(self, **kwargs: object) -> _FakeMessage:
+            captured_kwargs.update(kwargs)
+            return _FakeMessage()
+
+    class _FakeClient:
+        messages = _FakeMessages()
+
+        def __init__(self, **_kw: object) -> None:
+            pass
+
+    monkeypatch.setattr("anthropic.Anthropic", _FakeClient)
+
+    from cataclysm.llm_gateway import _call_anthropic
+
+    _call_anthropic(
+        "claude-haiku-4-5-20251001",
+        "hello",
+        system="You are a motorsport coach.",
+        max_tokens=256,
+        temperature=0.3,
+        timeout_s=30,
+        max_retries=1,
+    )
+
+    system_val = captured_kwargs["system"]
+    assert isinstance(system_val, list), f"Expected list, got {type(system_val)}"
+    assert len(system_val) == 1
+    block = system_val[0]
+    assert block["type"] == "text"
+    assert block["text"] == "You are a motorsport coach."
+    assert block["cache_control"] == {"type": "ephemeral", "ttl": "1h"}
+
+
+def test_call_anthropic_no_system_omits_key(monkeypatch) -> None:
+    """When system is None, kwargs should not contain 'system' key."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+
+    captured_kwargs: dict = {}
+
+    class _FakeUsage:
+        input_tokens = 10
+        output_tokens = 5
+        cache_read_input_tokens = 0
+        cache_creation_input_tokens = 0
+
+    class _FakeBlock:
+        text = "ok"
+
+    class _FakeMessage:
+        content = [_FakeBlock()]
+        usage = _FakeUsage()
+
+    class _FakeMessages:
+        def create(self, **kwargs: object) -> _FakeMessage:
+            captured_kwargs.update(kwargs)
+            return _FakeMessage()
+
+    class _FakeClient:
+        messages = _FakeMessages()
+
+        def __init__(self, **_kw: object) -> None:
+            pass
+
+    monkeypatch.setattr("anthropic.Anthropic", _FakeClient)
+
+    from cataclysm.llm_gateway import _call_anthropic
+
+    _call_anthropic(
+        "claude-haiku-4-5-20251001",
+        "hello",
+        system=None,
+        max_tokens=64,
+        temperature=None,
+        timeout_s=30,
+        max_retries=1,
+    )
+
+    assert "system" not in captured_kwargs
+
+
+# ---------------------------------------------------------------------------
+# Cost estimation with caching
+# ---------------------------------------------------------------------------
+
+
+def test_estimate_cost_usd_with_caching() -> None:
+    """Cached input tokens cost 0.1x — 8000/10000 cached on Haiku."""
+    usage = LLMUsage(
+        input_tokens=10000,
+        output_tokens=5000,
+        cached_input_tokens=8000,
+        cache_creation_input_tokens=0,
+    )
+    cost = _estimate_cost_usd("anthropic", "claude-haiku-4-5-20251001", usage)
+    # normal: 2000 * 1.0 = 2000, cached: 8000 * 0.1 = 800, out: 5000 * 5.0 = 25000
+    # total = (2000 + 800 + 25000) / 1e6 = 0.0278
+    assert cost == pytest.approx(0.0278, abs=1e-6)
+
+
+def test_estimate_cost_usd_with_cache_write() -> None:
+    """Cache creation tokens cost 2.0x — 8000/10000 are cache writes on Haiku."""
+    usage = LLMUsage(
+        input_tokens=10000,
+        output_tokens=5000,
+        cached_input_tokens=0,
+        cache_creation_input_tokens=8000,
+    )
+    cost = _estimate_cost_usd("anthropic", "claude-haiku-4-5-20251001", usage)
+    # normal: 2000 * 1.0 = 2000, write: 8000 * 2.0 = 16000, out: 5000 * 5.0 = 25000
+    # total = (2000 + 16000 + 25000) / 1e6 = 0.043
+    assert cost == pytest.approx(0.043, abs=1e-6)
+
+
+def test_estimate_cost_usd_no_caching() -> None:
+    """With zero cached tokens, cost calculation matches the original formula."""
+    usage = LLMUsage(
+        input_tokens=10000,
+        output_tokens=5000,
+        cached_input_tokens=0,
+        cache_creation_input_tokens=0,
+    )
+    cost = _estimate_cost_usd("anthropic", "claude-haiku-4-5-20251001", usage)
+    # normal: 10000 * 1.0 = 10000, out: 5000 * 5.0 = 25000
+    # total = 35000 / 1e6 = 0.035
+    assert cost == pytest.approx(0.035, abs=1e-6)
