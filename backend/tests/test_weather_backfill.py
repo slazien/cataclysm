@@ -60,6 +60,7 @@ class TestWeatherToDict:
             weather_source="open-meteo",
             weather_confidence=0.85,
             dew_point_c=12.0,
+            timezone_name="US/Eastern",
         )
         d = weather_to_dict(w)
         assert d["track_condition"] == "wet"
@@ -74,6 +75,7 @@ class TestWeatherToDict:
         assert d["weather_confidence"] == pytest.approx(0.85)
         assert d["dew_point_c"] == pytest.approx(12.0)
         assert d["track_condition_is_manual"] is False
+        assert d["timezone_name"] == "US/Eastern"
 
     def test_dry_condition_string(self) -> None:
         w = SessionConditions(
@@ -351,4 +353,5 @@ async def test_rebackfill_preserves_track_temp_and_timezone() -> None:
     assert stats["updated"] == 1
     saved = row.snapshot_json["weather"]
     assert saved["track_temp_c"] == pytest.approx(42.5)
+    assert saved["timezone_name"] == "America/New_York"
     assert saved["track_condition"] == "wet"

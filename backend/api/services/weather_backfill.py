@@ -74,6 +74,7 @@ def weather_to_dict(w: SessionConditions) -> dict[str, object]:
         "weather_confidence": w.weather_confidence,
         "dew_point_c": w.dew_point_c,
         "track_condition_is_manual": w.track_condition_is_manual,
+        "timezone_name": w.timezone_name,
     }
 
 
