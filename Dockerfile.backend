@@ -23,6 +23,9 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copy backend source (not installed as a package, runs from source)
 COPY backend/ backend/
 
+# Seed pre-built track reference files (overwritten at runtime with better data)
+COPY data/track_reference/*.npz /app/data/track_reference/
+
 # Run as non-root user for security
 RUN adduser --disabled-password --gecos "" appuser && \
     mkdir -p /app/data && chown -R appuser:appuser /app
