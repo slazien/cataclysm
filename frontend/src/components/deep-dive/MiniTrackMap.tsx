@@ -114,9 +114,7 @@ export function MiniTrackMap({ sessionId, trackMapRef }: MiniTrackMapProps) {
   }, [cursorDistance, lapData, compLapData, compProjected]);
 
   // Don't render anything on desktop or when we have no data
-  // DEBUG: temporarily show diagnostic badge on mobile even without polyline
-  const hasData = Boolean(polyline);
-  if (!isMobile) return null;
+  if (!isMobile || !polyline) return null;
 
   // CSS transition: instant appear (0ms delay), delayed disappear (600ms delay).
   // The transition-delay on hide gives a "linger" effect purely in CSS.
@@ -128,15 +126,7 @@ export function MiniTrackMap({ sessionId, trackMapRef }: MiniTrackMapProps) {
   // ViewRouter's motion.div keeps transform:translateY(0) after animation,
   // which creates a containing block and breaks position:fixed on descendants.
   return createPortal(
-    <>
-      {/* DEBUG: visible diagnostic badge — remove after confirming fix */}
-      <div
-        className="pointer-events-none fixed z-[9999] left-3 bottom-[calc(8rem+env(safe-area-inset-bottom))]"
-        style={{ fontSize: 10, fontFamily: 'monospace', color: '#fff', background: 'rgba(0,0,0,0.8)', padding: '2px 6px', borderRadius: 4 }}
-      >
-        mob:{isMobile ? '✓' : '✗'} oov:{mapOutOfView ? '✓' : '✗'} cur:{cursorDistance !== null ? '✓' : '✗'} data:{hasData ? '✓' : '✗'}
-      </div>
-      {hasData && <div
+    <div
       aria-hidden="true"
       className={`
         pointer-events-none fixed z-30 rounded-lg border border-white/10
@@ -160,7 +150,7 @@ export function MiniTrackMap({ sessionId, trackMapRef }: MiniTrackMapProps) {
       >
         {/* Track outline */}
         <path
-          d={polyline!}
+          d={polyline}
           fill="none"
           stroke={colors.text.secondary}
           strokeWidth={2}
@@ -207,8 +197,7 @@ export function MiniTrackMap({ sessionId, trackMapRef }: MiniTrackMapProps) {
           </circle>
         )}
       </svg>
-    </div>}
-    </>,
+    </div>,
     document.body,
   );
 }
