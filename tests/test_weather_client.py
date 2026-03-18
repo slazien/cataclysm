@@ -733,3 +733,64 @@ class TestEvaporationSurfaceTemp:
         )
         # Hot soil dries faster -> lower peak water
         assert peak_with_soil <= peak_no_soil
+
+
+# ---------------------------------------------------------------------------
+# None-coalescing (archive API returning None values)
+# ---------------------------------------------------------------------------
+
+
+class TestNoneCoalescing:
+    """Open-Meteo archive API can return None for individual array values."""
+
+    @pytest.mark.asyncio
+    async def test_none_in_core_arrays_falls_back_to_legacy(self) -> None:
+        """When temperature_2m has None values, fall back to legacy path."""
+        payload = dict(SAMPLE_HOURLY_RESPONSE)
+        hourly = dict(payload["hourly"])  # type: ignore[arg-type]
+        # Inject None into core temperature array
+        temps = [22.0] * 24
+        temps[5] = None  # type: ignore[assignment]
+        hourly["temperature_2m"] = temps
+        payload["hourly"] = hourly
+
+        mock_resp = _make_mock_response(payload)
+        with patch("cataclysm.weather_client.httpx.AsyncClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_client.get.return_value = mock_resp
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=False)
+            mock_cls.return_value = mock_client
+
+            result = await lookup_weather(33.5, -86.6, datetime(2025, 2, 15, 12, 0, tzinfo=UTC))
+
+        assert result is not None
+        # Should still classify (via legacy path), not crash
+        assert result.track_condition in (
+            TrackCondition.DRY,
+            TrackCondition.DAMP,
+            TrackCondition.WET,
+        )
+
+    @pytest.mark.asyncio
+    async def test_none_in_rain_array_coalesced_to_zero(self) -> None:
+        """None in rain array → 0.0, surface water model still runs."""
+        payload = dict(SAMPLE_HOURLY_RESPONSE)
+        hourly = dict(payload["hourly"])  # type: ignore[arg-type]
+        rain = [0.0] * 24
+        rain[3] = None  # type: ignore[assignment]
+        hourly["rain"] = rain
+        payload["hourly"] = hourly
+
+        mock_resp = _make_mock_response(payload)
+        with patch("cataclysm.weather_client.httpx.AsyncClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_client.get.return_value = mock_resp
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=False)
+            mock_cls.return_value = mock_client
+
+            result = await lookup_weather(33.5, -86.6, datetime(2025, 2, 15, 12, 0, tzinfo=UTC))
+
+        assert result is not None
+        assert result.track_condition == TrackCondition.DRY

@@ -347,7 +347,9 @@ def _sum_lookback_precipitation(
 ) -> float:
     """Sum precipitation over the *lookback_hours* ending at *session_idx*."""
     start_idx = max(0, session_idx - lookback_hours)
-    return sum(float(precip_values[i]) for i in range(start_idx, session_idx + 1))
+    return sum(
+        float(v) if v is not None else 0.0 for v in precip_values[start_idx : session_idx + 1]
+    )
 
 
 async def lookup_weather(
@@ -405,21 +407,34 @@ async def lookup_weather(
         n_hours = len(hourly["time"])
         has_full_window = idx >= 12 and idx + 2 < n_hours
 
+        # Helper: coalesce None → default in API arrays
+        def _f(v: float | int | None, default: float = 0.0) -> float:
+            return float(v) if v is not None else default
+
         # Prefer new model (rain+showers); fall back to legacy (precipitation)
-        if "rain" in hourly and "dew_point_2m" in hourly and "direct_radiation" in hourly:
+        # Also fall back if core arrays contain None (incomplete archive data)
+        _has_model_fields = (
+            "rain" in hourly and "dew_point_2m" in hourly and "direct_radiation" in hourly
+        )
+        _core_has_nones = _has_model_fields and any(
+            v is None
+            for key in ("temperature_2m", "relative_humidity_2m", "dew_point_2m")
+            for v in hourly.get(key, [])
+        )
+        if _has_model_fields and not _core_has_nones:
             # Build hourly dict with float lists for the balance model
             hourly_floats: dict[str, list[float]] = {
-                "rain": [float(v) for v in hourly["rain"]],
-                "showers": [float(v) for v in hourly.get("showers", [0.0] * n_hours)],
-                "temperature_2m": [float(v) for v in hourly["temperature_2m"]],
-                "relative_humidity_2m": [float(v) for v in hourly["relative_humidity_2m"]],
-                "wind_speed_10m": [float(v) for v in hourly["wind_speed_10m"]],
-                "direct_radiation": [float(v) for v in hourly["direct_radiation"]],
-                "dew_point_2m": [float(v) for v in hourly["dew_point_2m"]],
+                "rain": [_f(v) for v in hourly["rain"]],
+                "showers": [_f(v) for v in hourly.get("showers", [0.0] * n_hours)],
+                "temperature_2m": [_f(v) for v in hourly["temperature_2m"]],
+                "relative_humidity_2m": [_f(v, 50.0) for v in hourly["relative_humidity_2m"]],
+                "wind_speed_10m": [_f(v) for v in hourly["wind_speed_10m"]],
+                "direct_radiation": [_f(v) for v in hourly["direct_radiation"]],
+                "dew_point_2m": [_f(v) for v in hourly["dew_point_2m"]],
             }
             if "soil_temperature_0cm" in hourly:
                 hourly_floats["soil_temperature_0cm"] = [
-                    float(v) for v in hourly["soil_temperature_0cm"]
+                    _f(v, 15.0) for v in hourly["soil_temperature_0cm"]
                 ]
 
             # Use 15-min native precip when available for better storm timing
@@ -427,8 +442,8 @@ async def lookup_weather(
                 qh_data = prepare_quarter_hourly(
                     hourly_floats,
                     minutely_15_precip={
-                        "rain": [float(v) for v in minutely_15["rain"]],
-                        "showers": [float(v) for v in minutely_15.get("showers", [])],
+                        "rain": [_f(v) for v in minutely_15["rain"]],
+                        "showers": [_f(v) for v in minutely_15.get("showers", [])],
                     },
                 )
                 peak_water = compute_surface_water(
@@ -442,7 +457,7 @@ async def lookup_weather(
             win_start = max(0, idx - 3)
             win_end = min(n_hours, idx + 4)
             cloud_win = [
-                float(v) for v in hourly.get("cloud_cover", [50.0] * n_hours)[win_start:win_end]
+                _f(v, 50.0) for v in hourly.get("cloud_cover", [50.0] * n_hours)[win_start:win_end]
             ]
             precip_win = [
                 hourly_floats["rain"][i] + hourly_floats["showers"][i]
@@ -451,11 +466,14 @@ async def lookup_weather(
             confidence = compute_weather_confidence(cloud_win, precip_win, has_full_window)
 
             current_precip = hourly_floats["rain"][idx] + hourly_floats["showers"][idx]
-            dew_pt: float | None = float(hourly["dew_point_2m"][idx])
+            dew_pt: float | None = hourly_floats["dew_point_2m"][idx]
         else:
-            # Legacy fallback
-            logger.info("Falling back to legacy precipitation classification")
-            current_precip = float(hourly.get("precipitation", [0.0] * n_hours)[idx])
+            # Legacy fallback (missing model fields or core arrays have None)
+            if _core_has_nones:
+                logger.info("Falling back to legacy: core arrays contain None values")
+            else:
+                logger.info("Falling back to legacy precipitation classification")
+            current_precip = _f(hourly.get("precipitation", [0.0] * n_hours)[idx])
             accumulated = _sum_lookback_precipitation(
                 hourly.get("precipitation", [0.0] * n_hours),
                 idx,
@@ -466,12 +484,15 @@ async def lookup_weather(
             confidence = None
             dew_pt = None
 
+        def _opt(v: float | int | None) -> float | None:
+            return float(v) if v is not None else None
+
         return SessionConditions(
             track_condition=condition,
-            ambient_temp_c=float(hourly["temperature_2m"][idx]),
-            humidity_pct=float(hourly["relative_humidity_2m"][idx]),
-            wind_speed_kmh=float(hourly["wind_speed_10m"][idx]),
-            wind_direction_deg=float(hourly["wind_direction_10m"][idx]),
+            ambient_temp_c=_opt(hourly["temperature_2m"][idx]),
+            humidity_pct=_opt(hourly["relative_humidity_2m"][idx]),
+            wind_speed_kmh=_opt(hourly["wind_speed_10m"][idx]),
+            wind_direction_deg=_opt(hourly.get("wind_direction_10m", [None] * n_hours)[idx]),
             precipitation_mm=current_precip,
             weather_source="open-meteo",
             surface_water_mm=peak_water,
