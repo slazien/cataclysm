@@ -12,6 +12,7 @@ Two endpoints are used depending on session age:
 from __future__ import annotations
 
 import logging
+import math
 from datetime import UTC, datetime, timedelta
 
 import httpx
@@ -41,6 +42,74 @@ ACCUMULATED_DAMP_MM = 0.5
 # Thresholds for current-hour precipitation (instant reading)
 INSTANT_WET_MM = 1.0
 INSTANT_DAMP_MM = 0.1
+
+# ---------------------------------------------------------------------------
+# Surface water model constants
+# ---------------------------------------------------------------------------
+_AERO_COEFF = 0.013  # aerodynamic transfer coefficient (tuned for asphalt)
+_RAD_COEFF = 0.0015  # radiation-enhanced evaporation coefficient
+_MIN_WIND_MS = 0.5  # minimum turbulent mixing (m/s)
+
+_HOLDING_CAPACITY_MM = 0.8  # thin film asphalt can hold before drainage
+_RUNOFF_RATE = 0.5  # fraction of excess that drains per hour
+
+_DEW_SPREAD_THRESHOLD_C = 2.0
+_DEW_COEFF = 0.008
+
+
+# ---------------------------------------------------------------------------
+# Surface water physics — pure functions
+# ---------------------------------------------------------------------------
+
+
+def compute_evaporation_rate(
+    temp_c: float,
+    rh_pct: float,
+    wind_kmh: float,
+    radiation_wm2: float,
+) -> float:
+    """Bulk-transfer evaporation rate from wet asphalt (mm/hr).
+
+    Based on Penman aerodynamic term: E = C * u * VPD, plus a
+    radiation enhancement term. VPD (vapor pressure deficit) is the
+    difference between saturation and actual vapor pressure -- when
+    humidity is 100%, VPD=0 and evaporation stops.
+
+    Returns >= 0.0; cannot produce negative (condensation is separate).
+    """
+    # Tetens formula: saturation vapor pressure (hPa)
+    e_s = 6.1078 * math.exp(17.27 * temp_c / (temp_c + 237.3))
+    e_a = e_s * (rh_pct / 100.0)
+    vpd = max(0.0, e_s - e_a)
+
+    wind_ms = max(_MIN_WIND_MS, wind_kmh / 3.6)
+    rad = max(0.0, radiation_wm2)
+
+    aero = _AERO_COEFF * wind_ms * vpd
+    rad_boost = _RAD_COEFF * rad * vpd / max(e_s, 1.0)
+    return aero + rad_boost
+
+
+def compute_runoff(surface_water_mm: float) -> float:
+    """Exponential drainage above asphalt holding capacity (mm/hr)."""
+    if surface_water_mm <= _HOLDING_CAPACITY_MM:
+        return 0.0
+    excess = surface_water_mm - _HOLDING_CAPACITY_MM
+    return excess * _RUNOFF_RATE
+
+
+def compute_condensation(
+    temp_c: float,
+    dew_point_c: float,
+    wind_kmh: float,
+) -> float:
+    """Dew deposition rate when near saturation (mm/hr)."""
+    spread = temp_c - dew_point_c
+    if spread >= _DEW_SPREAD_THRESHOLD_C:
+        return 0.0
+    wind_ms = max(_MIN_WIND_MS, wind_kmh / 3.6)
+    fraction = 1.0 - spread / _DEW_SPREAD_THRESHOLD_C
+    return _DEW_COEFF * wind_ms * fraction
 
 
 def _pick_api_url(session_dt: datetime) -> str:

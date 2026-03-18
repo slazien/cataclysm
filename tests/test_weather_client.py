@@ -9,7 +9,12 @@ import httpx
 import pytest
 
 from cataclysm.equipment import TrackCondition
-from cataclysm.weather_client import lookup_weather
+from cataclysm.weather_client import (
+    compute_condensation,
+    compute_evaporation_rate,
+    compute_runoff,
+    lookup_weather,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -298,3 +303,71 @@ async def test_closest_hour_selection() -> None:
     # Index 0 values: temp=22.0, humidity=55.0 (closest to 10:30)
     assert result.ambient_temp_c == 22.0
     assert result.humidity_pct == 55.0
+
+
+# ---------------------------------------------------------------------------
+# Task 2: Surface water physics — evaporation, runoff, condensation
+# ---------------------------------------------------------------------------
+
+
+class TestEvaporation:
+    """Tests for compute_evaporation_rate."""
+
+    def test_evaporation_zero_at_saturation(self) -> None:
+        rate = compute_evaporation_rate(
+            temp_c=20.0, rh_pct=100.0, wind_kmh=15.0, radiation_wm2=500.0
+        )
+        assert rate == pytest.approx(0.0, abs=0.001)
+
+    def test_evaporation_increases_with_vpd(self) -> None:
+        rate_humid = compute_evaporation_rate(
+            temp_c=20.0, rh_pct=80.0, wind_kmh=10.0, radiation_wm2=300.0
+        )
+        rate_dry = compute_evaporation_rate(
+            temp_c=20.0, rh_pct=40.0, wind_kmh=10.0, radiation_wm2=300.0
+        )
+        assert rate_dry > rate_humid > 0
+
+    def test_evaporation_increases_with_wind(self) -> None:
+        rate_calm = compute_evaporation_rate(
+            temp_c=25.0, rh_pct=50.0, wind_kmh=5.0, radiation_wm2=400.0
+        )
+        rate_windy = compute_evaporation_rate(
+            temp_c=25.0, rh_pct=50.0, wind_kmh=30.0, radiation_wm2=400.0
+        )
+        assert rate_windy > rate_calm
+
+    def test_evaporation_reasonable_magnitude(self) -> None:
+        rate = compute_evaporation_rate(
+            temp_c=25.0, rh_pct=40.0, wind_kmh=15.0, radiation_wm2=600.0
+        )
+        assert 0.05 < rate < 2.0
+
+
+class TestRunoff:
+    """Tests for compute_runoff."""
+
+    def test_runoff_zero_below_capacity(self) -> None:
+        assert compute_runoff(0.3) == pytest.approx(0.0)
+
+    def test_runoff_drains_excess(self) -> None:
+        assert compute_runoff(2.0) > 0.0
+
+    def test_runoff_increases_with_excess(self) -> None:
+        assert compute_runoff(3.0) > compute_runoff(1.5)
+
+
+class TestCondensation:
+    """Tests for compute_condensation."""
+
+    def test_condensation_zero_when_warm(self) -> None:
+        assert compute_condensation(temp_c=25.0, dew_point_c=15.0, wind_kmh=5.0) == pytest.approx(
+            0.0
+        )
+
+    def test_condensation_forms_near_dew_point(self) -> None:
+        assert compute_condensation(temp_c=10.0, dew_point_c=9.5, wind_kmh=5.0) > 0.0
+
+    def test_condensation_small_magnitude(self) -> None:
+        rate = compute_condensation(temp_c=8.0, dew_point_c=7.0, wind_kmh=10.0)
+        assert 0.0 < rate < 0.1
