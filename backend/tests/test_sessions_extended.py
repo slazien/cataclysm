@@ -1070,6 +1070,10 @@ async def test_get_weather_track_condition_string_fallback(
     mock_weather.wind_direction_deg = 45.0
     mock_weather.precipitation_mm = 5.0
     mock_weather.weather_source = "manual"
+    mock_weather.surface_water_mm = None
+    mock_weather.weather_confidence = None
+    mock_weather.dew_point_c = None
+    mock_weather.track_condition_is_manual = False
     sd.weather = mock_weather
 
     response = await client.get(f"/api/sessions/{session_id}/weather")
