@@ -596,21 +596,17 @@ ATLANTA_MOTORSPORTS_PARK = TrackLayout(
 #     AFTER the loop — numbering offset from official; use map, not prose)
 #   - na-motorsports.com: 10 turns (splits T5/T6 differently) — noted, not used
 #
-# Direction fixes (2026-03-02), verified against racingcircuits.info map and
-#   GPS heading analysis (T5→T6→T7→T8 trace confirms loop traversal direction):
-#   T4: RIGHT→LEFT. "Tricky Entry Right"→"Tricky Entry Left".
-#       Physical corner is the leftward bulge between T3 sweeper and T5.
-#   T5: LEFT→RIGHT, name "The Hairpin"→"Slow Right". No source uses "The
-#       Hairpin". racetrackdriving.com: "the slowest turn"; na-motorsports:
-#       "Left 120°" (different numbering); Paddock Pal: "most difficult turn".
-#       Car turns RIGHT here to head east toward the big loop.
-#   T6: RIGHT→LEFT. "Downhill Right"→"Downhill Left".
-#       Entry to the big loop — car turns LEFT from heading SE to heading N.
-#   T7: LEFT→RIGHT. "Uphill Left"→"Uphill Right".
-#       Apex of the big loop — car reverses from heading N to heading SE.
-#   Root cause: algorithm-derived heading-rate signs were trusted over visual
-#   source comparison. Heading-rate analysis gets the sign wrong at complex
-#   curves where approach curvature differs from the main arc.
+# Direction verification (2026-03-18): all 9 directions confirmed correct
+#   against 8-lap averaged telemetry curvature data (0.7m resolution).
+#   Positive curvature = LEFT, negative = RIGHT. No discrepancies.
+#
+# Metadata validation (2026-03-18): camber, elevation, type, and coaching
+#   notes validated against 10+ professional sources (racetrackdriving.com,
+#   Condor Speed Shop, Paddock Pal, Blayze, APEX Pro video, Lap of the World
+#   video, FLC PCA guide, Paradigm Shift Racing, OpenTrack, Jon Krolewicz PDF).
+#   Key corrections: T4/T6 off-camber (was positive), T6 downhill / T7 uphill
+#   (only meaningful elevation on circuit), T3 kink→sweeper, T4 hairpin→sweeper,
+#   T5 coaching rewritten (patience not early power per APEX Pro coach).
 #
 # Fraction corrections (2026-03-02): labels placed at VISUAL CENTER of each
 #   Fractions placed at corner APEX positions, matched visually against the
@@ -640,11 +636,12 @@ _ROEBLING_LANDMARKS: list[Landmark] = [
         "T4 braking reference",
         1340.0,
         LandmarkType.curbing,
-        description="Reference for brake point into T4 hairpin",
+        description="Reference for brake point into T4",
     ),
     # --- T5 area ---
-    Landmark("T5 downhill section", 1740.0, LandmarkType.natural, description="Track drops"),
-    # --- T7 exit ---
+    Landmark("T5 slow hairpin", 1740.0, LandmarkType.curbing, description="Slowest corner"),
+    # --- T6-T7 elevation ---
+    Landmark("T6 downhill entry", 2050.0, LandmarkType.natural, description="Track drops"),
     Landmark("T7 uphill exit", 2250.0, LandmarkType.natural, description="Track climbs back"),
     # --- T8-T9 complex ---
     Landmark("T9 exit curb", 2720.0, LandmarkType.curbing, description="Dips in exit curb"),
@@ -670,10 +667,11 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
             direction="right",
             corner_type="sweeper",
             elevation_trend="flat",
-            camber="positive",
+            camber="neutral",
             coaching_notes=(
-                "Heavy braking from top speed. Decreasing radius — don't turn in early. "
-                "Trail-brake to rotate and find the late apex."
+                "Entry-speed corner — heavy braking from top speed on diagonal line "
+                "from far left. Decreasing radius tightens mid-corner; don't turn in "
+                "early. Trail-brake to rotate. Slightly off-camber as radius tightens."
             ),
         ),
         OfficialCorner(
@@ -685,57 +683,63 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
             direction="right",
             corner_type="sweeper",
             elevation_trend="flat",
-            camber="positive",
+            camber="neutral",
             blind=True,
             coaching_notes=(
-                "Blind apex at the top of the T1-T2 hairpin. Commit to reference points. "
-                "Late apex and use full exit curbing."
+                "Blind apex — commit to consistent reference points. Trail-brake to "
+                "help the front end bite into the turn. Late apex, use full exit "
+                "curbing. Usable curbing especially helpful in wet."
             ),
         ),
         OfficialCorner(
             3,
-            "Fast Left Kink",
+            "Fast Left Sweeper",
             0.341,
             lat=32.168672,
             lon=-81.325200,
             character="flat",
             direction="left",
-            corner_type="kink",
+            corner_type="sweeper",
             elevation_trend="flat",
-            camber="positive",
+            camber="neutral",
             coaching_notes=(
-                "Fast left kink after T2 exit. Resist the temptation to lift — "
-                "carry speed and trust grip."
+                "One of the two fastest corners on the circuit. Set a single arc from "
+                "outside entry to inside apex. Resist the urge to brake — the car "
+                "carries far more speed than it feels. Left tire on curb at apex."
             ),
         ),
         OfficialCorner(
             4,
-            "Tight Right Hairpin",
+            "Technical Right",
             0.460,
             lat=32.169808,
             lon=-81.321811,
             direction="right",
-            corner_type="hairpin",
-            elevation_trend="uphill",
-            camber="positive",
+            corner_type="sweeper",
+            elevation_trend="flat",
+            camber="off-camber",
             coaching_notes=(
-                "Tight right hairpin at the top of the hill. Heavy braking from 85 mph. "
-                "Late apex, slow hands, use all the track on exit heading downhill to T5."
+                "Slippery entry — gets more off-camber the deeper you go. Hard braking "
+                "to 3rd, trail-brake to rotate. Approach as an exit-speed corner: "
+                "conservatively late apex, two wheels on apex curbing, early power out."
             ),
         ),
         OfficialCorner(
             5,
-            "Tight Left",
+            "Slow Left Hairpin",
             0.563,
             lat=32.167811,
             lon=-81.319517,
             direction="left",
             corner_type="hairpin",
-            elevation_trend="downhill",
-            camber="positive",
+            elevation_trend="flat",
+            camber="neutral",
             coaching_notes=(
-                "Tight left at the bottom of the S-curve. Speed drops to ~55 mph. "
-                "Late apex, rotate the car, get on power early for the run to T6."
+                "Slowest corner on the circuit (~180° change). Double apex — use the "
+                "first apex to set the angle for the second. BE PATIENT with throttle: "
+                "let the chassis settle, then go straight to FULL throttle. Partial "
+                "throttle mid-corner unsettles the car. Grip level dramatically "
+                "changes the line (R-comp vs street tires)."
             ),
         ),
         OfficialCorner(
@@ -746,11 +750,13 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
             lon=-81.318641,
             direction="right",
             corner_type="sweeper",
-            elevation_trend="flat",
-            camber="positive",
+            elevation_trend="downhill",
+            camber="off-camber",
             coaching_notes=(
-                "Entry to the big right-hand loop (T6-T7). Trail-brake to set the car "
-                "and commit to the long right arc. Don't overdrive the entry."
+                "Only meaningful elevation drop on the circuit. Off-camber and "
+                "slippery — don't turn in too deep or the rear breaks loose. Late "
+                "apex is critical: T6 and T7 are linked. If T6 is done right, T7 is "
+                "a non-event. Get on throttle and STAY on it through T7 exit."
             ),
         ),
         OfficialCorner(
@@ -761,11 +767,12 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
             lon=-81.317527,
             direction="right",
             corner_type="sweeper",
-            elevation_trend="flat",
+            elevation_trend="uphill",
             camber="positive",
             coaching_notes=(
-                "Apex of the big loop. Constant radius — maintain steady throttle. "
-                "Don't let the car drift wide. Use the exit curb."
+                "Uphill compensates for T6 drop — loads the front, forgiving corner. "
+                "If T6 was right, carry speed through on throttle. Late-apex character; "
+                "rumble strips on inside curb confirm correct line. Upshift on exit."
             ),
         ),
         OfficialCorner(
@@ -777,10 +784,11 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
             direction="right",
             corner_type="sweeper",
             elevation_trend="flat",
-            camber="positive",
+            camber="neutral",
             coaching_notes=(
-                "Long right sweeper heading back toward the home straight. "
-                "Flat out for lower-power cars, brief lift for fast cars."
+                "T8-T9 are driven as a single sweeping arc. Set a gentle arc from "
+                "left to right. Flat out for lower-power cars; higher-power may need "
+                "a brief lift entering. Progressive throttle to keep the car planted."
             ),
         ),
         OfficialCorner(
@@ -792,10 +800,12 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
             direction="right",
             corner_type="sweeper",
             elevation_trend="flat",
-            camber="positive",
+            camber="neutral",
             coaching_notes=(
-                "Exit of the T8-T9 sweeper complex onto the front straight. "
-                "Exit speed is critical — carry momentum for the long straight."
+                "One of the two fastest corners — and the ONLY wall on the circuit. "
+                "Apex reference: grass opening before pit lane entrance. Keep right "
+                "side near pit-entry curbing. Exit speed onto the 3200 ft straight is "
+                "critical. If traction breaks, straighten immediately — don't fight it."
             ),
         ),
     ],
