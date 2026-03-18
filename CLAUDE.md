@@ -65,7 +65,7 @@ All must pass before commit:
 
 **Mobile viewports** (CSS px): S24 360×780 | iPhone14 390×844 | Pixel9 412×915 | iPhone16PM 440×956
 Check: text clip, horiz overflow, touch targets ≥44px, chart scale.
-**Fixed-position rule**: Before adding any `position:fixed` element, grep for ALL existing `fixed` elements → verify no overlap at every breakpoint.
+**Fixed-position rule**: Before adding any `position:fixed` element, grep for ALL existing `fixed` elements → verify no overlap at every breakpoint. Any `fixed` element inside ViewRouter's `motion.div` MUST use `createPortal(…, document.body)` — Framer Motion retains `transform: translateY(0px)` after animation, creating a containing block that silently degrades `fixed` to `absolute`. All other floating UI (chat, notes, settings, tools) renders outside ViewRouter in `page.tsx` and is unaffected.
 **Tooltip rule**: Never use Radix `Tooltip` (hover-only) for interactive content. Always use `Popover` — tap-to-open stays open until dismissed. `Tooltip` fires enter+leave in rapid succession on touch → immediately disappears.
 **Scroll container rule**: Views using Radix ScrollArea (SessionReport, ProgressView) have actual scroller at `[data-slot="scroll-area-viewport"]` inside the `overflow-y:auto` wrapper. DeepDive/Debrief scroll on the wrapper directly. Any scroll listener must check for the viewport element first: `wrapper.querySelector('[data-slot="scroll-area-viewport"]') ?? wrapper`.
 

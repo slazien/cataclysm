@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## `position: fixed` Inside Framer Motion `motion.div` Silently Breaks — Use Portal (2026-03-18)
+
+**Pattern**: Any `position: fixed` element rendered inside ViewRouter's `motion.div` (or any ancestor with CSS `transform`) MUST use `createPortal(jsx, document.body)` to escape the containing block. CSS spec: a non-`none` `transform` on an ancestor makes `fixed` behave like `absolute` relative to that ancestor. Framer Motion keeps `transform: translateY(0px)` after the entrance animation completes, permanently breaking `fixed` descendants.
+
+**Why**: `MiniTrackMap` (floating mini-map on mobile) was rendered inside `SpeedAnalysis` → `DeepDive` → ViewRouter's `motion.div`. All 4 visibility conditions were `true` (mobile, map out-of-view, cursor active, data loaded), but the overlay was invisible because `position: fixed` was relative to the `motion.div`, not the viewport. All other floating UI (chat, notes, settings) worked because they render in `page.tsx` outside ViewRouter. Debugging without console access (phone) required adding a visible debug badge to confirm conditions — the core issue was purely CSS containment, not React state.
+
+**Error signature**: A `position: fixed` element that works in isolation but is invisible or mispositioned when rendered inside a Framer Motion animated container. `document.body` has no `transform` and no stacking context issues. Check: does the nearest ancestor with `transform` include the animated wrapper?
+
 ## Deep Dive Has 3 Independent Map Renderers — Feature Must Hit All (2026-03-18)
 
 **Pattern**: When adding any feature to the Deep Dive track map (cursor dots, overlays, click handlers), implement it in ALL three renderers: `TrackMapSatellite.tsx` (Mapbox, **default**), `TrackMapInteractive.tsx` (SVG, 2D), `TrackMap3D.tsx` (Three.js, 3D). `TrackMapContainer.tsx` switches between them based on `satEnabled` (default `true`) and `mapMode`. SAT is the default — if you only implement in 2D, most users never see it.
