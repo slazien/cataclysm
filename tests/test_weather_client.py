@@ -10,10 +10,12 @@ import pytest
 
 from cataclysm.equipment import TrackCondition
 from cataclysm.weather_client import (
+    classify_surface_water,
     compute_condensation,
     compute_evaporation_rate,
     compute_runoff,
     compute_surface_water,
+    compute_weather_confidence,
     lookup_weather,
 )
 
@@ -463,3 +465,55 @@ class TestSurfaceWaterBalance:
         peak = compute_surface_water(data, session_idx=20, lookback=12, forward=2)
         # Runoff should cap accumulation well below total input (60mm over 12h)
         assert peak < 15.0
+
+
+# ---------------------------------------------------------------------------
+# Task 4: Classification and confidence
+# ---------------------------------------------------------------------------
+
+
+class TestClassifySurfaceWater:
+    """Tests for classify_surface_water."""
+
+    def test_classify_dry(self) -> None:
+        assert classify_surface_water(0.005) == TrackCondition.DRY
+
+    def test_classify_damp(self) -> None:
+        assert classify_surface_water(0.05) == TrackCondition.DAMP
+
+    def test_classify_wet(self) -> None:
+        assert classify_surface_water(0.15) == TrackCondition.WET
+
+    def test_classify_boundary_damp(self) -> None:
+        assert classify_surface_water(0.01) == TrackCondition.DAMP
+
+    def test_classify_boundary_wet(self) -> None:
+        assert classify_surface_water(0.10) == TrackCondition.WET
+
+
+class TestWeatherConfidence:
+    """Tests for compute_weather_confidence."""
+
+    def test_confidence_high_for_steady_conditions(self) -> None:
+        conf = compute_weather_confidence(
+            cloud_cover_pct=[20.0] * 6,
+            precip_values=[0.0] * 6,
+            has_full_window=True,
+        )
+        assert conf > 0.8
+
+    def test_confidence_lower_for_convective(self) -> None:
+        conf = compute_weather_confidence(
+            cloud_cover_pct=[30.0, 90.0, 40.0, 100.0, 50.0, 95.0],
+            precip_values=[0.0, 0.5, 0.0, 1.2, 0.0, 0.3],
+            has_full_window=True,
+        )
+        assert conf < 0.7
+
+    def test_confidence_drops_for_missing_data(self) -> None:
+        conf = compute_weather_confidence(
+            cloud_cover_pct=[50.0] * 3,
+            precip_values=[0.0] * 3,
+            has_full_window=False,
+        )
+        assert conf <= 0.8

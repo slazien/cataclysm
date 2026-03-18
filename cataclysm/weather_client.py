@@ -158,6 +158,54 @@ def compute_surface_water(
     return round(peak_session, 4)
 
 
+# ---------------------------------------------------------------------------
+# Classification and confidence
+# ---------------------------------------------------------------------------
+
+_WET_THRESHOLD_MM = 0.10
+_DAMP_THRESHOLD_MM = 0.01
+
+
+def classify_surface_water(peak_water_mm: float) -> TrackCondition:
+    """Map peak surface water film thickness to track condition."""
+    if peak_water_mm >= _WET_THRESHOLD_MM:
+        return TrackCondition.WET
+    if peak_water_mm >= _DAMP_THRESHOLD_MM:
+        return TrackCondition.DAMP
+    return TrackCondition.DRY
+
+
+def compute_weather_confidence(
+    cloud_cover_pct: list[float],
+    precip_values: list[float],
+    has_full_window: bool,
+) -> float:
+    """Estimate reliability of the surface water classification (0-1)."""
+    conf = 1.0
+
+    # Cloud variability penalty
+    if len(cloud_cover_pct) >= 3:
+        mean = sum(cloud_cover_pct) / len(cloud_cover_pct)
+        variance = sum((x - mean) ** 2 for x in cloud_cover_pct) / len(cloud_cover_pct)
+        cloud_std = variance**0.5
+        conf -= min(0.3, cloud_std / 100.0)
+
+    # Patchy precipitation penalty
+    if precip_values:
+        n_rainy = sum(1 for p in precip_values if p > 0.05)
+        n_total = len(precip_values)
+        if 0 < n_rainy < n_total:
+            rain_fraction = n_rainy / n_total
+            patchiness = 4 * rain_fraction * (1 - rain_fraction)
+            conf -= 0.2 * patchiness
+
+    # Missing data penalty
+    if not has_full_window:
+        conf -= 0.2
+
+    return round(max(0.0, min(1.0, conf)), 2)
+
+
 def _pick_api_url(session_dt: datetime) -> str:
     """Return the forecast or archive URL based on session age."""
     now = datetime.now(UTC)
