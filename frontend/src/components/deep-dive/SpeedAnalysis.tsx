@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { useSessionStore, useAnalysisStore } from '@/stores';
 import { useCoachingReport } from '@/hooks/useCoaching';
 import { useUnits } from '@/hooks/useUnits';
@@ -18,6 +18,7 @@ import { ComparisonLegend } from './ComparisonLegend';
 import { parseCornerNumber } from '@/lib/cornerUtils';
 import { GGDiagramChart } from './GGDiagramChart';
 import { LateralOffsetChart } from './charts/LateralOffsetChart';
+import { MiniTrackMap } from './MiniTrackMap';
 
 export function SpeedAnalysis() {
   const sessionId = useSessionStore((s) => s.activeSessionId);
@@ -30,6 +31,7 @@ export function SpeedAnalysis() {
   const { data: report } = useCoachingReport(sessionId);
   const { resolveSpeed } = useUnits();
   const { showFeature } = useSkillLevel();
+  const trackMapRef = useRef<HTMLDivElement>(null);
 
   // Find the most relevant priority corner insight for the current view:
   // if a corner is selected, show that corner's tip; otherwise show the top priority
@@ -163,7 +165,7 @@ export function SpeedAnalysis() {
       {/* Right column -- 35% on desktop, full width on mobile -- track map + speed gap panel */}
       <div className="flex w-full min-h-0 flex-col gap-3 lg:w-[35%] lg:sticky lg:top-0 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
         {/* Track Map -- fixed height so it never resizes when card content changes */}
-        <div className="h-[200px] shrink-0 sm:h-[250px] lg:h-[400px]">
+        <div ref={trackMapRef} className="h-[200px] shrink-0 sm:h-[250px] lg:h-[400px]">
           <ChartErrorBoundary name="Track Map">
             <TrackMapContainer sessionId={sessionId} />
           </ChartErrorBoundary>
@@ -184,6 +186,9 @@ export function SpeedAnalysis() {
         </div>
       </div>
       </div>
+
+      {/* Mobile floating mini-map — appears during chart scrubbing when main map is out of view */}
+      {sessionId && <MiniTrackMap sessionId={sessionId} trackMapRef={trackMapRef} />}
     </div>
   );
 }
