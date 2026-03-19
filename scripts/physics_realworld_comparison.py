@@ -34,6 +34,7 @@ from cataclysm.equipment import (
     CATEGORY_MU_DEFAULTS,
     CATEGORY_GRIP_UTILIZATION,
     CATEGORY_PEAK_SLIP_ANGLE_DEG,
+    CATEGORY_THERMAL_PENALTY,
     TireCompoundCategory,
 )
 from cataclysm.tire_db import lookup_tire
@@ -546,7 +547,8 @@ def _vehicle_spec_to_params(
     """Build VehicleParams from a VehicleSpec + tire compound."""
     mu_raw = mu_override if mu_override is not None else CATEGORY_MU_DEFAULTS[compound]
     grip_util = CATEGORY_GRIP_UTILIZATION.get(compound, 0.96)
-    mu = mu_raw * grip_util
+    thermal = CATEGORY_THERMAL_PENALTY.get(compound, 1.00)
+    mu = mu_raw * grip_util * thermal
     weight_kg = spec.weight_kg
 
     base_accel_g = _CATEGORY_ACCEL_G[compound]

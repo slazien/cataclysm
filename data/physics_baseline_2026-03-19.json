@@ -6,8 +6,8 @@
       "car": "Miata NA",
       "track": "Barber Motorsports Park",
       "real_s": 108.08,
-      "predicted_s": 109.23934997520561,
-      "ratio": 1.0107267762324723,
+      "predicted_s": 109.83165460774035,
+      "ratio": 1.0162070189465244,
       "tire_category": "r_compound",
       "tire_model": "Hoosier (NASA TT class)",
       "mu": 1.38
@@ -126,8 +126,8 @@
       "car": "911 GT3 992",
       "track": "Barber Motorsports Park",
       "real_s": 93.09,
-      "predicted_s": 91.45117237224711,
-      "ratio": 0.9823952344209594,
+      "predicted_s": 92.3040403787588,
+      "ratio": 0.9915569919299473,
       "tire_category": "slick",
       "tire_model": "Dunlop DH Slick",
       "mu": 1.4
@@ -136,8 +136,8 @@
       "car": "911 GT3 991",
       "track": "Barber Motorsports Park",
       "real_s": 95.05,
-      "predicted_s": 91.87764873092502,
-      "ratio": 0.9666243948545504,
+      "predicted_s": 92.7487261211802,
+      "ratio": 0.975788807166546,
       "tire_category": "r_compound",
       "tire_model": "Hoosier R7",
       "mu": 1.38
@@ -156,8 +156,8 @@
       "car": "Mustang GT S550",
       "track": "Barber Motorsports Park",
       "real_s": 97.06,
-      "predicted_s": 95.78336885230269,
-      "ratio": 0.9868469900299061,
+      "predicted_s": 96.53199326756648,
+      "ratio": 0.9945599965749689,
       "tire_category": "slick",
       "tire_model": "Pirelli Slicks 305 square",
       "mu": 1.4
@@ -206,8 +206,8 @@
       "car": "GR86 (FR-S proxy)",
       "track": "Roebling Road Raceway",
       "real_s": 80.47,
-      "predicted_s": 79.92544207501933,
-      "ratio": 0.9932327833356448,
+      "predicted_s": 80.19138370040177,
+      "ratio": 0.9965376376339229,
       "tire_category": "100tw",
       "tire_model": "Nitto NT01",
       "mu": 1.2
@@ -216,8 +216,8 @@
       "car": "Corvette C8 Z06",
       "track": "Roebling Road Raceway",
       "real_s": 74.28999999999999,
-      "predicted_s": 73.31923777315424,
-      "ratio": 0.9869328008231828,
+      "predicted_s": 73.61016061330199,
+      "ratio": 0.9908488438996096,
       "tire_category": "100tw",
       "tire_model": "Pirelli P Zero Trofeo R (Z07 pkg)",
       "mu": 1.18
@@ -246,8 +246,8 @@
       "car": "Mustang GT S550",
       "track": "Roebling Road Raceway",
       "real_s": 79.9,
-      "predicted_s": 73.7884582248846,
-      "ratio": 0.9235101154553765,
+      "predicted_s": 74.43191297383785,
+      "ratio": 0.9315633663809493,
       "tire_category": "r_compound",
       "tire_model": "Hoosier A7 315 square",
       "mu": 1.42
@@ -256,8 +256,8 @@
       "car": "Mustang GT S550",
       "track": "Roebling Road Raceway",
       "real_s": 82.58,
-      "predicted_s": 74.39109483964961,
-      "ratio": 0.9008367018606153,
+      "predicted_s": 75.06772777972617,
+      "ratio": 0.9090303678823707,
       "tire_category": "r_compound",
       "tire_model": "Hoosier R7 315/30/18",
       "mu": 1.38
@@ -266,8 +266,8 @@
       "car": "GT350",
       "track": "Roebling Road Raceway",
       "real_s": 78.7,
-      "predicted_s": 75.68596352947176,
-      "ratio": 0.9617022049488153,
+      "predicted_s": 75.95498986677612,
+      "ratio": 0.9651205828052873,
       "tire_category": "100tw",
       "tire_model": "Goodyear SuperCar 3R",
       "mu": 1.2
@@ -316,8 +316,8 @@
       "car": "Cayman GT4 718",
       "track": "Atlanta Motorsports Park",
       "real_s": 87.58,
-      "predicted_s": 83.70061453776461,
-      "ratio": 0.9557046647381207,
+      "predicted_s": 84.52453975956396,
+      "ratio": 0.9651123516734867,
       "tire_category": "slick",
       "tire_model": "Pirelli slicks",
       "mu": 1.4
@@ -334,10 +334,10 @@
     }
   ],
   "summary": {
-    "mean_ratio": 0.9974529865358296,
-    "median_ratio": 0.9932327833356448,
-    "std_ratio": 0.036283672600521163,
+    "mean_ratio": 0.9995079349659498,
+    "median_ratio": 0.9953353671248912,
+    "std_ratio": 0.034398576420092225,
     "exceedance_count_5pct": 3,
-    "r_compound_mean": 0.9504244971007537
+    "r_compound_mean": 0.9581473900940977
   }
 }

@@ -146,6 +146,20 @@ CATEGORY_GRIP_UTILIZATION: dict[TireCompoundCategory, float] = {
     TireCompoundCategory.SLICK: 0.93,
 }
 
+# Thermal penalty — high-grip compounds generate more slip-work heat per corner,
+# pushing the tire above its optimal thermal window more frequently within a lap.
+# Street tires rarely overheat at typical track speeds; R-compound and slicks
+# experience measurable grip fade from the first hard sector onward.
+# Values from Prisma Electronics and MDPI 2019 FSAE thermal validation.
+CATEGORY_THERMAL_PENALTY: dict[TireCompoundCategory, float] = {
+    TireCompoundCategory.STREET: 1.00,
+    TireCompoundCategory.ENDURANCE_200TW: 1.00,
+    TireCompoundCategory.SUPER_200TW: 1.00,
+    TireCompoundCategory.TW_100: 0.99,
+    TireCompoundCategory.R_COMPOUND: 0.97,
+    TireCompoundCategory.SLICK: 0.97,
+}
+
 _BRAKE_EFFICIENCY = 0.95  # real-world brake efficiency factor
 _AIR_DENSITY = 1.225  # kg/m^3, sea level ISA standard atmosphere
 _DRIVETRAIN_EFFICIENCY: dict[str, float] = {"RWD": 0.85, "FWD": 0.82, "AWD": 0.80}
@@ -297,7 +311,8 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
     mu_raw = profile.tires.estimated_mu
     category = profile.tires.compound_category
     grip_util = CATEGORY_GRIP_UTILIZATION.get(category, 0.96)
-    mu = mu_raw * grip_util
+    thermal = CATEGORY_THERMAL_PENALTY.get(category, 1.00)
+    mu = mu_raw * grip_util * thermal
     base_accel_g = _CATEGORY_ACCEL_G[category]
 
     # Refine acceleration estimate when vehicle specs are available.

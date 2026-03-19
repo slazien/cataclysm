@@ -32,6 +32,7 @@ from cataclysm.equipment import (
     CATEGORY_MU_DEFAULTS,
     CATEGORY_GRIP_UTILIZATION,
     CATEGORY_PEAK_SLIP_ANGLE_DEG,
+    CATEGORY_THERMAL_PENALTY,
     TireCompoundCategory,
 )
 from cataclysm.track_db import lookup_track
@@ -116,7 +117,8 @@ def _vehicle_spec_to_params(
     """
     mu_raw = CATEGORY_MU_DEFAULTS[compound]
     grip_util = CATEGORY_GRIP_UTILIZATION.get(compound, 0.96)
-    mu = mu_raw * grip_util
+    thermal = CATEGORY_THERMAL_PENALTY.get(compound, 1.00)
+    mu = mu_raw * grip_util * thermal
     weight_kg = spec.weight_kg
 
     # Acceleration from drivetrain power-to-weight ratio
