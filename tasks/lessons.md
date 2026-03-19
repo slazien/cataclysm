@@ -72,6 +72,14 @@
 
 **Error signature**: Mutation succeeds (network 200), but UI immediately reverts to pre-mutation state. `invalidateQueries` fires but data doesn't change. Especially suspect when the query uses `staleTime: Infinity` or the backend returns `Cache-Control: max-age`.
 
+## Question the Extraction Approach Before Optimizing It (2026-03-18)
+
+**Pattern**: When free-form LLM text is displayed poorly (truncated, generic, cut mid-sentence), question whether text extraction is the right approach at all — don't refine the extraction algorithm. CSS `line-clamp-N` on the full text is usually more robust than JS trying to find a "good" cut point in unpredictable LLM output. Structural changes (separate heading from body, let CSS handle overflow) beat algorithmic fixes for display problems.
+
+**Why**: Priority card headings used `extractActionTitle()` to extract ~50 chars from coaching text. First fix improved the extraction (corner ref stripping, generic label handling) — user said text was still cut off. Real fix: stop extracting titles entirely, show "Turn N" as the header and full coaching text below with `line-clamp-2`. Structural change solved the problem in 5 lines; algorithmic improvement added 20 lines of regex and still couldn't handle all LLM output patterns.
+
+**Error signature**: Iterating on text extraction regex/logic to handle yet another LLM output format. If you're on your second regex improvement for the same display problem, step back and ask whether CSS truncation on the raw text would be simpler and more robust.
+
 ## Data Viz Color Encoding: Color = Category, Style = Source (2026-03-11)
 
 **Pattern**: In multi-category data visualizations (e.g., brake vs throttle), encode the **primary category** with color (red = brake, green = throttle) and the **data source** with line style (dots = per-lap, solid = best, dashed = optimal). Never use a color named after one concept for a different concept (e.g., `colors.motorsport.optimal` for "best lap" markers). When adding a symmetric feature (both brake and throttle), the legend must be symmetric too — same number of items per category.
