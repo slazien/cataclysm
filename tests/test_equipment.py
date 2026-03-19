@@ -7,6 +7,7 @@ import pytest
 from cataclysm.equipment import (
     _BRAKE_EFFICIENCY,
     _CATEGORY_ACCEL_G,
+    CATEGORY_BRAKING_MU_RATIO,
     CATEGORY_FRICTION_CIRCLE_EXPONENT,
     CATEGORY_LOAD_SENSITIVITY_EXPONENT,
     CATEGORY_MU_DEFAULTS,
@@ -428,7 +429,8 @@ class TestEquipmentToVehicleParams:
         assert params.mu == 1.10
         assert params.max_lateral_g == 1.10
         assert params.max_accel_g == 0.55  # SUPER_200TW
-        assert abs(params.max_decel_g - 1.10 * _BRAKE_EFFICIENCY) < 1e-6
+        braking_ratio = CATEGORY_BRAKING_MU_RATIO[TireCompoundCategory.SUPER_200TW]
+        assert abs(params.max_decel_g - 1.10 * braking_ratio * _BRAKE_EFFICIENCY) < 1e-6
 
     def test_street_tire(self) -> None:
         """Street tire category maps to lowest accel G."""
@@ -478,7 +480,8 @@ class TestEquipmentToVehicleParams:
         assert params.mu == 1.50
         assert params.max_lateral_g == 1.50
         assert params.max_accel_g == 0.70  # SLICK
-        assert params.max_decel_g == pytest.approx(1.50 * _BRAKE_EFFICIENCY)
+        braking_ratio = CATEGORY_BRAKING_MU_RATIO[TireCompoundCategory.SLICK]
+        assert params.max_decel_g == pytest.approx(1.50 * braking_ratio * _BRAKE_EFFICIENCY)
         assert params.top_speed_mps == 80.0
 
     def test_top_speed_always_80(self) -> None:
@@ -514,7 +517,8 @@ class TestEquipmentToVehicleParams:
             assert params.mu == mu
             assert params.max_lateral_g == mu
             assert params.max_accel_g == _CATEGORY_ACCEL_G[cat]
-            assert params.max_decel_g == pytest.approx(mu * _BRAKE_EFFICIENCY)
+            braking_ratio = CATEGORY_BRAKING_MU_RATIO[cat]
+            assert params.max_decel_g == pytest.approx(mu * braking_ratio * _BRAKE_EFFICIENCY)
             assert params.top_speed_mps == 80.0
             assert params.friction_circle_exponent == CATEGORY_FRICTION_CIRCLE_EXPONENT[cat]
 
