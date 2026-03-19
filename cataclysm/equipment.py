@@ -61,8 +61,8 @@ CATEGORY_MU_DEFAULTS: dict[TireCompoundCategory, float] = {
     TireCompoundCategory.ENDURANCE_200TW: 1.00,
     TireCompoundCategory.SUPER_200TW: 1.10,
     TireCompoundCategory.TW_100: 1.20,
-    TireCompoundCategory.R_COMPOUND: 1.35,
-    TireCompoundCategory.SLICK: 1.50,
+    TireCompoundCategory.R_COMPOUND: 1.28,
+    TireCompoundCategory.SLICK: 1.42,
 }
 
 # Drivetrain-limited peak acceleration by compound category.
