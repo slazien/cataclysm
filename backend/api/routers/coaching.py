@@ -855,10 +855,19 @@ async def coaching_chat_http(
 @router.put("/feedback", response_model=CoachingFeedbackResponse)
 async def submit_feedback(
     body: CoachingFeedbackSubmit,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> CoachingFeedbackResponse:
     """Submit or update thumbs up/down feedback on a coaching section."""
+    # Anonymous users get a mock success (no DB persistence)
+    if current_user.user_id == "anon":
+        return CoachingFeedbackResponse(
+            session_id=body.session_id,
+            section=body.section,
+            rating=body.rating,
+            comment=body.comment,
+        )
+
     # Delete existing feedback for this user+session+section
     await db.execute(
         delete(CoachingFeedback).where(
@@ -894,10 +903,14 @@ async def submit_feedback(
 )
 async def get_feedback(
     session_id: str,
-    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    current_user: Annotated[AuthenticatedUser, Depends(get_user_or_anon)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> CoachingFeedbackListResponse:
     """Get all feedback for a coaching report from the current user."""
+    # Anonymous users have no persisted feedback
+    if current_user.user_id == "anon":
+        return CoachingFeedbackListResponse(feedback=[])
+
     result = await db.execute(
         select(CoachingFeedback).where(
             CoachingFeedback.session_id == session_id,
