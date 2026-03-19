@@ -188,24 +188,44 @@ function closeMarkdown(s: string): string {
 /** Generic bold labels the LLM sometimes uses — useless as collapsed titles. */
 const GENERIC_LABELS = /^(observation|pattern|note|finding|insight|analysis|trend|issue|key point)s?$/i;
 
+/** Strip leading corner reference that's redundant with "Turn N" in card header.
+ *  Matches: "T7 (the kink after ...)" / "Turn 7 (description)" / "T15:" / "T7 — " */
+const CORNER_REF_PREFIX = /^(?:T(?:urn\s*)?\d+)\s*(?:\([^)]*\)\s*)?(?:[—:;\u2013\u2014-]+\s*)?/i;
+
 /** Extracts the title from coaching text.
  *  If text starts with **bold title**, returns the full bold portion —
  *  unless it's a generic label like "OBSERVATION", in which case it
- *  extracts the first meaningful clause from the body instead. */
+ *  extracts the first meaningful clause from the body instead.
+ *  Also strips redundant corner references (e.g. "T7 (the kink...)") and
+ *  handles plain generic labels without bold markers. */
 export function extractActionTitle(text: string): string {
+  // Strip leading corner reference — redundant with "Turn N" already in the card
+  let cleaned = text.replace(CORNER_REF_PREFIX, '').trim();
+  if (!cleaned) cleaned = text; // fallback if regex ate everything
+
   // If text starts with a bold section, extract it entirely
-  const boldMatch = text.match(/^(\*\*([^*]+)\*\*)/);
+  const boldMatch = cleaned.match(/^(\*\*([^*]+)\*\*)/);
   if (boldMatch) {
     const inner = boldMatch[2].trim();
     // If the bold part is a generic label, skip it and use the body
     if (GENERIC_LABELS.test(inner)) {
-      const afterBold = text.slice(boldMatch[0].length).replace(/^[\s:;\u2014\u2013-]+/, '');
+      const afterBold = cleaned.slice(boldMatch[0].length).replace(/^[\s:;\u2014\u2013-]+/, '');
       return extractFirstClause(afterBold);
     }
     // Strip trailing punctuation (: ; — etc.) inside the bold markers
     return boldMatch[1].replace(/([^*])[,:;\u2014\u2013-]+(\*\*)$/, '$1$2');
   }
-  return extractFirstClause(text);
+
+  // Check for plain generic label without bold markers (e.g. "Observation: ...")
+  const labelMatch = cleaned.match(/^(\w[\w\s]*?)\s*[:\u2014\u2013;—-]+\s+/);
+  if (labelMatch && GENERIC_LABELS.test(labelMatch[1].trim())) {
+    const afterLabel = cleaned.slice(labelMatch[0].length).trim();
+    if (afterLabel) return extractFirstClause(afterLabel);
+  }
+  // Also handle bare generic label with no body (e.g. just "Observation")
+  if (GENERIC_LABELS.test(cleaned)) return extractFirstClause(text);
+
+  return extractFirstClause(cleaned);
 }
 
 /** Extract a short first clause (~50 chars) from plain text. */

@@ -10,7 +10,7 @@ import { useSkillLevel } from '@/hooks/useSkillLevel';
 import { useCoachingNav } from '@/hooks/useCoachingNav';
 import { useCoachingFeedback } from '@/hooks/useCoachingFeedback';
 import { worstGrade } from '@/lib/gradeUtils';
-import { extractActionTitle, formatCoachingText } from '@/lib/textUtils';
+import { formatCoachingText } from '@/lib/textUtils';
 import { MarkdownText } from '@/components/shared/MarkdownText';
 import { ThumbsRating } from '@/components/shared/ThumbsRating';
 
@@ -68,23 +68,16 @@ function PriorityCard({
     : 'border-l-[var(--cata-accent)]';
 
   const resolvedIssue = formatCoachingText(resolveSpeed(p.issue));
-  const actionTitle = extractActionTitle(resolvedIssue);
 
   return (
     <div
       className={`rounded-lg border border-[var(--cata-border)] border-l-[3px] ${borderColorClass} bg-[var(--bg-surface)] p-4`}
     >
-      {/* Header: corner name + action title + time gain */}
-      <div className="mb-2 flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <span className="font-[family-name:var(--font-display)] text-sm font-bold text-[var(--text-primary)]">
-            Turn {p.corner}
-          </span>
-          <span className="mx-1.5 text-[var(--text-secondary)]">&mdash;</span>
-          <span className="text-sm font-medium text-[var(--text-primary)]">
-            {actionTitle}
-          </span>
-        </div>
+      {/* Header: corner name + time badges */}
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <span className="font-[family-name:var(--font-display)] text-sm font-bold text-[var(--text-primary)]">
+          Turn {p.corner}
+        </span>
         <div className="flex shrink-0 items-center gap-1.5">
           <span className={`rounded-full bg-[var(--color-brake)]/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--color-brake)] ${isRefreshing ? 'animate-pulse' : ''}`}>
             {formatPriorityBadge(liveTimeCost ?? p.time_cost_s)}
@@ -108,6 +101,10 @@ function PriorityCard({
           )}
         </div>
       </div>
+      {/* Coaching summary — first 2 lines of resolved issue */}
+      <p className="mb-2 line-clamp-2 text-sm leading-snug text-[var(--text-secondary)]">
+        {resolvedIssue}
+      </p>
 
       {/* Explore link - prominent */}
       <button

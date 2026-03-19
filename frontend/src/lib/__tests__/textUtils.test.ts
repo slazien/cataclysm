@@ -335,6 +335,52 @@ describe('extractActionTitle', () => {
     const text = '**Late apex through esses**: You consistently miss the apex by 2m.';
     expect(extractActionTitle(text)).toBe('**Late apex through esses**');
   });
+
+  it('strips redundant corner reference prefix "T7 (description)"', () => {
+    const text = 'T7 (the kink after Countdown Hairpin) shows the biggest braking precision opportunity.';
+    const result = extractActionTitle(text);
+    expect(result).not.toContain('T7');
+    expect(result).toContain('shows the biggest braking');
+  });
+
+  it('strips corner reference "T15 (description) is costing..."', () => {
+    const text = 'T15 (the fast sweeper into Eau Rouge) is costing you the most time per lap.';
+    const result = extractActionTitle(text);
+    expect(result).not.toContain('T15');
+    expect(result).toContain('is costing');
+  });
+
+  it('strips "Turn 8 (description)" prefix', () => {
+    const text = 'Turn 8 (the kink at the pit exit merge) shows an early throttle lift pattern.';
+    const result = extractActionTitle(text);
+    expect(result).not.toContain('Turn 8');
+    expect(result).toContain('shows an early');
+  });
+
+  it('strips "T5:" prefix', () => {
+    expect(extractActionTitle('T5: Late braking into the hairpin, causing overshoot')).toBe(
+      'Late braking into the hairpin',
+    );
+  });
+
+  it('handles plain generic label without bold "Observation:"', () => {
+    const text = 'Observation: Your turn-in point at this corner is consistently 2m late.';
+    const result = extractActionTitle(text);
+    expect(result).not.toMatch(/^Observation/);
+    expect(result).toContain('Your turn-in point');
+  });
+
+  it('handles bare "Observation" followed by body text', () => {
+    const text = 'Observation — Late braking is costing time at this corner.';
+    const result = extractActionTitle(text);
+    expect(result).not.toMatch(/^Observation/);
+    expect(result).toContain('Late braking');
+  });
+
+  it('strips corner ref before bold title extraction', () => {
+    const text = 'T7 — **Brake point scatter**: You show 15m variance in braking.';
+    expect(extractActionTitle(text)).toBe('**Brake point scatter**');
+  });
 });
 
 describe('extractDetailText', () => {
