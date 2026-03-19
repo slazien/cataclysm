@@ -41,6 +41,7 @@ OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 _BRAKE_EFFICIENCY = 0.95
 _AIR_DENSITY = 1.225
 _DRIVETRAIN_EFFICIENCY: dict[str, float] = {"RWD": 0.85, "FWD": 0.82, "AWD": 0.80}
+_AERO_EFFICIENCY = 0.85  # real-world aero efficiency
 
 # ---------------------------------------------------------------------------
 # Benchmark car selection — spanning the performance spectrum
@@ -128,7 +129,7 @@ def _vehicle_spec_to_params(
     # Aerodynamic downforce
     aero_coeff = 0.0
     if spec.cl_a > 0 and weight_kg > 0:
-        aero_coeff = 0.5 * _AIR_DENSITY * spec.cl_a / (weight_kg * G)
+        aero_coeff = 0.5 * _AIR_DENSITY * spec.cl_a * _AERO_EFFICIENCY / (weight_kg * G)
 
     # Braking mu ratio (friction ellipse)
     braking_ratio = CATEGORY_BRAKING_MU_RATIO.get(compound, 1.10)

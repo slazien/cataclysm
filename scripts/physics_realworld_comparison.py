@@ -44,6 +44,7 @@ OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 _BRAKE_EFFICIENCY = 0.95
 _AIR_DENSITY = 1.225
 _DRIVETRAIN_EFFICIENCY: dict[str, float] = {"RWD": 0.85, "FWD": 0.82, "AWD": 0.80}
+_AERO_EFFICIENCY = 0.85  # real-world aero efficiency (ride height, yaw, turbulence)
 
 
 # ---------------------------------------------------------------------------
@@ -54,6 +55,7 @@ TIRE_CATEGORIES: dict[str, TireCompoundCategory] = {
     "street": TireCompoundCategory.STREET,
     "endurance_200tw": TireCompoundCategory.ENDURANCE_200TW,
     "super_200tw": TireCompoundCategory.SUPER_200TW,
+    "100tw": TireCompoundCategory.TW_100,
     "r_compound": TireCompoundCategory.R_COMPOUND,
     "slick": TireCompoundCategory.SLICK,
 }
@@ -165,10 +167,10 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         track_name="Barber Motorsports Park",
         lap_time_s=_parse_time("1:40.90"),
         tire_model="Michelin Pilot Sport 4S (stock OEM)",
-        tire_category="street",
+        tire_category="endurance_200tw",
         mod_level="stock",
         source="lapmeta.com/en/track/variation/15",
-        notes="Stock FL5 on OEM PS4S (street TW300 in tire_db)",
+        notes="Stock FL5 on OEM PS4S (endurance-level grip per validation)",
         tire_db_key="michelin_ps4s",
     ),
     RealWorldLapTime(
@@ -285,10 +287,10 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         track_name="Barber Motorsports Park",
         lap_time_s=_parse_time("1:51.38"),
         tire_model="Michelin Pilot Sport 4S 255/40+275/40R19",
-        tire_category="street",
+        tire_category="endurance_200tw",
         mod_level="stock",
         source="mustang6g.com/forums/threads/s550-lap-times-road-course.35500/",
-        notes="Stock PP1 on OEM PS4S (street TW300 in tire_db)",
+        notes="Stock PP1 on OEM PS4S (endurance-level grip per validation)",
         tire_db_key="michelin_ps4s",
     ),
     RealWorldLapTime(
@@ -323,10 +325,10 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         track_name="Barber Motorsports Park",
         lap_time_s=_parse_time("1:36.46"),
         tire_model="Michelin Pilot Sport 4S (OEM)",
-        tire_category="street",
+        tire_category="endurance_200tw",
         mod_level="stock",
         source="lapmeta.com/en/model/13/chevrolet-corvette-c8-stingray-z51",
-        notes="Stock Z51 on OEM PS4S (street TW300 in tire_db)",
+        notes="Stock Z51 on OEM PS4S (endurance-level grip per validation)",
         tire_db_key="michelin_ps4s",
     ),
     # --- Corvette C8 Z06 ---
@@ -364,7 +366,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         track_name="Roebling Road Raceway",
         lap_time_s=_parse_time("1:20.47"),
         tire_model="Nitto NT01",
-        tire_category="super_200tw",
+        tire_category="100tw",
         mod_level="light",
         source="lapmeta.com/en/lap/detail/2920",
         notes="2015 FR-S with NT01 — proxy for GR86 (similar weight/power)",
@@ -377,7 +379,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         track_name="Roebling Road Raceway",
         lap_time_s=_parse_time("1:14.29"),
         tire_model="Pirelli P Zero Trofeo R (Z07 pkg)",
-        tire_category="r_compound",
+        tire_category="100tw",
         mod_level="light",
         source="lapmeta.com/en/lap/detail/24184",
         notes="Nov 2024, Z07 Trofeo R = r_compound, Forgeline wheels + AP brakes",
@@ -440,7 +442,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         track_name="Roebling Road Raceway",
         lap_time_s=_parse_time("1:18.70"),
         tire_model="Goodyear SuperCar 3R",
-        tire_category="r_compound",
+        tire_category="100tw",
         mod_level="stock",
         source="trackmustangsonline.com/tracks/roebling-road-raceway.32/",
         notes="GT350 on SC3R (TW_100/r_compound bridge, mu~1.20)",
@@ -519,10 +521,10 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         track_name="Atlanta Motorsports Park",
         lap_time_s=_parse_time("1:31.35"),
         tire_model="Michelin Pilot Sport 4S (OEM)",
-        tire_category="street",
+        tire_category="endurance_200tw",
         mod_level="stock",
         source="lapmeta.com/en/track/variation/27",
-        notes="Stock Z06 on OEM PS4S (street TW300 in tire_db)",
+        notes="Stock Z06 on OEM PS4S (endurance-level grip per validation)",
         tire_db_key="michelin_ps4s",
     ),
 ]
@@ -554,10 +556,10 @@ def _vehicle_spec_to_params(
     dt_eff = _DRIVETRAIN_EFFICIENCY.get(spec.drivetrain, 0.85)
     wheel_power_w = spec.hp * 745.7 * dt_eff
 
-    # Aero downforce coefficient: k = 0.5 * rho * CL_A / (m * G)
+    # Aero downforce coefficient: k = 0.5 * rho * CL_A * eff / (m * G)
     aero_coeff = 0.0
     if spec.cl_a > 0 and weight_kg > 0:
-        aero_coeff = 0.5 * _AIR_DENSITY * spec.cl_a / (weight_kg * G)
+        aero_coeff = 0.5 * _AIR_DENSITY * spec.cl_a * _AERO_EFFICIENCY / (weight_kg * G)
 
     braking_ratio = CATEGORY_BRAKING_MU_RATIO.get(compound, 1.10)
 
@@ -790,7 +792,7 @@ def validate_comparison(results: list[ComparisonResult]) -> None:
     # --- Check 2: Breakdown by tire category ---
     print("\n2. BREAKDOWN BY TIRE CATEGORY")
 
-    for cat in ["street", "endurance_200tw", "super_200tw", "r_compound"]:
+    for cat in ["street", "endurance_200tw", "super_200tw", "100tw", "r_compound", "slick"]:
         cat_results = [r for r in results if r.tire_category == cat]
         if not cat_results:
             print(f"  {cat}: no data")

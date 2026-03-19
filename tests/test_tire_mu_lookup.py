@@ -35,12 +35,14 @@ def test_per_tire_mu_differs_from_category() -> None:
     """Per-tire mu should differ from category defaults for at least some tires."""
     from cataclysm.equipment import CATEGORY_MU_DEFAULTS
 
-    tire = lookup_tire("michelin_ps4s")
-    assert tire is not None
-    cat_mu = CATEGORY_MU_DEFAULTS[tire.compound_category]
-    assert tire.estimated_mu != cat_mu, "PS4S mu should differ from category default"
-
+    # A7 (mu=1.42) differs from R_COMPOUND default (1.35)
     tire2 = lookup_tire("hoosier_a7")
     assert tire2 is not None
     cat_mu2 = CATEGORY_MU_DEFAULTS[tire2.compound_category]
     assert tire2.estimated_mu != cat_mu2, "A7 mu should differ from category default"
+
+    # DH slick (mu=1.40) differs from SLICK default (1.50)
+    tire3 = lookup_tire("dunlop_dh_slick")
+    assert tire3 is not None
+    cat_mu3 = CATEGORY_MU_DEFAULTS[tire3.compound_category]
+    assert tire3.estimated_mu != cat_mu3, "DH slick mu should differ from category default"

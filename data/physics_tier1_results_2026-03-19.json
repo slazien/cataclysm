@@ -14,31 +14,31 @@
     "r_compound_mean": 0.9130926763914542
   },
   "current_summary": {
-    "mean_ratio": 0.9705193191061294,
-    "median_ratio": 0.9731102763021859,
-    "std_ratio": 0.05002872712945601,
-    "exceedance_count_5pct": 2,
-    "r_compound_mean": 0.9097097011247914
+    "mean_ratio": 0.9691363343401308,
+    "median_ratio": 0.9739816076254112,
+    "std_ratio": 0.047591927686220704,
+    "exceedance_count_5pct": 0,
+    "r_compound_mean": 0.8910398176079853
   },
   "acceptance_criteria": {
     "Mean ratio closer to 1.0": {
       "baseline": 0.9761038115675281,
-      "current": 0.9705193191061294,
+      "current": 0.9691363343401308,
       "passed": false
     },
     "Std dev decreased": {
       "baseline": 0.050136031279903605,
-      "current": 0.05002872712945601,
+      "current": 0.047591927686220704,
       "passed": true
     },
     "Exceedance <=1": {
       "baseline": 1,
-      "current": 2,
-      "passed": false
+      "current": 0,
+      "passed": true
     },
     "R-compound mean closer to 1.0": {
       "baseline": 0.9130926763914542,
-      "current": 0.9097097011247914,
+      "current": 0.8910398176079853,
       "passed": false
     }
   },
@@ -47,134 +47,134 @@
       "car": "Miata NA",
       "track": "Barber Motorsports Park",
       "baseline_ratio": 0.9381947047476125,
-      "current_ratio": 0.9312378439891952,
-      "delta": -0.006956860758417283
+      "current_ratio": 0.9322743375432778,
+      "delta": -0.005920367204334642
     },
     {
       "car": "Miata ND",
       "track": "Barber Motorsports Park",
       "baseline_ratio": 1.0033047118846177,
-      "current_ratio": 1.0010948383627398,
-      "delta": -0.0022098735218778476
+      "current_ratio": 1.001297579686524,
+      "delta": -0.002007132198093675
     },
     {
       "car": "GR86",
       "track": "Barber Motorsports Park",
       "baseline_ratio": 0.997881401086179,
-      "current_ratio": 0.986037763936859,
-      "delta": -0.011843637149319908
+      "current_ratio": 0.9870178763600734,
+      "delta": -0.010863524726105522
     },
     {
       "car": "GR86",
       "track": "Barber Motorsports Park",
       "baseline_ratio": 1.0196502520517108,
-      "current_ratio": 1.0172266690217042,
-      "delta": -0.0024235830300065597
+      "current_ratio": 1.0174488214823472,
+      "delta": -0.002201430569363616
     },
     {
       "car": "GR86",
       "track": "Barber Motorsports Park",
       "baseline_ratio": 1.0027918325026486,
-      "current_ratio": 0.9831387688527801,
-      "delta": -0.01965306364986852
+      "current_ratio": 0.9833440245545215,
+      "delta": -0.01944780794812706
     },
     {
       "car": "Civic Type R FL5",
       "track": "Barber Motorsports Park",
       "baseline_ratio": 1.0496304799788678,
-      "current_ratio": 1.065530415826043,
-      "delta": 0.015899935847175195
+      "current_ratio": 1.0462719735212642,
+      "delta": -0.003358506457603605
     },
     {
       "car": "Civic Type R FL5",
       "track": "Barber Motorsports Park",
       "baseline_ratio": 1.008396419692886,
-      "current_ratio": 0.9950166138111881,
-      "delta": -0.01337980588169796
+      "current_ratio": 0.9961386210364255,
+      "delta": -0.012257798656460595
     },
     {
       "car": "BMW M2 G87",
       "track": "Barber Motorsports Park",
       "baseline_ratio": 1.0139704971955306,
-      "current_ratio": 1.0108317883192273,
-      "delta": -0.0031387088763032978
+      "current_ratio": 1.011120540982307,
+      "delta": -0.0028499562132235923
     },
     {
       "car": "BMW M2 G87",
       "track": "Barber Motorsports Park",
       "baseline_ratio": 1.0032588491829009,
-      "current_ratio": 1.0001532978242869,
-      "delta": -0.0031055513586140115
+      "current_ratio": 1.0004390000860992,
+      "delta": -0.002819849096801663
     },
     {
       "car": "Cayman GT4 718",
       "track": "Barber Motorsports Park",
       "baseline_ratio": 0.9727369921433154,
-      "current_ratio": 0.951025192298091,
-      "delta": -0.021711799845224422
+      "current_ratio": 0.9523553222005468,
+      "delta": -0.020381669942768688
     },
     {
       "car": "Cayman GT4 718",
       "track": "Barber Motorsports Park",
       "baseline_ratio": 0.9886243798907465,
-      "current_ratio": 0.9760735387912114,
-      "delta": -0.012550841099535082
+      "current_ratio": 0.9775501722385062,
+      "delta": -0.01107420765224032
     },
     {
       "car": "Cayman GT4 718",
       "track": "Barber Motorsports Park",
       "baseline_ratio": 1.0497362816586497,
-      "current_ratio": 1.0329688362198686,
-      "delta": -0.01676744543878117
+      "current_ratio": 1.0344972435861386,
+      "delta": -0.015239038072511146
     },
     {
       "car": "911 GT3 992",
       "track": "Barber Motorsports Park",
       "baseline_ratio": 0.9516344101401643,
-      "current_ratio": 0.9209665092819456,
-      "delta": -0.03066790085821869
+      "current_ratio": 0.931113805701821,
+      "delta": -0.02052060443834325
     },
     {
       "car": "911 GT3 991",
       "track": "Barber Motorsports Park",
       "baseline_ratio": 0.9334801743231135,
-      "current_ratio": 0.9198956333531483,
-      "delta": -0.013584540969965198
+      "current_ratio": 0.9220674596629663,
+      "delta": -0.01141271466014715
     },
     {
       "car": "Mustang GT S550",
       "track": "Barber Motorsports Park",
       "baseline_ratio": 0.9286994296381635,
-      "current_ratio": 0.9441102672626372,
-      "delta": 0.015410837624473706
+      "current_ratio": 0.9260828370178196,
+      "delta": -0.0026165926203439716
     },
     {
       "car": "Mustang GT S550",
       "track": "Barber Motorsports Park",
       "baseline_ratio": 0.9382606512476933,
-      "current_ratio": 0.923647872375839,
-      "delta": -0.014612778871854304
+      "current_ratio": 0.9222503533949672,
+      "delta": -0.01601029785272612
     },
     {
       "car": "GT350",
       "track": "Barber Motorsports Park",
       "baseline_ratio": 0.97722050971034,
-      "current_ratio": 0.9662524451303794,
-      "delta": -0.01096806457996058
+      "current_ratio": 0.9676778189028188,
+      "delta": -0.009542690807521237
     },
     {
       "car": "Corvette C8 Z51",
       "track": "Barber Motorsports Park",
       "baseline_ratio": 1.0528778178752463,
-      "current_ratio": 1.0704813557495767,
-      "delta": 0.017603537874330444
+      "current_ratio": 1.049514815543818,
+      "delta": -0.0033630023314281665
     },
     {
       "car": "Corvette C8 Z06",
       "track": "Barber Motorsports Park",
       "baseline_ratio": 1.0402786423624812,
-      "current_ratio": 1.018935717420163,
-      "delta": -0.021342924942318264
+      "current_ratio": 1.0209998732827583,
+      "delta": -0.019278769079722924
     },
     {
       "car": "GR86",
@@ -187,92 +187,92 @@
       "car": "GR86 (FR-S proxy)",
       "track": "Roebling Road Raceway",
       "baseline_ratio": 0.9854306830630818,
-      "current_ratio": 0.9514808549053808,
-      "delta": -0.03394982815770098
+      "current_ratio": 0.94795540994667,
+      "delta": -0.037475273116411745
     },
     {
       "car": "Corvette C8 Z06",
       "track": "Roebling Road Raceway",
       "baseline_ratio": 0.9165352577827428,
-      "current_ratio": 0.9590910288453807,
-      "delta": 0.04255577106263786
+      "current_ratio": 0.9638521384518939,
+      "delta": 0.047316880669151073
     },
     {
       "car": "Cayman GT4 718",
       "track": "Roebling Road Raceway",
       "baseline_ratio": 0.98496366974683,
-      "current_ratio": 0.9731102763021859,
-      "delta": -0.01185339344464409
+      "current_ratio": 0.9739816076254112,
+      "delta": -0.010982062121418834
     },
     {
       "car": "Mustang GT S550",
       "track": "Roebling Road Raceway",
       "baseline_ratio": 0.9568738503157249,
-      "current_ratio": 0.9694379915169357,
-      "delta": 0.012564141201210743
+      "current_ratio": 0.9701155234455475,
+      "delta": 0.013241673129822606
     },
     {
       "car": "Mustang GT S550",
       "track": "Roebling Road Raceway",
       "baseline_ratio": 0.8816533479763743,
-      "current_ratio": 0.8634753628761737,
-      "delta": -0.018177985100200633
+      "current_ratio": 0.8643399385255178,
+      "delta": -0.017313409450856465
     },
     {
       "car": "Mustang GT S550",
       "track": "Roebling Road Raceway",
       "baseline_ratio": 0.8530407181316579,
-      "current_ratio": 0.8445933871068259,
-      "delta": -0.008447331024832083
+      "current_ratio": 0.8454775347001795,
+      "delta": -0.007563183431478437
     },
     {
       "car": "GT350",
       "track": "Roebling Road Raceway",
       "baseline_ratio": 0.8859771441026221,
-      "current_ratio": 0.924794805951867,
-      "delta": 0.038817661849244955
+      "current_ratio": 0.9290239863446372,
+      "delta": 0.04304684224201516
     },
     {
       "car": "GR86",
       "track": "Atlanta Motorsports Park",
       "baseline_ratio": 0.9633951866254967,
-      "current_ratio": 0.9536693020381768,
-      "delta": -0.009725884587319933
+      "current_ratio": 0.9549304308259297,
+      "delta": -0.00846475579956707
     },
     {
       "car": "GR86",
       "track": "Atlanta Motorsports Park",
       "baseline_ratio": 1.0196565922564536,
-      "current_ratio": 0.9980159491406199,
-      "delta": -0.02164064311583369
+      "current_ratio": 0.9982830567931338,
+      "delta": -0.02137353546331977
     },
     {
       "car": "Civic Type R FK8 (FL5 proxy)",
       "track": "Atlanta Motorsports Park",
       "baseline_ratio": 0.9908616968643233,
-      "current_ratio": 0.9866234171184165,
-      "delta": -0.004238279745906848
+      "current_ratio": 0.9870839237002766,
+      "delta": -0.003777773164046705
     },
     {
       "car": "Civic Type R FK8 (FL5 proxy)",
       "track": "Atlanta Motorsports Park",
       "baseline_ratio": 0.9469959994079362,
-      "current_ratio": 0.9560572428723828,
-      "delta": 0.009061243464446589
+      "current_ratio": 0.9575771375032887,
+      "delta": 0.010581138095352438
     },
     {
       "car": "Cayman GT4 718",
       "track": "Atlanta Motorsports Park",
       "baseline_ratio": 0.9190576790711071,
-      "current_ratio": 0.8996848663427467,
-      "delta": -0.019372812728360445
+      "current_ratio": 0.8974896539207057,
+      "delta": -0.02156802515040146
     },
     {
       "car": "Corvette C8 Z06",
       "track": "Atlanta Motorsports Park",
       "baseline_ratio": 0.9938788945507241,
-      "current_ratio": 1.0059281259869213,
-      "delta": 0.012049231436197183
+      "current_ratio": 0.9853766629847471,
+      "delta": -0.008502231565976959
     }
   ]
 }

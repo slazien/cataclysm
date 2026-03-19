@@ -228,6 +228,7 @@ def test_equipment_wiring_produces_aero_coefficient() -> None:
     params = equipment_to_vehicle_params(profile)
     assert params.aero_coefficient > 0, "GT3 should have nonzero aero_coefficient"
 
-    # Verify formula: 0.5 * rho * cl_a / (mass * G)
-    expected = 0.5 * 1.225 * gt3_spec.cl_a / (gt3_spec.weight_kg * G)
+    # Verify formula: 0.5 * rho * cl_a * aero_eff / (mass * G)
+    aero_eff = 0.85  # _AERO_EFFICIENCY from equipment.py
+    expected = 0.5 * 1.225 * gt3_spec.cl_a * aero_eff / (gt3_spec.weight_kg * G)
     assert abs(params.aero_coefficient - expected) < 1e-10

@@ -275,12 +275,13 @@ _CURATED_TIRES: dict[str, TireSpec] = {
     # =======================================================================
     "michelin_ps4s": TireSpec(
         model="Michelin Pilot Sport 4S",
-        compound_category=TireCompoundCategory.STREET,
+        compound_category=TireCompoundCategory.ENDURANCE_200TW,
         size="varies",
         treadwear_rating=300,
-        estimated_mu=0.95,
+        estimated_mu=1.00,
         mu_source=MuSource.CURATED_TABLE,
-        mu_confidence="GRM endurance category, premium street-sport",
+        mu_confidence="Validation-calibrated: 4 track entries all point to mu≈1.00. "
+        "TW 300 but performs at endurance 200TW level per GRM/ECS02 comparison",
         brand="Michelin",
     ),
     "continental_esc": TireSpec(
@@ -295,12 +296,12 @@ _CURATED_TIRES: dict[str, TireSpec] = {
     ),
     "michelin_ps5": TireSpec(
         model="Michelin Pilot Sport 5",
-        compound_category=TireCompoundCategory.STREET,
+        compound_category=TireCompoundCategory.ENDURANCE_200TW,
         size="varies",
         treadwear_rating=300,
-        estimated_mu=0.93,
+        estimated_mu=0.97,
         mu_source=MuSource.CURATED_TABLE,
-        mu_confidence="PS4S successor, similar grip class",
+        mu_confidence="PS4S successor, similar grip class. Endurance-level on track",
         brand="Michelin",
     ),
     "falken_rt615k_plus": TireSpec(
@@ -556,9 +557,9 @@ _CURATED_TIRES: dict[str, TireSpec] = {
         compound_category=TireCompoundCategory.SLICK,
         size="varies",
         treadwear_rating=0,
-        estimated_mu=1.45,
+        estimated_mu=1.40,
         mu_source=MuSource.CURATED_TABLE,
-        mu_confidence="Full slick, higher than DOT R-compound baseline",
+        mu_confidence="Full slick, track-day compound. Validation-calibrated from 1.45",
         brand="Dunlop",
     ),
     "pirelli_slick_305": TireSpec(

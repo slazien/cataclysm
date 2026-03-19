@@ -121,6 +121,10 @@ CATEGORY_BRAKING_MU_RATIO: dict[TireCompoundCategory, float] = {
 _BRAKE_EFFICIENCY = 0.95  # real-world brake efficiency factor
 _AIR_DENSITY = 1.225  # kg/m^3, sea level ISA standard atmosphere
 _DRIVETRAIN_EFFICIENCY: dict[str, float] = {"RWD": 0.85, "FWD": 0.82, "AWD": 0.80}
+# Real-world aero is less than theoretical: ride height variation under load,
+# yaw angle in corners, turbulence, and imperfect sealing reduce effective CL.
+# Racing engineering literature suggests 70-85% of wind-tunnel CL on track.
+_AERO_EFFICIENCY = 0.85
 
 
 # ---------------------------------------------------------------------------
@@ -303,7 +307,9 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
 
     aero_coeff = 0.0
     if profile.vehicle is not None and profile.vehicle.cl_a > 0 and mass_for_params > 0:
-        aero_coeff = 0.5 * _AIR_DENSITY * profile.vehicle.cl_a / (mass_for_params * G)
+        aero_coeff = (
+            0.5 * _AIR_DENSITY * profile.vehicle.cl_a * _AERO_EFFICIENCY / (mass_for_params * G)
+        )
 
     braking_ratio = CATEGORY_BRAKING_MU_RATIO.get(category, 1.10)
 
