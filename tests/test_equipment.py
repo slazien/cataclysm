@@ -525,7 +525,9 @@ class TestEquipmentToVehicleParams:
             assert params.max_lateral_g == pytest.approx(expected_mu)
             assert params.max_accel_g == _CATEGORY_ACCEL_G[cat]
             braking_ratio = CATEGORY_BRAKING_MU_RATIO[cat]
-            assert params.max_decel_g == pytest.approx(expected_mu * braking_ratio * _BRAKE_EFFICIENCY)
+            assert params.max_decel_g == pytest.approx(
+                expected_mu * braking_ratio * _BRAKE_EFFICIENCY
+            )
             assert params.top_speed_mps == 80.0
             assert params.friction_circle_exponent == CATEGORY_FRICTION_CIRCLE_EXPONENT[cat]
 

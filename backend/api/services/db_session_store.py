@@ -358,7 +358,7 @@ async def get_session_for_user_with_db_sync(
     # Session might exist with stale user_id — check if it's in memory at all
     sd = get_session(session_id)
     if sd is None:
-        # Attempt lazy rehydration from DB-stored CSV
+        # Attempt lazy rehydration from DB-stored CSV (raises RehydrationError on failure)
         from backend.api.services.session_store import rehydrate_session
 
         sd = await rehydrate_session(session_id, db)

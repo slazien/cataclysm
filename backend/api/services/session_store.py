@@ -36,6 +36,14 @@ from cataclysm.trends import SessionSnapshot
 logger = logging.getLogger(__name__)
 
 
+class RehydrationError(Exception):
+    """Raised when a session exists in DB but failed to reprocess."""
+
+    def __init__(self, session_id: str) -> None:
+        self.session_id = session_id
+        super().__init__(f"Failed to rehydrate session {session_id}")
+
+
 @dataclass
 class SessionData:
     """All data associated with a single processed session."""
@@ -85,7 +93,8 @@ _MAX_REHYDRATION_LOCKS: int = 200
 _REHYDRATION_LOCKS: OrderedDict[str, asyncio.Lock] = OrderedDict()
 MAX_CONCURRENT_REHYDRATIONS: int = 4
 _REHYDRATION_SEMAPHORE: asyncio.Semaphore | None = None
-_REHYDRATION_FAILURES: dict[str, float] = {}  # session_id -> failure timestamp
+_MAX_REHYDRATION_FAILURES: int = 500
+_REHYDRATION_FAILURES: OrderedDict[str, float] = OrderedDict()  # session_id -> ts
 REHYDRATION_FAILURE_TTL_S: int = 300  # 5 min
 
 
@@ -284,11 +293,15 @@ async def rehydrate_session(
 
     assert isinstance(db, _AsyncSession)
 
-    # Check negative cache
+    # Check negative cache (with TTL eviction of expired entries)
+    now = time.time()
     fail_ts = _REHYDRATION_FAILURES.get(session_id)
-    if fail_ts and (time.time() - fail_ts) < REHYDRATION_FAILURE_TTL_S:
-        logger.debug("Skipping rehydration for %s (negative cache hit)", session_id)
-        return None
+    if fail_ts is not None:
+        if (now - fail_ts) < REHYDRATION_FAILURE_TTL_S:
+            logger.debug("Skipping rehydration for %s (negative cache hit)", session_id)
+            return None
+        # Expired — remove stale entry
+        _REHYDRATION_FAILURES.pop(session_id, None)
 
     # Get or create per-session lock (singleflight) with LRU eviction
     lock = _REHYDRATION_LOCKS.get(session_id)
@@ -363,5 +376,9 @@ async def rehydrate_session(
             return sd
         except Exception:
             logger.exception("Failed to rehydrate session %s", session_id)
+            # Record failure with bounded size (evict oldest on overflow)
             _REHYDRATION_FAILURES[session_id] = time.time()
-            return None
+            _REHYDRATION_FAILURES.move_to_end(session_id)
+            while len(_REHYDRATION_FAILURES) > _MAX_REHYDRATION_FAILURES:
+                _REHYDRATION_FAILURES.popitem(last=False)
+            raise RehydrationError(session_id) from None

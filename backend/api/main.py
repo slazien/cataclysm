@@ -142,7 +142,8 @@ async def _seed_demo_session() -> None:
             for level in ("novice", "intermediate", "advanced"):
                 await trigger_auto_coaching(DEMO_SESSION_ID, sd, skill_level=level)
             logger.info("Demo session coaching triggered for all skill levels")
-    except Exception:
+    except (SQLAlchemyError, OSError, ValueError, KeyError):
+        # Broad: CSV parsing + DB + LLM coaching all run here
         logger.warning("Failed to seed demo session", exc_info=True)
 
 
@@ -434,7 +435,7 @@ async def _backfill_sidebar_scores() -> int:
                     )
                     await db.commit()
                     backfilled += 1
-                except Exception:
+                except (SQLAlchemyError, ValueError, KeyError, AttributeError):
                     logger.warning(
                         "Score backfill: failed to compute/persist for %s",
                         row.session_id,
@@ -569,7 +570,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                         deleted,
                         settings.llm_usage_retention_days,
                     )
-        except Exception:
+        except (SQLAlchemyError, OSError):
             logger.warning("Failed to prune old LLM usage events", exc_info=True)
     else:
         set_usage_event_sink(None)
@@ -609,7 +610,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             await _seed_db.commit()
             if n_seeded:
                 logger.info("Seeded %d hardcoded track(s) into DB", n_seeded)
-    except Exception:
+    except (SQLAlchemyError, OSError):
         logger.warning("Failed to seed hardcoded tracks into DB", exc_info=True)
 
     # Load DB tracks into hybrid cache (DB-first, Python constants fallback)
@@ -620,7 +621,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             n_tracks = await load_db_tracks(_tracks_db)
             if n_tracks:
                 logger.info("Hybrid track cache seeded with %d DB track(s)", n_tracks)
-    except Exception:
+    except (SQLAlchemyError, OSError, ValueError):
         logger.warning("Failed to load DB tracks into hybrid cache", exc_info=True)
 
     # Migrate legacy TrackCornerConfig → TrackCornerV2 (one-time per startup)
@@ -634,7 +635,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             migrated = await migrate_legacy_corner_configs(_migrate_db)
             if migrated:
                 logger.info("Migrated %d legacy corner config(s) to TrackCornerV2", migrated)
-    except Exception:
+    except (SQLAlchemyError, OSError):
         logger.warning("Failed to migrate legacy corner configs", exc_info=True)
 
     # Compute corner version hashes for staleness detection
@@ -699,7 +700,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             if expired_rows:
                 await _cleanup_db.commit()
                 logger.info("Cleaned up %d expired anonymous DB session(s)", len(expired_rows))
-    except Exception:
+    except (SQLAlchemyError, OSError):
         logger.warning("Failed to clean up anonymous DB sessions", exc_info=True)
 
     # Auto-generate coaching reports for sessions that don't have one yet
@@ -718,7 +719,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             for u in (await _db.execute(_sa_select(UserModel))).scalars():
                 raw = u.skill_level if u.skill_level in _valid else "intermediate"
                 user_skill[u.id] = cast(SkillLevel, raw)
-    except Exception:
+    except (SQLAlchemyError, OSError):
         logger.warning("Failed to load user skill levels", exc_info=True)
 
     all_sessions = list_sessions()
@@ -905,6 +906,21 @@ async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse
     return JSONResponse(
         status_code=422,
         content={"detail": "Invalid input data"},
+    )
+
+
+from backend.api.services.session_store import RehydrationError  # noqa: E402
+
+
+@app.exception_handler(RehydrationError)
+async def rehydration_error_handler(request: Request, exc: RehydrationError) -> JSONResponse:
+    """Return 503 when a session exists in DB but failed to reprocess."""
+    logger.warning(
+        "Rehydration failed for %s on %s %s", exc.session_id, request.method, request.url.path
+    )
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Session temporarily unavailable — please retry shortly"},
     )
 
 
