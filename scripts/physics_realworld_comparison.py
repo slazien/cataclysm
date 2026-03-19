@@ -32,6 +32,7 @@ from cataclysm.equipment import (
     CATEGORY_MU_DEFAULTS,
     TireCompoundCategory,
 )
+from cataclysm.tire_db import lookup_tire
 from cataclysm.track_db import TrackLayout, lookup_track
 from cataclysm.track_reference import get_track_reference
 from cataclysm.vehicle_db import VehicleSpec, find_vehicle
@@ -74,6 +75,7 @@ class RealWorldLapTime:
     mod_level: str  # stock / light / heavy / race
     source: str  # URL or description
     notes: str
+    tire_db_key: str | None = None  # key into tire_db for per-tire mu lookup
 
 
 def _parse_time(time_str: str) -> float:
@@ -102,6 +104,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="light",
         source="nasamidsouth.com/barber-track-records/",
         notes="NASA TT class record, light prep within class rules",
+        tire_db_key="hoosier_r7",
     ),
     # --- Miata ND ---
     RealWorldLapTime(
@@ -126,6 +129,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="light",
         source="gr86.org/threads/track-time-database.15379/",
         notes="GR86 forum track time DB, A052 = super 200tw",
+        tire_db_key="yokohama_a052",
     ),
     RealWorldLapTime(
         car_key=("Toyota", "GR86", None),
@@ -137,6 +141,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="light",
         source="gr86.org/threads/track-time-database.15379/",
         notes="RS4 = endurance 200tw, coilovers = light mod",
+        tire_db_key="hankook_rs4",
     ),
     RealWorldLapTime(
         car_key=("Toyota", "GR86", None),
@@ -148,6 +153,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="light",
         source="gr86.org/threads/track-time-database.15379/",
         notes="RT660 = endurance 200tw, suspension upgrades",
+        tire_db_key="falken_rt660",
     ),
     # --- Honda Civic Type R FL5 ---
     # NOTE: PS4S is now classified as endurance_200tw in tire_db.py (mu=0.95).
@@ -161,6 +167,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="stock",
         source="lapmeta.com/en/track/variation/15",
         notes="Stock FL5 on OEM PS4S (endurance_200tw in tire_db)",
+        tire_db_key="michelin_ps4s",
     ),
     RealWorldLapTime(
         car_key=("Honda", "Civic Type R", "FL5"),
@@ -172,6 +179,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="light",
         source="lapmeta.com/en/model/1001",
         notes="LapMeta FL5 page, A052 = super 200tw, light mods",
+        tire_db_key="yokohama_a052",
     ),
     # --- BMW M2 ---
     RealWorldLapTime(
@@ -184,6 +192,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="stock",
         source="fastestlaps.com/tracks/barber-motorsports-park",
         notes="Ventus RS4 = endurance 200tw",
+        tire_db_key="hankook_rs4",
     ),
     RealWorldLapTime(
         car_key=("BMW", "M2", "G87"),
@@ -210,6 +219,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
             "1235438-best-track-time-in-a-718-gt4.html"
         ),
         notes="Stock GT4 PDK, 500mi odo. Cup 2 = super 200tw",
+        tire_db_key="michelin_cup2",
     ),
     RealWorldLapTime(
         car_key=("Porsche", "Cayman GT4", "718"),
@@ -224,6 +234,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
             "1235438-best-track-time-in-a-718-gt4.html"
         ),
         notes="RE-71RS = super 200tw, -2.3/-1.9 camber",
+        tire_db_key="bridgestone_re71rs",
     ),
     RealWorldLapTime(
         car_key=("Porsche", "Cayman GT4", "718"),
@@ -235,6 +246,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="light",
         source="lapmeta.com/en/track/variation/15",
         notes="Fastest GT4 at Barber on LapMeta, skilled driver",
+        tire_db_key="yokohama_a052",
     ),
     # --- Porsche 911 GT3 ---
     RealWorldLapTime(
@@ -247,6 +259,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="stock",
         source="fastestlaps.com/tracks/barber-motorsports-park",
         notes="DH Slick = r_compound / full slick grip",
+        tire_db_key="dunlop_dh_slick",
     ),
     RealWorldLapTime(
         car_key=("Porsche", "911 GT3", "991.2"),
@@ -261,6 +274,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
             "1113671-real-value-thread-post-your-best-lap-times.html"
         ),
         notes="991 GT3 on R7, light mods. 493hp/1430kg",
+        tire_db_key="hoosier_r7",
     ),
     # --- Ford Mustang GT S550 ---
     RealWorldLapTime(
@@ -273,6 +287,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="stock",
         source="mustang6g.com/forums/threads/s550-lap-times-road-course.35500/",
         notes="Stock PP1 on OEM PS4S (endurance_200tw in tire_db)",
+        tire_db_key="michelin_ps4s",
     ),
     RealWorldLapTime(
         car_key=("Ford", "Mustang GT", "S550"),
@@ -284,6 +299,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="heavy",
         source="mustang6g.com/forums/threads/s550-lap-times-road-course.35500/",
         notes="2015 GT Performance Plus, heavily modified, Pirelli slicks",
+        tire_db_key="pirelli_slick_305",
     ),
     # --- Ford Mustang Shelby GT350 ---
     RealWorldLapTime(
@@ -296,6 +312,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="light",
         source="mustang6g.com/forums/threads/s550-lap-times-road-course.35500/",
         notes="GT350 on OEM SC3 = super 200tw (mu=1.12)",
+        tire_db_key="goodyear_sc3",
     ),
     # --- Corvette C8 Stingray Z51 ---
     RealWorldLapTime(
@@ -308,6 +325,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="stock",
         source="lapmeta.com/en/model/13/chevrolet-corvette-c8-stingray-z51",
         notes="Stock Z51 on OEM PS4S (endurance_200tw in tire_db)",
+        tire_db_key="michelin_ps4s",
     ),
     # --- Corvette C8 Z06 ---
     RealWorldLapTime(
@@ -320,6 +338,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="light",
         source="lapmeta.com/en/track/variation/15",
         notes="C8 Z06 on A052, light mods",
+        tire_db_key="yokohama_a052",
     ),
     # =========================================================================
     # ROEBLING ROAD RACEWAY (3,199m / 2.02mi)
@@ -335,6 +354,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="stock",
         source="jst-performance.com/blogs/jst-results-blog/our-2022-gr86-first-impression",
         notes="Fully stock 2022 GR86 on OEM tires, noted as huge limiting factor",
+        tire_db_key="michelin_ps4",
     ),
     RealWorldLapTime(
         car_key=("Toyota", "GR86", None),
@@ -346,6 +366,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="light",
         source="lapmeta.com/en/lap/detail/2920",
         notes="2015 FR-S with NT01 — proxy for GR86 (similar weight/power)",
+        tire_db_key="nitto_nt01",
     ),
     # --- Corvette C8 Z06 ---
     RealWorldLapTime(
@@ -358,6 +379,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="light",
         source="lapmeta.com/en/lap/detail/24184",
         notes="Nov 2024, Z07 Trofeo R = r_compound, Forgeline wheels + AP brakes",
+        tire_db_key="pirelli_trofeo_r",
     ),
     # --- Porsche 718 Cayman GT4 ---
     RealWorldLapTime(
@@ -370,6 +392,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="stock",
         source="lapmeta.com/en/track/variation/135",
         notes="RE71RS = super 200tw",
+        tire_db_key="bridgestone_re71rs",
     ),
     # --- Ford Mustang GT S550 ---
     RealWorldLapTime(
@@ -382,6 +405,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="light",
         source="trackmustangsonline.com/tracks/roebling-road-raceway.32/",
         notes="2019 GT, V730 = super 200tw (mu=1.06)",
+        tire_db_key="kumho_v730",
     ),
     RealWorldLapTime(
         car_key=("Ford", "Mustang GT", "S550"),
@@ -393,6 +417,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="light",
         source="trackmustangsonline.com/tracks/roebling-road-raceway.32/",
         notes="2016 GT, A7 = r_compound (mu=1.42)",
+        tire_db_key="hoosier_a7",
     ),
     RealWorldLapTime(
         car_key=("Ford", "Mustang GT", "S550"),
@@ -404,6 +429,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="light",
         source="trackmustangsonline.com/tracks/roebling-road-raceway.32/",
         notes="2015 GT, R7 = r_compound (mu=1.38)",
+        tire_db_key="hoosier_r7",
     ),
     # --- Ford Mustang Shelby GT350 ---
     RealWorldLapTime(
@@ -416,6 +442,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="stock",
         source="trackmustangsonline.com/tracks/roebling-road-raceway.32/",
         notes="GT350 on SC3R (TW_100/r_compound bridge, mu~1.20)",
+        tire_db_key="goodyear_sc3r",
     ),
     # =========================================================================
     # ATLANTA MOTORSPORTS PARK (2,927m / 1.83mi)
@@ -431,6 +458,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="light",
         source="lapmeta.com/en/track/variation/27",
         notes="May 2021, RE71RS = super 200tw",
+        tire_db_key="bridgestone_re71rs",
     ),
     RealWorldLapTime(
         car_key=("Toyota", "GR86", None),
@@ -442,6 +470,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="light",
         source="lapmeta.com/en/track/variation/27",
         notes="RT660 = endurance 200tw, -4.5/-2.8 camber",
+        tire_db_key="falken_rt660",
     ),
     # --- Honda Civic Type R FK8 ---
     RealWorldLapTime(
@@ -454,6 +483,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="light",
         source="lapmeta.com/en/track/variation/27",
         notes="FK8 on RS4 (endurance 200tw). FK8 306hp vs FL5 315hp",
+        tire_db_key="hankook_rs4",
     ),
     RealWorldLapTime(
         car_key=("Honda", "Civic Type R", "FL5"),
@@ -465,6 +495,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="light",
         source="lapmeta.com/en/track/variation/27",
         notes="FK8 on V730 (super 200tw). FK8 = FL5 proxy",
+        tire_db_key="kumho_v730",
     ),
     # --- Porsche 718 Cayman GT4 ---
     RealWorldLapTime(
@@ -477,6 +508,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="stock",
         source="rennlist.com",
         notes="2017, Pirelli slicks = r_compound",
+        tire_db_key="pirelli_slick_305",
     ),
     # --- Corvette C8 Z06 ---
     RealWorldLapTime(
@@ -489,6 +521,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="stock",
         source="lapmeta.com/en/track/variation/27",
         notes="Stock Z06 on OEM PS4S (endurance_200tw in tire_db)",
+        tire_db_key="michelin_ps4s",
     ),
 ]
 
@@ -501,9 +534,10 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
 def _vehicle_spec_to_params(
     spec: VehicleSpec,
     compound: TireCompoundCategory = TireCompoundCategory.ENDURANCE_200TW,
+    mu_override: float | None = None,
 ) -> VehicleParams:
     """Build VehicleParams from a VehicleSpec + tire compound."""
-    mu = CATEGORY_MU_DEFAULTS[compound]
+    mu = mu_override if mu_override is not None else CATEGORY_MU_DEFAULTS[compound]
     weight_kg = spec.weight_kg
 
     base_accel_g = _CATEGORY_ACCEL_G[compound]
@@ -617,10 +651,18 @@ def run_comparison() -> list[ComparisonResult]:
             continue
 
         compound = TIRE_CATEGORIES[rw.tire_category]
-        mu = CATEGORY_MU_DEFAULTS[compound]
+
+        # Resolve per-tire mu from tire_db when available
+        tire_mu: float | None = None
+        if rw.tire_db_key:
+            tire_spec = lookup_tire(rw.tire_db_key)
+            if tire_spec:
+                tire_mu = tire_spec.estimated_mu
+
+        mu = tire_mu if tire_mu is not None else CATEGORY_MU_DEFAULTS[compound]
 
         # Run solver
-        params = _vehicle_spec_to_params(spec, compound)
+        params = _vehicle_spec_to_params(spec, compound, mu_override=tire_mu)
         optimal = compute_optimal_profile(curvature_result, params=params)
 
         efficiency = optimal.lap_time_s / rw.lap_time_s

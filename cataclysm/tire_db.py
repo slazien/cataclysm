@@ -460,6 +460,32 @@ _CURATED_TIRES: dict[str, TireSpec] = {
         brand="Vitour",
     ),
     # =======================================================================
+    # SUPER 200TW — OEM Performance (non-DOT-200 but grippier than Connect)
+    # =======================================================================
+    "michelin_cup2": TireSpec(
+        model="Michelin Pilot Sport Cup 2",
+        compound_category=TireCompoundCategory.SUPER_200TW,
+        size="varies",
+        treadwear_rating=240,
+        estimated_mu=1.15,
+        mu_source=MuSource.CURATED_TABLE,
+        mu_confidence="OEM on GT4, grippier than Cup 2 Connect (1.10)",
+        brand="Michelin",
+    ),
+    # =======================================================================
+    # STREET — Additional OEM tires
+    # =======================================================================
+    "michelin_ps4": TireSpec(
+        model="Michelin Pilot Sport 4",
+        compound_category=TireCompoundCategory.STREET,
+        size="varies",
+        treadwear_rating=300,
+        estimated_mu=0.88,
+        mu_source=MuSource.CURATED_TABLE,
+        mu_confidence="OEM on GR86, entry street-sport tire, lower grip than PS4S",
+        brand="Michelin",
+    ),
+    # =======================================================================
     # R-COMPOUND — DOT race tires
     # =======================================================================
     "hoosier_r7": TireSpec(
@@ -522,6 +548,29 @@ _CURATED_TIRES: dict[str, TireSpec] = {
         mu_confidence="GRM: 'fastest in the first one or two sessions'",
         brand="Goodyear",
     ),
+    # =======================================================================
+    # R-COMPOUND — Full slicks (non-DOT)
+    # =======================================================================
+    "dunlop_dh_slick": TireSpec(
+        model="Dunlop DH Slick",
+        compound_category=TireCompoundCategory.R_COMPOUND,
+        size="varies",
+        treadwear_rating=0,
+        estimated_mu=1.45,
+        mu_source=MuSource.CURATED_TABLE,
+        mu_confidence="Full slick, higher than DOT R-compound baseline",
+        brand="Dunlop",
+    ),
+    "pirelli_slick_305": TireSpec(
+        model="Pirelli Slick 305",
+        compound_category=TireCompoundCategory.R_COMPOUND,
+        size="305 square",
+        treadwear_rating=0,
+        estimated_mu=1.40,
+        mu_source=MuSource.CURATED_TABLE,
+        mu_confidence="Full race slick, GT/endurance fitment",
+        brand="Pirelli",
+    ),
 }
 
 
@@ -565,6 +614,10 @@ def get_curated_tire(slug: str) -> TireSpec | None:
         The :class:`TireSpec` if found, otherwise ``None``.
     """
     return _CURATED_TIRES.get(slug)
+
+
+# Convenience alias used by validation scripts
+lookup_tire = get_curated_tire
 
 
 def list_all_curated_tires() -> list[TireSpec]:
