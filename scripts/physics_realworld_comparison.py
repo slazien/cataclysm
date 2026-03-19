@@ -34,6 +34,7 @@ from cataclysm.equipment import (
     CATEGORY_BRAKING_MU_RATIO,
     CATEGORY_FRICTION_CIRCLE_EXPONENT,
     CATEGORY_GRIP_UTILIZATION,
+    CATEGORY_LLTD_PENALTY,
     CATEGORY_LOAD_SENSITIVITY_EXPONENT,
     CATEGORY_MU_DEFAULTS,
     CATEGORY_PEAK_SLIP_ANGLE_DEG,
@@ -551,7 +552,8 @@ def _vehicle_spec_to_params(
     mu_raw = mu_override if mu_override is not None else CATEGORY_MU_DEFAULTS[compound]
     grip_util = CATEGORY_GRIP_UTILIZATION.get(compound, 0.96)
     thermal = CATEGORY_THERMAL_PENALTY.get(compound, 1.00)
-    mu = mu_raw * grip_util * thermal
+    lltd = CATEGORY_LLTD_PENALTY.get(compound, 1.00)
+    mu = mu_raw * grip_util * thermal * lltd
     weight_kg = spec.weight_kg
 
     base_accel_g = _CATEGORY_ACCEL_G[compound]

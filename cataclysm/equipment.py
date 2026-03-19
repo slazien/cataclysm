@@ -160,6 +160,21 @@ CATEGORY_THERMAL_PENALTY: dict[TireCompoundCategory, float] = {
     TireCompoundCategory.SLICK: 0.97,
 }
 
+# LLTD (Lateral Load Transfer Distribution) penalty — at higher lateral G the
+# inside/outside tire load split grows, and the more-loaded tire saturates
+# (tire load sensitivity).  A point-mass model ignores this; real cars lose
+# ~1–3% net grip from unbalanced front/rear load transfer.
+# Effect scales with mu: higher grip → more cornering G → larger load delta.
+# Values from OptimumG Tech Tip, SAE 930763 LLTD analysis, and Milliken RCVD.
+CATEGORY_LLTD_PENALTY: dict[TireCompoundCategory, float] = {
+    TireCompoundCategory.STREET: 1.00,
+    TireCompoundCategory.ENDURANCE_200TW: 1.00,
+    TireCompoundCategory.SUPER_200TW: 0.99,
+    TireCompoundCategory.TW_100: 0.99,
+    TireCompoundCategory.R_COMPOUND: 0.98,
+    TireCompoundCategory.SLICK: 0.98,
+}
+
 _BRAKE_EFFICIENCY = 0.95  # real-world brake efficiency factor
 _AIR_DENSITY = 1.225  # kg/m^3, sea level ISA standard atmosphere
 _DRIVETRAIN_EFFICIENCY: dict[str, float] = {"RWD": 0.85, "FWD": 0.82, "AWD": 0.80}
@@ -312,7 +327,8 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
     category = profile.tires.compound_category
     grip_util = CATEGORY_GRIP_UTILIZATION.get(category, 0.96)
     thermal = CATEGORY_THERMAL_PENALTY.get(category, 1.00)
-    mu = mu_raw * grip_util * thermal
+    lltd = CATEGORY_LLTD_PENALTY.get(category, 1.00)
+    mu = mu_raw * grip_util * thermal * lltd
     base_accel_g = _CATEGORY_ACCEL_G[category]
 
     # Refine acceleration estimate when vehicle specs are available.

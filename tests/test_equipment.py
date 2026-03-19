@@ -10,6 +10,7 @@ from cataclysm.equipment import (
     CATEGORY_BRAKING_MU_RATIO,
     CATEGORY_FRICTION_CIRCLE_EXPONENT,
     CATEGORY_GRIP_UTILIZATION,
+    CATEGORY_LLTD_PENALTY,
     CATEGORY_LOAD_SENSITIVITY_EXPONENT,
     CATEGORY_MU_DEFAULTS,
     CATEGORY_THERMAL_PENALTY,
@@ -429,7 +430,12 @@ class TestEquipmentToVehicleParams:
         profile = EquipmentProfile(id="p1", name="Test", tires=tire)
         params = equipment_to_vehicle_params(profile)
         cat = TireCompoundCategory.SUPER_200TW
-        expected_mu = 1.10 * CATEGORY_GRIP_UTILIZATION[cat] * CATEGORY_THERMAL_PENALTY[cat]
+        expected_mu = (
+            1.10
+            * CATEGORY_GRIP_UTILIZATION[cat]
+            * CATEGORY_THERMAL_PENALTY[cat]
+            * CATEGORY_LLTD_PENALTY[cat]
+        )
         assert params.mu == pytest.approx(expected_mu)
         assert params.max_lateral_g == pytest.approx(expected_mu)
         assert params.max_accel_g == 0.55  # SUPER_200TW
@@ -482,7 +488,12 @@ class TestEquipmentToVehicleParams:
         profile = EquipmentProfile(id="p4", name="Full Race", tires=tire)
         params = equipment_to_vehicle_params(profile)
         cat = TireCompoundCategory.SLICK
-        expected_mu = 1.50 * CATEGORY_GRIP_UTILIZATION[cat] * CATEGORY_THERMAL_PENALTY[cat]
+        expected_mu = (
+            1.50
+            * CATEGORY_GRIP_UTILIZATION[cat]
+            * CATEGORY_THERMAL_PENALTY[cat]
+            * CATEGORY_LLTD_PENALTY[cat]
+        )
         assert params.mu == pytest.approx(expected_mu)
         assert params.max_lateral_g == pytest.approx(expected_mu)
         assert params.max_accel_g == 0.70  # SLICK
@@ -520,7 +531,12 @@ class TestEquipmentToVehicleParams:
             )
             profile = EquipmentProfile(id=f"p-{cat}", name=f"Test {cat}", tires=tire)
             params = equipment_to_vehicle_params(profile)
-            expected_mu = mu * CATEGORY_GRIP_UTILIZATION[cat] * CATEGORY_THERMAL_PENALTY[cat]
+            expected_mu = (
+                mu
+                * CATEGORY_GRIP_UTILIZATION[cat]
+                * CATEGORY_THERMAL_PENALTY[cat]
+                * CATEGORY_LLTD_PENALTY[cat]
+            )
             assert params.mu == pytest.approx(expected_mu)
             assert params.max_lateral_g == pytest.approx(expected_mu)
             assert params.max_accel_g == _CATEGORY_ACCEL_G[cat]
