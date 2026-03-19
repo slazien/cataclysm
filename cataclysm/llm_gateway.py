@@ -278,10 +278,18 @@ def _estimate_cost_usd(provider: Provider, model: str, usage: LLMUsage) -> float
         elif "haiku-4-5" in m:
             in_rate, out_rate = 1.0, 5.0
     elif provider == "openai":
-        if "gpt-5-nano" in m:
+        if "gpt-5.4-nano" in m:
+            in_rate, out_rate = 0.20, 1.25
+        elif "gpt-5.4-mini" in m:
+            in_rate, out_rate = 0.75, 4.50
+        elif "gpt-5-nano" in m:
             in_rate, out_rate = 0.05, 0.4
         elif "gpt-5-mini" in m:
             in_rate, out_rate = 0.25, 2.0
+        elif "gpt-4.1-nano" in m:
+            in_rate, out_rate = 0.10, 0.40
+        elif "gpt-4.1-mini" in m:
+            in_rate, out_rate = 0.40, 1.60
     elif provider == "google":
         if "flash-lite" in m:
             in_rate, out_rate = 0.10, 0.40
