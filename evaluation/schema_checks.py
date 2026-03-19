@@ -72,6 +72,41 @@ def check_grade_values(report: dict[str, Any]) -> DimensionResult:
     return DimensionResult(name="grade_values", score=1.0, verdict=Verdict.PASS)
 
 
+def check_field_types(report: dict[str, Any]) -> DimensionResult:
+    """Check that string fields in nested structures are actually strings.
+
+    Models occasionally wrap string fields (tip, feedback, notes) in dicts
+    instead of returning plain strings.  Catches this as a schema violation
+    so downstream regex checks never receive unexpected types.
+    """
+    violations: list[str] = []
+
+    for i, pc in enumerate(report.get("priority_corners", [])):
+        for field in ("tip", "feedback"):
+            val = pc.get(field)
+            if val is not None and not isinstance(val, str):
+                violations.append(f"priority_corners[{i}].{field} is {type(val).__name__}, expected str")
+
+    for i, cg in enumerate(report.get("corner_grades", [])):
+        val = cg.get("notes")
+        if val is not None and not isinstance(val, str):
+            violations.append(f"corner_grades[{i}].notes is {type(val).__name__}, expected str")
+
+    for i, p in enumerate(report.get("patterns", [])):
+        if not isinstance(p, str):
+            violations.append(f"patterns[{i}] is {type(p).__name__}, expected str")
+
+    if violations:
+        score = max(0.0, 1.0 - len(violations) / 5)
+        return DimensionResult(
+            name="field_types",
+            score=score,
+            verdict=Verdict.FAIL,
+            details=f"Type violations: {violations[:3]}",
+        )
+    return DimensionResult(name="field_types", score=1.0, verdict=Verdict.PASS)
+
+
 def check_array_bounds(report: dict[str, Any]) -> DimensionResult:
     """Check that arrays are within expected bounds."""
     issues: list[str] = []
@@ -114,4 +149,5 @@ def run_schema_checks(raw: str) -> list[DimensionResult]:
 
     results.append(check_grade_values(report))
     results.append(check_array_bounds(report))
+    results.append(check_field_types(report))
     return results

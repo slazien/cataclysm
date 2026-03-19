@@ -24,10 +24,10 @@ def check_because_clauses(report: dict[str, Any]) -> DimensionResult:
 
     texts: list[str] = []
     for pc in priority_corners:
-        if tip := pc.get("tip", ""):
-            texts.append(tip)
-        if fb := pc.get("feedback", ""):
-            texts.append(fb)
+        for field in ("tip", "feedback"):
+            val = pc.get(field, "")
+            if isinstance(val, str) and val:
+                texts.append(val)
 
     if not texts:
         return DimensionResult(
@@ -68,10 +68,10 @@ def check_corner_first(report: dict[str, Any]) -> DimensionResult:
 
     texts: list[str] = []
     for pc in priority_corners:
-        if tip := pc.get("tip", ""):
-            texts.append(tip)
-        if fb := pc.get("feedback", ""):
-            texts.append(fb)
+        for field in ("tip", "feedback"):
+            val = pc.get(field, "")
+            if isinstance(val, str) and val:
+                texts.append(val)
 
     if not texts:
         return DimensionResult(

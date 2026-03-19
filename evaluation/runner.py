@@ -25,15 +25,20 @@ def _extract_coaching_text(report: dict) -> str:
     Avoids feeding raw JSON to citation grounding / LLM judges, which would
     pick up structural numbers like ``"corner": 5`` as coaching claims.
     """
-    parts: list[str] = [report.get("summary", "")]
+    def _str(val: object) -> str:
+        return val if isinstance(val, str) else ""
+
+    parts: list[str] = [_str(report.get("summary", ""))]
     for pc in report.get("priority_corners", []):
-        parts.append(pc.get("tip", ""))
-        parts.append(pc.get("feedback", ""))
+        parts.append(_str(pc.get("tip", "")))
+        parts.append(_str(pc.get("feedback", "")))
     for cg in report.get("corner_grades", []):
-        parts.append(cg.get("notes", ""))
-    parts.extend(report.get("patterns", []))
-    parts.append(report.get("primary_focus", ""))
-    parts.extend(report.get("drills", []))
+        parts.append(_str(cg.get("notes", "")))
+    for p in report.get("patterns", []):
+        parts.append(_str(p))
+    parts.append(_str(report.get("primary_focus", "")))
+    for d in report.get("drills", []):
+        parts.append(_str(d))
     return " ".join(p for p in parts if p)
 
 
