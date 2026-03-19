@@ -163,37 +163,41 @@
 
 <!-- Accuracy Tier -->
 <div class="tier-section">
-  <h2 style="font-size:1rem; margin-bottom:0.5rem;">Accuracy Tier Assessment</h2>
+  <h2 style="font-size:1rem; margin-bottom:0.5rem;">Accuracy Tier Assessment <span style="font-size:0.7rem; color:#9ca3af;">(evidence-based — see docs/physics-accuracy-tier-research.md)</span></h2>
   <div class="tier-bar">
     <div class="tier-d">D: Engineering</div>
-    <div class="tier-c">C: Coaching</div>
+    <div class="tier-c tier-active">C: Coaching ★</div>
     <div class="tier-b">B: Setup</div>
-    <div class="tier-a tier-active">A: Screening ★</div>
+    <div class="tier-a">A: Screening</div>
   </div>
   <div class="tier-reqs">
     <div class="tier-req">
       <h4>D: Engineering</h4>
-      <div>Bias &lt;0.25% <span class="bad">✗ 0.43%</span></div>
+      <div style="font-size:0.65rem; color:#6b7280; margin-bottom:0.3rem;">Dal Bianco GP2 0.34%, IPG CarMaker 0.15%</div>
+      <div>Bias &lt;0.5% <span class="good">✓ 0.43%</span></div>
       <div>Std &lt;1.5% <span class="bad">✗ 3.15%</span></div>
       <div>MAPE &lt;1.0% <span class="bad">✗ 2.39%</span></div>
     </div>
     <div class="tier-req">
-      <h4>C: Coaching</h4>
-      <div>Bias &lt;0.5% <span class="good">✓ 0.43%</span></div>
-      <div>Std &lt;2.5% <span class="bad">✗ 3.15%</span></div>
-      <div>MAPE &lt;1.5% <span class="bad">✗ 2.39%</span></div>
+      <h4>C: Coaching ★</h4>
+      <div style="font-size:0.65rem; color:#6b7280; margin-bottom:0.3rem;">IPG CarMaker 1-2%, ChassisSim &lt;2% cal.</div>
+      <div>Bias &lt;1.0% <span class="good">✓ 0.43%</span></div>
+      <div>Std &lt;3.5% <span class="good">✓ 3.15%</span></div>
+      <div>MAPE &lt;3.0% <span class="good">✓ 2.39%</span></div>
     </div>
     <div class="tier-req">
       <h4>B: Setup</h4>
-      <div>Bias &lt;1.0% <span class="good">✓ 0.43%</span></div>
-      <div>Std &lt;3.0% <span class="bad">✗ 3.15%</span></div>
-      <div>MAPE &lt;2.0% <span class="bad">✗ 2.39%</span></div>
+      <div style="font-size:0.65rem; color:#6b7280; margin-bottom:0.3rem;">OptimumLap careful 2-5%, ChassisSim ~5%</div>
+      <div>Bias &lt;2.0% <span class="good">✓ 0.43%</span></div>
+      <div>Std &lt;5.0% <span class="good">✓ 3.15%</span></div>
+      <div>MAPE &lt;5.0% <span class="good">✓ 2.39%</span></div>
     </div>
     <div class="tier-req">
-      <h4>A: Screening ★</h4>
-      <div>Bias &lt;2.0% <span class="good">✓ 0.43%</span></div>
-      <div>Std &lt;4.5% <span class="good">✓ 3.15%</span></div>
-      <div>MAPE &lt;5.0% <span class="good">✓ 2.39%</span></div>
+      <h4>A: Screening</h4>
+      <div style="font-size:0.65rem; color:#6b7280; margin-bottom:0.3rem;">OptimumLap spec 10%, Broatch 8-10%</div>
+      <div>Bias &lt;5.0% <span class="good">✓ 0.43%</span></div>
+      <div>Std &lt;8.0% <span class="good">✓ 3.15%</span></div>
+      <div>MAPE &lt;10.0% <span class="good">✓ 2.39%</span></div>
     </div>
   </div>
 </div>

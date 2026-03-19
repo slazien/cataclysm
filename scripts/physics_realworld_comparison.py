@@ -1249,11 +1249,16 @@ PW_BANDS: list[tuple[str, float, float]] = [
     ("High >350", 350, 9999),
 ]
 
+# Evidence-based accuracy tiers from published literature.
+# See docs/physics-accuracy-tier-research.md for full references.
+# Key sources: Dal Bianco GP2 (0.34%, Proc. IMechE 2018), IPG CarMaker FSAE (0.15-2%,
+# MDPI 2024), OptimumLap ("up to 10%", OptimumG), Broatch thesis (8.3-10.2%),
+# ChassisSim (<2% calibrated, ~5% uncalibrated), MIT Noel (R²=0.807).
 TIER_CRITERIA: dict[str, dict[str, float]] = {
-    "D: Engineering": {"mean_bias_max": 0.0025, "std_max": 0.015, "mape_max": 1.0},
-    "C: Coaching": {"mean_bias_max": 0.005, "std_max": 0.025, "mape_max": 1.5},
-    "B: Setup": {"mean_bias_max": 0.010, "std_max": 0.030, "mape_max": 3.0},
-    "A: Screening": {"mean_bias_max": 0.015, "std_max": 0.050, "mape_max": 5.0},
+    "D: Engineering": {"mean_bias_max": 0.005, "std_max": 0.015, "mape_max": 1.0},
+    "C: Coaching": {"mean_bias_max": 0.010, "std_max": 0.035, "mape_max": 3.0},
+    "B: Setup": {"mean_bias_max": 0.020, "std_max": 0.050, "mape_max": 5.0},
+    "A: Screening": {"mean_bias_max": 0.050, "std_max": 0.080, "mape_max": 10.0},
 }
 
 

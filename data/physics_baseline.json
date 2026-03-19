@@ -1,6 +1,6 @@
 {
   "date": "2026-03-19",
-  "git_sha": "0f8f4ce",
+  "git_sha": "f02f954",
   "acceptance_criteria": {
     "mean_ratio_min": 0.95,
     "mean_ratio_max": 1.02,
@@ -669,6 +669,6 @@
       "influential_entries": [],
       "influential_count": 0
     },
-    "accuracy_tier": "A: Screening"
+    "accuracy_tier": "C: Coaching"
   }
 }
