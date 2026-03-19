@@ -278,10 +278,11 @@ _CURATED_TIRES: dict[str, TireSpec] = {
         compound_category=TireCompoundCategory.ENDURANCE_200TW,
         size="varies",
         treadwear_rating=300,
-        estimated_mu=1.00,
+        estimated_mu=1.03,
         mu_source=MuSource.CURATED_TABLE,
-        mu_confidence="Validation-calibrated: 4 track entries all point to mu≈1.00. "
-        "TW 300 but performs at endurance 200TW level per GRM/ECS02 comparison",
+        mu_confidence="TW 300, premium performance. Tire Rack lateral tests: 0.97–1.05g "
+        "depending on vehicle/setup. Revised upward from 1.00 — FL5/Z51 validation "
+        "entries (ratio>1.05) and independent GRM testing confirmed above-average grip.",
         brand="Michelin",
     ),
     "continental_esc": TireSpec(

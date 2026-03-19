@@ -142,8 +142,8 @@ CATEGORY_GRIP_UTILIZATION: dict[TireCompoundCategory, float] = {
     TireCompoundCategory.ENDURANCE_200TW: 1.00,
     TireCompoundCategory.SUPER_200TW: 0.99,
     TireCompoundCategory.TW_100: 0.97,
-    TireCompoundCategory.R_COMPOUND: 0.94,
-    TireCompoundCategory.SLICK: 0.93,
+    TireCompoundCategory.R_COMPOUND: 0.93,
+    TireCompoundCategory.SLICK: 0.92,
 }
 
 # Thermal penalty — high-grip compounds generate more slip-work heat per corner,

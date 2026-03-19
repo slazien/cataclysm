@@ -1,6 +1,6 @@
 {
   "date": "2026-03-19",
-  "git_sha": "919e84a",
+  "git_sha": "495c084",
   "acceptance_criteria": {
     "mean_ratio_min": 0.95,
     "mean_ratio_max": 1.02,
@@ -14,8 +14,8 @@
       "car": "Miata NA",
       "track": "Barber Motorsports Park",
       "real_s": 108.08,
-      "predicted_s": 109.832,
-      "ratio": 1.0162,
+      "predicted_s": 110.046,
+      "ratio": 1.0182,
       "tire_category": "r_compound",
       "tire_model": "Hoosier (NASA TT class)",
       "mu": 1.38
@@ -64,11 +64,11 @@
       "car": "Civic Type R FL5",
       "track": "Barber Motorsports Park",
       "real_s": 100.9,
-      "predicted_s": 107.242,
-      "ratio": 1.0629,
+      "predicted_s": 106.19,
+      "ratio": 1.0524,
       "tire_category": "endurance_200tw",
       "tire_model": "Michelin Pilot Sport 4S (stock OEM)",
-      "mu": 1.0
+      "mu": 1.03
     },
     {
       "car": "Civic Type R FL5",
@@ -134,8 +134,8 @@
       "car": "911 GT3 992",
       "track": "Barber Motorsports Park",
       "real_s": 93.09,
-      "predicted_s": 92.304,
-      "ratio": 0.9916,
+      "predicted_s": 92.613,
+      "ratio": 0.9949,
       "tire_category": "slick",
       "tire_model": "Dunlop DH Slick",
       "mu": 1.4
@@ -144,8 +144,8 @@
       "car": "911 GT3 991",
       "track": "Barber Motorsports Park",
       "real_s": 95.05,
-      "predicted_s": 92.749,
-      "ratio": 0.9758,
+      "predicted_s": 93.066,
+      "ratio": 0.9791,
       "tire_category": "r_compound",
       "tire_model": "Hoosier R7",
       "mu": 1.38
@@ -154,18 +154,18 @@
       "car": "Mustang GT S550",
       "track": "Barber Motorsports Park",
       "real_s": 111.38,
-      "predicted_s": 104.524,
-      "ratio": 0.9384,
+      "predicted_s": 103.445,
+      "ratio": 0.9288,
       "tire_category": "endurance_200tw",
       "tire_model": "Michelin Pilot Sport 4S 255/40+275/40R19",
-      "mu": 1.0
+      "mu": 1.03
     },
     {
       "car": "Mustang GT S550",
       "track": "Barber Motorsports Park",
       "real_s": 97.06,
-      "predicted_s": 96.532,
-      "ratio": 0.9946,
+      "predicted_s": 96.807,
+      "ratio": 0.9974,
       "tire_category": "slick",
       "tire_model": "Pirelli Slicks 305 square",
       "mu": 1.4
@@ -184,11 +184,11 @@
       "car": "Corvette C8 Z51",
       "track": "Barber Motorsports Park",
       "real_s": 96.46000000000001,
-      "predicted_s": 102.186,
-      "ratio": 1.0594,
+      "predicted_s": 100.951,
+      "ratio": 1.0466,
       "tire_category": "endurance_200tw",
       "tire_model": "Michelin Pilot Sport 4S (OEM)",
-      "mu": 1.0
+      "mu": 1.03
     },
     {
       "car": "Corvette C8 Z06",
@@ -254,8 +254,8 @@
       "car": "Mustang GT S550",
       "track": "Roebling Road Raceway",
       "real_s": 79.9,
-      "predicted_s": 74.432,
-      "ratio": 0.9316,
+      "predicted_s": 74.666,
+      "ratio": 0.9345,
       "tire_category": "r_compound",
       "tire_model": "Hoosier A7 315 square",
       "mu": 1.42
@@ -264,8 +264,8 @@
       "car": "Mustang GT S550",
       "track": "Roebling Road Raceway",
       "real_s": 82.58,
-      "predicted_s": 75.068,
-      "ratio": 0.909,
+      "predicted_s": 75.314,
+      "ratio": 0.912,
       "tire_category": "r_compound",
       "tire_model": "Hoosier R7 315/30/18",
       "mu": 1.38
@@ -324,8 +324,8 @@
       "car": "Cayman GT4 718",
       "track": "Atlanta Motorsports Park",
       "real_s": 87.58,
-      "predicted_s": 84.525,
-      "ratio": 0.9651,
+      "predicted_s": 84.824,
+      "ratio": 0.9685,
       "tire_category": "slick",
       "tire_model": "Pirelli slicks",
       "mu": 1.4
@@ -334,50 +334,45 @@
       "car": "Corvette C8 Z06",
       "track": "Atlanta Motorsports Park",
       "real_s": 91.35,
-      "predicted_s": 90.658,
-      "ratio": 0.9924,
+      "predicted_s": 89.544,
+      "ratio": 0.9802,
       "tire_category": "endurance_200tw",
       "tire_model": "Michelin Pilot Sport 4S (OEM)",
-      "mu": 1.0
+      "mu": 1.03
     }
   ],
   "summary": {
     "n_entries": 33,
-    "mean_ratio": 0.9995079349659498,
-    "median_ratio": 0.9953353671248912,
-    "std_ratio": 0.03493191948770428,
-    "exceedance_count_5pct": 3,
+    "mean_ratio": 0.9987713497109102,
+    "median_ratio": 0.9965376376339229,
+    "std_ratio": 0.033895406202407254,
+    "exceedance_count_5pct": 2,
     "entries_above_1": 15,
-    "rmse_s": 3.203822552902566,
-    "mae_s": 2.5000891006691854,
-    "mape_pct": 2.6569056993403244,
-    "p90_abs_error_s": 5.67472504563217,
-    "p95_abs_error_s": 6.54755875714884,
-    "bland_altman_bias_s": 0.06253403032767084,
-    "bland_altman_loa_lower_s": -6.313105622465293,
-    "bland_altman_loa_upper_s": 6.438173683120634,
-    "calibration_slope": 1.0921279966726771,
-    "calibration_intercept_s": -8.655929140854255,
-    "calibration_r_squared": 0.925079133215399,
-    "correlation_mu_ratio": -0.5382888734276895,
-    "correlation_mu_pvalue": 0.0012320205045352442,
-    "correlation_weight_ratio": -0.4305128074849767,
-    "correlation_weight_pvalue": 0.012386693290453403,
-    "bootstrap_mean_ci_lower": 0.9873112072831114,
-    "bootstrap_mean_ci_upper": 1.0106676665379553,
-    "bootstrap_std_ci_lower": 0.027119742128513223,
-    "bootstrap_std_ci_upper": 0.045407358665699324,
-    "iqr_outlier_count": 2,
+    "rmse_s": 3.131286927658833,
+    "mae_s": 2.452805469950596,
+    "mape_pct": 2.6018083905236646,
+    "p90_abs_error_s": 5.195315304453587,
+    "p95_abs_error_s": 6.080459379214139,
+    "bland_altman_bias_s": -0.01578656954029913,
+    "bland_altman_loa_lower_s": -6.248187700332304,
+    "bland_altman_loa_upper_s": 6.216614561251706,
+    "calibration_slope": 1.0832582282521082,
+    "calibration_intercept_s": -7.894865925763199,
+    "calibration_r_squared": 0.9262112492641889,
+    "correlation_mu_ratio": -0.4921853717535844,
+    "correlation_mu_pvalue": 0.0036205567397786936,
+    "correlation_weight_ratio": -0.45533778573951406,
+    "correlation_weight_pvalue": 0.007751883938120315,
+    "bootstrap_mean_ci_lower": 0.9867474607230141,
+    "bootstrap_mean_ci_upper": 1.0094029752973164,
+    "bootstrap_std_ci_lower": 0.02638111203318467,
+    "bootstrap_std_ci_upper": 0.043805567247090144,
+    "iqr_outlier_count": 1,
     "iqr_outliers": [
       {
         "car": "Mustang GT S550",
         "track": "Roebling Road Raceway",
-        "ratio": 0.9316
-      },
-      {
-        "car": "Mustang GT S550",
-        "track": "Roebling Road Raceway",
-        "ratio": 0.909
+        "ratio": 0.912
       }
     ],
     "per_category": {
@@ -390,12 +385,12 @@
       },
       "endurance_200tw": {
         "n": 11,
-        "mean": 1.0163,
-        "std": 0.0323,
-        "min": 0.9384,
-        "max": 1.0629,
-        "bootstrap_mean_ci_lower": 0.9936,
-        "bootstrap_mean_ci_upper": 1.0322
+        "mean": 1.0122,
+        "std": 0.0328,
+        "min": 0.9288,
+        "max": 1.0524,
+        "bootstrap_mean_ci_lower": 0.9865,
+        "bootstrap_mean_ci_upper": 1.0272
       },
       "super_200tw": {
         "n": 11,
@@ -415,47 +410,47 @@
       },
       "r_compound": {
         "n": 4,
-        "mean": 0.9581,
-        "std": 0.0412,
-        "min": 0.909,
-        "max": 1.0162
+        "mean": 0.961,
+        "std": 0.0409,
+        "min": 0.912,
+        "max": 1.0182
       },
       "slick": {
         "n": 3,
-        "mean": 0.9837,
-        "std": 0.0132,
-        "min": 0.9651,
-        "max": 0.9946
+        "mean": 0.9869,
+        "std": 0.013,
+        "min": 0.9685,
+        "max": 0.9974
       }
     },
     "per_track": {
       "Atlanta Motorsports Park": {
         "n": 6,
-        "mean": 0.992,
-        "std": 0.0179,
-        "min": 0.9651,
+        "mean": 0.9905,
+        "std": 0.0177,
+        "min": 0.9685,
         "max": 1.0218
       },
       "Barber Motorsports Park": {
         "n": 19,
-        "mean": 1.0113,
-        "std": 0.031,
-        "min": 0.9384,
-        "max": 1.0629
+        "mean": 1.0101,
+        "std": 0.0301,
+        "min": 0.9288,
+        "max": 1.0536
       },
       "Roebling Road Raceway": {
         "n": 8,
-        "mean": 0.9772,
-        "std": 0.0387,
-        "min": 0.909,
+        "mean": 0.9779,
+        "std": 0.0376,
+        "min": 0.912,
         "max": 1.0412
       }
     },
     "per_grip_band": {
       "Low (street+endurance)": {
         "n": 12,
-        "mean": 1.0184,
-        "std": 0.0317,
+        "mean": 1.0146,
+        "std": 0.0324,
         "categories": [
           "endurance_200tw",
           "street"
@@ -472,8 +467,8 @@
       },
       "High (r_compound+slick)": {
         "n": 7,
-        "mean": 0.9691,
-        "std": 0.0347,
+        "mean": 0.9721,
+        "std": 0.0346,
         "categories": [
           "r_compound",
           "slick"
@@ -483,31 +478,31 @@
     "per_pw_band": {
       "Low <200 hp/t": {
         "n": 9,
-        "mean": 1.0154,
+        "mean": 1.0156,
         "std": 0.0169
       },
       "Mid 200-350": {
         "n": 21,
-        "mean": 0.9918,
-        "std": 0.0388
+        "mean": 0.9911,
+        "std": 0.037
       },
       "High >350": {
         "n": 3,
-        "mean": 1.0058,
-        "std": 0.0201
+        "mean": 1.0018,
+        "std": 0.0234
       }
     },
     "fast_slow_split": {
       "median_time_s": 95.91,
       "fast": {
         "n": 16,
-        "mean": 0.9911,
-        "std": 0.0365
+        "mean": 0.9913,
+        "std": 0.0357
       },
       "slow": {
         "n": 17,
-        "mean": 1.0075,
-        "std": 0.0302
+        "mean": 1.0058,
+        "std": 0.0294
       }
     },
     "accuracy_tier": "A: Screening"

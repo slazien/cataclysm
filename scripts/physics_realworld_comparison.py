@@ -327,7 +327,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
     ),
     # --- Corvette C8 Stingray Z51 ---
     RealWorldLapTime(
-        car_key=("Chevrolet", "Corvette", "C8"),
+        car_key=("Chevrolet", "Corvette Z51", "C8"),
         car_label="Corvette C8 Z51",
         track_name="Barber Motorsports Park",
         lap_time_s=_parse_time("1:36.46"),
