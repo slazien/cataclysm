@@ -126,8 +126,8 @@ def _compute_max_cornering_speed(
     Compressions (κ_v > 0) shrink the denominator → higher max speed.
     Crests (κ_v < 0) grow the denominator → lower max speed.
 
-    With aero downforce:
-        v² = mu·g·cos(θ) / (|κ_lat| - mu·κ_v - aero_coeff·G)
+    With aero downforce (downforce increases normal force, grip = mu * N):
+        v² = mu·g·cos(θ) / (|κ_lat| - mu·κ_v - mu·aero_coeff·G)
     """
     n = len(abs_curvature)
     max_speed = np.full(n, params.top_speed_mps, dtype=np.float64)
@@ -185,11 +185,13 @@ def _compute_max_cornering_speed(
 
     if params.aero_coefficient > 0:
         curved_indices = np.where(curved_mask)[0]
-        # effective denominator = |kappa_lat| - mu*kappa_v - aero*G
+        # effective denominator = |kappa_lat| - mu*kappa_v - mu*aero*G
+        # The mu factor on the aero term is required because downforce
+        # increases normal force N, and additional grip = mu * delta_N.
         denom = (
             abs_curvature[curved_indices]
             - effective_mu[curved_indices] * kappa_v[curved_indices]
-            - params.aero_coefficient * G
+            - effective_mu[curved_indices] * params.aero_coefficient * G
         )
         # Numerical guard (not a physics limit): vertical curvature must not
         # reduce effective curvature below 50% of lateral curvature.  Prevents

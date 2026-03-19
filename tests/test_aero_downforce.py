@@ -66,6 +66,77 @@ def test_downforce_increases_cornering_speed() -> None:
     assert improvement_pct > 0.1, f"Improvement too small: {improvement_pct:.2f}%"
 
 
+def test_downforce_scales_with_mu() -> None:
+    """Aero benefit should scale with tire mu — low-mu tires extract less grip from downforce."""
+    n = 1000
+    curvature = np.full(n, 0.01)  # radius ~100m
+    cr = _make_curvature_result(curvature)
+
+    rho = 1.225
+    cl_a = 1.5
+
+    # Street tire (mu=0.88) vs R-compound (mu=1.35), both with same aero
+    for mu_val in [0.88, 1.35]:
+        mass = 1500.0
+        aero_coeff = 0.5 * rho * cl_a / (mass * G)
+        base = VehicleParams(
+            mu=mu_val,
+            max_accel_g=0.5,
+            max_decel_g=mu_val,
+            max_lateral_g=mu_val,
+            top_speed_mps=80.0,
+            mass_kg=mass,
+            wheel_power_w=300_000,
+        )
+        aero = VehicleParams(
+            mu=mu_val,
+            max_accel_g=0.5,
+            max_decel_g=mu_val,
+            max_lateral_g=mu_val,
+            top_speed_mps=80.0,
+            mass_kg=mass,
+            wheel_power_w=300_000,
+            aero_coefficient=aero_coeff,
+        )
+        p_base = compute_optimal_profile(cr, base, closed_circuit=False)
+        p_aero = compute_optimal_profile(cr, aero, closed_circuit=False)
+        assert p_aero.lap_time_s < p_base.lap_time_s, f"mu={mu_val}: aero car should be faster"
+
+    # Low-mu car should gain LESS from aero than high-mu car (grip = mu * N)
+    times = {}
+    for mu_val in [0.88, 1.35]:
+        mass = 1500.0
+        aero_coeff = 0.5 * rho * cl_a / (mass * G)
+        base = VehicleParams(
+            mu=mu_val,
+            max_accel_g=0.5,
+            max_decel_g=mu_val,
+            max_lateral_g=mu_val,
+            top_speed_mps=80.0,
+            mass_kg=mass,
+            wheel_power_w=300_000,
+        )
+        aero = VehicleParams(
+            mu=mu_val,
+            max_accel_g=0.5,
+            max_decel_g=mu_val,
+            max_lateral_g=mu_val,
+            top_speed_mps=80.0,
+            mass_kg=mass,
+            wheel_power_w=300_000,
+            aero_coefficient=aero_coeff,
+        )
+        p_base = compute_optimal_profile(cr, base, closed_circuit=False)
+        p_aero = compute_optimal_profile(cr, aero, closed_circuit=False)
+        pct = (p_base.lap_time_s - p_aero.lap_time_s) / p_base.lap_time_s * 100
+        times[mu_val] = pct
+
+    # Higher mu should extract more absolute time from same aero package
+    assert times[1.35] > times[0.88], (
+        f"High-mu should benefit more: {times[1.35]:.2f}% vs {times[0.88]:.2f}%"
+    )
+
+
 def test_no_downforce_no_change() -> None:
     """Car with cl_a=0 should produce same results as default."""
     n = 500
