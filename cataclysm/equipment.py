@@ -105,6 +105,17 @@ CATEGORY_FRICTION_CIRCLE_EXPONENT: dict[TireCompoundCategory, float] = {
     TireCompoundCategory.SLICK: 2.3,
 }
 
+# Braking-to-lateral mu ratio — real tires have 10-15% more braking grip
+# than cornering grip due to tread pattern alignment and contact patch shape.
+CATEGORY_BRAKING_MU_RATIO: dict[TireCompoundCategory, float] = {
+    TireCompoundCategory.STREET: 1.10,
+    TireCompoundCategory.ENDURANCE_200TW: 1.10,
+    TireCompoundCategory.SUPER_200TW: 1.12,
+    TireCompoundCategory.TW_100: 1.12,
+    TireCompoundCategory.R_COMPOUND: 1.15,
+    TireCompoundCategory.SLICK: 1.15,
+}
+
 _BRAKE_EFFICIENCY = 0.95  # real-world brake efficiency factor
 _AIR_DENSITY = 1.225  # kg/m^3, sea level ISA standard atmosphere
 _DRIVETRAIN_EFFICIENCY: dict[str, float] = {"RWD": 0.85, "FWD": 0.82, "AWD": 0.80}
@@ -292,11 +303,14 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
     if profile.vehicle is not None and profile.vehicle.cl_a > 0 and mass_for_params > 0:
         aero_coeff = 0.5 * _AIR_DENSITY * profile.vehicle.cl_a / (mass_for_params * G)
 
+    braking_ratio = CATEGORY_BRAKING_MU_RATIO.get(category, 1.10)
+
     return VehicleParams(
         mu=mu,
         max_lateral_g=mu,
         max_accel_g=accel_g,
-        max_decel_g=mu * _BRAKE_EFFICIENCY,
+        max_decel_g=mu * braking_ratio * _BRAKE_EFFICIENCY,
+        braking_mu_ratio=braking_ratio,
         top_speed_mps=80.0,
         friction_circle_exponent=CATEGORY_FRICTION_CIRCLE_EXPONENT[category],
         aero_coefficient=aero_coeff,

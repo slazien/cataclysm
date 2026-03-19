@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from cataclysm.curvature import CurvatureResult
 from cataclysm.equipment import (
     _CATEGORY_ACCEL_G,
+    CATEGORY_BRAKING_MU_RATIO,
     CATEGORY_FRICTION_CIRCLE_EXPONENT,
     CATEGORY_LOAD_SENSITIVITY_EXPONENT,
     CATEGORY_MU_DEFAULTS,
@@ -557,11 +558,13 @@ def _vehicle_spec_to_params(
     if spec.cl_a > 0 and weight_kg > 0:
         aero_coeff = 0.5 * _AIR_DENSITY * spec.cl_a / (weight_kg * G)
 
+    braking_ratio = CATEGORY_BRAKING_MU_RATIO.get(compound, 1.10)
+
     return VehicleParams(
         mu=mu,
         max_lateral_g=mu,
         max_accel_g=accel_g,
-        max_decel_g=mu * _BRAKE_EFFICIENCY,
+        max_decel_g=mu * braking_ratio * _BRAKE_EFFICIENCY,
         top_speed_mps=80.0,
         friction_circle_exponent=CATEGORY_FRICTION_CIRCLE_EXPONENT[compound],
         aero_coefficient=aero_coeff,
@@ -571,6 +574,7 @@ def _vehicle_spec_to_params(
         track_width_m=0.5 * (spec.track_width_front_m + spec.track_width_rear_m),
         wheel_power_w=wheel_power_w,
         mass_kg=weight_kg,
+        braking_mu_ratio=braking_ratio,
     )
 
 

@@ -68,6 +68,7 @@ class VehicleParams:
     track_width_m: float = 0.0  # average track width for weight transfer estimation
     wheel_power_w: float = 0.0  # Wheel power in Watts (after drivetrain loss); 0 = disabled
     mass_kg: float = 0.0  # Vehicle mass in kg; 0 = use max_accel_g only
+    braking_mu_ratio: float = 1.0  # ratio of peak braking mu to peak lateral mu (>1.0 = ellipse)
 
 
 @dataclass
