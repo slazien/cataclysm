@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## Proactively Add Quality Gates When Creating Validation Tooling (2026-03-19)
+
+**Pattern**: When building or hardening a validation framework (e.g., physics benchmark, eval harness), ALWAYS add a mandatory quality gate rule to CLAUDE.md in the same commit. Don't wait for the user to ask "is this run every time?" — if the framework validates correctness, it MUST be gated.
+
+**Why**: Built full physics validation framework with `--strict` exit codes and `--compare` regression detection, but didn't add it as a mandatory quality gate. User had to explicitly ask "is the physics validation framework ran every time there are any changes made to the physics engine? if not add this to the rules." The tool is useless if it's not automatically enforced.
+
+**Error signature**: Creating a validation script or hardening a test framework without simultaneously adding the corresponding CLAUDE.md quality gate entry.
+
 ## SQLAlchemy `AsyncSession.execute()` Returns `Result[Any]` — No `.rowcount` (2026-03-19)
 
 **Pattern**: Never call `.rowcount` on the result of `AsyncSession.execute()` for DML. Mypy types the return as `Result[Any]`, which has no `rowcount` attribute. To count affected rows, use a separate `SELECT COUNT(*)` before the DML, or cast to `CursorResult` explicitly.
