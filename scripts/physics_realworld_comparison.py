@@ -51,7 +51,7 @@ OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 
 _BRAKE_EFFICIENCY = 0.95
 _AIR_DENSITY = 1.225
-_DRIVETRAIN_EFFICIENCY: dict[str, float] = {"RWD": 0.85, "FWD": 0.82, "AWD": 0.80}
+_DRIVETRAIN_EFFICIENCY: dict[str, float] = {"RWD": 0.85, "FWD": 0.88, "AWD": 0.80}
 _AERO_EFFICIENCY = 0.85  # real-world aero efficiency (ride height, yaw, turbulence)
 
 
@@ -676,7 +676,7 @@ def _vehicle_spec_to_params(
 
     base_accel_g = _CATEGORY_ACCEL_G[compound]
     pw_ratio = spec.hp / (weight_kg / 1000.0)
-    pw_factor = min(pw_ratio / 250.0, 1.5)
+    pw_factor = min(pw_ratio / 200.0, 1.5)
     accel_g = base_accel_g * max(pw_factor, 0.7)
 
     drag_coeff = 0.0

@@ -177,7 +177,7 @@ CATEGORY_LLTD_PENALTY: dict[TireCompoundCategory, float] = {
 
 _BRAKE_EFFICIENCY = 0.95  # real-world brake efficiency factor
 _AIR_DENSITY = 1.225  # kg/m^3, sea level ISA standard atmosphere
-_DRIVETRAIN_EFFICIENCY: dict[str, float] = {"RWD": 0.85, "FWD": 0.82, "AWD": 0.80}
+_DRIVETRAIN_EFFICIENCY: dict[str, float] = {"RWD": 0.85, "FWD": 0.88, "AWD": 0.80}
 # Real-world aero is less than theoretical: ride height variation under load,
 # yaw angle in corners, turbulence, and imperfect sealing reduce effective CL.
 # Racing engineering literature suggests 70-85% of wind-tunnel CL on track.
@@ -345,7 +345,7 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
         # (typical track-day car).  Scale proportionally but cap the bonus
         # to avoid unrealistic values.
         pw_ratio = hp / (weight_kg / 1000.0)  # hp per tonne
-        pw_factor = min(pw_ratio / 250.0, 1.5)  # cap at 1.5x
+        pw_factor = min(pw_ratio / 200.0, 1.5)  # cap at 1.5x
         accel_g = base_accel_g * max(pw_factor, 0.7)  # floor at 0.7x
 
     # Compute aerodynamic drag coefficient: k = CdA * rho / (2 * m)
