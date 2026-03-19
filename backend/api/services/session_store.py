@@ -81,7 +81,8 @@ ANON_SESSION_TTL: int = 86400
 _store: OrderedDict[str, SessionData] = OrderedDict()
 
 # --- Rehydration concurrency controls ---
-_REHYDRATION_LOCKS: dict[str, asyncio.Lock] = {}
+_MAX_REHYDRATION_LOCKS: int = 200
+_REHYDRATION_LOCKS: OrderedDict[str, asyncio.Lock] = OrderedDict()
 MAX_CONCURRENT_REHYDRATIONS: int = 4
 _REHYDRATION_SEMAPHORE: asyncio.Semaphore | None = None
 _REHYDRATION_FAILURES: dict[str, float] = {}  # session_id -> failure timestamp
@@ -289,8 +290,16 @@ async def rehydrate_session(
         logger.debug("Skipping rehydration for %s (negative cache hit)", session_id)
         return None
 
-    # Get or create per-session lock (singleflight) — setdefault is atomic
-    lock = _REHYDRATION_LOCKS.setdefault(session_id, asyncio.Lock())
+    # Get or create per-session lock (singleflight) with LRU eviction
+    lock = _REHYDRATION_LOCKS.get(session_id)
+    if lock is None:
+        # Evict oldest locks if at capacity
+        while len(_REHYDRATION_LOCKS) >= _MAX_REHYDRATION_LOCKS:
+            _REHYDRATION_LOCKS.popitem(last=False)
+        lock = asyncio.Lock()
+        _REHYDRATION_LOCKS[session_id] = lock
+    else:
+        _REHYDRATION_LOCKS.move_to_end(session_id)
 
     async with _get_semaphore(), lock:
         # Double-check after acquiring lock — another request may have rehydrated

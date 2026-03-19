@@ -574,6 +574,7 @@ def call_text_completion(
     for provider, model in attempts:
         api_key = _provider_api_key(provider)
         if not api_key:
+            logger.debug("Skipping %s/%s for task %s — no API key", provider, model, task)
             continue
         start = time.perf_counter()
         try:

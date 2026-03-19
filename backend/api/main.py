@@ -340,25 +340,29 @@ async def _seed_llm_routing() -> int:
 
     from backend.api.db.database import async_session_factory
 
-    async with async_session_factory() as db:
-        # Count existing routes to determine how many we'll seed
-        row = await db.execute(
-            text("SELECT COUNT(*) FROM llm_task_routes WHERE task = ANY(:tasks)"),
-            {"tasks": list(_DEFAULT_LLM_ROUTING)},
-        )
-        existing = row.scalar_one() or 0
-        for task, chain in _DEFAULT_LLM_ROUTING.items():
-            config = json.dumps({"chain": [{"provider": p, "model": m} for p, m in chain]})
-            await db.execute(
-                text(
-                    "INSERT INTO llm_task_routes (task, config_json)"
-                    " VALUES (:task, :config)"
-                    " ON CONFLICT (task) DO NOTHING"
-                ),
-                {"task": task, "config": config},
+    try:
+        async with async_session_factory() as db:
+            # Count existing routes to determine how many we'll seed
+            row = await db.execute(
+                text("SELECT COUNT(*) FROM llm_task_routes WHERE task = ANY(:tasks)"),
+                {"tasks": list(_DEFAULT_LLM_ROUTING)},
             )
-        await db.commit()
-    return len(_DEFAULT_LLM_ROUTING) - int(existing)
+            existing = row.scalar_one() or 0
+            for task, chain in _DEFAULT_LLM_ROUTING.items():
+                config = json.dumps({"chain": [{"provider": p, "model": m} for p, m in chain]})
+                await db.execute(
+                    text(
+                        "INSERT INTO llm_task_routes (task, config_json)"
+                        " VALUES (:task, :config)"
+                        " ON CONFLICT (task) DO NOTHING"
+                    ),
+                    {"task": task, "config": config},
+                )
+            await db.commit()
+        return len(_DEFAULT_LLM_ROUTING) - int(existing)
+    except (SQLAlchemyError, OSError):
+        logger.warning("Failed to seed LLM routing config", exc_info=True)
+        return 0
 
 
 async def _backfill_sidebar_scores() -> int:

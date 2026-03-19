@@ -1178,6 +1178,10 @@ async def set_lap_tags(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, object]:
     """Set tags for a specific lap."""
+    from backend.api.services.demo_session import is_demo_session
+
+    if is_demo_session(session_id):
+        raise HTTPException(status_code=403, detail="Demo session is read-only")
     sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
@@ -1238,6 +1242,10 @@ async def override_track_condition(
     """
     from cataclysm.equipment import TrackCondition
 
+    from backend.api.services.demo_session import is_demo_session as _is_demo
+
+    if _is_demo(session_id):
+        raise HTTPException(status_code=403, detail="Demo session is read-only")
     sd = await get_session_for_user_with_db_sync(db, session_id, current_user.user_id)
     if sd is None:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
@@ -1255,7 +1263,7 @@ async def override_track_condition(
         # Re-run weather lookup to get model-derived condition
         try:
             await _auto_fetch_weather(sd)
-        except Exception:
+        except Exception:  # noqa: BLE001
             # Restore manual flag — can't re-derive, keep user's tag
             sd.weather.track_condition_is_manual = old_is_manual
             logger.warning(
@@ -1263,6 +1271,10 @@ async def override_track_condition(
                 session_id,
                 exc_info=True,
             )
+            raise HTTPException(
+                status_code=502,
+                detail="Weather service unavailable — manual override preserved",
+            ) from None
     else:
         sd.weather.track_condition = TrackCondition(body.condition)
         sd.weather.track_condition_is_manual = True
