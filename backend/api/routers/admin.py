@@ -192,6 +192,34 @@ MODEL_REGISTRY = [
         "cost_in": 0.30,
         "cost_out": 2.50,
     },
+    {
+        "provider": "openai",
+        "model": "gpt-5.4-nano",
+        "display": "GPT-5.4 Nano",
+        "cost_in": 0.20,
+        "cost_out": 1.25,
+    },
+    {
+        "provider": "openai",
+        "model": "gpt-5.4-mini",
+        "display": "GPT-5.4 Mini",
+        "cost_in": 0.75,
+        "cost_out": 4.50,
+    },
+    {
+        "provider": "openai",
+        "model": "gpt-4.1-nano",
+        "display": "GPT-4.1 Nano",
+        "cost_in": 0.10,
+        "cost_out": 0.40,
+    },
+    {
+        "provider": "openai",
+        "model": "gpt-4.1-mini",
+        "display": "GPT-4.1 Mini",
+        "cost_in": 0.40,
+        "cost_out": 1.60,
+    },
 ]
 
 
