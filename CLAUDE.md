@@ -56,10 +56,11 @@ All must pass before commit:
 1. **Ruff**: `ruff format cataclysm/ tests/ backend/` → `ruff check cataclysm/ tests/ backend/`
 2. **Mypy**: `dmypy run -- cataclysm/ backend/` (~4s warm)
 3. **Tests**: `pytest tests/ backend/tests/ -v -n auto`. New module → `tests/test_<module>.py`. Synthetic fixtures, mock external APIs.
-4. **Code review**: `superpowers:code-reviewer` (mandatory)
-5. **Frontend TS**: `cd frontend && npx tsc --noEmit` before every push. Incremental cache hides errors Railway's clean build catches; `vitest` alone insufficient.
-6. **Frontend QA**: ANY frontend change → Playwright visual verify on staging post-deploy. **BLOCKING.** Wait ~2-3 min.
-7. **Deploy verify**: `list-deployments --service <svc>` → get ID → `get-logs <id>`. Specify service explicitly (default = linked svc only). **On FAILED deploy**: get build logs FIRST before attempting any fix — the error message is almost always sufficient.
+4. **Physics validation**: ANY change to `velocity_profile.py`, `equipment.py`, `driving_physics.py`, or `tire_db.py` → run `python scripts/physics_realworld_comparison.py --strict --compare data/physics_baseline.json`. Must exit 0 (no regressions, acceptance criteria met). Update baseline after intentional changes: copy new `data/physics_baseline.json` over old.
+5. **Code review**: `superpowers:code-reviewer` (mandatory)
+6. **Frontend TS**: `cd frontend && npx tsc --noEmit` before every push. Incremental cache hides errors Railway's clean build catches; `vitest` alone insufficient.
+7. **Frontend QA**: ANY frontend change → Playwright visual verify on staging post-deploy. **BLOCKING.** Wait ~2-3 min.
+8. **Deploy verify**: `list-deployments --service <svc>` → get ID → `get-logs <id>`. Specify service explicitly (default = linked svc only). **On FAILED deploy**: get build logs FIRST before attempting any fix — the error message is almost always sufficient.
 
 **CRITICAL: Fix ALL errors incl. pre-existing. Zero means zero.**
 
