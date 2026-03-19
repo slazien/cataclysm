@@ -1,5 +1,21 @@
 # Lessons Learned
 
+## SQLAlchemy `AsyncSession.execute()` Returns `Result[Any]` — No `.rowcount` (2026-03-19)
+
+**Pattern**: Never call `.rowcount` on the result of `AsyncSession.execute()` for DML. Mypy types the return as `Result[Any]`, which has no `rowcount` attribute. To count affected rows, use a separate `SELECT COUNT(*)` before the DML, or cast to `CursorResult` explicitly.
+
+**Why**: INSERT with `ON CONFLICT DO NOTHING` needed a count of newly-inserted rows to log progress. `result.rowcount` compiled fine in tests (which mock the session) but failed mypy: `"Result[Any]" has no attribute "rowcount"`. Clean fix: count existing rows first, then compute delta after all inserts.
+
+**Error signature**: `error: "Result[Any]" has no attribute "rowcount"  [attr-defined]` from dmypy after any `await db.execute(text(...))` call.
+
+## New Lifespan Startup Function → Must Update `_base_lifespan_patches` (2026-03-19)
+
+**Pattern**: Any new function called in `lifespan()` in `backend/api/main.py` that touches the DB or external services MUST be added as an `AsyncMock` entry to `_base_lifespan_patches()` in `backend/tests/test_main.py`, AND every test in `TestLifespan` that unpacks `patches[N]` by index must add `patches[new_index]` to its context manager.
+
+**Why**: Added `_seed_llm_routing()` to the startup sequence. It tries to open a DB connection at test time, causing 7 TestLifespan tests to fail with `ConnectionRefusedError: Connect call failed ('127.0.0.1', 5432)`. The fixture list is positional (indexed by number), so every test's `with (patches[0], ..., patches[8]):` block needed `patches[9]` appended.
+
+**Error signature**: `ConnectionRefusedError: [Errno 111] Connect call failed ('127.0.0.1', 5432)` in TestLifespan tests after adding any new startup function. The fix is always the same: add a mock entry to `_base_lifespan_patches` + extend every test context.
+
 ## "File Not Found" ≠ "Work Never Done" — Check Conversation Histories (2026-03-19)
 
 **Pattern**: When asked whether past work was completed, NEVER conclude "it was never executed" based solely on filesystem searches. In a worktree-based workflow, artifacts (scripts, CSVs, reports) exist transiently during execution and vanish when the worktree is cleaned up. Always search `~/.claude/projects/<project>/*.jsonl` conversation histories as a primary evidence source — they are the only durable record of worktree-based work.
