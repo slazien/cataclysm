@@ -1,6 +1,6 @@
 {
   "date": "2026-03-19",
-  "git_sha": "28a9720",
+  "git_sha": "bed2d18",
   "acceptance_criteria": {
     "mean_ratio_min": 0.95,
     "mean_ratio_max": 1.02,
@@ -509,6 +509,75 @@
         "mean": 1.0077,
         "std": 0.0288
       }
+    },
+    "per_mod_level": {
+      "stock": {
+        "n": 13,
+        "mean": 1.0018,
+        "std": 0.036,
+        "min": 0.9288,
+        "max": 1.0524,
+        "bootstrap_mean_ci_lower": 0.9815,
+        "bootstrap_mean_ci_upper": 1.0192
+      },
+      "light": {
+        "n": 19,
+        "mean": 1.0012,
+        "std": 0.0325,
+        "min": 0.9178,
+        "max": 1.0573,
+        "bootstrap_mean_ci_lower": 0.9853,
+        "bootstrap_mean_ci_upper": 1.0139
+      },
+      "heavy": {
+        "n": 1,
+        "mean": 1.0028,
+        "std": 0.0,
+        "min": 1.0028,
+        "max": 1.0028
+      }
+    },
+    "per_hp_band": {
+      "Low <200hp": {
+        "n": 2,
+        "mean": 1.0215,
+        "std": 0.0008
+      },
+      "Mid 200-400hp": {
+        "n": 11,
+        "mean": 1.0162,
+        "std": 0.0217
+      },
+      "High >400hp": {
+        "n": 20,
+        "mean": 0.9914,
+        "std": 0.0361
+      }
+    },
+    "per_drivetrain": {
+      "FWD": {
+        "n": 4,
+        "mean": 1.0168,
+        "std": 0.0287
+      },
+      "RWD": {
+        "n": 29,
+        "mean": 0.9994,
+        "std": 0.0333
+      }
+    },
+    "loo_cv": {
+      "jackknife_mean_range": [
+        0.9997,
+        1.0041
+      ],
+      "jackknife_std_range": [
+        0.0297,
+        0.0334
+      ],
+      "jackknife_mean_stability": 0.0044,
+      "influential_entries": [],
+      "influential_count": 0
     },
     "accuracy_tier": "A: Screening"
   }

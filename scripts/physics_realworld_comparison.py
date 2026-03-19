@@ -1011,6 +1011,54 @@ def validate_comparison(results: list[ComparisonResult]) -> bool:
         if missing:
             print(f"    {tier_name} requires: {', '.join(missing)}")
 
+    # --- Check 13: Mod Level Breakdown ---
+    print("\n13. BREAKDOWN BY MODIFICATION LEVEL")
+    for mod_name, mod_data in summary.get("per_mod_level", {}).items():
+        ci_str = ""
+        if "bootstrap_mean_ci_lower" in mod_data:
+            lo = mod_data["bootstrap_mean_ci_lower"]
+            hi = mod_data["bootstrap_mean_ci_upper"]
+            ci_str = f", CI=[{lo:.4f}, {hi:.4f}]"
+        print(
+            f"    {mod_name:<8}: n={mod_data['n']}, "
+            f"mean={mod_data['mean']:.4f}, std={mod_data['std']:.4f}{ci_str}"
+        )
+
+    # --- Check 14: HP Band Breakdown ---
+    print("\n14. BREAKDOWN BY HORSEPOWER BAND")
+    for band_name, band_data in summary.get("per_hp_band", {}).items():
+        print(
+            f"    {band_name:<16}: n={band_data['n']}, "
+            f"mean={band_data['mean']:.4f}, std={band_data['std']:.4f}"
+        )
+
+    # --- Check 15: Drivetrain Breakdown ---
+    print("\n15. BREAKDOWN BY DRIVETRAIN")
+    for dt_name, dt_data in summary.get("per_drivetrain", {}).items():
+        print(
+            f"    {dt_name:<4}: n={dt_data['n']}, "
+            f"mean={dt_data['mean']:.4f}, std={dt_data['std']:.4f}"
+        )
+
+    # --- Check 16: Leave-One-Out Cross-Validation ---
+    print("\n16. LEAVE-ONE-OUT CROSS-VALIDATION (Jackknife)")
+    loo = summary.get("loo_cv", {})
+    if loo:
+        jr = loo.get("jackknife_mean_range", [0, 0])
+        stability = loo.get("jackknife_mean_stability", 0)
+        print(f"    Mean range when dropping one entry: [{jr[0]:.4f}, {jr[1]:.4f}]")
+        print(f"    Mean stability (max spread): {stability:.4f}")
+        inf_count = loo.get("influential_count", 0)
+        if inf_count > 0:
+            print(f"    Influential entries ({inf_count} shift mean > ±0.003):")
+            for inf in loo.get("influential_entries", []):
+                print(
+                    f"      {inf['car']} at {inf['track']}: "
+                    f"ratio={inf['ratio']}, shift={inf['shift']:+.4f}"
+                )
+        else:
+            print("    No influential entries (all shifts ≤ ±0.003)")
+
     # --- Summary ---
     passed = len(issues) == 0
     print(f"\n{'=' * 90}")
@@ -1299,6 +1347,95 @@ def _compute_summary(results: list[ComparisonResult]) -> dict:
         },
     }
 
+    # --- Mod level breakdown ---
+    per_mod_level: dict[str, dict[str, object]] = {}
+    for mod in ["stock", "light", "heavy"]:
+        mod_results = [r for r in results if r.mod_level == mod]
+        if mod_results:
+            m_ratios = np.array([r.efficiency_ratio for r in mod_results])
+            mod_entry: dict[str, object] = {
+                "n": len(m_ratios),
+                "mean": round(float(np.mean(m_ratios)), 4),
+                "std": round(float(np.std(m_ratios, ddof=1)) if len(m_ratios) > 1 else 0.0, 4),
+                "min": round(float(np.min(m_ratios)), 4),
+                "max": round(float(np.max(m_ratios)), 4),
+            }
+            if len(m_ratios) >= 5:
+                try:
+                    bs_mod = sp_stats.bootstrap(
+                        (m_ratios,), np.mean, n_resamples=10000, random_state=rng, method="BCa"
+                    )
+                    mod_entry["bootstrap_mean_ci_lower"] = round(
+                        float(bs_mod.confidence_interval.low), 4
+                    )
+                    mod_entry["bootstrap_mean_ci_upper"] = round(
+                        float(bs_mod.confidence_interval.high), 4
+                    )
+                except Exception:
+                    pass
+            per_mod_level[mod] = mod_entry
+    summary["per_mod_level"] = per_mod_level
+
+    # --- HP band breakdown ---
+    hp_bands: list[tuple[str, float, float]] = [
+        ("Low <200hp", 0, 200),
+        ("Mid 200-400hp", 200, 400),
+        ("High >400hp", 400, 9999),
+    ]
+    per_hp_band: dict[str, dict[str, object]] = {}
+    for band_name, hp_lo, hp_hi in hp_bands:
+        band_results = [r for r in results if r.hp > 0 and hp_lo <= r.hp < hp_hi]
+        if band_results:
+            b_ratios = np.array([r.efficiency_ratio for r in band_results])
+            per_hp_band[band_name] = {
+                "n": len(b_ratios),
+                "mean": round(float(np.mean(b_ratios)), 4),
+                "std": round(float(np.std(b_ratios, ddof=1)) if len(b_ratios) > 1 else 0.0, 4),
+            }
+    summary["per_hp_band"] = per_hp_band
+
+    # --- Drivetrain breakdown ---
+    per_drivetrain: dict[str, dict[str, object]] = {}
+    for dt in sorted(set(r.drivetrain for r in results if r.drivetrain)):
+        dt_results = [r for r in results if r.drivetrain == dt]
+        if dt_results:
+            dt_ratios = np.array([r.efficiency_ratio for r in dt_results])
+            per_drivetrain[dt] = {
+                "n": len(dt_ratios),
+                "mean": round(float(np.mean(dt_ratios)), 4),
+                "std": round(float(np.std(dt_ratios, ddof=1)) if len(dt_ratios) > 1 else 0.0, 4),
+            }
+    summary["per_drivetrain"] = per_drivetrain
+
+    # --- Leave-one-out cross-validation (jackknife stability) ---
+    loo_means: list[float] = []
+    loo_stds: list[float] = []
+    loo_influential: list[dict[str, object]] = []
+    for i in range(len(results)):
+        loo_ratios = np.array([r.efficiency_ratio for j, r in enumerate(results) if j != i])
+        loo_mean = float(np.mean(loo_ratios))
+        loo_std = float(np.std(loo_ratios, ddof=1))
+        loo_means.append(loo_mean)
+        loo_stds.append(loo_std)
+        # Flag entries whose removal shifts mean by > 0.003 (influential)
+        if abs(loo_mean - summary["mean_ratio"]) > 0.003:
+            loo_influential.append(
+                {
+                    "car": results[i].car_label,
+                    "track": results[i].track,
+                    "ratio": round(results[i].efficiency_ratio, 4),
+                    "mean_without": round(loo_mean, 4),
+                    "shift": round(loo_mean - summary["mean_ratio"], 4),
+                }
+            )
+    summary["loo_cv"] = {
+        "jackknife_mean_range": [round(min(loo_means), 4), round(max(loo_means), 4)],
+        "jackknife_std_range": [round(min(loo_stds), 4), round(max(loo_stds), 4)],
+        "jackknife_mean_stability": round(max(loo_means) - min(loo_means), 4),
+        "influential_entries": loo_influential,
+        "influential_count": len(loo_influential),
+    }
+
     # --- Tier assessment ---
     mean_bias = abs(summary["mean_ratio"] - 1.0)
     std_val = summary["std_ratio"]
@@ -1483,6 +1620,54 @@ def compare_to_baseline(
                 threshold = abs(pm) * 0.10 if pm != 0 else 0.01
                 if abs(cm - 1.0) - abs(pm - 1.0) > threshold:
                     regressions.append(f"Grip band {band_name} mean: {pm:.4f} → {cm:.4f}")
+
+    # Mod level regression check
+    prev_mod = prev.get("per_mod_level", {})
+    curr_mod = curr.get("per_mod_level", {})
+    if prev_mod and curr_mod:
+        print("\n  Mod level mean changes:")
+        for mod in ["stock", "light", "heavy"]:
+            if mod in prev_mod and mod in curr_mod:
+                pm = prev_mod[mod]["mean"]
+                cm = curr_mod[mod]["mean"]
+                delta = cm - pm
+                prev_dist = abs(pm - 1.0)
+                curr_dist = abs(cm - 1.0)
+                better = curr_dist < prev_dist
+                status = "better" if better else ("same" if abs(delta) < 0.002 else "worse")
+                print(f"    {mod:<8}: {pm:.3f} → {cm:.3f} ({delta:+.3f}) [{status}]")
+                threshold = max(abs(pm) * 0.10, 0.005) if pm != 0 else 0.01
+                if (curr_dist - prev_dist) > threshold:
+                    regressions.append(f"Mod level {mod} mean: {pm:.4f} → {cm:.4f}")
+
+    # HP band regression check
+    prev_hp = prev.get("per_hp_band", {})
+    curr_hp = curr.get("per_hp_band", {})
+    if prev_hp and curr_hp:
+        print("\n  HP band mean changes:")
+        for band_name in prev_hp:
+            if band_name in curr_hp:
+                pm = prev_hp[band_name]["mean"]
+                cm = curr_hp[band_name]["mean"]
+                delta = cm - pm
+                prev_dist = abs(pm - 1.0)
+                curr_dist = abs(cm - 1.0)
+                better = curr_dist < prev_dist
+                status = "better" if better else ("same" if abs(delta) < 0.002 else "worse")
+                print(f"    {band_name:<16}: {pm:.3f} → {cm:.3f} ({delta:+.3f}) [{status}]")
+                threshold = max(abs(pm) * 0.10, 0.005) if pm != 0 else 0.01
+                if (curr_dist - prev_dist) > threshold:
+                    regressions.append(f"HP band {band_name} mean: {pm:.4f} → {cm:.4f}")
+
+    # LOO-CV stability regression check
+    prev_loo = prev.get("loo_cv", {})
+    curr_loo = curr.get("loo_cv", {})
+    if prev_loo and curr_loo:
+        prev_stab = prev_loo.get("jackknife_mean_stability", 0)
+        curr_stab = curr_loo.get("jackknife_mean_stability", 0)
+        if prev_stab > 0 and curr_stab > prev_stab * 1.5:
+            regressions.append(f"LOO-CV stability degraded: {prev_stab:.4f} → {curr_stab:.4f}")
+        print(f"\n  LOO-CV stability: {prev_stab:.4f} → {curr_stab:.4f}")
 
     passed = len(regressions) == 0
     print()
