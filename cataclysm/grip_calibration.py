@@ -252,6 +252,7 @@ def apply_calibration_to_params(
         wheel_power_w=base_params.wheel_power_w,
         mass_kg=base_params.mass_kg,
         braking_mu_ratio=base_params.braking_mu_ratio,
+        cornering_drag_factor=base_params.cornering_drag_factor,
     )
 
 

@@ -606,6 +606,7 @@ async def _run_generation(
                     compound_category,
                     profile_name,
                 )
+                await db_session.commit()
         except Exception:  # noqa: BLE001
             logger.warning(
                 "Failed to persist scores after coaching for %s",

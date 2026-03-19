@@ -251,6 +251,7 @@ async def _ensure_track_references() -> int:
     from backend.api.db.models import Session as SessionModel
     from backend.api.db.models import SessionFile as SessionFileModel
     from backend.api.services.pipeline import process_upload
+    from backend.api.services.session_store import delete_session as _evict_session
 
     track_ref_dir = Path(
         os.environ.get(
@@ -293,7 +294,7 @@ async def _ensure_track_references() -> int:
                     continue
 
                 try:
-                    await process_upload(sf_row.csv_bytes, sf_row.filename)
+                    upload_result = await process_upload(sf_row.csv_bytes, sf_row.filename)
                     if npz_path.exists():
                         built += 1
                         logger.info(
@@ -301,6 +302,9 @@ async def _ensure_track_references() -> int:
                             track_name,
                             slug,
                         )
+                    # Evict the temporarily loaded session to prevent memory leak
+                    if upload_result and upload_result.get("session_id"):
+                        _evict_session(str(upload_result["session_id"]))
                 except (ValueError, KeyError, IndexError, OSError) as exc:
                     logger.warning(
                         "Failed to build track reference for %s: %s",
