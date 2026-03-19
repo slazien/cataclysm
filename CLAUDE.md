@@ -24,7 +24,7 @@ Ask clarifying Qs before implementing. Concise, action-oriented.
 7. **No hedging** — Never say "ambitious." Implement everything.
 8. **Domain research** — Physics/coaching feature: WebSearch first (SAE, MoTeC, YourDataDriven, TrailBrake, Driver61). Never invent algorithms from coding intuition.
 9. **Task tracking** — Plan → `tasks/todo.md`, mark complete, capture lessons.
-10. **Commit immediately** — After every change. Push `staging`. NEVER push `main` unless user says "deploy to prod."
+10. **Commit immediately** — `git branch --show-current` before EVERY commit. Push `staging`. NEVER push `main` unless user says "deploy to prod." If staging is locked by a worktree, cherry-pick into that worktree directory → push from there.
 12. **Temp branch lifecycle** — After merging `temp/<feature>` → staging, NEVER delete the temp branch. User must approve deletion manually (rollback safety).
 11. **Images** — `curl -sL -o /tmp/f.ext "URL"`, Read tool, delete.
 13. **Worktree hygiene** — Start every session with `git status --short --branch`; if tree is dirty/unrelated or behind remote, switch to isolated worktree before edits/tests.
