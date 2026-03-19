@@ -361,7 +361,13 @@ class TestGenerateCoachingReport:
         # (the validator may fire after enough outputs, and call_args returns the LAST call)
         call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args_list[0]
         assert "system" in call_kwargs.kwargs
-        assert "traction circle" in call_kwargs.kwargs["system"].lower()
+        system_val = call_kwargs.kwargs["system"]
+        # system may be a string or a list of content blocks (cache_control format)
+        if isinstance(system_val, list):
+            system_text = " ".join(b.get("text", "") for b in system_val)
+        else:
+            system_text = system_val
+        assert "traction circle" in system_text.lower()
 
     def test_filters_hallucinated_corner_grades(
         self,
@@ -457,7 +463,12 @@ class TestAskFollowup:
         assert ctx.messages[2]["role"] == "assistant"
         call_kwargs = mock_anthropic.Anthropic.return_value.messages.create.call_args_list[0]
         assert "system" in call_kwargs.kwargs
-        assert "traction circle" in call_kwargs.kwargs["system"].lower()
+        system_val = call_kwargs.kwargs["system"]
+        if isinstance(system_val, list):
+            system_text = " ".join(b.get("text", "") for b in system_val)
+        else:
+            system_text = system_val
+        assert "traction circle" in system_text.lower()
 
 
 def _make_seg(name: str, entry: float, exit_m: float, *, is_corner: bool) -> SegmentDefinition:

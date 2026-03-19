@@ -667,7 +667,7 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
             direction="right",
             corner_type="sweeper",
             elevation_trend="flat",
-            camber="neutral",
+            camber="flat",
             coaching_notes=(
                 "Entry-speed corner — heavy braking from top speed on diagonal line "
                 "from far left. Decreasing radius tightens mid-corner; don't turn in "
@@ -683,7 +683,7 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
             direction="right",
             corner_type="sweeper",
             elevation_trend="flat",
-            camber="neutral",
+            camber="flat",
             blind=True,
             coaching_notes=(
                 "Blind apex — commit to consistent reference points. Trail-brake to "
@@ -701,7 +701,7 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
             direction="left",
             corner_type="sweeper",
             elevation_trend="flat",
-            camber="neutral",
+            camber="flat",
             coaching_notes=(
                 "One of the two fastest corners on the circuit. Set a single arc from "
                 "outside entry to inside apex. Resist the urge to brake — the car "
@@ -733,7 +733,7 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
             direction="left",
             corner_type="hairpin",
             elevation_trend="flat",
-            camber="neutral",
+            camber="flat",
             coaching_notes=(
                 "Slowest corner on the circuit (~180° change). Double apex — use the "
                 "first apex to set the angle for the second. BE PATIENT with throttle: "
@@ -784,7 +784,7 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
             direction="right",
             corner_type="sweeper",
             elevation_trend="flat",
-            camber="neutral",
+            camber="flat",
             coaching_notes=(
                 "T8-T9 are driven as a single sweeping arc. Set a gentle arc from "
                 "left to right. Flat out for lower-power cars; higher-power may need "
@@ -800,7 +800,7 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
             direction="right",
             corner_type="sweeper",
             elevation_trend="flat",
-            camber="neutral",
+            camber="flat",
             coaching_notes=(
                 "One of the two fastest corners — and the ONLY wall on the circuit. "
                 "Apex reference: grass opening before pit lane entrance. Keep right "

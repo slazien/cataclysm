@@ -1453,14 +1453,17 @@ def generate_coaching_report(
     )
 
     system = COACHING_SYSTEM_PROMPT
+    # KB snippets go in user content (not system) to keep system prompt static
+    # and maximise cache hits for both Anthropic (explicit) and OpenAI (automatic).
     kb_context = select_kb_snippets(all_lap_corners, skill_level, gains=gains)
+    user_content = prompt
     if kb_context:
-        system += "\n\n" + kb_context
+        user_content = f"{kb_context}\n\n---\n\n{prompt}"
 
     def _call_coaching_api() -> tuple[str, CoachingReport]:
         result = call_text_completion(
             task="coaching_report",
-            user_content=prompt,
+            user_content=user_content,
             system=system,
             max_tokens=int(os.environ.get("LLM_REPORT_MAX_TOKENS", "8192")),
             temperature=0.3,
@@ -1585,17 +1588,24 @@ def ask_followup(
     context.messages = _compact_chat_context(context.messages)
 
     system = _FOLLOWUP_SYSTEM
+    # Variable context (weather, KB snippets) goes in user content to keep
+    # system prompt static and maximise cache hits across chat calls.
+    extra_context_parts: list[str] = []
     weather_ctx = _format_weather_context(weather)
     if weather_ctx:
-        system += f"\n\n{weather_ctx}"
+        extra_context_parts.append(weather_ctx)
     if all_lap_corners is not None:
         kb_context = select_kb_snippets(all_lap_corners, skill_level, gains=gains)
         if kb_context:
-            system += "\n\n" + kb_context
+            extra_context_parts.append(kb_context)
 
     try:
         serialized = json.dumps(context.messages, ensure_ascii=False)
+        extra_prefix = (
+            ("\n\n".join(extra_context_parts) + "\n\n---\n\n") if extra_context_parts else ""
+        )
         user_payload = (
+            f"{extra_prefix}"
             "Conversation history JSON (oldest→newest):\n"
             f"{serialized}\n\n"
             "Reply as the assistant to the latest user message."

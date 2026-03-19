@@ -425,9 +425,16 @@ class TestCoachingIntegration:
         assert report.summary == "KB enriched"
         # Use call_args_list[0] to get the coaching call, not the validator's call
         call_kwargs = mock_client.messages.create.call_args_list[0]
-        system_prompt = call_kwargs.kwargs["system"]
-        assert "Additional Coaching Knowledge" in system_prompt
-        assert "8.4" in system_prompt  # novice snippet
+        # KB snippets are now in user content (not system) for cache optimization
+        system_val = call_kwargs.kwargs["system"]
+        if isinstance(system_val, list):
+            system_text = " ".join(b.get("text", "") for b in system_val)
+        else:
+            system_text = system_val
+        assert "Additional Coaching Knowledge" not in system_text  # moved to user content
+        user_msg = call_kwargs.kwargs["messages"][0]["content"]
+        assert "Additional Coaching Knowledge" in user_msg
+        assert "8.4" in user_msg  # novice snippet
 
     def test_followup_includes_kb_context_when_corners_provided(self) -> None:
         """Verify ask_followup appends KB snippets when corner data is passed."""
@@ -460,9 +467,16 @@ class TestCoachingIntegration:
 
         assert answer == "Great question about braking!"
         call_kwargs = mock_client.messages.create.call_args_list[0]
-        system_prompt = call_kwargs.kwargs["system"]
-        assert "Additional Coaching Knowledge" in system_prompt
-        assert "5.4" in system_prompt  # advanced snippet
+        # KB snippets are now in user content (not system) for cache optimization
+        system_val = call_kwargs.kwargs["system"]
+        if isinstance(system_val, list):
+            system_text = " ".join(b.get("text", "") for b in system_val)
+        else:
+            system_text = system_val
+        assert "Additional Coaching Knowledge" not in system_text
+        user_msg = call_kwargs.kwargs["messages"][0]["content"]
+        assert "Additional Coaching Knowledge" in user_msg
+        assert "5.4" in user_msg  # advanced snippet
 
     def test_followup_without_corners_has_no_kb(self) -> None:
         """Verify ask_followup without corner data omits KB injection."""
@@ -485,8 +499,14 @@ class TestCoachingIntegration:
             ask_followup(ctx, "Question?", report)
 
         call_kwargs = mock_client.messages.create.call_args_list[0]
-        system_prompt = call_kwargs.kwargs["system"]
-        assert "Additional Coaching Knowledge" not in system_prompt
+        system_val = call_kwargs.kwargs["system"]
+        if isinstance(system_val, list):
+            system_text = " ".join(b.get("text", "") for b in system_val)
+        else:
+            system_text = system_val
+        assert "Additional Coaching Knowledge" not in system_text
+        user_msg = call_kwargs.kwargs["messages"][0]["content"]
+        assert "Additional Coaching Knowledge" not in user_msg
 
 
 # ---------------------------------------------------------------------------
