@@ -1,6 +1,6 @@
 {
   "date": "2026-03-19",
-  "git_sha": "2e113e4",
+  "git_sha": "1a89205",
   "acceptance_criteria": {
     "mean_ratio_min": 0.95,
     "mean_ratio_max": 1.02,
@@ -18,7 +18,9 @@
       "ratio": 1.022,
       "tire_category": "r_compound",
       "tire_model": "Hoosier (NASA TT class)",
-      "mu": 1.38
+      "mu": 1.38,
+      "source_quality": "community",
+      "driver_level": "advanced_club"
     },
     {
       "car": "Miata ND",
@@ -28,7 +30,9 @@
       "ratio": 1.0052,
       "tire_category": "endurance_200tw",
       "tire_model": "unknown",
-      "mu": 1.0
+      "mu": 1.0,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "GR86",
@@ -38,7 +42,9 @@
       "ratio": 1.0044,
       "tire_category": "super_200tw",
       "tire_model": "Yokohama Advan A052 245/40/17",
-      "mu": 1.13
+      "mu": 1.13,
+      "source_quality": "primary",
+      "driver_level": "unknown"
     },
     {
       "car": "GR86",
@@ -48,7 +54,9 @@
       "ratio": 1.0192,
       "tire_category": "endurance_200tw",
       "tire_model": "Hankook RS4 (coilovers)",
-      "mu": 1.0
+      "mu": 1.0,
+      "source_quality": "primary",
+      "driver_level": "unknown"
     },
     {
       "car": "GR86",
@@ -58,7 +66,9 @@
       "ratio": 0.9866,
       "tire_category": "endurance_200tw",
       "tire_model": "Falken Azenis RT660 245/40/17",
-      "mu": 1.05
+      "mu": 1.05,
+      "source_quality": "primary",
+      "driver_level": "unknown"
     },
     {
       "car": "Civic Type R FL5",
@@ -68,7 +78,9 @@
       "ratio": 1.0323,
       "tire_category": "endurance_200tw",
       "tire_model": "Michelin Pilot Sport 4S (stock OEM)",
-      "mu": 1.03
+      "mu": 1.03,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "Civic Type R FL5",
@@ -78,7 +90,9 @@
       "ratio": 1.0066,
       "tire_category": "super_200tw",
       "tire_model": "Yokohama Advan A052",
-      "mu": 1.13
+      "mu": 1.13,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "BMW M2 G87",
@@ -88,7 +102,9 @@
       "ratio": 1.0109,
       "tire_category": "endurance_200tw",
       "tire_model": "Hankook Ventus RS4",
-      "mu": 1.0
+      "mu": 1.0,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "BMW M2 G87",
@@ -98,7 +114,9 @@
       "ratio": 1.0002,
       "tire_category": "endurance_200tw",
       "tire_model": "unknown (assumed endurance 200tw)",
-      "mu": 1.0
+      "mu": 1.0,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "Cayman GT4 718",
@@ -108,7 +126,9 @@
       "ratio": 0.9632,
       "tire_category": "super_200tw",
       "tire_model": "Michelin Pilot Sport Cup 2 (OEM)",
-      "mu": 1.15
+      "mu": 1.15,
+      "source_quality": "primary",
+      "driver_level": "unknown"
     },
     {
       "car": "Cayman GT4 718",
@@ -118,7 +138,9 @@
       "ratio": 0.9879,
       "tire_category": "super_200tw",
       "tire_model": "Bridgestone RE-71RS 245/40/19 & 285/35/19",
-      "mu": 1.12
+      "mu": 1.12,
+      "source_quality": "primary",
+      "driver_level": "unknown"
     },
     {
       "car": "Cayman GT4 718",
@@ -128,7 +150,9 @@
       "ratio": 1.0458,
       "tire_category": "super_200tw",
       "tire_model": "Yokohama A052 or similar",
-      "mu": 1.13
+      "mu": 1.13,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "911 GT3 992",
@@ -138,7 +162,9 @@
       "ratio": 0.9991,
       "tire_category": "slick",
       "tire_model": "Dunlop DH Slick",
-      "mu": 1.4
+      "mu": 1.4,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "911 GT3 991",
@@ -148,7 +174,9 @@
       "ratio": 0.9826,
       "tire_category": "r_compound",
       "tire_model": "Hoosier R7",
-      "mu": 1.38
+      "mu": 1.38,
+      "source_quality": "primary",
+      "driver_level": "unknown"
     },
     {
       "car": "Mustang GT S550",
@@ -158,7 +186,9 @@
       "ratio": 0.9163,
       "tire_category": "endurance_200tw",
       "tire_model": "Michelin Pilot Sport 4S 255/40+275/40R19",
-      "mu": 1.03
+      "mu": 1.03,
+      "source_quality": "primary",
+      "driver_level": "unknown"
     },
     {
       "car": "Mustang GT S550",
@@ -168,7 +198,9 @@
       "ratio": 0.9961,
       "tire_category": "slick",
       "tire_model": "Pirelli Slicks 305 square",
-      "mu": 1.4
+      "mu": 1.4,
+      "source_quality": "primary",
+      "driver_level": "unknown"
     },
     {
       "car": "GT350",
@@ -178,7 +210,9 @@
       "ratio": 0.9791,
       "tire_category": "super_200tw",
       "tire_model": "Goodyear SuperCar 3 325/30R19 square",
-      "mu": 1.12
+      "mu": 1.12,
+      "source_quality": "primary",
+      "driver_level": "unknown"
     },
     {
       "car": "Corvette C8 Z51",
@@ -188,7 +222,9 @@
       "ratio": 1.0379,
       "tire_category": "endurance_200tw",
       "tire_model": "Michelin Pilot Sport 4S (OEM)",
-      "mu": 1.03
+      "mu": 1.03,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "Corvette C8 Z06",
@@ -198,7 +234,9 @@
       "ratio": 1.0382,
       "tire_category": "super_200tw",
       "tire_model": "Yokohama Advan A052",
-      "mu": 1.13
+      "mu": 1.13,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "GR Supra A90",
@@ -208,7 +246,9 @@
       "ratio": 1.0245,
       "tire_category": "super_200tw",
       "tire_model": "Bridgestone Potenza RE-71RS",
-      "mu": 1.12
+      "mu": 1.12,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "GR Supra A90",
@@ -218,7 +258,9 @@
       "ratio": 1.0113,
       "tire_category": "endurance_200tw",
       "tire_model": "Michelin Pilot Super Sport 300TW",
-      "mu": 1.03
+      "mu": 1.03,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "Elantra N",
@@ -228,7 +270,9 @@
       "ratio": 1.0267,
       "tire_category": "super_200tw",
       "tire_model": "Kumho Ecsta V730",
-      "mu": 1.06
+      "mu": 1.06,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "GR86",
@@ -238,7 +282,9 @@
       "ratio": 0.9721,
       "tire_category": "street",
       "tire_model": "Michelin Pilot Super Sport 300TW (OEM-class)",
-      "mu": 1.03
+      "mu": 1.03,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "Camaro ZL1 1LE",
@@ -248,7 +294,9 @@
       "ratio": 0.9952,
       "tire_category": "100tw",
       "tire_model": "Goodyear Eagle F1 SuperCar 3R 100TW (OEM)",
-      "mu": 1.2
+      "mu": 1.2,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "GR86",
@@ -258,7 +306,9 @@
       "ratio": 1.0278,
       "tire_category": "street",
       "tire_model": "Michelin Pilot Sport 4 (OEM stock)",
-      "mu": 0.88
+      "mu": 0.88,
+      "source_quality": "primary",
+      "driver_level": "unknown"
     },
     {
       "car": "GR86 (FR-S proxy)",
@@ -268,7 +318,9 @@
       "ratio": 0.9926,
       "tire_category": "100tw",
       "tire_model": "Nitto NT01",
-      "mu": 1.2
+      "mu": 1.2,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "Corvette C8 Z06",
@@ -278,7 +330,9 @@
       "ratio": 0.9948,
       "tire_category": "100tw",
       "tire_model": "Pirelli P Zero Trofeo R (Z07 pkg)",
-      "mu": 1.18
+      "mu": 1.18,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "Cayman GT4 718",
@@ -288,7 +342,9 @@
       "ratio": 0.9891,
       "tire_category": "super_200tw",
       "tire_model": "Bridgestone RE71RS",
-      "mu": 1.12
+      "mu": 1.12,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "Mustang GT S550",
@@ -298,7 +354,9 @@
       "ratio": 0.988,
       "tire_category": "super_200tw",
       "tire_model": "Kumho V730 305 square",
-      "mu": 1.06
+      "mu": 1.06,
+      "source_quality": "primary",
+      "driver_level": "unknown"
     },
     {
       "car": "Mustang GT S550",
@@ -308,7 +366,9 @@
       "ratio": 0.936,
       "tire_category": "r_compound",
       "tire_model": "Hoosier A7 315 square",
-      "mu": 1.42
+      "mu": 1.42,
+      "source_quality": "primary",
+      "driver_level": "unknown"
     },
     {
       "car": "Mustang GT S550",
@@ -318,7 +378,9 @@
       "ratio": 0.9134,
       "tire_category": "r_compound",
       "tire_model": "Hoosier R7 315/30/18",
-      "mu": 1.38
+      "mu": 1.38,
+      "source_quality": "primary",
+      "driver_level": "unknown"
     },
     {
       "car": "GT350",
@@ -328,7 +390,9 @@
       "ratio": 0.9631,
       "tire_category": "100tw",
       "tire_model": "Goodyear SuperCar 3R",
-      "mu": 1.2
+      "mu": 1.2,
+      "source_quality": "primary",
+      "driver_level": "unknown"
     },
     {
       "car": "GR86",
@@ -338,7 +402,9 @@
       "ratio": 0.9694,
       "tire_category": "super_200tw",
       "tire_model": "Bridgestone RE71RS",
-      "mu": 1.12
+      "mu": 1.12,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "GR86",
@@ -348,7 +414,9 @@
       "ratio": 0.9985,
       "tire_category": "endurance_200tw",
       "tire_model": "Falken Azenis RT660 245/40/17",
-      "mu": 1.05
+      "mu": 1.05,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "Civic Type R FK8 (FL5 proxy)",
@@ -358,7 +426,9 @@
       "ratio": 0.984,
       "tire_category": "endurance_200tw",
       "tire_model": "Hankook Ventus RS4",
-      "mu": 1.0
+      "mu": 1.0,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "Civic Type R FK8 (FL5 proxy)",
@@ -368,7 +438,9 @@
       "ratio": 0.9665,
       "tire_category": "super_200tw",
       "tire_model": "Kumho V730",
-      "mu": 1.06
+      "mu": 1.06,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "Cayman GT4 718",
@@ -378,7 +450,9 @@
       "ratio": 0.965,
       "tire_category": "slick",
       "tire_model": "Pirelli slicks",
-      "mu": 1.4
+      "mu": 1.4,
+      "source_quality": "primary",
+      "driver_level": "unknown"
     },
     {
       "car": "Camaro SS 1LE",
@@ -388,7 +462,9 @@
       "ratio": 0.9935,
       "tire_category": "super_200tw",
       "tire_model": "Goodyear Eagle F1 SuperCar 3 305/30/19 square (OEM)",
-      "mu": 1.12
+      "mu": 1.12,
+      "source_quality": "primary",
+      "driver_level": "unknown"
     },
     {
       "car": "Veloster N",
@@ -398,7 +474,9 @@
       "ratio": 0.9953,
       "tire_category": "endurance_200tw",
       "tire_model": "Falken Azenis RT660",
-      "mu": 1.05
+      "mu": 1.05,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "Subaru BRZ",
@@ -408,7 +486,9 @@
       "ratio": 1.0322,
       "tire_category": "street",
       "tire_model": "Michelin Primacy 3 240TW (stock)",
-      "mu": 0.85
+      "mu": 0.85,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "Corvette C8 Z06",
@@ -418,7 +498,9 @@
       "ratio": 0.9802,
       "tire_category": "endurance_200tw",
       "tire_model": "Michelin Pilot Sport 4S (OEM)",
-      "mu": 1.03
+      "mu": 1.03,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     },
     {
       "car": "Nissan 370Z",
@@ -428,7 +510,9 @@
       "ratio": 0.9602,
       "tire_category": "super_200tw",
       "tire_model": "Bridgestone Potenza RE-71RS",
-      "mu": 1.12
+      "mu": 1.12,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     }
   ],
   "summary": {
@@ -654,6 +738,35 @@
         "n": 36,
         "mean": 0.9917,
         "std": 0.0311
+      }
+    },
+    "per_source_quality": {
+      "aggregated": {
+        "n": 25,
+        "mean": 1.0028,
+        "std": 0.024
+      },
+      "community": {
+        "n": 1,
+        "mean": 1.022,
+        "std": 0.0
+      },
+      "primary": {
+        "n": 16,
+        "mean": 0.9764,
+        "std": 0.0327
+      }
+    },
+    "per_driver_level": {
+      "advanced_club": {
+        "n": 1,
+        "mean": 1.022,
+        "std": 0.0
+      },
+      "unknown": {
+        "n": 41,
+        "mean": 0.9925,
+        "std": 0.0303
       }
     },
     "loo_cv": {

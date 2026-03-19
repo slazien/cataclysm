@@ -34,6 +34,7 @@ from cataclysm.equipment import (
     CATEGORY_BRAKING_MU_RATIO,
     CATEGORY_FRICTION_CIRCLE_EXPONENT,
     CATEGORY_GRIP_UTILIZATION,
+    CATEGORY_LATERAL_JERK_GS,
     CATEGORY_LLTD_PENALTY,
     CATEGORY_LOAD_SENSITIVITY_EXPONENT,
     CATEGORY_MU_DEFAULTS,
@@ -88,6 +89,8 @@ class RealWorldLapTime:
     source: str  # URL or description
     notes: str
     tire_db_key: str | None = None  # key into tire_db for per-tire mu lookup
+    source_quality: str = "community"  # professional / primary / aggregated / community
+    driver_level: str = "unknown"  # pro / advanced_club / intermediate / unknown
 
 
 def _parse_time(time_str: str) -> float:
@@ -117,6 +120,8 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="nasamidsouth.com/barber-track-records/",
         notes="NASA TT class record, light prep within class rules",
         tire_db_key="hoosier_r7",
+        source_quality="community",
+        driver_level="advanced_club",
     ),
     # --- Miata ND ---
     RealWorldLapTime(
@@ -129,6 +134,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="stock",
         source="lapmeta.com/en/track/variation/15",
         notes="LapMeta entry, tire assumed endurance 200tw based on time",
+        source_quality="aggregated",
     ),
     # --- Toyota GR86 ---
     RealWorldLapTime(
@@ -142,6 +148,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="gr86.org/threads/track-time-database.15379/",
         notes="GR86 forum track time DB, A052 = super 200tw",
         tire_db_key="yokohama_a052",
+        source_quality="primary",
     ),
     RealWorldLapTime(
         car_key=("Toyota", "GR86", None),
@@ -154,6 +161,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="gr86.org/threads/track-time-database.15379/",
         notes="RS4 = endurance 200tw, coilovers = light mod",
         tire_db_key="hankook_rs4",
+        source_quality="primary",
     ),
     RealWorldLapTime(
         car_key=("Toyota", "GR86", None),
@@ -166,6 +174,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="gr86.org/threads/track-time-database.15379/",
         notes="RT660 = endurance 200tw, suspension upgrades",
         tire_db_key="falken_rt660",
+        source_quality="primary",
     ),
     # --- Honda Civic Type R FL5 ---
     # NOTE: PS4S is classified as STREET in tire_db.py (TW 300, mu=0.95).
@@ -180,6 +189,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="lapmeta.com/en/track/variation/15",
         notes="Stock FL5 on OEM PS4S (endurance-level grip per validation)",
         tire_db_key="michelin_ps4s",
+        source_quality="aggregated",
     ),
     RealWorldLapTime(
         car_key=("Honda", "Civic Type R", "FL5"),
@@ -192,6 +202,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="lapmeta.com/en/model/1001",
         notes="LapMeta FL5 page, A052 = super 200tw, light mods",
         tire_db_key="yokohama_a052",
+        source_quality="aggregated",
     ),
     # --- BMW M2 ---
     RealWorldLapTime(
@@ -205,6 +216,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="fastestlaps.com/tracks/barber-motorsports-park",
         notes="Ventus RS4 = endurance 200tw",
         tire_db_key="hankook_rs4",
+        source_quality="aggregated",
     ),
     RealWorldLapTime(
         car_key=("BMW", "M2", "G87"),
@@ -216,6 +228,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="stock",
         source="laptrophy.com/en/tracks/qkow36-Barber-Motorsports-Park",
         notes="LapTrophy entry",
+        source_quality="aggregated",
     ),
     # --- Porsche 718 Cayman GT4 ---
     RealWorldLapTime(
@@ -232,6 +245,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         ),
         notes="Stock GT4 PDK, 500mi odo. Cup 2 = super 200tw",
         tire_db_key="michelin_cup2",
+        source_quality="primary",
     ),
     RealWorldLapTime(
         car_key=("Porsche", "Cayman GT4", "718"),
@@ -247,6 +261,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         ),
         notes="RE-71RS = super 200tw, -2.3/-1.9 camber",
         tire_db_key="bridgestone_re71rs",
+        source_quality="primary",
     ),
     RealWorldLapTime(
         car_key=("Porsche", "Cayman GT4", "718"),
@@ -259,6 +274,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="lapmeta.com/en/track/variation/15",
         notes="Fastest GT4 at Barber on LapMeta, skilled driver",
         tire_db_key="yokohama_a052",
+        source_quality="aggregated",
     ),
     # --- Porsche 911 GT3 ---
     RealWorldLapTime(
@@ -272,6 +288,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="fastestlaps.com/tracks/barber-motorsports-park",
         notes="DH Slick = full slick, no tread pattern",
         tire_db_key="dunlop_dh_slick",
+        source_quality="aggregated",
     ),
     RealWorldLapTime(
         car_key=("Porsche", "911 GT3", "991.2"),
@@ -287,6 +304,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         ),
         notes="991 GT3 on R7, light mods. 493hp/1430kg",
         tire_db_key="hoosier_r7",
+        source_quality="primary",
     ),
     # --- Ford Mustang GT S550 ---
     RealWorldLapTime(
@@ -300,6 +318,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="mustang6g.com/forums/threads/s550-lap-times-road-course.35500/",
         notes="Stock PP1 on OEM PS4S (endurance-level grip per validation)",
         tire_db_key="michelin_ps4s",
+        source_quality="primary",
     ),
     RealWorldLapTime(
         car_key=("Ford", "Mustang GT", "S550"),
@@ -312,6 +331,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="mustang6g.com/forums/threads/s550-lap-times-road-course.35500/",
         notes="2015 GT Performance Plus, heavily modified, Pirelli full slicks",
         tire_db_key="pirelli_slick_305",
+        source_quality="primary",
     ),
     # --- Ford Mustang Shelby GT350 ---
     RealWorldLapTime(
@@ -325,6 +345,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="mustang6g.com/forums/threads/s550-lap-times-road-course.35500/",
         notes="GT350 on OEM SC3 = super 200tw (mu=1.12)",
         tire_db_key="goodyear_sc3",
+        source_quality="primary",
     ),
     # --- Corvette C8 Stingray Z51 ---
     RealWorldLapTime(
@@ -338,6 +359,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="lapmeta.com/en/model/13/chevrolet-corvette-c8-stingray-z51",
         notes="Stock Z51 on OEM PS4S (endurance-level grip per validation)",
         tire_db_key="michelin_ps4s",
+        source_quality="aggregated",
     ),
     # --- Corvette C8 Z06 ---
     RealWorldLapTime(
@@ -351,6 +373,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="lapmeta.com/en/track/variation/15",
         notes="C8 Z06 on A052, light mods",
         tire_db_key="yokohama_a052",
+        source_quality="aggregated",
     ),
     # --- Toyota GR Supra A90 ---
     RealWorldLapTime(
@@ -364,6 +387,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="lapmeta.com/en/track/variation/15",
         notes="GR Supra on RE-71RS (super 200tw), light mods, D Marcus Mar 2022",
         tire_db_key="bridgestone_re71rs",
+        source_quality="aggregated",
     ),
     RealWorldLapTime(
         car_key=("Toyota", "GR Supra", "A90"),
@@ -376,6 +400,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="lapmeta.com/en/track/variation/15",
         notes="GR Supra on MPSS (TW 300, endurance-level grip), light mods",
         tire_db_key="michelin_ps4s",
+        source_quality="aggregated",
     ),
     # --- Hyundai Elantra N ---
     RealWorldLapTime(
@@ -389,6 +414,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="lapmeta.com/en/track/variation/15",
         notes="Stock Elantra N on Kumho V730 (super 200tw). Driver 130 Nov 2025.",
         tire_db_key="kumho_v730",
+        source_quality="aggregated",
     ),
     # --- GR86 on street tires ---
     RealWorldLapTime(
@@ -402,6 +428,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="lapmeta.com/en/track/variation/15",
         notes="Stock GR86 on OEM-class street tire (TW 300). Jon Willett Jul 2024.",
         tire_db_key="michelin_ps4s",
+        source_quality="aggregated",
     ),
     # --- Chevrolet Camaro ZL1 1LE ---
     RealWorldLapTime(
@@ -415,6 +442,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="lapmeta.com/en/track/variation/15",
         notes="Stock ZL1 1LE on OEM SC3R (100tw). steelankles Jul 2021.",
         tire_db_key="goodyear_sc3r",
+        source_quality="aggregated",
     ),
     # =========================================================================
     # ROEBLING ROAD RACEWAY (3,199m / 2.02mi)
@@ -431,6 +459,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="jst-performance.com/blogs/jst-results-blog/our-2022-gr86-first-impression",
         notes="Fully stock 2022 GR86 on OEM tires, noted as huge limiting factor",
         tire_db_key="michelin_ps4",
+        source_quality="primary",
     ),
     RealWorldLapTime(
         car_key=("Toyota", "GR86", None),
@@ -443,6 +472,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="lapmeta.com/en/lap/detail/2920",
         notes="2015 FR-S with NT01 — proxy for GR86 (similar weight/power)",
         tire_db_key="nitto_nt01",
+        source_quality="aggregated",
     ),
     # --- Corvette C8 Z06 ---
     RealWorldLapTime(
@@ -456,6 +486,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="lapmeta.com/en/lap/detail/24184",
         notes="Nov 2024, Z07 Trofeo R = r_compound, Forgeline wheels + AP brakes",
         tire_db_key="pirelli_trofeo_r",
+        source_quality="aggregated",
     ),
     # --- Porsche 718 Cayman GT4 ---
     RealWorldLapTime(
@@ -469,6 +500,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="lapmeta.com/en/track/variation/135",
         notes="RE71RS = super 200tw",
         tire_db_key="bridgestone_re71rs",
+        source_quality="aggregated",
     ),
     # --- Ford Mustang GT S550 ---
     RealWorldLapTime(
@@ -482,6 +514,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="trackmustangsonline.com/tracks/roebling-road-raceway.32/",
         notes="2019 GT, V730 = super 200tw (mu=1.06)",
         tire_db_key="kumho_v730",
+        source_quality="primary",
     ),
     RealWorldLapTime(
         car_key=("Ford", "Mustang GT", "S550"),
@@ -494,6 +527,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="trackmustangsonline.com/tracks/roebling-road-raceway.32/",
         notes="2016 GT, A7 = r_compound (mu=1.42)",
         tire_db_key="hoosier_a7",
+        source_quality="primary",
     ),
     RealWorldLapTime(
         car_key=("Ford", "Mustang GT", "S550"),
@@ -506,6 +540,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="trackmustangsonline.com/tracks/roebling-road-raceway.32/",
         notes="2015 GT, R7 = r_compound (mu=1.38)",
         tire_db_key="hoosier_r7",
+        source_quality="primary",
     ),
     # --- Ford Mustang Shelby GT350 ---
     RealWorldLapTime(
@@ -519,6 +554,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="trackmustangsonline.com/tracks/roebling-road-raceway.32/",
         notes="GT350 on SC3R (TW_100/r_compound bridge, mu~1.20)",
         tire_db_key="goodyear_sc3r",
+        source_quality="primary",
     ),
     # =========================================================================
     # ATLANTA MOTORSPORTS PARK (2,927m / 1.83mi)
@@ -535,6 +571,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="lapmeta.com/en/track/variation/27",
         notes="May 2021, RE71RS = super 200tw",
         tire_db_key="bridgestone_re71rs",
+        source_quality="aggregated",
     ),
     RealWorldLapTime(
         car_key=("Toyota", "GR86", None),
@@ -547,6 +584,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="lapmeta.com/en/track/variation/27",
         notes="RT660 = endurance 200tw, -4.5/-2.8 camber",
         tire_db_key="falken_rt660",
+        source_quality="aggregated",
     ),
     # --- Honda Civic Type R FK8 ---
     RealWorldLapTime(
@@ -560,6 +598,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="lapmeta.com/en/track/variation/27",
         notes="FK8 on RS4 (endurance 200tw). FK8 306hp vs FL5 315hp",
         tire_db_key="hankook_rs4",
+        source_quality="aggregated",
     ),
     RealWorldLapTime(
         car_key=("Honda", "Civic Type R", "FL5"),
@@ -572,6 +611,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="lapmeta.com/en/track/variation/27",
         notes="FK8 on V730 (super 200tw). FK8 = FL5 proxy",
         tire_db_key="kumho_v730",
+        source_quality="aggregated",
     ),
     # --- Porsche 718 Cayman GT4 ---
     RealWorldLapTime(
@@ -585,6 +625,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="rennlist.com",
         notes="2017, Pirelli full slicks",
         tire_db_key="pirelli_slick_305",
+        source_quality="primary",
     ),
     # --- Chevrolet Camaro SS 1LE ---
     RealWorldLapTime(
@@ -598,6 +639,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="camaro6.com/forums/showthread.php?t=512725",
         notes="Stock SS 1LE on OEM SC3 (super 200tw). Multiple corroborating forum entries.",
         tire_db_key="goodyear_sc3",
+        source_quality="primary",
     ),
     # --- Hyundai Veloster N ---
     RealWorldLapTime(
@@ -611,6 +653,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="lapmeta.com/en/track/variation/135",
         notes="JST-Performance Veloster N on RT660 (endurance 200tw), light suspension",
         tire_db_key="falken_rt660",
+        source_quality="aggregated",
     ),
     # --- Subaru BRZ Performance Package ---
     RealWorldLapTime(
@@ -623,6 +666,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         mod_level="stock",
         source="lapmeta.com/en/track/variation/135",
         notes="Stock BRZ on OEM street tire (TW 240). Fully stock baseline.",
+        source_quality="aggregated",
     ),
     # =========================================================================
     # ATLANTA MOTORSPORTS PARK (2,927m / 1.83mi)
@@ -639,6 +683,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="lapmeta.com/en/track/variation/27",
         notes="Stock Z06 on OEM PS4S (endurance-level grip per validation)",
         tire_db_key="michelin_ps4s",
+        source_quality="aggregated",
     ),
     # --- Nissan 370Z ---
     RealWorldLapTime(
@@ -652,6 +697,7 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="lapmeta.com/en/track/variation/27",
         notes="370Z on RE-71RS (super 200tw). Malko Izurieta Sep 2024.",
         tire_db_key="bridgestone_re71rs",
+        source_quality="aggregated",
     ),
 ]
 
@@ -694,6 +740,7 @@ def _vehicle_spec_to_params(
     braking_ratio = CATEGORY_BRAKING_MU_RATIO.get(compound, 1.10)
     slip_angle_deg = CATEGORY_PEAK_SLIP_ANGLE_DEG.get(compound, 6.0)
     cornering_drag = math.sin(math.radians(slip_angle_deg))
+    lateral_jerk = CATEGORY_LATERAL_JERK_GS.get(compound, 5.0)
 
     return VehicleParams(
         mu=mu,
@@ -711,6 +758,7 @@ def _vehicle_spec_to_params(
         mass_kg=weight_kg,
         braking_mu_ratio=braking_ratio,
         cornering_drag_factor=cornering_drag,
+        max_lateral_jerk_gs=lateral_jerk,
     )
 
 
@@ -737,6 +785,8 @@ class ComparisonResult:
     hp: float = 0.0
     weight_kg: float = 0.0
     drivetrain: str = ""
+    source_quality: str = "community"
+    driver_level: str = "unknown"
 
 
 def _fmt_time(seconds: float) -> str:
@@ -832,6 +882,8 @@ def run_comparison() -> list[ComparisonResult]:
                 hp=spec.hp,
                 weight_kg=spec.weight_kg,
                 drivetrain=spec.drivetrain,
+                source_quality=rw.source_quality,
+                driver_level=rw.driver_level,
             )
         )
 
@@ -1158,8 +1210,24 @@ def validate_comparison(results: list[ComparisonResult]) -> bool:
             f"mean={dt_data['mean']:.4f}, std={dt_data['std']:.4f}"
         )
 
-    # --- Check 16: Leave-One-Out Cross-Validation ---
-    print("\n16. LEAVE-ONE-OUT CROSS-VALIDATION (Jackknife)")
+    # --- Check 16: Source Quality Breakdown ---
+    print("\n16. BREAKDOWN BY SOURCE QUALITY")
+    for sq_name, sq_data in summary.get("per_source_quality", {}).items():
+        print(
+            f"    {sq_name:<14}: n={sq_data['n']}, "
+            f"mean={sq_data['mean']:.4f}, std={sq_data['std']:.4f}"
+        )
+
+    # --- Check 17: Driver Level Breakdown ---
+    print("\n17. BREAKDOWN BY DRIVER LEVEL")
+    for dl_name, dl_data in summary.get("per_driver_level", {}).items():
+        print(
+            f"    {dl_name:<16}: n={dl_data['n']}, "
+            f"mean={dl_data['mean']:.4f}, std={dl_data['std']:.4f}"
+        )
+
+    # --- Check 18: Leave-One-Out Cross-Validation ---
+    print("\n18. LEAVE-ONE-OUT CROSS-VALIDATION (Jackknife)")
     loo = summary.get("loo_cv", {})
     if loo:
         jr = loo.get("jackknife_mean_range", [0, 0])
@@ -1211,6 +1279,8 @@ def export_csv(results: list[ComparisonResult]) -> None:
                 "tire_model",
                 "mu",
                 "mod_level",
+                "source_quality",
+                "driver_level",
                 "source",
                 "notes",
             ]
@@ -1229,6 +1299,8 @@ def export_csv(results: list[ComparisonResult]) -> None:
                     r.tire_model,
                     f"{r.mu:.2f}",
                     r.mod_level,
+                    r.source_quality,
+                    r.driver_level,
                     r.source,
                     r.notes,
                 ]
@@ -1530,6 +1602,32 @@ def _compute_summary(results: list[ComparisonResult]) -> dict:
             }
     summary["per_drivetrain"] = per_drivetrain
 
+    # --- Source quality breakdown ---
+    per_source_quality: dict[str, dict[str, object]] = {}
+    for sq in sorted(set(r.source_quality for r in results)):
+        sq_results = [r for r in results if r.source_quality == sq]
+        if sq_results:
+            sq_ratios = np.array([r.efficiency_ratio for r in sq_results])
+            per_source_quality[sq] = {
+                "n": len(sq_ratios),
+                "mean": round(float(np.mean(sq_ratios)), 4),
+                "std": round(float(np.std(sq_ratios, ddof=1)) if len(sq_ratios) > 1 else 0.0, 4),
+            }
+    summary["per_source_quality"] = per_source_quality
+
+    # --- Driver level breakdown ---
+    per_driver_level: dict[str, dict[str, object]] = {}
+    for dl in sorted(set(r.driver_level for r in results)):
+        dl_results = [r for r in results if r.driver_level == dl]
+        if dl_results:
+            dl_ratios = np.array([r.efficiency_ratio for r in dl_results])
+            per_driver_level[dl] = {
+                "n": len(dl_ratios),
+                "mean": round(float(np.mean(dl_ratios)), 4),
+                "std": round(float(np.std(dl_ratios, ddof=1)) if len(dl_ratios) > 1 else 0.0, 4),
+            }
+    summary["per_driver_level"] = per_driver_level
+
     # --- Leave-one-out cross-validation (jackknife stability) ---
     loo_means: list[float] = []
     loo_stds: list[float] = []
@@ -1596,6 +1694,8 @@ def export_baseline_json(results: list[ComparisonResult]) -> str:
                 "tire_category": r.tire_category,
                 "tire_model": r.tire_model,
                 "mu": r.mu,
+                "source_quality": r.source_quality,
+                "driver_level": r.driver_level,
             }
             for r in results
         ],
