@@ -1,5 +1,21 @@
 # Lessons Learned
 
+## Pattern Propagation Applies to Sibling Data Structures, Not Just Code Patterns (2026-03-19)
+
+**Pattern**: When fixing an unbounded/unsafe data structure, immediately grep for ALL sibling structures with the same pattern in the same module. Fix them all in one pass. CLAUDE.md says "grep for the same pattern elsewhere" — this applies to data structure shapes (unbounded dicts, missing fields in constructors), not just code logic.
+
+**Why**: Fixed `_REHYDRATION_LOCKS` (H4: unbounded dict → bounded OrderedDict), but missed `_REHYDRATION_FAILURES` (M1: same unbounded dict, same module, 4 lines apart). The review caught M1 as a separate finding. Both dicts had identical growth patterns — should have been fixed together. Similarly, `cornering_drag_factor` was missing from `apply_calibration_to_params()` because it was added to `VehicleParams` after the constructor was written — same "new field not propagated to all constructors" pattern.
+
+**Error signature**: A fix to one data structure while its neighbor (same module, same pattern) remains unfixed. Or: a new field added to a dataclass/model but not to all manual constructors of that type.
+
+## Global Exception Handlers Beat Per-Endpoint Try/Except (2026-03-19)
+
+**Pattern**: When a service-layer exception should map to a specific HTTP status across ALL endpoints (e.g., `RehydrationError` → 503), use `@app.exception_handler(ExcType)` in `main.py` — not `try/except` in each router. Exceptions propagate naturally; the handler catches them globally with zero router boilerplate.
+
+**Why**: `RehydrationError` needed to return 503 instead of 500 at ~15 endpoints that call `get_session_for_user_with_db_sync`. Adding try/except to each would be 45+ lines of repetitive code. A single 5-line global handler achieved the same result. Also prevents future endpoints from forgetting to handle the exception.
+
+**Error signature**: Importing an exception class in a caller module but never referencing it (ruff F401) — a sign the exception propagates naturally and doesn't need local handling.
+
 ## Proactively Add Quality Gates When Creating Validation Tooling (2026-03-19)
 
 **Pattern**: When building or hardening a validation framework (e.g., physics benchmark, eval harness), ALWAYS add a mandatory quality gate rule to CLAUDE.md in the same commit. Don't wait for the user to ask "is this run every time?" — if the framework validates correctness, it MUST be gated.

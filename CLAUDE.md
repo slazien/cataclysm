@@ -56,7 +56,7 @@ All must pass before commit:
 1. **Ruff**: `ruff format cataclysm/ tests/ backend/` → `ruff check cataclysm/ tests/ backend/`
 2. **Mypy**: `dmypy run -- cataclysm/ backend/` (~4s warm)
 3. **Tests**: `pytest tests/ backend/tests/ -v -n auto`. New module → `tests/test_<module>.py`. Synthetic fixtures, mock external APIs.
-4. **Physics validation**: ANY change to `velocity_profile.py`, `equipment.py`, `driving_physics.py`, or `tire_db.py` → run `python scripts/physics_realworld_comparison.py --strict --compare data/physics_baseline.json`. Must exit 0 (no regressions, acceptance criteria met). Update baseline after intentional changes: copy new `data/physics_baseline.json` over old.
+4. **Physics validation**: ANY change to `velocity_profile.py`, `equipment.py`, `driving_physics.py`, `tire_db.py`, or `grip_calibration.py` → run `python scripts/physics_realworld_comparison.py --strict --compare data/physics_baseline.json`. Must exit 0 (no regressions, acceptance criteria met). Update baseline after intentional changes: copy new `data/physics_baseline.json` over old.
 5. **Code review**: `superpowers:code-reviewer` (mandatory)
 6. **Frontend TS**: `cd frontend && npx tsc --noEmit` before every push. Incremental cache hides errors Railway's clean build catches; `vitest` alone insufficient.
 7. **Frontend QA**: ANY frontend change → Playwright visual verify on staging post-deploy. **BLOCKING.** Wait ~2-3 min.
