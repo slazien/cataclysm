@@ -313,6 +313,50 @@ async def _ensure_track_references() -> int:
     return built
 
 
+_DEFAULT_LLM_ROUTING: dict[str, list[tuple[str, str]]] = {
+    "coaching_report": [("openai", "gpt-5.4-nano"), ("anthropic", "claude-haiku-4-5-20251001")],
+    "coaching_chat": [("openai", "gpt-5.4-nano"), ("anthropic", "claude-haiku-4-5-20251001")],
+    "topic_classifier": [("openai", "gpt-5.4-nano"), ("anthropic", "claude-haiku-4-5-20251001")],
+    "coaching_validator": [
+        ("anthropic", "claude-sonnet-4-6"),
+        ("anthropic", "claude-haiku-4-5-20251001"),
+    ],
+    "track_draft": [("openai", "gpt-5.4-nano"), ("anthropic", "claude-haiku-4-5-20251001")],
+    "share_comparison": [("openai", "gpt-5.4-nano"), ("anthropic", "claude-haiku-4-5-20251001")],
+}
+
+
+async def _seed_llm_routing() -> int:
+    """Insert default per-task LLM routing config if not already present.
+
+    Uses ON CONFLICT DO NOTHING so existing admin-configured routes are preserved.
+    Returns the number of tasks newly seeded.
+    """
+    import json
+
+    from backend.api.db.database import async_session_factory
+
+    async with async_session_factory() as db:
+        # Count existing routes to determine how many we'll seed
+        row = await db.execute(
+            text("SELECT COUNT(*) FROM llm_task_routes WHERE task = ANY(:tasks)"),
+            {"tasks": list(_DEFAULT_LLM_ROUTING)},
+        )
+        existing = row.scalar_one() or 0
+        for task, chain in _DEFAULT_LLM_ROUTING.items():
+            config = json.dumps({"chain": [{"provider": p, "model": m} for p, m in chain]})
+            await db.execute(
+                text(
+                    "INSERT INTO llm_task_routes (task, config_json)"
+                    " VALUES (:task, :config)"
+                    " ON CONFLICT (task) DO NOTHING"
+                ),
+                {"task": task, "config": config},
+            )
+        await db.commit()
+    return len(_DEFAULT_LLM_ROUTING) - int(existing)
+
+
 async def _backfill_sidebar_scores() -> int:
     """Backfill snapshot_json.scores for sessions that lack persisted scores.
 
@@ -601,6 +645,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Seed demo session from DB if not already in memory
     await _seed_demo_session()
+
+    # Seed default LLM routing config (ON CONFLICT DO NOTHING — preserves admin overrides)
+    n_seeded = await _seed_llm_routing()
+    if n_seeded:
+        logger.info("Seeded LLM routing config for %d task(s)", n_seeded)
 
     # Build missing track references for tracks not covered by rehydration
     n_refs = await _ensure_track_references()

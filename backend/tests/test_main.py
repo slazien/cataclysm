@@ -406,6 +406,11 @@ def _base_lifespan_patches(
             return_value=sessions or [],
         ),
         patch("backend.api.services.session_store.clear_all"),
+        patch(
+            "backend.api.main._seed_llm_routing",
+            new_callable=AsyncMock,
+            return_value=0,
+        ),
     ]
 
 
@@ -426,6 +431,7 @@ class TestLifespan:
             patches[6],
             patches[7],
             patches[8],
+            patches[9],
         ):
             await _run_lifespan()  # must not raise
 
@@ -443,6 +449,7 @@ class TestLifespan:
             patches[6],
             patches[7],
             patches[8],
+            patches[9],
         ):
             await _run_lifespan()
 
@@ -463,6 +470,7 @@ class TestLifespan:
             patches[6],
             patches[7],
             patches[8],
+            patches[9],
         ):
             await _run_lifespan()
 
@@ -486,6 +494,7 @@ class TestLifespan:
             patches[6],
             patches[7],
             patches[8],
+            patches[9],
         ):
             await _run_lifespan()
 
@@ -509,6 +518,7 @@ class TestLifespan:
             patches[6] as mock_trigger,
             patches[7],
             patches[8],
+            patches[9],
         ):
             await _run_lifespan()
 
@@ -528,6 +538,7 @@ class TestLifespan:
             patches[6],
             patches[7],
             patches[8] as mock_clear,
+            patches[9],
         ):
             await _run_lifespan()
 
@@ -551,6 +562,7 @@ class TestLifespan:
             patches[6],
             patches[7],
             patches[8],
+            patches[9],
         ):
             await _run_lifespan()
 
