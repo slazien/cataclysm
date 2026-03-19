@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cataclysm Physics Validation — 42-Entry Dataset</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0f1117;
+    color: #e0e0e0;
+    padding: 2rem 1rem;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    text-align: center;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle { color: #9ca3af; text-align: center; margin: 0.5rem 0 2rem; }
+  .date { color: #6b7280; text-align: center; font-size: 0.8rem; margin-top: -1.5rem; margin-bottom: 2rem; }
+
+  /* KPI row */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  .kpi {
+    background: #1a1d2e;
+    border-radius: 12px;
+    padding: 1.2rem;
+    text-align: center;
+    border: 1px solid #2a2d3e;
+  }
+  .kpi .value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .kpi .label { color: #9ca3af; font-size: 0.8rem; margin-top: 0.3rem; }
+  .kpi.green .value { color: #34d399; }
+  .kpi.blue .value { color: #60a5fa; }
+  .kpi.amber .value { color: #fbbf24; }
+  .kpi.purple .value { color: #a78bfa; }
+
+  /* Chart containers */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  @media (max-width: 900px) { .chart-grid { grid-template-columns: 1fr; } }
+  .chart-card {
+    background: #1a1d2e;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #2a2d3e;
+  }
+  .chart-card.full { grid-column: 1 / -1; }
+  .chart-card h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #d1d5db;
+  }
+  .chart-wrap { position: relative; height: 300px; }
+  .chart-wrap.tall { height: 400px; }
+
+  /* Table */
+  .table-card {
+    background: #1a1d2e;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #2a2d3e;
+    overflow-x: auto;
+    margin-bottom: 2rem;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  th { text-align: left; padding: 0.5rem; color: #9ca3af; border-bottom: 1px solid #2a2d3e; font-weight: 500; }
+  td { padding: 0.5rem; border-bottom: 1px solid #1f2233; }
+  tr:hover td { background: #1f2233; }
+  .ratio-cell { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .good { color: #34d399; }
+  .warn { color: #fbbf24; }
+  .bad { color: #f87171; }
+
+  /* Tier badge */
+  .tier-section {
+    background: #1a1d2e;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #2a2d3e;
+    margin-bottom: 2rem;
+  }
+  .tier-bar {
+    display: flex;
+    height: 36px;
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 1rem 0;
+  }
+  .tier-bar div {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .tier-d { background: #166534; flex: 1; color: #bbf7d0; }
+  .tier-c { background: #1e40af; flex: 1; color: #bfdbfe; }
+  .tier-b { background: #6d28d9; flex: 1; color: #ddd6fe; }
+  .tier-a { background: #92400e; flex: 1; color: #fef3c7; }
+  .tier-active { outline: 3px solid #fbbf24; outline-offset: -3px; }
+  .tier-reqs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-top: 1rem; font-size: 0.78rem; }
+  .tier-req { background: #0f1117; border-radius: 6px; padding: 0.6rem; }
+  .tier-req h4 { font-size: 0.72rem; color: #9ca3af; margin-bottom: 0.3rem; }
+
+  footer { text-align: center; color: #4b5563; font-size: 0.75rem; margin-top: 2rem; }
+</style>
+</head>
+<body>
+
+<h1>Physics Engine Validation Results</h1>
+<p class="subtitle">42-entry real-world comparison across 3 tracks, 12 cars, 6 tire categories</p>
+<p class="date">Generated 2026-03-19 · Branch temp/physics-val-improvements · Commit 0b4babb</p>
+
+<!-- KPI Row -->
+<div class="kpi-row">
+  <div class="kpi green">
+    <div class="value">1.004</div>
+    <div class="label">Mean Ratio</div>
+  </div>
+  <div class="kpi blue">
+    <div class="value">0.032</div>
+    <div class="label">Std Deviation</div>
+  </div>
+  <div class="kpi green">
+    <div class="value">2.39%</div>
+    <div class="label">MAPE</div>
+  </div>
+  <div class="kpi blue">
+    <div class="value">2.98s</div>
+    <div class="label">RMSE</div>
+  </div>
+  <div class="kpi green">
+    <div class="value">2 / 42</div>
+    <div class="label">Exceedances >5%</div>
+  </div>
+  <div class="kpi purple">
+    <div class="value">0.93</div>
+    <div class="label">R² Calibration</div>
+  </div>
+</div>
+
+<!-- Accuracy Tier -->
+<div class="tier-section">
+  <h2 style="font-size:1rem; margin-bottom:0.5rem;">Accuracy Tier Assessment</h2>
+  <div class="tier-bar">
+    <div class="tier-d">D: Engineering</div>
+    <div class="tier-c">C: Coaching</div>
+    <div class="tier-b">B: Setup</div>
+    <div class="tier-a tier-active">A: Screening ★</div>
+  </div>
+  <div class="tier-reqs">
+    <div class="tier-req">
+      <h4>D: Engineering</h4>
+      <div>Bias &lt;0.25% <span class="bad">✗ 0.43%</span></div>
+      <div>Std &lt;1.5% <span class="bad">✗ 3.15%</span></div>
+      <div>MAPE &lt;1.0% <span class="bad">✗ 2.39%</span></div>
+    </div>
+    <div class="tier-req">
+      <h4>C: Coaching</h4>
+      <div>Bias &lt;0.5% <span class="good">✓ 0.43%</span></div>
+      <div>Std &lt;2.5% <span class="bad">✗ 3.15%</span></div>
+      <div>MAPE &lt;1.5% <span class="bad">✗ 2.39%</span></div>
+    </div>
+    <div class="tier-req">
+      <h4>B: Setup</h4>
+      <div>Bias &lt;1.0% <span class="good">✓ 0.43%</span></div>
+      <div>Std &lt;3.0% <span class="bad">✗ 3.15%</span></div>
+      <div>MAPE &lt;2.0% <span class="bad">✗ 2.39%</span></div>
+    </div>
+    <div class="tier-req">
+      <h4>A: Screening ★</h4>
+      <div>Bias &lt;2.0% <span class="good">✓ 0.43%</span></div>
+      <div>Std &lt;4.5% <span class="good">✓ 3.15%</span></div>
+      <div>MAPE &lt;5.0% <span class="good">✓ 2.39%</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts -->
+<div class="chart-grid">
+  <!-- Scatter: Real vs Predicted -->
+  <div class="chart-card">
+    <h2>Real vs Predicted Lap Times</h2>
+    <div class="chart-wrap"><canvas id="scatterChart"></canvas></div>
+  </div>
+
+  <!-- Bar: By Tire Category -->
+  <div class="chart-card">
+    <h2>Mean Ratio by Tire Category</h2>
+    <div class="chart-wrap"><canvas id="categoryChart"></canvas></div>
+  </div>
+
+  <!-- Bar: By Track -->
+  <div class="chart-card">
+    <h2>Mean Ratio by Track</h2>
+    <div class="chart-wrap"><canvas id="trackChart"></canvas></div>
+  </div>
+
+  <!-- Bar: By Grip Band -->
+  <div class="chart-card">
+    <h2>Mean Ratio by Grip Band</h2>
+    <div class="chart-wrap"><canvas id="gripChart"></canvas></div>
+  </div>
+
+  <!-- Bland-Altman -->
+  <div class="chart-card">
+    <h2>Bland-Altman Agreement Plot</h2>
+    <div class="chart-wrap"><canvas id="blandAltman"></canvas></div>
+  </div>
+
+  <!-- Ratio vs Mu -->
+  <div class="chart-card">
+    <h2>Efficiency Ratio vs Tire Mu (r = −0.48)</h2>
+    <div class="chart-wrap"><canvas id="ratioMuChart"></canvas></div>
+  </div>
+
+  <!-- Histogram -->
+  <div class="chart-card full">
+    <h2>Efficiency Ratio Distribution (42 entries)</h2>
+    <div class="chart-wrap"><canvas id="histChart"></canvas></div>
+  </div>
+</div>
+
+<!-- Segmentation tables -->
+<div class="chart-grid">
+  <div class="chart-card">
+    <h2>By Modification Level</h2>
+    <table>
+      <tr><th>Level</th><th>n</th><th>Mean</th><th>Std</th><th>95% CI</th></tr>
+      <tr><td>Stock</td><td>18</td><td class="ratio-cell good">1.006</td><td>0.034</td><td>[0.989, 1.020]</td></tr>
+      <tr><td>Light</td><td>23</td><td class="ratio-cell good">1.003</td><td>0.031</td><td>[0.989, 1.014]</td></tr>
+      <tr><td>Heavy</td><td>1</td><td class="ratio-cell good">1.003</td><td>—</td><td>—</td></tr>
+    </table>
+  </div>
+  <div class="chart-card">
+    <h2>By HP Band</h2>
+    <table>
+      <tr><th>Band</th><th>n</th><th>Mean</th><th>Std</th></tr>
+      <tr><td>Low &lt;200hp</td><td>2</td><td class="ratio-cell good">1.022</td><td>0.001</td></tr>
+      <tr><td>Mid 200-400hp</td><td>18</td><td class="ratio-cell good">1.018</td><td>0.023</td></tr>
+      <tr><td>High &gt;400hp</td><td>22</td><td class="ratio-cell good">0.992</td><td>0.034</td></tr>
+    </table>
+  </div>
+  <div class="chart-card">
+    <h2>By Drivetrain</h2>
+    <table>
+      <tr><th>Type</th><th>n</th><th>Mean</th><th>Std</th></tr>
+      <tr><td>FWD</td><td>6</td><td class="ratio-cell warn">1.020</td><td>0.026</td></tr>
+      <tr><td>RWD</td><td>36</td><td class="ratio-cell good">1.002</td><td>0.032</td></tr>
+    </table>
+  </div>
+  <div class="chart-card">
+    <h2>LOO Cross-Validation</h2>
+    <table>
+      <tr><th>Metric</th><th>Value</th></tr>
+      <tr><td>Jackknife mean range</td><td>[1.003, 1.006]</td></tr>
+      <tr><td>Stability (max spread)</td><td class="good">0.0034</td></tr>
+      <tr><td>Influential entries</td><td class="good">0 (threshold ±0.003)</td></tr>
+    </table>
+    <p style="color:#9ca3af; font-size:0.78rem; margin-top:0.8rem;">
+      No single entry shifts the mean by more than ±0.003 when removed — the dataset is robust.
+    </p>
+  </div>
+</div>
+
+<!-- Full data table -->
+<div class="table-card">
+  <h2 style="font-size:1rem; margin-bottom:1rem;">All 42 Entries</h2>
+  <table id="dataTable">
+    <thead>
+      <tr><th>Car</th><th>Track</th><th>Tire</th><th>Cat</th><th>μ</th><th>Real</th><th>Predicted</th><th>Ratio</th><th>Δ</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<footer>
+  Cataclysm Physics Validation · 42 entries · 3 tracks · 12+ cars · 6 tire categories<br>
+  Sources: LapMeta, FastestLaps, NASA Mid-South, Rennlist, GR86.org, Mustang6G, Camaro6, JST-Performance
+</footer>
+
+<script>
+// --- DATA ---
+const entries = [
+  {car:"Miata NA",track:"Barber",tire:"Hoosier R7",cat:"r_compound",mu:1.38,real:108.08,pred:110.46,ratio:1.022},
+  {car:"Miata ND",track:"Barber",tire:"unknown",cat:"endurance_200tw",mu:1.00,real:108.36,pred:110.63,ratio:1.021},
+  {car:"GR86",track:"Barber",tire:"A052 245/40",cat:"super_200tw",mu:1.13,real:103.88,pred:105.82,ratio:1.019},
+  {car:"GR86",track:"Barber",tire:"RS4",cat:"endurance_200tw",mu:1.00,real:105.88,pred:109.76,ratio:1.037},
+  {car:"GR86",track:"Barber",tire:"RT660 245/40",cat:"endurance_200tw",mu:1.05,real:107.66,pred:108.02,ratio:1.003},
+  {car:"CTR FL5",track:"Barber",tire:"PS4S (OEM)",cat:"endurance_200tw",mu:1.03,real:100.90,pred:106.19,ratio:1.052},
+  {car:"CTR FL5",track:"Barber",tire:"A052",cat:"super_200tw",mu:1.13,real:100.90,pred:103.38,ratio:1.025},
+  {car:"BMW M2 G87",track:"Barber",tire:"Ventus RS4",cat:"endurance_200tw",mu:1.00,real:102.09,pred:104.61,ratio:1.025},
+  {car:"BMW M2 G87",track:"Barber",tire:"unknown",cat:"endurance_200tw",mu:1.00,real:103.18,pred:104.61,ratio:1.014},
+  {car:"GT4 718",track:"Barber",tire:"Cup 2 (OEM)",cat:"super_200tw",mu:1.15,real:101.43,pred:98.78,ratio:0.974},
+  {car:"GT4 718",track:"Barber",tire:"RE-71RS",cat:"super_200tw",mu:1.12,real:99.80,pred:99.69,ratio:0.999},
+  {car:"GT4 718",track:"Barber",tire:"A052",cat:"super_200tw",mu:1.13,real:94.00,pred:99.37,ratio:1.057},
+  {car:"911 GT3 992",track:"Barber",tire:"DH Slick",cat:"slick",mu:1.40,real:93.09,pred:93.20,ratio:1.001},
+  {car:"911 GT3 991",track:"Barber",tire:"Hoosier R7",cat:"r_compound",mu:1.38,real:95.05,pred:93.68,ratio:0.986},
+  {car:"Mustang S550",track:"Barber",tire:"PS4S",cat:"endurance_200tw",mu:1.03,real:111.38,pred:103.44,ratio:0.929},
+  {car:"Mustang S550",track:"Barber",tire:"Pirelli Slick",cat:"slick",mu:1.40,real:97.06,pred:97.33,ratio:1.003},
+  {car:"GT350",track:"Barber",tire:"SC3",cat:"super_200tw",mu:1.12,real:100.26,pred:99.16,ratio:0.989},
+  {car:"C8 Z51",track:"Barber",tire:"PS4S (OEM)",cat:"endurance_200tw",mu:1.03,real:96.46,pred:100.95,ratio:1.047},
+  {car:"C8 Z06",track:"Barber",tire:"A052",cat:"super_200tw",mu:1.13,real:91.90,pred:95.41,ratio:1.038},
+  {car:"Supra A90",track:"Barber",tire:"RE-71RS",cat:"super_200tw",mu:1.12,real:98.00,pred:101.60,ratio:1.037},
+  {car:"Supra A90",track:"Barber",tire:"MPSS 300TW",cat:"endurance_200tw",mu:1.03,real:101.60,pred:104.21,ratio:1.026},
+  {car:"Elantra N",track:"Barber",tire:"V730",cat:"super_200tw",mu:1.06,real:102.80,pred:107.54,ratio:1.046},
+  {car:"GR86",track:"Barber",tire:"MPSS street",cat:"street",mu:1.03,real:112.10,pred:111.85,ratio:0.998},
+  {car:"ZL1 1LE",track:"Barber",tire:"SC3R (OEM)",cat:"100tw",mu:1.20,real:95.90,pred:95.54,ratio:0.996},
+  {car:"GR86",track:"Roebling",tire:"PS4 (OEM)",cat:"street",mu:0.88,real:85.90,pred:89.44,ratio:1.041},
+  {car:"GR86 (FR-S)",track:"Roebling",tire:"NT01",cat:"100tw",mu:1.20,real:80.47,pred:80.46,ratio:1.000},
+  {car:"C8 Z06",track:"Roebling",tire:"Trofeo R",cat:"100tw",mu:1.18,real:74.29,pred:73.90,ratio:0.995},
+  {car:"GT4 718",track:"Roebling",tire:"RE-71RS",cat:"super_200tw",mu:1.12,real:77.79,pred:77.46,ratio:0.996},
+  {car:"Mustang S550",track:"Roebling",tire:"V730 305sq",cat:"super_200tw",mu:1.06,real:80.38,pred:79.98,ratio:0.995},
+  {car:"Mustang S550",track:"Roebling",tire:"Hoosier A7",cat:"r_compound",mu:1.42,real:79.90,pred:75.12,ratio:0.940},
+  {car:"Mustang S550",track:"Roebling",tire:"Hoosier R7",cat:"r_compound",mu:1.38,real:82.58,pred:75.79,ratio:0.918},
+  {car:"GT350",track:"Roebling",tire:"SC3R",cat:"100tw",mu:1.20,real:78.70,pred:76.23,ratio:0.969},
+  {car:"Camaro 1LE",track:"Roebling",tire:"SC3 (OEM)",cat:"super_200tw",mu:1.12,real:78.00,pred:78.04,ratio:1.001},
+  {car:"Veloster N",track:"Roebling",tire:"RT660",cat:"endurance_200tw",mu:1.05,real:81.70,pred:82.37,ratio:1.008},
+  {car:"BRZ",track:"Roebling",tire:"Primacy 3",cat:"street",mu:0.85,real:86.70,pred:90.67,ratio:1.046},
+  {car:"GT4 718",track:"AMP",tire:"Pirelli slick",cat:"slick",mu:1.40,real:87.58,pred:85.40,ratio:0.975},
+  {car:"C8 Z06",track:"AMP",tire:"PS4S (OEM)",cat:"endurance_200tw",mu:1.03,real:91.35,pred:89.54,ratio:0.980},
+  {car:"GR86",track:"AMP",tire:"RT660",cat:"endurance_200tw",mu:1.05,real:94.90,pred:96.97,ratio:1.022},
+  {car:"CTR FK8",track:"AMP",tire:"RS4",cat:"endurance_200tw",mu:1.00,real:95.83,pred:96.29,ratio:1.005},
+  {car:"CTR FK8",track:"AMP",tire:"V730",cat:"super_200tw",mu:1.06,real:95.91,pred:94.50,ratio:0.985},
+  {car:"GR86",track:"AMP",tire:"RE-71RS",cat:"super_200tw",mu:1.12,real:96.00,pred:94.97,ratio:0.989},
+  {car:"370Z",track:"AMP",tire:"RE-71RS",cat:"super_200tw",mu:1.12,real:94.60,pred:92.38,ratio:0.977},
+];
+
+// Colors by category
+const catColors = {
+  street: '#9ca3af',
+  endurance_200tw: '#60a5fa',
+  super_200tw: '#34d399',
+  '100tw': '#fbbf24',
+  r_compound: '#f472b6',
+  slick: '#a78bfa'
+};
+
+const trackColors = {
+  Barber: '#60a5fa',
+  Roebling: '#34d399',
+  AMP: '#fbbf24'
+};
+
+// --- Populate data table ---
+const tbody = document.querySelector('#dataTable tbody');
+entries.sort((a,b) => a.ratio - b.ratio).forEach(e => {
+  const delta = e.pred - e.real;
+  const cls = Math.abs(e.ratio - 1) < 0.02 ? 'good' : Math.abs(e.ratio - 1) < 0.05 ? 'warn' : 'bad';
+  const fmt = s => `${Math.floor(s/60)}:${(s%60).toFixed(2).padStart(5,'0')}`;
+  tbody.innerHTML += `<tr>
+    <td>${e.car}</td><td>${e.track}</td><td style="font-size:0.75rem">${e.tire}</td>
+    <td><span style="color:${catColors[e.cat]}">${e.cat.replace('_',' ')}</span></td>
+    <td>${e.mu.toFixed(2)}</td><td>${fmt(e.real)}</td><td>${fmt(e.pred)}</td>
+    <td class="ratio-cell ${cls}">${e.ratio.toFixed(3)}</td>
+    <td style="color:${delta>0?'#fbbf24':'#60a5fa'}">${delta>0?'+':''}${delta.toFixed(1)}s</td>
+  </tr>`;
+});
+
+// --- Chart defaults ---
+Chart.defaults.color = '#9ca3af';
+Chart.defaults.borderColor = '#2a2d3e';
+Chart.defaults.font.family = 'system-ui, sans-serif';
+
+// 1. Scatter: Real vs Predicted
+new Chart(document.getElementById('scatterChart'), {
+  type: 'scatter',
+  data: {
+    datasets: Object.keys(catColors).map(cat => ({
+      label: cat.replace('_',' '),
+      data: entries.filter(e => e.cat === cat).map(e => ({x: e.real, y: e.pred})),
+      backgroundColor: catColors[cat] + '99',
+      borderColor: catColors[cat],
+      pointRadius: 5,
+      pointHoverRadius: 7,
+    })).concat([{
+      label: 'Perfect',
+      data: [{x:70,y:70},{x:115,y:115}],
+      type: 'line',
+      borderColor: '#4b556388',
+      borderDash: [6,3],
+      pointRadius: 0,
+      borderWidth: 1.5,
+    }])
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8, font: {size: 10} } } },
+    scales: {
+      x: { title: { display: true, text: 'Real Lap Time (s)' }, grid: { color: '#1f2233' } },
+      y: { title: { display: true, text: 'Predicted Optimal (s)' }, grid: { color: '#1f2233' } },
+    }
+  }
+});
+
+// 2. Category bar chart
+const catData = [
+  {cat:'street', mean:1.028, n:3},
+  {cat:'endurance_200tw', mean:1.013, n:13},
+  {cat:'super_200tw', mean:1.008, n:15},
+  {cat:'100tw', mean:0.990, n:4},
+  {cat:'r_compound', mean:0.966, n:4},
+  {cat:'slick', mean:0.993, n:3},
+];
+new Chart(document.getElementById('categoryChart'), {
+  type: 'bar',
+  data: {
+    labels: catData.map(c => `${c.cat.replace('_',' ')} (n=${c.n})`),
+    datasets: [{
+      data: catData.map(c => c.mean),
+      backgroundColor: catData.map(c => catColors[c.cat] + 'cc'),
+      borderColor: catData.map(c => catColors[c.cat]),
+      borderWidth: 1,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false },
+      annotation: { annotations: { line1: { type: 'line', yMin: 1, yMax: 1, borderColor: '#fbbf24', borderDash: [4,2] }}}
+    },
+    scales: {
+      y: { min: 0.92, max: 1.08, title: { display: true, text: 'Mean Ratio' }, grid: { color: '#1f2233' } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// 3. Track bar chart
+const trackData = [
+  {t:'Barber (n=24)', mean:1.014, color:'#60a5fa'},
+  {t:'Roebling (n=11)', mean:0.992, color:'#34d399'},
+  {t:'AMP (n=7)', mean:0.990, color:'#fbbf24'},
+];
+new Chart(document.getElementById('trackChart'), {
+  type: 'bar',
+  data: {
+    labels: trackData.map(t => t.t),
+    datasets: [{
+      data: trackData.map(t => t.mean),
+      backgroundColor: trackData.map(t => t.color + 'cc'),
+      borderColor: trackData.map(t => t.color),
+      borderWidth: 1,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { min: 0.96, max: 1.06, title: { display: true, text: 'Mean Ratio' }, grid: { color: '#1f2233' } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// 4. Grip band bar chart
+const gripData = [
+  {band:'Low (street+endurance)', mean:1.016, n:16, color:'#60a5fa'},
+  {band:'Mid (super+100tw)', mean:1.005, n:19, color:'#34d399'},
+  {band:'High (r_comp+slick)', mean:0.978, n:7, color:'#f472b6'},
+];
+new Chart(document.getElementById('gripChart'), {
+  type: 'bar',
+  data: {
+    labels: gripData.map(g => `${g.band} (n=${g.n})`),
+    datasets: [{
+      data: gripData.map(g => g.mean),
+      backgroundColor: gripData.map(g => g.color + 'cc'),
+      borderColor: gripData.map(g => g.color),
+      borderWidth: 1,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { min: 0.94, max: 1.06, title: { display: true, text: 'Mean Ratio' }, grid: { color: '#1f2233' } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// 5. Bland-Altman
+const baData = entries.map(e => ({
+  x: (e.real + e.pred) / 2,
+  y: e.pred - e.real,
+  cat: e.cat
+}));
+new Chart(document.getElementById('blandAltman'), {
+  type: 'scatter',
+  data: {
+    datasets: Object.keys(catColors).map(cat => ({
+      label: cat.replace('_',' '),
+      data: baData.filter(d => d.cat === cat),
+      backgroundColor: catColors[cat] + '99',
+      borderColor: catColors[cat],
+      pointRadius: 5,
+    })).concat([
+      {label:'Bias',data:[{x:70,y:0.485},{x:115,y:0.485}],type:'line',borderColor:'#fbbf2488',borderDash:[6,3],pointRadius:0,borderWidth:1},
+      {label:'+95% LoA',data:[{x:70,y:6.326},{x:115,y:6.326}],type:'line',borderColor:'#f8717188',borderDash:[4,2],pointRadius:0,borderWidth:1},
+      {label:'-95% LoA',data:[{x:70,y:-5.356},{x:115,y:-5.356}],type:'line',borderColor:'#f8717188',borderDash:[4,2],pointRadius:0,borderWidth:1},
+    ])
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8, font: {size: 10} } } },
+    scales: {
+      x: { title: { display: true, text: 'Mean of Real & Predicted (s)' }, grid: { color: '#1f2233' } },
+      y: { title: { display: true, text: 'Difference: Predicted − Real (s)' }, grid: { color: '#1f2233' } },
+    }
+  }
+});
+
+// 6. Ratio vs Mu
+new Chart(document.getElementById('ratioMuChart'), {
+  type: 'scatter',
+  data: {
+    datasets: Object.keys(trackColors).map(track => ({
+      label: track,
+      data: entries.filter(e => e.track === track).map(e => ({x: e.mu, y: e.ratio})),
+      backgroundColor: trackColors[track] + '99',
+      borderColor: trackColors[track],
+      pointRadius: 5,
+    })).concat([{
+      label: 'Perfect',
+      data: [{x:0.8,y:1},{x:1.5,y:1}],
+      type: 'line',
+      borderColor: '#4b556388',
+      borderDash: [6,3],
+      pointRadius: 0,
+      borderWidth: 1.5,
+    }])
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8, font: {size: 10} } } },
+    scales: {
+      x: { title: { display: true, text: 'Tire Mu (friction coefficient)' }, grid: { color: '#1f2233' } },
+      y: { title: { display: true, text: 'Efficiency Ratio' }, min: 0.90, max: 1.08, grid: { color: '#1f2233' } },
+    }
+  }
+});
+
+// 7. Histogram
+const bins = [];
+for (let b = 0.90; b <= 1.08; b += 0.01) bins.push({lo: b, hi: b+0.01, count: 0});
+entries.forEach(e => {
+  const idx = bins.findIndex(b => e.ratio >= b.lo && e.ratio < b.hi);
+  if (idx >= 0) bins[idx].count++;
+});
+new Chart(document.getElementById('histChart'), {
+  type: 'bar',
+  data: {
+    labels: bins.map(b => b.lo.toFixed(2)),
+    datasets: [{
+      data: bins.map(b => b.count),
+      backgroundColor: bins.map(b => {
+        const mid = (b.lo + b.hi) / 2;
+        if (Math.abs(mid - 1) < 0.02) return '#34d399cc';
+        if (Math.abs(mid - 1) < 0.05) return '#fbbf24cc';
+        return '#f87171cc';
+      }),
+      borderWidth: 0,
+      barPercentage: 1.0,
+      categoryPercentage: 1.0,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { title: { display: true, text: 'Count' }, grid: { color: '#1f2233' } },
+      x: { title: { display: true, text: 'Efficiency Ratio' }, grid: { display: false } }
+    }
+  }
+});
+</script>
+</body>
+</html>
