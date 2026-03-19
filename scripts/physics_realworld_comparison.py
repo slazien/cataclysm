@@ -522,6 +522,22 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         notes="2017, Pirelli full slicks",
         tire_db_key="pirelli_slick_305",
     ),
+    # --- Chevrolet Camaro SS 1LE ---
+    RealWorldLapTime(
+        car_key=("Chevrolet", "Camaro SS 1LE", "6th Gen"),
+        car_label="Camaro SS 1LE",
+        track_name="Roebling Road Raceway",
+        lap_time_s=_parse_time("1:18.00"),
+        tire_model="Goodyear Eagle F1 SuperCar 3 305/30/19 square (OEM)",
+        tire_category="super_200tw",
+        mod_level="stock",
+        source="camaro6.com/forums/showthread.php?t=512725",
+        notes="Stock SS 1LE on OEM SC3 (super 200tw). Multiple corroborating forum entries.",
+        tire_db_key="goodyear_sc3",
+    ),
+    # =========================================================================
+    # ATLANTA MOTORSPORTS PARK (2,927m / 1.83mi)
+    # =========================================================================
     # --- Corvette C8 Z06 ---
     RealWorldLapTime(
         car_key=("Chevrolet", "Corvette Z06", "C8"),

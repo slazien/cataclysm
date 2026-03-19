@@ -1,6 +1,6 @@
 {
   "date": "2026-03-19",
-  "git_sha": "bed2d18",
+  "git_sha": "1fac622",
   "acceptance_criteria": {
     "mean_ratio_min": 0.95,
     "mean_ratio_max": 1.02,
@@ -331,6 +331,16 @@
       "mu": 1.4
     },
     {
+      "car": "Camaro SS 1LE",
+      "track": "Roebling Road Raceway",
+      "real_s": 78.0,
+      "predicted_s": 78.042,
+      "ratio": 1.0005,
+      "tire_category": "super_200tw",
+      "tire_model": "Goodyear Eagle F1 SuperCar 3 305/30/19 square (OEM)",
+      "mu": 1.12
+    },
+    {
       "car": "Corvette C8 Z06",
       "track": "Atlanta Motorsports Park",
       "real_s": 91.35,
@@ -342,31 +352,31 @@
     }
   ],
   "summary": {
-    "n_entries": 33,
-    "mean_ratio": 1.0014765202230698,
-    "median_ratio": 1.0012182773447573,
-    "std_ratio": 0.03290685487852016,
+    "n_entries": 34,
+    "mean_ratio": 1.0014489537910634,
+    "median_ratio": 1.0008787694398036,
+    "std_ratio": 0.032404829303783446,
     "exceedance_count_5pct": 2,
-    "entries_above_1": 17,
-    "rmse_s": 3.0675957093928132,
-    "mae_s": 2.338122992220014,
-    "mape_pct": 2.463997504147551,
-    "p90_abs_error_s": 5.1878676962156876,
-    "p95_abs_error_s": 5.947010439808091,
-    "bland_altman_bias_s": 0.23009394930630747,
-    "bland_altman_loa_lower_s": -5.8584159024577485,
-    "bland_altman_loa_upper_s": 6.318603801070363,
-    "calibration_slope": 1.0762160935904714,
-    "calibration_intercept_s": -6.982558328163108,
-    "calibration_r_squared": 0.9278797843736926,
-    "correlation_mu_ratio": -0.4459203397712709,
-    "correlation_mu_pvalue": 0.009297192914885722,
-    "correlation_weight_ratio": -0.4558059046944578,
-    "correlation_weight_pvalue": 0.007681154129879986,
-    "bootstrap_mean_ci_lower": 0.9897342872715732,
-    "bootstrap_mean_ci_upper": 1.0118100520352566,
-    "bootstrap_std_ci_lower": 0.025308748517706172,
-    "bootstrap_std_ci_upper": 0.042670495549308525,
+    "entries_above_1": 18,
+    "rmse_s": 3.0221559437461276,
+    "mae_s": 2.2705917983229043,
+    "mape_pct": 2.3931130526574753,
+    "p90_abs_error_s": 5.136773025159218,
+    "p95_abs_error_s": 5.876744404848203,
+    "bland_altman_bias_s": 0.22456360961254226,
+    "bland_altman_loa_lower_s": -5.771319571901597,
+    "bland_altman_loa_upper_s": 6.220446791126682,
+    "calibration_slope": 1.0712219693819973,
+    "calibration_intercept_s": -6.480628697855593,
+    "calibration_r_squared": 0.9322469411171312,
+    "correlation_mu_ratio": -0.4456250030532697,
+    "correlation_mu_pvalue": 0.008260354665200035,
+    "correlation_weight_ratio": -0.448166685255867,
+    "correlation_weight_pvalue": 0.007857699730801615,
+    "bootstrap_mean_ci_lower": 0.9896628522446825,
+    "bootstrap_mean_ci_upper": 1.011132413763672,
+    "bootstrap_std_ci_lower": 0.02474277597324185,
+    "bootstrap_std_ci_upper": 0.04214012924223179,
     "iqr_outlier_count": 2,
     "iqr_outliers": [
       {
@@ -394,17 +404,17 @@
         "std": 0.0328,
         "min": 0.9288,
         "max": 1.0524,
-        "bootstrap_mean_ci_lower": 0.9865,
-        "bootstrap_mean_ci_upper": 1.0272
+        "bootstrap_mean_ci_lower": 0.9869,
+        "bootstrap_mean_ci_upper": 1.0273
       },
       "super_200tw": {
-        "n": 11,
-        "mean": 1.006,
-        "std": 0.0243,
+        "n": 12,
+        "mean": 1.0055,
+        "std": 0.0233,
         "min": 0.9738,
         "max": 1.0573,
-        "bootstrap_mean_ci_lower": 0.9936,
-        "bootstrap_mean_ci_upper": 1.0224
+        "bootstrap_mean_ci_lower": 0.9942,
+        "bootstrap_mean_ci_upper": 1.0213
       },
       "100tw": {
         "n": 3,
@@ -444,9 +454,9 @@
         "max": 1.0573
       },
       "Roebling Road Raceway": {
-        "n": 8,
-        "mean": 0.9816,
-        "std": 0.0361,
+        "n": 9,
+        "mean": 0.9837,
+        "std": 0.0345,
         "min": 0.9178,
         "max": 1.0412
       }
@@ -462,9 +472,9 @@
         ]
       },
       "Mid (super+100tw)": {
-        "n": 14,
-        "mean": 1.0021,
-        "std": 0.0237,
+        "n": 15,
+        "mean": 1.002,
+        "std": 0.0229,
         "categories": [
           "100tw",
           "super_200tw"
@@ -487,9 +497,9 @@
         "std": 0.016
       },
       "Mid 200-350": {
-        "n": 21,
-        "mean": 0.9944,
-        "std": 0.036
+        "n": 22,
+        "mean": 0.9946,
+        "std": 0.0352
       },
       "High >350": {
         "n": 3,
@@ -498,11 +508,11 @@
       }
     },
     "fast_slow_split": {
-      "median_time_s": 95.91,
+      "median_time_s": 95.87,
       "fast": {
-        "n": 16,
-        "mean": 0.9948,
-        "std": 0.0346
+        "n": 17,
+        "mean": 0.9952,
+        "std": 0.0336
       },
       "slow": {
         "n": 17,
@@ -512,13 +522,13 @@
     },
     "per_mod_level": {
       "stock": {
-        "n": 13,
-        "mean": 1.0018,
-        "std": 0.036,
+        "n": 14,
+        "mean": 1.0017,
+        "std": 0.0346,
         "min": 0.9288,
         "max": 1.0524,
-        "bootstrap_mean_ci_lower": 0.9815,
-        "bootstrap_mean_ci_upper": 1.0192
+        "bootstrap_mean_ci_lower": 0.9833,
+        "bootstrap_mean_ci_upper": 1.0184
       },
       "light": {
         "n": 19,
@@ -526,8 +536,8 @@
         "std": 0.0325,
         "min": 0.9178,
         "max": 1.0573,
-        "bootstrap_mean_ci_lower": 0.9853,
-        "bootstrap_mean_ci_upper": 1.0139
+        "bootstrap_mean_ci_lower": 0.9848,
+        "bootstrap_mean_ci_upper": 1.0136
       },
       "heavy": {
         "n": 1,
@@ -549,9 +559,9 @@
         "std": 0.0217
       },
       "High >400hp": {
-        "n": 20,
-        "mean": 0.9914,
-        "std": 0.0361
+        "n": 21,
+        "mean": 0.9918,
+        "std": 0.0352
       }
     },
     "per_drivetrain": {
@@ -561,21 +571,21 @@
         "std": 0.0287
       },
       "RWD": {
-        "n": 29,
+        "n": 30,
         "mean": 0.9994,
-        "std": 0.0333
+        "std": 0.0328
       }
     },
     "loo_cv": {
       "jackknife_mean_range": [
-        0.9997,
-        1.0041
+        0.9998,
+        1.004
       ],
       "jackknife_std_range": [
-        0.0297,
-        0.0334
+        0.0293,
+        0.0329
       ],
-      "jackknife_mean_stability": 0.0044,
+      "jackknife_mean_stability": 0.0042,
       "influential_entries": [],
       "influential_count": 0
     },
