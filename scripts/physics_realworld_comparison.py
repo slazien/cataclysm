@@ -352,6 +352,70 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         notes="C8 Z06 on A052, light mods",
         tire_db_key="yokohama_a052",
     ),
+    # --- Toyota GR Supra A90 ---
+    RealWorldLapTime(
+        car_key=("Toyota", "GR Supra", "A90"),
+        car_label="GR Supra A90",
+        track_name="Barber Motorsports Park",
+        lap_time_s=_parse_time("1:38.00"),
+        tire_model="Bridgestone Potenza RE-71RS",
+        tire_category="super_200tw",
+        mod_level="light",
+        source="lapmeta.com/en/track/variation/15",
+        notes="GR Supra on RE-71RS (super 200tw), light mods, D Marcus Mar 2022",
+        tire_db_key="bridgestone_re71rs",
+    ),
+    RealWorldLapTime(
+        car_key=("Toyota", "GR Supra", "A90"),
+        car_label="GR Supra A90",
+        track_name="Barber Motorsports Park",
+        lap_time_s=_parse_time("1:41.60"),
+        tire_model="Michelin Pilot Super Sport 300TW",
+        tire_category="endurance_200tw",
+        mod_level="light",
+        source="lapmeta.com/en/track/variation/15",
+        notes="GR Supra on MPSS (TW 300, endurance-level grip), light mods",
+        tire_db_key="michelin_ps4s",
+    ),
+    # --- Hyundai Elantra N ---
+    RealWorldLapTime(
+        car_key=("Hyundai", "Elantra N", "CN7"),
+        car_label="Elantra N",
+        track_name="Barber Motorsports Park",
+        lap_time_s=_parse_time("1:42.80"),
+        tire_model="Kumho Ecsta V730",
+        tire_category="super_200tw",
+        mod_level="stock",
+        source="lapmeta.com/en/track/variation/15",
+        notes="Stock Elantra N on Kumho V730 (super 200tw). Driver 130 Nov 2025.",
+        tire_db_key="kumho_v730",
+    ),
+    # --- GR86 on street tires ---
+    RealWorldLapTime(
+        car_key=("Toyota", "GR86", None),
+        car_label="GR86",
+        track_name="Barber Motorsports Park",
+        lap_time_s=_parse_time("1:52.10"),
+        tire_model="Michelin Pilot Super Sport 300TW (OEM-class)",
+        tire_category="street",
+        mod_level="stock",
+        source="lapmeta.com/en/track/variation/15",
+        notes="Stock GR86 on OEM-class street tire (TW 300). Jon Willett Jul 2024.",
+        tire_db_key="michelin_ps4s",
+    ),
+    # --- Chevrolet Camaro ZL1 1LE ---
+    RealWorldLapTime(
+        car_key=("Chevrolet", "Camaro ZL1", "6th Gen"),
+        car_label="Camaro ZL1 1LE",
+        track_name="Barber Motorsports Park",
+        lap_time_s=_parse_time("1:35.90"),
+        tire_model="Goodyear Eagle F1 SuperCar 3R 100TW (OEM)",
+        tire_category="100tw",
+        mod_level="stock",
+        source="lapmeta.com/en/track/variation/15",
+        notes="Stock ZL1 1LE on OEM SC3R (100tw). steelankles Jul 2021.",
+        tire_db_key="goodyear_sc3r",
+    ),
     # =========================================================================
     # ROEBLING ROAD RACEWAY (3,199m / 2.02mi)
     # =========================================================================
@@ -535,6 +599,31 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         notes="Stock SS 1LE on OEM SC3 (super 200tw). Multiple corroborating forum entries.",
         tire_db_key="goodyear_sc3",
     ),
+    # --- Hyundai Veloster N ---
+    RealWorldLapTime(
+        car_key=("Hyundai", "Veloster N", None),
+        car_label="Veloster N",
+        track_name="Roebling Road Raceway",
+        lap_time_s=_parse_time("1:21.70"),
+        tire_model="Falken Azenis RT660",
+        tire_category="endurance_200tw",
+        mod_level="light",
+        source="lapmeta.com/en/track/variation/135",
+        notes="JST-Performance Veloster N on RT660 (endurance 200tw), light suspension",
+        tire_db_key="falken_rt660",
+    ),
+    # --- Subaru BRZ Performance Package ---
+    RealWorldLapTime(
+        car_key=("Subaru", "BRZ", "ZD8"),
+        car_label="Subaru BRZ",
+        track_name="Roebling Road Raceway",
+        lap_time_s=_parse_time("1:26.70"),
+        tire_model="Michelin Primacy 3 240TW (stock)",
+        tire_category="street",
+        mod_level="stock",
+        source="lapmeta.com/en/track/variation/135",
+        notes="Stock BRZ on OEM street tire (TW 240). Fully stock baseline.",
+    ),
     # =========================================================================
     # ATLANTA MOTORSPORTS PARK (2,927m / 1.83mi)
     # =========================================================================
@@ -550,6 +639,19 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         source="lapmeta.com/en/track/variation/27",
         notes="Stock Z06 on OEM PS4S (endurance-level grip per validation)",
         tire_db_key="michelin_ps4s",
+    ),
+    # --- Nissan 370Z ---
+    RealWorldLapTime(
+        car_key=("Nissan", "370Z", None),
+        car_label="Nissan 370Z",
+        track_name="Atlanta Motorsports Park",
+        lap_time_s=_parse_time("1:34.60"),
+        tire_model="Bridgestone Potenza RE-71RS",
+        tire_category="super_200tw",
+        mod_level="light",
+        source="lapmeta.com/en/track/variation/27",
+        notes="370Z on RE-71RS (super 200tw). Malko Izurieta Sep 2024.",
+        tire_db_key="bridgestone_re71rs",
     ),
 ]
 
