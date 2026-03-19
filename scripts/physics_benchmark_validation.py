@@ -15,6 +15,7 @@ track references.
 from __future__ import annotations
 
 import csv
+import math
 import os
 import sys
 from dataclasses import dataclass
@@ -29,6 +30,8 @@ from cataclysm.equipment import (
     CATEGORY_FRICTION_CIRCLE_EXPONENT,
     CATEGORY_LOAD_SENSITIVITY_EXPONENT,
     CATEGORY_MU_DEFAULTS,
+    CATEGORY_GRIP_UTILIZATION,
+    CATEGORY_PEAK_SLIP_ANGLE_DEG,
     TireCompoundCategory,
 )
 from cataclysm.track_db import lookup_track
@@ -111,7 +114,9 @@ def _vehicle_spec_to_params(
     Mirrors the logic in equipment.equipment_to_vehicle_params() but works
     directly from VehicleSpec without needing an EquipmentProfile.
     """
-    mu = CATEGORY_MU_DEFAULTS[compound]
+    mu_raw = CATEGORY_MU_DEFAULTS[compound]
+    grip_util = CATEGORY_GRIP_UTILIZATION.get(compound, 0.96)
+    mu = mu_raw * grip_util
     weight_kg = spec.weight_kg
 
     # Acceleration from drivetrain power-to-weight ratio
@@ -133,6 +138,8 @@ def _vehicle_spec_to_params(
 
     # Braking mu ratio (friction ellipse)
     braking_ratio = CATEGORY_BRAKING_MU_RATIO.get(compound, 1.10)
+    slip_angle_deg = CATEGORY_PEAK_SLIP_ANGLE_DEG.get(compound, 6.0)
+    cornering_drag = math.sin(math.radians(slip_angle_deg))
 
     # Wheel power
     dt_eff = _DRIVETRAIN_EFFICIENCY.get(spec.drivetrain, 0.85)
@@ -153,6 +160,7 @@ def _vehicle_spec_to_params(
         track_width_m=0.5 * (spec.track_width_front_m + spec.track_width_rear_m),
         wheel_power_w=wheel_power_w,
         mass_kg=weight_kg,
+        cornering_drag_factor=cornering_drag,
     )
 
 

@@ -49,7 +49,7 @@ class VehicleParams:
     Tire load sensitivity is modelled via a power-law correction on total
     lateral force from an inner/outer tire pair under weight transfer:
         correction = 0.5 * ((1+dLT)^n + (1-dLT)^n)
-    where *n* = ``load_sensitivity_exponent`` and dLT = mu * h_cg / track_w.
+    where *n* = ``load_sensitivity_exponent`` and dLT = 2 * mu * h_cg / track_w.
     For n < 1.0 the correction is < 1.0 (Jensen's inequality on concave x^n),
     meaning total grip drops under load transfer — always true for real tires.
     """
@@ -69,6 +69,7 @@ class VehicleParams:
     wheel_power_w: float = 0.0  # Wheel power in Watts (after drivetrain loss); 0 = disabled
     mass_kg: float = 0.0  # Vehicle mass in kg; 0 = use max_accel_g only
     braking_mu_ratio: float = 1.0  # ratio of peak braking mu to peak lateral mu (>1.0 = ellipse)
+    cornering_drag_factor: float = 0.0  # sin(peak_slip_angle) — induced drag from tire slip
 
 
 @dataclass
@@ -142,10 +143,7 @@ def _compute_max_cornering_speed(
     # Load sensitivity: total lateral force drops under lateral weight transfer.
     # Tire force model: F_y = mu_ref * Fz_ref * (Fz / Fz_ref)^n, where n < 1.
     # At cornering limit, lateral G ~ mu*g, so lateral load transfer ratio:
-    #   dLT = mu * cg_height / track_width
-    # NOTE (DOC-2): The rigorous formula is dLT = lat_G * h_cg / (0.5 * track_w),
-    # i.e. a factor of 2 different.  Our simplified form folds this into the
-    # exponent tuning — not a bug, but a deliberate simplification.
+    #   dLT = lat_G * h_cg / (0.5 * track_w) = 2 * mu * h_cg / track_w
     # Total force from inner + outer tire pair, normalised by static force:
     #   correction = 0.5 * ((1+dLT)^n + (1-dLT)^n)
     # For n < 1, x^n is concave → correction < 1.0 (Jensen's inequality).
@@ -158,7 +156,7 @@ def _compute_max_cornering_speed(
     # transfer (slow corners) it rises above 1.0.
     n_exp = params.load_sensitivity_exponent
     if n_exp < 1.0 and params.track_width_m > 0 and params.cg_height_m > 0:
-        dlt = effective_mu * params.cg_height_m / params.track_width_m
+        dlt = 2.0 * effective_mu * params.cg_height_m / params.track_width_m
         dlt_clamp = np.clip(dlt, 0.0, 0.95)
         correction = 0.5 * (
             np.power(1.0 + dlt_clamp, n_exp) + np.power(np.maximum(1.0 - dlt_clamp, 0.05), n_exp)
@@ -166,7 +164,7 @@ def _compute_max_cornering_speed(
         if params.calibrated:
             # Relative correction: normalise by the correction at the calibration
             # condition (where mu = effective_mu_scalar, i.e. the global p95 value).
-            dlt_ref = effective_mu_scalar * params.cg_height_m / params.track_width_m
+            dlt_ref = 2.0 * effective_mu_scalar * params.cg_height_m / params.track_width_m
             dlt_ref = min(dlt_ref, 0.95)
             correction_ref = 0.5 * ((1.0 + dlt_ref) ** n_exp + max(1.0 - dlt_ref, 0.05) ** n_exp)
             correction = correction / correction_ref
@@ -291,8 +289,11 @@ def _forward_pass(
             power_accel_g = params.wheel_power_w / (params.mass_kg * v_prev * G)
             accel_g = min(accel_g, power_accel_g)
         drag_g = params.drag_coefficient * v_prev**2 / G
+        # Cornering drag: tires at slip angle create induced drag proportional
+        # to lateral force used.  F_drag = F_lat * sin(alpha_peak).
+        cornering_drag_g = params.cornering_drag_factor * lateral_g
         gradient_g = float(gradient_sin[i]) if gradient_sin is not None else 0.0
-        net_accel_g = max(accel_g - drag_g - gradient_g, 0.0)
+        net_accel_g = max(accel_g - drag_g - cornering_drag_g - gradient_g, 0.0)
         v_next_sq = v_prev**2 + 2.0 * net_accel_g * G * step_m
         v_next = np.sqrt(max(v_next_sq, 0.0))
         v[i] = min(v_next, max_speed[i])
@@ -332,8 +333,9 @@ def _backward_pass(
             normal_scale = max(1.0 + v_next**2 * kv / G, 0.1)
             decel_g *= normal_scale
         drag_g = params.drag_coefficient * v_next**2 / G
+        cornering_drag_g = params.cornering_drag_factor * lateral_g
         gradient_g = float(gradient_sin[i]) if gradient_sin is not None else 0.0
-        effective_decel_g = decel_g + drag_g + gradient_g
+        effective_decel_g = decel_g + drag_g + cornering_drag_g + gradient_g
         v_prev_sq = v_next**2 + 2.0 * effective_decel_g * G * step_m
         v_prev = np.sqrt(max(v_prev_sq, 0.0))
         v[i] = min(v_prev, max_speed[i])

@@ -105,6 +105,19 @@ CATEGORY_FRICTION_CIRCLE_EXPONENT: dict[TireCompoundCategory, float] = {
     TireCompoundCategory.SLICK: 2.3,
 }
 
+# Peak slip angle by compound — tires generate lateral force at a slip angle,
+# which creates an induced drag: F_drag = F_lateral * sin(alpha).  Higher-grip
+# compounds operate at larger slip angles → more cornering drag.
+# Values from Paradigm Shift Racing, Pacejka, and GRM R-comp tire tests.
+CATEGORY_PEAK_SLIP_ANGLE_DEG: dict[TireCompoundCategory, float] = {
+    TireCompoundCategory.STREET: 3.0,
+    TireCompoundCategory.ENDURANCE_200TW: 4.0,
+    TireCompoundCategory.SUPER_200TW: 5.0,
+    TireCompoundCategory.TW_100: 7.0,
+    TireCompoundCategory.R_COMPOUND: 8.5,
+    TireCompoundCategory.SLICK: 10.0,
+}
+
 # Braking-to-lateral mu ratio — tread pattern alignment is the largest contributor
 # to longitudinal/lateral asymmetry (~5-8%). Less tread = more isotropic.
 # Street tires (deep directional tread) have the highest ratio; slicks (no tread)
@@ -116,6 +129,21 @@ CATEGORY_BRAKING_MU_RATIO: dict[TireCompoundCategory, float] = {
     TireCompoundCategory.TW_100: 1.06,
     TireCompoundCategory.R_COMPOUND: 1.04,
     TireCompoundCategory.SLICK: 1.03,
+}
+
+# Grip utilization factor — accounts for the gap between laboratory peak mu and
+# achievable track-average mu.  Higher-grip compounds have narrower thermal
+# windows, steeper slip-angle peaks, and faster transient force build-up, so
+# a smaller fraction of peak mu is realised over an entire lap.
+# Derived from ChassisSim grip-factor literature (0.85–0.95 for club racing),
+# GG-diagram utilisation studies, and calibration against our 33-entry dataset.
+CATEGORY_GRIP_UTILIZATION: dict[TireCompoundCategory, float] = {
+    TireCompoundCategory.STREET: 1.00,
+    TireCompoundCategory.ENDURANCE_200TW: 1.00,
+    TireCompoundCategory.SUPER_200TW: 0.99,
+    TireCompoundCategory.TW_100: 0.97,
+    TireCompoundCategory.R_COMPOUND: 0.94,
+    TireCompoundCategory.SLICK: 0.93,
 }
 
 _BRAKE_EFFICIENCY = 0.95  # real-world brake efficiency factor
@@ -266,8 +294,10 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
     """
     from cataclysm.velocity_profile import VehicleParams
 
-    mu = profile.tires.estimated_mu
+    mu_raw = profile.tires.estimated_mu
     category = profile.tires.compound_category
+    grip_util = CATEGORY_GRIP_UTILIZATION.get(category, 0.96)
+    mu = mu_raw * grip_util
     base_accel_g = _CATEGORY_ACCEL_G[category]
 
     # Refine acceleration estimate when vehicle specs are available.
@@ -312,6 +342,10 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
         )
 
     braking_ratio = CATEGORY_BRAKING_MU_RATIO.get(category, 1.10)
+    import math
+
+    slip_angle_deg = CATEGORY_PEAK_SLIP_ANGLE_DEG.get(category, 6.0)
+    cornering_drag = math.sin(math.radians(slip_angle_deg))
 
     return VehicleParams(
         mu=mu,
@@ -332,4 +366,5 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
         ),
         wheel_power_w=wheel_power_w,
         mass_kg=mass_for_params,
+        cornering_drag_factor=cornering_drag,
     )

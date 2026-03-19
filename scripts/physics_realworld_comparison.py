@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 import os
 import sys
 from dataclasses import dataclass
@@ -31,6 +32,8 @@ from cataclysm.equipment import (
     CATEGORY_FRICTION_CIRCLE_EXPONENT,
     CATEGORY_LOAD_SENSITIVITY_EXPONENT,
     CATEGORY_MU_DEFAULTS,
+    CATEGORY_GRIP_UTILIZATION,
+    CATEGORY_PEAK_SLIP_ANGLE_DEG,
     TireCompoundCategory,
 )
 from cataclysm.tire_db import lookup_tire
@@ -541,7 +544,9 @@ def _vehicle_spec_to_params(
     mu_override: float | None = None,
 ) -> VehicleParams:
     """Build VehicleParams from a VehicleSpec + tire compound."""
-    mu = mu_override if mu_override is not None else CATEGORY_MU_DEFAULTS[compound]
+    mu_raw = mu_override if mu_override is not None else CATEGORY_MU_DEFAULTS[compound]
+    grip_util = CATEGORY_GRIP_UTILIZATION.get(compound, 0.96)
+    mu = mu_raw * grip_util
     weight_kg = spec.weight_kg
 
     base_accel_g = _CATEGORY_ACCEL_G[compound]
@@ -562,6 +567,8 @@ def _vehicle_spec_to_params(
         aero_coeff = 0.5 * _AIR_DENSITY * spec.cl_a * _AERO_EFFICIENCY / (weight_kg * G)
 
     braking_ratio = CATEGORY_BRAKING_MU_RATIO.get(compound, 1.10)
+    slip_angle_deg = CATEGORY_PEAK_SLIP_ANGLE_DEG.get(compound, 6.0)
+    cornering_drag = math.sin(math.radians(slip_angle_deg))
 
     return VehicleParams(
         mu=mu,
@@ -578,6 +585,7 @@ def _vehicle_spec_to_params(
         wheel_power_w=wheel_power_w,
         mass_kg=weight_kg,
         braking_mu_ratio=braking_ratio,
+        cornering_drag_factor=cornering_drag,
     )
 
 
