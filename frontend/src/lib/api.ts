@@ -141,6 +141,12 @@ export async function listSessions() {
   return fetchApi<{ items: SessionSummary[]; total: number }>("/api/sessions");
 }
 
+export async function getDemoSession() {
+  return fetchApi<{ session_id: string | null; available: boolean }>(
+    "/api/sessions/demo",
+  );
+}
+
 export async function getSession(id: string) {
   return fetchApi<SessionSummary>(`/api/sessions/${id}`);
 }

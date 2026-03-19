@@ -540,6 +540,10 @@ async def claim_anonymous_session(
     account, persisting session metadata to PostgreSQL. The coaching
     report (already generated and cached) is preserved.
     """
+    from backend.api.services.demo_session import is_demo_session
+
+    if is_demo_session(body.session_id):
+        raise HTTPException(status_code=400, detail="Demo session cannot be claimed")
     sd = session_store.get_session(body.session_id)
     if sd is None:
         raise HTTPException(status_code=404, detail="Session not found or expired")
@@ -714,6 +718,15 @@ async def list_sessions(
     return SessionList(items=items, total=len(items))
 
 
+@router.get("/demo")
+async def get_demo_session() -> dict[str, object]:
+    """Return demo session availability and ID."""
+    from backend.api.services.demo_session import DEMO_SESSION_ID
+
+    sd = session_store.get_session(DEMO_SESSION_ID)
+    return {"session_id": DEMO_SESSION_ID if sd else None, "available": sd is not None}
+
+
 @router.get("/{session_id}", response_model=SessionSummary)
 async def get_session(
     session_id: str,
@@ -836,6 +849,10 @@ async def delete_session(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, str]:
     """Delete a session owned by the current user."""
+    from backend.api.services.demo_session import is_demo_session
+
+    if is_demo_session(session_id):
+        raise HTTPException(status_code=403, detail="Demo session cannot be deleted")
     db_deleted = await delete_session_db(db, session_id, current_user.user_id)
     if not db_deleted:
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")

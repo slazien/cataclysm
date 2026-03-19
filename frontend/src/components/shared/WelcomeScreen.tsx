@@ -2,7 +2,7 @@
 
 import { useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Upload, ChevronDown, Target, Check, HelpCircle, TrendingDown, MessageSquare } from 'lucide-react';
+import { Upload, ChevronDown, Target, Check, HelpCircle, TrendingDown, MessageSquare, Play } from 'lucide-react';
 import { useSessionStore } from '@/stores';
 import { useUploadSessions } from '@/hooks/useSession';
 import { useIsMobile } from '@/hooks/useMediaQuery';
@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { SkillLevelPicker, shouldShowSkillPicker } from './SkillLevelPicker';
 import { EquipmentInterstitial } from '@/components/equipment/EquipmentInterstitial';
+import { useDemoSession } from '@/hooks/useDemo';
 
 const VALUE_PROPS = [
   {
@@ -53,6 +54,7 @@ export function WelcomeScreen() {
   const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
   const [showSkillPicker, setShowSkillPicker] = useState(false);
   const [showEquipmentInterstitial, setShowEquipmentInterstitial] = useState(false);
+  const { demoSessionId, isAvailable: demoAvailable } = useDemoSession();
 
   const handleFiles = useCallback(
     (files: File[]) => {
@@ -343,6 +345,24 @@ export function WelcomeScreen() {
           </div>
         </motion.div>
       </div>
+
+      {/* ── Demo CTA ── */}
+      {demoAvailable && demoSessionId && (
+        <div className="mt-8 w-full max-w-md px-6">
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={() => setActiveSession(demoSessionId)}
+            className="min-h-[44px] w-full gap-2 border-[var(--cata-accent)]/30 text-base text-[var(--cata-accent)] hover:bg-[var(--cata-accent)]/10"
+          >
+            <Play className="h-5 w-5" />
+            Explore a demo session
+          </Button>
+          <p className="mt-2 text-center text-xs text-[var(--text-secondary)]">
+            Real Barber Motorsports Park data — all features active
+          </p>
+        </div>
+      )}
 
       {/* ── Value props ── */}
       <motion.div

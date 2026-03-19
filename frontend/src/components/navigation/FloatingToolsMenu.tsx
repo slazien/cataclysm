@@ -3,9 +3,10 @@
 import React, { useCallback, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { MessageCircle, Pin, Plus, StickyNote } from 'lucide-react';
-import { useCoachStore, useNotesStore } from '@/stores';
+import { useCoachStore, useNotesStore, useSessionStore } from '@/stores';
 import { callTriggerAdd } from '@/stores/useStickyStore';
 import { useIsMobile } from '@/hooks/useMediaQuery';
+import { isDemoSession } from '@/hooks/useDemo';
 
 interface ToolItem {
   id: string;
@@ -23,6 +24,7 @@ interface ToolItem {
 export function FloatingToolsMenu() {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
+  const activeSessionId = useSessionStore((s) => s.activeSessionId);
 
   const toggleNotes = useNotesStore((s) => s.togglePanel);
   const notesPanelOpen = useNotesStore((s) => s.panelOpen);
@@ -47,7 +49,9 @@ export function FloatingToolsMenu() {
   // Hide when a panel is already open (they have their own close controls)
   if (notesPanelOpen || coachPanelOpen) return null;
 
-  const items: ToolItem[] = [
+  const isDemo = isDemoSession(activeSessionId);
+
+  const allItems: ToolItem[] = [
     {
       id: 'coach',
       label: 'AI Coach',
@@ -70,6 +74,8 @@ export function FloatingToolsMenu() {
       action: handleAddSticky,
     },
   ];
+  // During demo: only show AI Coach (notes/stickies are write-only)
+  const items = isDemo ? allItems.filter((i) => i.id === 'coach') : allItems;
 
   return (
     <>

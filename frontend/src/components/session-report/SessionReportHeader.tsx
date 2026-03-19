@@ -5,6 +5,7 @@ import { ShareButton } from '@/components/dashboard/ShareButton';
 import { ShareSessionDialog } from '@/components/comparison/ShareSessionDialog';
 import { AssignEquipmentButton } from '@/components/equipment/AssignEquipmentButton';
 import { useUnits } from '@/hooks/useUnits';
+import { isDemoSession } from '@/hooks/useDemo';
 import {
   Popover,
   PopoverContent,
@@ -156,7 +157,7 @@ export function SessionReportHeader({ session, gpsQuality, sessionId }: SessionR
             {session.weather_temp_c != null ? formatTemp(session.weather_temp_c) : ''} {session.weather_condition}
           </span>
         )}
-        {sessionId && (
+        {sessionId && !isDemoSession(sessionId) && (
           <>
             <AssignEquipmentButton sessionId={sessionId} />
             <ShareButton sessionId={sessionId} />

@@ -105,8 +105,16 @@ def set_session_weather(session_id: str, weather: SessionConditions) -> None:
 
 def _evict_oldest() -> None:
     """Evict the least-recently-used session(s) when the store exceeds MAX_SESSIONS."""
+    from backend.api.services.demo_session import DEMO_SESSION_ID
+
     while len(_store) > MAX_SESSIONS:
         lru_id = next(iter(_store))
+        if lru_id == DEMO_SESSION_ID:
+            # Move demo to end (most recent) and try next
+            _store.move_to_end(lru_id)
+            lru_id = next(iter(_store))
+            if lru_id == DEMO_SESSION_ID:
+                break  # Only demo left, can't evict
         _store.pop(lru_id)
         logger.info(
             "Evicted LRU session %s (store at %d/%d)",
@@ -152,9 +160,15 @@ def get_session_for_user(session_id: str, user_id: str) -> SessionData | None:
 
     Promotes the session in LRU on successful access.
     """
+    from backend.api.services.demo_session import is_demo_session
+
     sd = _store.get(session_id)
     if sd is None:
         return None
+    # Demo session is accessible to anyone
+    if is_demo_session(session_id):
+        _store.move_to_end(session_id)
+        return sd
     # Anonymous sessions are accessible to anyone with the session_id
     if sd.is_anonymous:
         _store.move_to_end(session_id)

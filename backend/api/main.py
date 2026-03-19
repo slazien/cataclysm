@@ -97,6 +97,55 @@ logger = logging.getLogger(__name__)
 STARTUP_REHYDRATION_LIMIT: int = int(os.environ.get("STARTUP_REHYDRATION_LIMIT", "100"))
 
 
+async def _seed_demo_session() -> None:
+    """Load the demo session from DB into memory if not already present.
+
+    The demo is a real Barber Motorsports Park session owned by the sentinel
+    user ``__demo__``.  It is seeded once into PostgreSQL via the CLI script
+    ``scripts/seed_demo_session.py`` and then rehydrated here at startup.
+    """
+    from backend.api.db.database import async_session_factory
+    from backend.api.db.models import SessionFile as SessionFileModel
+    from backend.api.services.demo_session import DEMO_SESSION_ID, DEMO_USER_ID
+    from backend.api.services.pipeline import process_upload
+    from backend.api.services.session_store import get_session
+
+    if get_session(DEMO_SESSION_ID):
+        logger.info("Demo session already in memory")
+        return
+
+    try:
+        async with async_session_factory() as db:
+            from sqlalchemy import select
+
+            result = await db.execute(
+                select(SessionFileModel).where(SessionFileModel.session_id == DEMO_SESSION_ID)
+            )
+            sf = result.scalar_one_or_none()
+            if not sf:
+                logger.warning("Demo session not in DB — run: python scripts/seed_demo_session.py")
+                return
+
+            await process_upload(sf.csv_bytes, sf.filename)
+            sd = get_session(DEMO_SESSION_ID)
+            if sd is None:
+                logger.error("Demo session failed to load after process_upload")
+                return
+
+            sd.user_id = DEMO_USER_ID
+            sd.is_anonymous = False
+            logger.info("Demo session loaded into memory")
+
+            # Pre-generate coaching for all skill levels
+            from backend.api.routers.coaching import trigger_auto_coaching
+
+            for level in ("novice", "intermediate", "advanced"):
+                await trigger_auto_coaching(DEMO_SESSION_ID, sd, skill_level=level)
+            logger.info("Demo session coaching triggered for all skill levels")
+    except Exception:
+        logger.warning("Failed to seed demo session", exc_info=True)
+
+
 async def _reload_sessions_from_db() -> int:
     """Re-process CSV files stored in the database into the in-memory store.
 
@@ -549,6 +598,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         n_sessions = await _reload_sessions_from_disk()
         if n_sessions:
             logger.info("Reloaded %d session(s) from disk", n_sessions)
+
+    # Seed demo session from DB if not already in memory
+    await _seed_demo_session()
 
     # Build missing track references for tracks not covered by rehydration
     n_refs = await _ensure_track_references()
