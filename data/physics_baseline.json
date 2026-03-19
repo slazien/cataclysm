@@ -1,0 +1,515 @@
+{
+  "date": "2026-03-19",
+  "git_sha": "919e84a",
+  "acceptance_criteria": {
+    "mean_ratio_min": 0.95,
+    "mean_ratio_max": 1.02,
+    "std_ratio_max": 0.045,
+    "exceedance_5pct_max": 5,
+    "category_mean_min": 0.88,
+    "category_mean_max": 1.08
+  },
+  "entries": [
+    {
+      "car": "Miata NA",
+      "track": "Barber Motorsports Park",
+      "real_s": 108.08,
+      "predicted_s": 109.832,
+      "ratio": 1.0162,
+      "tire_category": "r_compound",
+      "tire_model": "Hoosier (NASA TT class)",
+      "mu": 1.38
+    },
+    {
+      "car": "Miata ND",
+      "track": "Barber Motorsports Park",
+      "real_s": 108.36,
+      "predicted_s": 110.628,
+      "ratio": 1.0209,
+      "tire_category": "endurance_200tw",
+      "tire_model": "unknown",
+      "mu": 1.0
+    },
+    {
+      "car": "GR86",
+      "track": "Barber Motorsports Park",
+      "real_s": 103.88,
+      "predicted_s": 105.497,
+      "ratio": 1.0156,
+      "tire_category": "super_200tw",
+      "tire_model": "Yokohama Advan A052 245/40/17",
+      "mu": 1.13
+    },
+    {
+      "car": "GR86",
+      "track": "Barber Motorsports Park",
+      "real_s": 105.88,
+      "predicted_s": 109.757,
+      "ratio": 1.0366,
+      "tire_category": "endurance_200tw",
+      "tire_model": "Hankook RS4 (coilovers)",
+      "mu": 1.0
+    },
+    {
+      "car": "GR86",
+      "track": "Barber Motorsports Park",
+      "real_s": 107.66,
+      "predicted_s": 108.017,
+      "ratio": 1.0033,
+      "tire_category": "endurance_200tw",
+      "tire_model": "Falken Azenis RT660 245/40/17",
+      "mu": 1.05
+    },
+    {
+      "car": "Civic Type R FL5",
+      "track": "Barber Motorsports Park",
+      "real_s": 100.9,
+      "predicted_s": 107.242,
+      "ratio": 1.0629,
+      "tire_category": "endurance_200tw",
+      "tire_model": "Michelin Pilot Sport 4S (stock OEM)",
+      "mu": 1.0
+    },
+    {
+      "car": "Civic Type R FL5",
+      "track": "Barber Motorsports Park",
+      "real_s": 100.9,
+      "predicted_s": 103.049,
+      "ratio": 1.0213,
+      "tire_category": "super_200tw",
+      "tire_model": "Yokohama Advan A052",
+      "mu": 1.13
+    },
+    {
+      "car": "BMW M2 G87",
+      "track": "Barber Motorsports Park",
+      "real_s": 102.09,
+      "predicted_s": 104.606,
+      "ratio": 1.0246,
+      "tire_category": "endurance_200tw",
+      "tire_model": "Hankook Ventus RS4",
+      "mu": 1.0
+    },
+    {
+      "car": "BMW M2 G87",
+      "track": "Barber Motorsports Park",
+      "real_s": 103.18,
+      "predicted_s": 104.606,
+      "ratio": 1.0138,
+      "tire_category": "endurance_200tw",
+      "tire_model": "unknown (assumed endurance 200tw)",
+      "mu": 1.0
+    },
+    {
+      "car": "Cayman GT4 718",
+      "track": "Barber Motorsports Park",
+      "real_s": 101.43,
+      "predicted_s": 98.437,
+      "ratio": 0.9705,
+      "tire_category": "super_200tw",
+      "tire_model": "Michelin Pilot Sport Cup 2 (OEM)",
+      "mu": 1.15
+    },
+    {
+      "car": "Cayman GT4 718",
+      "track": "Barber Motorsports Park",
+      "real_s": 99.8,
+      "predicted_s": 99.334,
+      "ratio": 0.9953,
+      "tire_category": "super_200tw",
+      "tire_model": "Bridgestone RE-71RS 245/40/19 & 285/35/19",
+      "mu": 1.12
+    },
+    {
+      "car": "Cayman GT4 718",
+      "track": "Barber Motorsports Park",
+      "real_s": 93.99000000000001,
+      "predicted_s": 99.03,
+      "ratio": 1.0536,
+      "tire_category": "super_200tw",
+      "tire_model": "Yokohama A052 or similar",
+      "mu": 1.13
+    },
+    {
+      "car": "911 GT3 992",
+      "track": "Barber Motorsports Park",
+      "real_s": 93.09,
+      "predicted_s": 92.304,
+      "ratio": 0.9916,
+      "tire_category": "slick",
+      "tire_model": "Dunlop DH Slick",
+      "mu": 1.4
+    },
+    {
+      "car": "911 GT3 991",
+      "track": "Barber Motorsports Park",
+      "real_s": 95.05,
+      "predicted_s": 92.749,
+      "ratio": 0.9758,
+      "tire_category": "r_compound",
+      "tire_model": "Hoosier R7",
+      "mu": 1.38
+    },
+    {
+      "car": "Mustang GT S550",
+      "track": "Barber Motorsports Park",
+      "real_s": 111.38,
+      "predicted_s": 104.524,
+      "ratio": 0.9384,
+      "tire_category": "endurance_200tw",
+      "tire_model": "Michelin Pilot Sport 4S 255/40+275/40R19",
+      "mu": 1.0
+    },
+    {
+      "car": "Mustang GT S550",
+      "track": "Barber Motorsports Park",
+      "real_s": 97.06,
+      "predicted_s": 96.532,
+      "ratio": 0.9946,
+      "tire_category": "slick",
+      "tire_model": "Pirelli Slicks 305 square",
+      "mu": 1.4
+    },
+    {
+      "car": "GT350",
+      "track": "Barber Motorsports Park",
+      "real_s": 100.25999999999999,
+      "predicted_s": 98.809,
+      "ratio": 0.9855,
+      "tire_category": "super_200tw",
+      "tire_model": "Goodyear SuperCar 3 325/30R19 square",
+      "mu": 1.12
+    },
+    {
+      "car": "Corvette C8 Z51",
+      "track": "Barber Motorsports Park",
+      "real_s": 96.46000000000001,
+      "predicted_s": 102.186,
+      "ratio": 1.0594,
+      "tire_category": "endurance_200tw",
+      "tire_model": "Michelin Pilot Sport 4S (OEM)",
+      "mu": 1.0
+    },
+    {
+      "car": "Corvette C8 Z06",
+      "track": "Barber Motorsports Park",
+      "real_s": 91.9,
+      "predicted_s": 95.046,
+      "ratio": 1.0342,
+      "tire_category": "super_200tw",
+      "tire_model": "Yokohama Advan A052",
+      "mu": 1.13
+    },
+    {
+      "car": "GR86",
+      "track": "Roebling Road Raceway",
+      "real_s": 85.9,
+      "predicted_s": 89.44,
+      "ratio": 1.0412,
+      "tire_category": "street",
+      "tire_model": "Michelin Pilot Sport 4 (OEM stock)",
+      "mu": 0.88
+    },
+    {
+      "car": "GR86 (FR-S proxy)",
+      "track": "Roebling Road Raceway",
+      "real_s": 80.47,
+      "predicted_s": 80.191,
+      "ratio": 0.9965,
+      "tire_category": "100tw",
+      "tire_model": "Nitto NT01",
+      "mu": 1.2
+    },
+    {
+      "car": "Corvette C8 Z06",
+      "track": "Roebling Road Raceway",
+      "real_s": 74.28999999999999,
+      "predicted_s": 73.61,
+      "ratio": 0.9908,
+      "tire_category": "100tw",
+      "tire_model": "Pirelli P Zero Trofeo R (Z07 pkg)",
+      "mu": 1.18
+    },
+    {
+      "car": "Cayman GT4 718",
+      "track": "Roebling Road Raceway",
+      "real_s": 77.78999999999999,
+      "predicted_s": 77.169,
+      "ratio": 0.992,
+      "tire_category": "super_200tw",
+      "tire_model": "Bridgestone RE71RS",
+      "mu": 1.12
+    },
+    {
+      "car": "Mustang GT S550",
+      "track": "Roebling Road Raceway",
+      "real_s": 80.38,
+      "predicted_s": 79.685,
+      "ratio": 0.9913,
+      "tire_category": "super_200tw",
+      "tire_model": "Kumho V730 305 square",
+      "mu": 1.06
+    },
+    {
+      "car": "Mustang GT S550",
+      "track": "Roebling Road Raceway",
+      "real_s": 79.9,
+      "predicted_s": 74.432,
+      "ratio": 0.9316,
+      "tire_category": "r_compound",
+      "tire_model": "Hoosier A7 315 square",
+      "mu": 1.42
+    },
+    {
+      "car": "Mustang GT S550",
+      "track": "Roebling Road Raceway",
+      "real_s": 82.58,
+      "predicted_s": 75.068,
+      "ratio": 0.909,
+      "tire_category": "r_compound",
+      "tire_model": "Hoosier R7 315/30/18",
+      "mu": 1.38
+    },
+    {
+      "car": "GT350",
+      "track": "Roebling Road Raceway",
+      "real_s": 78.7,
+      "predicted_s": 75.955,
+      "ratio": 0.9651,
+      "tire_category": "100tw",
+      "tire_model": "Goodyear SuperCar 3R",
+      "mu": 1.2
+    },
+    {
+      "car": "GR86",
+      "track": "Atlanta Motorsports Park",
+      "real_s": 96.0,
+      "predicted_s": 94.649,
+      "ratio": 0.9859,
+      "tire_category": "super_200tw",
+      "tire_model": "Bridgestone RE71RS",
+      "mu": 1.12
+    },
+    {
+      "car": "GR86",
+      "track": "Atlanta Motorsports Park",
+      "real_s": 94.9,
+      "predicted_s": 96.973,
+      "ratio": 1.0218,
+      "tire_category": "endurance_200tw",
+      "tire_model": "Falken Azenis RT660 245/40/17",
+      "mu": 1.05
+    },
+    {
+      "car": "Civic Type R FK8 (FL5 proxy)",
+      "track": "Atlanta Motorsports Park",
+      "real_s": 95.83,
+      "predicted_s": 96.286,
+      "ratio": 1.0048,
+      "tire_category": "endurance_200tw",
+      "tire_model": "Hankook Ventus RS4",
+      "mu": 1.0
+    },
+    {
+      "car": "Civic Type R FK8 (FL5 proxy)",
+      "track": "Atlanta Motorsports Park",
+      "real_s": 95.91,
+      "predicted_s": 94.17,
+      "ratio": 0.9819,
+      "tire_category": "super_200tw",
+      "tire_model": "Kumho V730",
+      "mu": 1.06
+    },
+    {
+      "car": "Cayman GT4 718",
+      "track": "Atlanta Motorsports Park",
+      "real_s": 87.58,
+      "predicted_s": 84.525,
+      "ratio": 0.9651,
+      "tire_category": "slick",
+      "tire_model": "Pirelli slicks",
+      "mu": 1.4
+    },
+    {
+      "car": "Corvette C8 Z06",
+      "track": "Atlanta Motorsports Park",
+      "real_s": 91.35,
+      "predicted_s": 90.658,
+      "ratio": 0.9924,
+      "tire_category": "endurance_200tw",
+      "tire_model": "Michelin Pilot Sport 4S (OEM)",
+      "mu": 1.0
+    }
+  ],
+  "summary": {
+    "n_entries": 33,
+    "mean_ratio": 0.9995079349659498,
+    "median_ratio": 0.9953353671248912,
+    "std_ratio": 0.03493191948770428,
+    "exceedance_count_5pct": 3,
+    "entries_above_1": 15,
+    "rmse_s": 3.203822552902566,
+    "mae_s": 2.5000891006691854,
+    "mape_pct": 2.6569056993403244,
+    "p90_abs_error_s": 5.67472504563217,
+    "p95_abs_error_s": 6.54755875714884,
+    "bland_altman_bias_s": 0.06253403032767084,
+    "bland_altman_loa_lower_s": -6.313105622465293,
+    "bland_altman_loa_upper_s": 6.438173683120634,
+    "calibration_slope": 1.0921279966726771,
+    "calibration_intercept_s": -8.655929140854255,
+    "calibration_r_squared": 0.925079133215399,
+    "correlation_mu_ratio": -0.5382888734276895,
+    "correlation_mu_pvalue": 0.0012320205045352442,
+    "correlation_weight_ratio": -0.4305128074849767,
+    "correlation_weight_pvalue": 0.012386693290453403,
+    "bootstrap_mean_ci_lower": 0.9873112072831114,
+    "bootstrap_mean_ci_upper": 1.0106676665379553,
+    "bootstrap_std_ci_lower": 0.027119742128513223,
+    "bootstrap_std_ci_upper": 0.045407358665699324,
+    "iqr_outlier_count": 2,
+    "iqr_outliers": [
+      {
+        "car": "Mustang GT S550",
+        "track": "Roebling Road Raceway",
+        "ratio": 0.9316
+      },
+      {
+        "car": "Mustang GT S550",
+        "track": "Roebling Road Raceway",
+        "ratio": 0.909
+      }
+    ],
+    "per_category": {
+      "street": {
+        "n": 1,
+        "mean": 1.0412,
+        "std": 0.0,
+        "min": 1.0412,
+        "max": 1.0412
+      },
+      "endurance_200tw": {
+        "n": 11,
+        "mean": 1.0163,
+        "std": 0.0323,
+        "min": 0.9384,
+        "max": 1.0629,
+        "bootstrap_mean_ci_lower": 0.9936,
+        "bootstrap_mean_ci_upper": 1.0322
+      },
+      "super_200tw": {
+        "n": 11,
+        "mean": 1.0025,
+        "std": 0.0242,
+        "min": 0.9705,
+        "max": 1.0536,
+        "bootstrap_mean_ci_lower": 0.9902,
+        "bootstrap_mean_ci_upper": 1.0188
+      },
+      "100tw": {
+        "n": 3,
+        "mean": 0.9842,
+        "std": 0.0137,
+        "min": 0.9651,
+        "max": 0.9965
+      },
+      "r_compound": {
+        "n": 4,
+        "mean": 0.9581,
+        "std": 0.0412,
+        "min": 0.909,
+        "max": 1.0162
+      },
+      "slick": {
+        "n": 3,
+        "mean": 0.9837,
+        "std": 0.0132,
+        "min": 0.9651,
+        "max": 0.9946
+      }
+    },
+    "per_track": {
+      "Atlanta Motorsports Park": {
+        "n": 6,
+        "mean": 0.992,
+        "std": 0.0179,
+        "min": 0.9651,
+        "max": 1.0218
+      },
+      "Barber Motorsports Park": {
+        "n": 19,
+        "mean": 1.0113,
+        "std": 0.031,
+        "min": 0.9384,
+        "max": 1.0629
+      },
+      "Roebling Road Raceway": {
+        "n": 8,
+        "mean": 0.9772,
+        "std": 0.0387,
+        "min": 0.909,
+        "max": 1.0412
+      }
+    },
+    "per_grip_band": {
+      "Low (street+endurance)": {
+        "n": 12,
+        "mean": 1.0184,
+        "std": 0.0317,
+        "categories": [
+          "endurance_200tw",
+          "street"
+        ]
+      },
+      "Mid (super+100tw)": {
+        "n": 14,
+        "mean": 0.9986,
+        "std": 0.0236,
+        "categories": [
+          "100tw",
+          "super_200tw"
+        ]
+      },
+      "High (r_compound+slick)": {
+        "n": 7,
+        "mean": 0.9691,
+        "std": 0.0347,
+        "categories": [
+          "r_compound",
+          "slick"
+        ]
+      }
+    },
+    "per_pw_band": {
+      "Low <200 hp/t": {
+        "n": 9,
+        "mean": 1.0154,
+        "std": 0.0169
+      },
+      "Mid 200-350": {
+        "n": 21,
+        "mean": 0.9918,
+        "std": 0.0388
+      },
+      "High >350": {
+        "n": 3,
+        "mean": 1.0058,
+        "std": 0.0201
+      }
+    },
+    "fast_slow_split": {
+      "median_time_s": 95.91,
+      "fast": {
+        "n": 16,
+        "mean": 0.9911,
+        "std": 0.0365
+      },
+      "slow": {
+        "n": 17,
+        "mean": 1.0075,
+        "std": 0.0302
+      }
+    },
+    "accuracy_tier": "A: Screening"
+  }
+}

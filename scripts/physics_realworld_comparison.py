@@ -614,6 +614,9 @@ class ComparisonResult:
     mod_level: str
     source: str
     notes: str
+    hp: float = 0.0
+    weight_kg: float = 0.0
+    drivetrain: str = ""
 
 
 def _fmt_time(seconds: float) -> str:
@@ -706,6 +709,9 @@ def run_comparison() -> list[ComparisonResult]:
                 mod_level=rw.mod_level,
                 source=rw.source,
                 notes=rw.notes,
+                hp=spec.hp,
+                weight_kg=spec.weight_kg,
+                drivetrain=spec.drivetrain,
             )
         )
 
@@ -791,7 +797,7 @@ def validate_comparison(results: list[ComparisonResult]) -> bool:
 
     mean_ratio = float(np.mean(ratios))
     median_ratio = float(np.median(ratios))
-    std_ratio = float(np.std(ratios))
+    std_ratio = float(np.std(ratios, ddof=1))
     p5 = float(np.percentile(ratios, 5))
     p95 = float(np.percentile(ratios, 95))
     exceedance_5pct = int(sum(1 for r in ratios if r > 1.05))
@@ -903,6 +909,106 @@ def validate_comparison(results: list[ComparisonResult]) -> bool:
             f"drivers achieve on average."
         )
 
+    # --- Check 5: Extended Metrics ---
+    summary = _compute_summary(results)
+
+    print("\n5. EXTENDED METRICS")
+    print(f"  RMSE: {summary['rmse_s']:.3f}s")
+    print(f"  MAE: {summary['mae_s']:.3f}s")
+    print(f"  MAPE: {summary['mape_pct']:.2f}%")
+    print(f"  P90 abs error: {summary['p90_abs_error_s']:.3f}s")
+    print(f"  P95 abs error: {summary['p95_abs_error_s']:.3f}s")
+
+    # --- Check 6: Bland-Altman ---
+    print("\n6. BLAND-ALTMAN AGREEMENT")
+    print(f"  Bias: {summary['bland_altman_bias_s']:.3f}s")
+    print(
+        f"  95% Limits of Agreement: "
+        f"[{summary['bland_altman_loa_lower_s']:.3f}, "
+        f"{summary['bland_altman_loa_upper_s']:.3f}]s"
+    )
+
+    # --- Check 7: Calibration Regression ---
+    print("\n7. CALIBRATION REGRESSION")
+    print(f"  Slope: {summary['calibration_slope']:.4f} (ideal=1.000)")
+    print(f"  Intercept: {summary['calibration_intercept_s']:.3f}s (ideal=0.000)")
+    print(f"  R²: {summary['calibration_r_squared']:.4f}")
+
+    # --- Check 8: Residual Correlations ---
+    print("\n8. RESIDUAL CORRELATIONS")
+    mu_stars = _significance_stars(summary["correlation_mu_pvalue"])
+    w_stars = _significance_stars(summary["correlation_weight_pvalue"])
+    print(
+        f"  r(ratio, mu): {summary['correlation_mu_ratio']:.3f} "
+        f"(p={summary['correlation_mu_pvalue']:.4f}) {mu_stars}"
+    )
+    print(
+        f"  r(ratio, weight): {summary['correlation_weight_ratio']:.3f} "
+        f"(p={summary['correlation_weight_pvalue']:.4f}) {w_stars}"
+    )
+
+    # --- Check 9: Bootstrap CIs ---
+    print("\n9. BOOTSTRAP 95% CIs (BCa, 10k resamples)")
+    print(
+        f"  Mean ratio: [{summary['bootstrap_mean_ci_lower']:.4f}, "
+        f"{summary['bootstrap_mean_ci_upper']:.4f}]"
+    )
+    print(
+        f"  Std ratio: [{summary['bootstrap_std_ci_lower']:.4f}, "
+        f"{summary['bootstrap_std_ci_upper']:.4f}]"
+    )
+
+    # --- Check 10: Multi-dimensional segmentation ---
+    print("\n10. MULTI-DIMENSIONAL SEGMENTATION")
+
+    print("    --- Grip Bands ---")
+    for band_name, band_data in summary.get("per_grip_band", {}).items():
+        print(
+            f"    {band_name}: n={band_data['n']}, "
+            f"mean={band_data['mean']:.4f}, std={band_data['std']:.4f}"
+        )
+
+    print("    --- Power-to-Weight Bands ---")
+    for band_name, band_data in summary.get("per_pw_band", {}).items():
+        print(
+            f"    {band_name}: n={band_data['n']}, "
+            f"mean={band_data['mean']:.4f}, std={band_data['std']:.4f}"
+        )
+
+    print("    --- Fast vs Slow ---")
+    fss = summary.get("fast_slow_split", {})
+    if fss:
+        fast = fss.get("fast", {})
+        slow = fss.get("slow", {})
+        print(f"    Fast (<{fss['median_time_s']:.1f}s): n={fast['n']}, mean={fast['mean']:.4f}")
+        print(f"    Slow (>={fss['median_time_s']:.1f}s): n={slow['n']}, mean={slow['mean']:.4f}")
+
+    # --- Check 11: Influential Points ---
+    print("\n11. INFLUENTIAL POINTS (IQR outliers)")
+    outliers_list: list[dict] = summary.get("iqr_outliers", [])
+    if outliers_list:
+        for ol in outliers_list:
+            print(f"    {ol['car']} at {ol['track']}: ratio={ol['ratio']}")
+    else:
+        print("    No IQR outliers detected.")
+
+    # --- Check 12: Accuracy Tier Assessment ---
+    print("\n12. ACCURACY TIER ASSESSMENT")
+    print(f"    Current tier: {summary['accuracy_tier']}")
+    mean_bias = abs(summary["mean_ratio"] - 1.0)
+    for tier_name, criteria in TIER_CRITERIA.items():
+        if tier_name == summary["accuracy_tier"]:
+            break
+        missing: list[str] = []
+        if mean_bias > criteria["mean_bias_max"]:
+            missing.append(f"mean_bias {mean_bias:.4f} > {criteria['mean_bias_max']}")
+        if summary["std_ratio"] > criteria["std_max"]:
+            missing.append(f"std {summary['std_ratio']:.4f} > {criteria['std_max']}")
+        if summary["mape_pct"] > criteria["mape_max"]:
+            missing.append(f"MAPE {summary['mape_pct']:.2f}% > {criteria['mape_max']}%")
+        if missing:
+            print(f"    {tier_name} requires: {', '.join(missing)}")
+
     # --- Summary ---
     passed = len(issues) == 0
     print(f"\n{'=' * 90}")
@@ -963,33 +1069,248 @@ def export_csv(results: list[ComparisonResult]) -> None:
     print(f"\nExported {len(results)} rows to {path}")
 
 
-def _compute_summary(results: list[ComparisonResult]) -> dict:
-    """Compute summary statistics from comparison results."""
-    ratios = [r.efficiency_ratio for r in results]
+GRIP_BANDS: dict[str, list[str]] = {
+    "Low (street+endurance)": ["street", "endurance_200tw"],
+    "Mid (super+100tw)": ["super_200tw", "100tw"],
+    "High (r_compound+slick)": ["r_compound", "slick"],
+}
 
+PW_BANDS: list[tuple[str, float, float]] = [
+    ("Low <200 hp/t", 0, 200),
+    ("Mid 200-350", 200, 350),
+    ("High >350", 350, 9999),
+]
+
+TIER_CRITERIA: dict[str, dict[str, float]] = {
+    "D: Engineering": {"mean_bias_max": 0.0025, "std_max": 0.015, "mape_max": 1.0},
+    "C: Coaching": {"mean_bias_max": 0.005, "std_max": 0.025, "mape_max": 1.5},
+    "B: Setup": {"mean_bias_max": 0.010, "std_max": 0.030, "mape_max": 3.0},
+    "A: Screening": {"mean_bias_max": 0.015, "std_max": 0.050, "mape_max": 5.0},
+}
+
+
+def _significance_stars(p: float) -> str:
+    """Return significance stars for a p-value."""
+    if p < 0.001:
+        return "***"
+    if p < 0.01:
+        return "**"
+    if p < 0.05:
+        return "*"
+    return "n.s."
+
+
+def _compute_summary(results: list[ComparisonResult]) -> dict:
+    """Compute comprehensive summary statistics from comparison results."""
+    from scipy import stats as sp_stats
+
+    ratios = [r.efficiency_ratio for r in results]
+    ratios_arr = np.array(ratios)
+    predicted = np.array([r.predicted_time_s for r in results])
+    real = np.array([r.real_time_s for r in results])
+    errors = predicted - real
+    abs_errors = np.abs(errors)
+
+    # --- Basic (keep existing) ---
     summary: dict = {
         "n_entries": len(results),
-        "mean_ratio": float(np.mean(ratios)),
-        "median_ratio": float(np.median(ratios)),
-        "std_ratio": float(np.std(ratios)),
-        "exceedance_count_5pct": int(sum(1 for r in ratios if r > 1.05)),
-        "entries_above_1": int(sum(1 for r in ratios if r > 1.0)),
+        "mean_ratio": float(np.mean(ratios_arr)),
+        "median_ratio": float(np.median(ratios_arr)),
+        "std_ratio": float(np.std(ratios_arr, ddof=1)),
+        "exceedance_count_5pct": int(np.sum(ratios_arr > 1.05)),
+        "entries_above_1": int(np.sum(ratios_arr > 1.0)),
     }
 
-    # Per-category stats
+    # --- Error metrics in seconds ---
+    summary["rmse_s"] = float(np.sqrt(np.mean(errors**2)))
+    summary["mae_s"] = float(np.mean(abs_errors))
+    summary["mape_pct"] = float(np.mean(abs_errors / real) * 100)
+    summary["p90_abs_error_s"] = float(np.percentile(abs_errors, 90))
+    summary["p95_abs_error_s"] = float(np.percentile(abs_errors, 95))
+
+    # --- Bland-Altman ---
+    ba_bias = float(np.mean(errors))
+    ba_std = float(np.std(errors, ddof=1))
+    summary["bland_altman_bias_s"] = ba_bias
+    summary["bland_altman_loa_lower_s"] = ba_bias - 1.96 * ba_std
+    summary["bland_altman_loa_upper_s"] = ba_bias + 1.96 * ba_std
+
+    # --- Calibration regression (pred vs real) ---
+    slope_res = sp_stats.linregress(real, predicted)
+    summary["calibration_slope"] = float(slope_res.slope)
+    summary["calibration_intercept_s"] = float(slope_res.intercept)
+    summary["calibration_r_squared"] = float(slope_res.rvalue**2)
+
+    # --- Residual correlations ---
+    mus = np.array([r.mu for r in results])
+    weights = np.array([r.weight_kg for r in results])
+
+    if len(mus) >= 3:
+        r_mu, p_mu = sp_stats.pearsonr(mus, ratios_arr)
+        summary["correlation_mu_ratio"] = float(r_mu)
+        summary["correlation_mu_pvalue"] = float(p_mu)
+    else:
+        summary["correlation_mu_ratio"] = 0.0
+        summary["correlation_mu_pvalue"] = 1.0
+
+    if len(weights) >= 3 and np.std(weights) > 0:
+        r_w, p_w = sp_stats.pearsonr(weights, ratios_arr)
+        summary["correlation_weight_ratio"] = float(r_w)
+        summary["correlation_weight_pvalue"] = float(p_w)
+    else:
+        summary["correlation_weight_ratio"] = 0.0
+        summary["correlation_weight_pvalue"] = 1.0
+
+    # --- Bootstrap 95% CIs (BCa, 10k resamples) ---
+    rng = np.random.default_rng(42)
+    try:
+        bs_mean = sp_stats.bootstrap(
+            (ratios_arr,), np.mean, n_resamples=10000, random_state=rng, method="BCa"
+        )
+        summary["bootstrap_mean_ci_lower"] = float(bs_mean.confidence_interval.low)
+        summary["bootstrap_mean_ci_upper"] = float(bs_mean.confidence_interval.high)
+    except Exception:
+        summary["bootstrap_mean_ci_lower"] = float(np.mean(ratios_arr))
+        summary["bootstrap_mean_ci_upper"] = float(np.mean(ratios_arr))
+
+    try:
+        bs_std = sp_stats.bootstrap(
+            (ratios_arr,), np.std, n_resamples=10000, random_state=rng, method="BCa"
+        )
+        summary["bootstrap_std_ci_lower"] = float(bs_std.confidence_interval.low)
+        summary["bootstrap_std_ci_upper"] = float(bs_std.confidence_interval.high)
+    except Exception:
+        summary["bootstrap_std_ci_lower"] = float(np.std(ratios_arr, ddof=1))
+        summary["bootstrap_std_ci_upper"] = float(np.std(ratios_arr, ddof=1))
+
+    # --- IQR outliers ---
+    q1 = float(np.percentile(ratios_arr, 25))
+    q3 = float(np.percentile(ratios_arr, 75))
+    iqr = q3 - q1
+    lower_fence = q1 - 1.5 * iqr
+    upper_fence = q3 + 1.5 * iqr
+    outliers: list[dict[str, object]] = []
+    for r in results:
+        if r.efficiency_ratio < lower_fence or r.efficiency_ratio > upper_fence:
+            outliers.append(
+                {
+                    "car": r.car_label,
+                    "track": r.track,
+                    "ratio": round(r.efficiency_ratio, 4),
+                }
+            )
+    summary["iqr_outlier_count"] = len(outliers)
+    summary["iqr_outliers"] = outliers
+
+    # --- Per-category stats (enhanced with bootstrap CIs where n>=5) ---
     cat_order = ["street", "endurance_200tw", "super_200tw", "100tw", "r_compound", "slick"]
     per_category: dict[str, dict] = {}
     for cat in cat_order:
-        cat_ratios = [r.efficiency_ratio for r in results if r.tire_category == cat]
-        if cat_ratios:
-            per_category[cat] = {
+        cat_ratios = np.array([r.efficiency_ratio for r in results if r.tire_category == cat])
+        if len(cat_ratios) > 0:
+            cat_entry: dict[str, object] = {
                 "n": len(cat_ratios),
                 "mean": round(float(np.mean(cat_ratios)), 4),
                 "std": round(float(np.std(cat_ratios)), 4),
-                "min": round(float(min(cat_ratios)), 4),
-                "max": round(float(max(cat_ratios)), 4),
+                "min": round(float(np.min(cat_ratios)), 4),
+                "max": round(float(np.max(cat_ratios)), 4),
             }
+            if len(cat_ratios) >= 5:
+                try:
+                    bs_cat = sp_stats.bootstrap(
+                        (cat_ratios,),
+                        np.mean,
+                        n_resamples=10000,
+                        random_state=rng,
+                        method="BCa",
+                    )
+                    cat_entry["bootstrap_mean_ci_lower"] = round(
+                        float(bs_cat.confidence_interval.low), 4
+                    )
+                    cat_entry["bootstrap_mean_ci_upper"] = round(
+                        float(bs_cat.confidence_interval.high), 4
+                    )
+                except Exception:
+                    pass
+            per_category[cat] = cat_entry
     summary["per_category"] = per_category
+
+    # --- Per-track breakdown ---
+    per_track: dict[str, dict[str, object]] = {}
+    for track in sorted(set(r.track for r in results)):
+        t_ratios = np.array([r.efficiency_ratio for r in results if r.track == track])
+        per_track[track] = {
+            "n": len(t_ratios),
+            "mean": round(float(np.mean(t_ratios)), 4),
+            "std": round(float(np.std(t_ratios)), 4),
+            "min": round(float(np.min(t_ratios)), 4),
+            "max": round(float(np.max(t_ratios)), 4),
+        }
+    summary["per_track"] = per_track
+
+    # --- Grip band breakdown ---
+    per_grip_band: dict[str, dict[str, object]] = {}
+    for band_name, band_cats in GRIP_BANDS.items():
+        band_results = [r for r in results if r.tire_category in band_cats]
+        if band_results:
+            b_ratios = np.array([r.efficiency_ratio for r in band_results])
+            per_grip_band[band_name] = {
+                "n": len(b_ratios),
+                "mean": round(float(np.mean(b_ratios)), 4),
+                "std": round(float(np.std(b_ratios)), 4),
+                "categories": sorted(set(r.tire_category for r in band_results)),
+            }
+    summary["per_grip_band"] = per_grip_band
+
+    # --- Power-to-weight band breakdown ---
+    per_pw_band: dict[str, dict[str, object]] = {}
+    for band_name, pw_lo, pw_hi in PW_BANDS:
+        band_results = [
+            r
+            for r in results
+            if r.weight_kg > 0 and pw_lo <= (r.hp / (r.weight_kg / 1000.0)) < pw_hi
+        ]
+        if band_results:
+            b_ratios = np.array([r.efficiency_ratio for r in band_results])
+            per_pw_band[band_name] = {
+                "n": len(b_ratios),
+                "mean": round(float(np.mean(b_ratios)), 4),
+                "std": round(float(np.std(b_ratios)), 4),
+            }
+    summary["per_pw_band"] = per_pw_band
+
+    # --- Fast vs slow split ---
+    median_time = float(np.median(real))
+    fast_ratios = ratios_arr[real < median_time]
+    slow_ratios = ratios_arr[real >= median_time]
+    summary["fast_slow_split"] = {
+        "median_time_s": round(median_time, 2),
+        "fast": {
+            "n": len(fast_ratios),
+            "mean": round(float(np.mean(fast_ratios)), 4) if len(fast_ratios) > 0 else 0.0,
+            "std": round(float(np.std(fast_ratios)), 4) if len(fast_ratios) > 0 else 0.0,
+        },
+        "slow": {
+            "n": len(slow_ratios),
+            "mean": round(float(np.mean(slow_ratios)), 4) if len(slow_ratios) > 0 else 0.0,
+            "std": round(float(np.std(slow_ratios)), 4) if len(slow_ratios) > 0 else 0.0,
+        },
+    }
+
+    # --- Tier assessment ---
+    mean_bias = abs(summary["mean_ratio"] - 1.0)
+    std_val = summary["std_ratio"]
+    mape_val = summary["mape_pct"]
+    current_tier = "F: Unvalidated"
+    for tier_name, criteria in TIER_CRITERIA.items():
+        if (
+            mean_bias <= criteria["mean_bias_max"]
+            and std_val <= criteria["std_max"]
+            and mape_val <= criteria["mape_max"]
+        ):
+            current_tier = tier_name
+            break
+    summary["accuracy_tier"] = current_tier
 
     return summary
 
@@ -1066,10 +1387,27 @@ def compare_to_baseline(
         if is_regression:
             regressions.append(f"{name}: {prev_val:.4f} → {curr_val:.4f}")
 
+    def _cmp_target(name: str, curr_val: float, prev_val: float, target: float = 1.0) -> None:
+        """Compare values where closer to target is better (e.g. mean_ratio → 1.0)."""
+        prev_dist = abs(prev_val - target)
+        curr_dist = abs(curr_val - target)
+        delta = curr_val - prev_val
+        direction = "↑" if delta > 0 else "↓" if delta < 0 else "="
+        better = curr_dist < prev_dist
+        threshold = max(abs(prev_dist) * 0.10, 0.005)
+        is_regression = (curr_dist - prev_dist) > threshold
+        status = "REGRESS" if is_regression else ("better" if better else "same")
+        print(
+            f"  {name:<25} {prev_val:>8.4f} → {curr_val:>8.4f}  "
+            f"({direction}{abs(delta):.4f})  [{status}]"
+        )
+        if is_regression:
+            regressions.append(f"{name}: {prev_val:.4f} → {curr_val:.4f}")
+
     print(f"\n  {'Metric':<25} {'Previous':>8}   {'Current':>8}   {'Delta':>10}  Status")
     print(f"  {'-' * 75}")
 
-    _cmp("mean_ratio", curr["mean_ratio"], prev["mean_ratio"], lower_is_better=False)
+    _cmp_target("mean_ratio", curr["mean_ratio"], prev["mean_ratio"], target=1.0)
     _cmp("std_ratio", curr["std_ratio"], prev["std_ratio"], lower_is_better=True)
     _cmp(
         "exceedances_5pct",
@@ -1077,6 +1415,12 @@ def compare_to_baseline(
         float(prev["exceedance_count_5pct"]),
         lower_is_better=True,
     )
+
+    # New metric regression checks
+    if "rmse_s" in prev and "rmse_s" in curr:
+        _cmp("rmse_s", curr["rmse_s"], prev["rmse_s"], lower_is_better=True)
+    if "mape_pct" in prev and "mape_pct" in curr:
+        _cmp("mape_pct", curr["mape_pct"], prev["mape_pct"], lower_is_better=True)
 
     # Per-category comparison
     prev_cats = prev.get("per_category", {})
@@ -1094,6 +1438,49 @@ def compare_to_baseline(
                 better = curr_dist < prev_dist
                 status = "better" if better else ("same" if abs(delta) < 0.002 else "worse")
                 print(f"    {cat:<18}: {pm:.3f} → {cm:.3f} ({delta:+.3f}) [{status}]")
+                # Flag significant per-category regressions
+                threshold = max(abs(pm) * 0.10, 0.005) if pm != 0 else 0.01
+                if (curr_dist - prev_dist) > threshold:
+                    regressions.append(f"Category {cat} mean: {pm:.4f} → {cm:.4f}")
+
+    # Per-track regression check
+    prev_tracks = prev.get("per_track", {})
+    curr_tracks = curr.get("per_track", {})
+    if prev_tracks and curr_tracks:
+        print("\n  Per-track mean changes:")
+        for track_name in sorted(set(list(prev_tracks.keys()) + list(curr_tracks.keys()))):
+            if track_name in prev_tracks and track_name in curr_tracks:
+                pm = prev_tracks[track_name]["mean"]
+                cm = curr_tracks[track_name]["mean"]
+                delta = cm - pm
+                prev_dist = abs(pm - 1.0)
+                curr_dist = abs(cm - 1.0)
+                better = curr_dist < prev_dist
+                status = "better" if better else ("same" if abs(delta) < 0.002 else "worse")
+                print(f"    {track_name:<30}: {pm:.3f} → {cm:.3f} ({delta:+.3f}) [{status}]")
+                # Flag significant per-track regressions
+                threshold = abs(pm) * 0.10 if pm != 0 else 0.01
+                if abs(cm - 1.0) - abs(pm - 1.0) > threshold:
+                    regressions.append(f"Track {track_name} mean: {pm:.4f} → {cm:.4f}")
+
+    # Grip band regression check
+    prev_grip = prev.get("per_grip_band", {})
+    curr_grip = curr.get("per_grip_band", {})
+    if prev_grip and curr_grip:
+        print("\n  Grip band mean changes:")
+        for band_name in GRIP_BANDS:
+            if band_name in prev_grip and band_name in curr_grip:
+                pm = prev_grip[band_name]["mean"]
+                cm = curr_grip[band_name]["mean"]
+                delta = cm - pm
+                prev_dist = abs(pm - 1.0)
+                curr_dist = abs(cm - 1.0)
+                better = curr_dist < prev_dist
+                status = "better" if better else ("same" if abs(delta) < 0.002 else "worse")
+                print(f"    {band_name:<30}: {pm:.3f} → {cm:.3f} ({delta:+.3f}) [{status}]")
+                threshold = abs(pm) * 0.10 if pm != 0 else 0.01
+                if abs(cm - 1.0) - abs(pm - 1.0) > threshold:
+                    regressions.append(f"Grip band {band_name} mean: {pm:.4f} → {cm:.4f}")
 
     passed = len(regressions) == 0
     print()
@@ -1132,13 +1519,17 @@ def main() -> None:
     print_results(results)
     passed = validate_comparison(results)
     export_csv(results)
-    export_baseline_json(results)
 
-    # Regression check
+    # Regression check BEFORE exporting new baseline (otherwise we'd compare
+    # current results against themselves after the overwrite)
+    regression_ok = True
     if args.compare:
         regression_ok = compare_to_baseline(results, args.compare)
-        if not regression_ok and args.strict:
-            sys.exit(2)
+
+    export_baseline_json(results)
+
+    if args.strict and not regression_ok:
+        sys.exit(2)
 
     if args.strict and not passed:
         print("\n--strict mode: exiting with code 1 due to failed checks.")
