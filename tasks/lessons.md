@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## "File Not Found" ≠ "Work Never Done" — Check Conversation Histories (2026-03-19)
+
+**Pattern**: When asked whether past work was completed, NEVER conclude "it was never executed" based solely on filesystem searches. In a worktree-based workflow, artifacts (scripts, CSVs, reports) exist transiently during execution and vanish when the worktree is cleaned up. Always search `~/.claude/projects/<project>/*.jsonl` conversation histories as a primary evidence source — they are the only durable record of worktree-based work.
+
+**Why**: User asked about a 6-model GPT comparison. Searched disk for `scripts/model_comparison.py`, `evaluation/comparison_results.csv`, `evaluation/prompts/` — none existed. Confidently stated "the plan was written but never executed." User corrected: the comparison ran 72 generations across 3 attempts, produced a full report (gpt-5.4-nano won at 0.912 avg score), but all artifacts lived in a worktree that was cleaned up. The durable record was only in the conversation history JSONL.
+
+**Error signature**: Saying "X was never done" when only checking the current working tree. Especially dangerous when CLAUDE.md explicitly documents a worktree workflow where temp branches are routine.
+
 ## `position: fixed` Inside Framer Motion `motion.div` Silently Breaks — Use Portal (2026-03-18)
 
 **Pattern**: Any `position: fixed` element rendered inside ViewRouter's `motion.div` (or any ancestor with CSS `transform`) MUST use `createPortal(jsx, document.body)` to escape the containing block. CSS spec: a non-`none` `transform` on an ancestor makes `fixed` behave like `absolute` relative to that ancestor. Framer Motion keeps `transform: translateY(0px)` after the entrance animation completes, permanently breaking `fixed` descendants.
