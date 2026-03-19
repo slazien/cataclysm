@@ -105,15 +105,17 @@ CATEGORY_FRICTION_CIRCLE_EXPONENT: dict[TireCompoundCategory, float] = {
     TireCompoundCategory.SLICK: 2.3,
 }
 
-# Braking-to-lateral mu ratio — real tires have 10-15% more braking grip
-# than cornering grip due to tread pattern alignment and contact patch shape.
+# Braking-to-lateral mu ratio — tread pattern alignment is the largest contributor
+# to longitudinal/lateral asymmetry (~5-8%). Less tread = more isotropic.
+# Street tires (deep directional tread) have the highest ratio; slicks (no tread)
+# are nearly isotropic with only contact-patch and belt effects remaining.
 CATEGORY_BRAKING_MU_RATIO: dict[TireCompoundCategory, float] = {
     TireCompoundCategory.STREET: 1.10,
-    TireCompoundCategory.ENDURANCE_200TW: 1.10,
-    TireCompoundCategory.SUPER_200TW: 1.12,
-    TireCompoundCategory.TW_100: 1.12,
-    TireCompoundCategory.R_COMPOUND: 1.15,
-    TireCompoundCategory.SLICK: 1.15,
+    TireCompoundCategory.ENDURANCE_200TW: 1.09,
+    TireCompoundCategory.SUPER_200TW: 1.07,
+    TireCompoundCategory.TW_100: 1.06,
+    TireCompoundCategory.R_COMPOUND: 1.04,
+    TireCompoundCategory.SLICK: 1.03,
 }
 
 _BRAKE_EFFICIENCY = 0.95  # real-world brake efficiency factor

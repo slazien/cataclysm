@@ -549,11 +549,11 @@ _CURATED_TIRES: dict[str, TireSpec] = {
         brand="Goodyear",
     ),
     # =======================================================================
-    # R-COMPOUND — Full slicks (non-DOT)
+    # SLICK — Full slicks (non-DOT, no tread pattern)
     # =======================================================================
     "dunlop_dh_slick": TireSpec(
         model="Dunlop DH Slick",
-        compound_category=TireCompoundCategory.R_COMPOUND,
+        compound_category=TireCompoundCategory.SLICK,
         size="varies",
         treadwear_rating=0,
         estimated_mu=1.45,
@@ -563,7 +563,7 @@ _CURATED_TIRES: dict[str, TireSpec] = {
     ),
     "pirelli_slick_305": TireSpec(
         model="Pirelli Slick 305",
-        compound_category=TireCompoundCategory.R_COMPOUND,
+        compound_category=TireCompoundCategory.SLICK,
         size="305 square",
         treadwear_rating=0,
         estimated_mu=1.40,

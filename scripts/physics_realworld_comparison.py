@@ -55,6 +55,7 @@ TIRE_CATEGORIES: dict[str, TireCompoundCategory] = {
     "endurance_200tw": TireCompoundCategory.ENDURANCE_200TW,
     "super_200tw": TireCompoundCategory.SUPER_200TW,
     "r_compound": TireCompoundCategory.R_COMPOUND,
+    "slick": TireCompoundCategory.SLICK,
 }
 
 
@@ -157,17 +158,17 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         tire_db_key="falken_rt660",
     ),
     # --- Honda Civic Type R FL5 ---
-    # NOTE: PS4S is now classified as endurance_200tw in tire_db.py (mu=0.95).
+    # NOTE: PS4S is classified as STREET in tire_db.py (TW 300, mu=0.95).
     RealWorldLapTime(
         car_key=("Honda", "Civic Type R", "FL5"),
         car_label="Civic Type R FL5",
         track_name="Barber Motorsports Park",
         lap_time_s=_parse_time("1:40.90"),
         tire_model="Michelin Pilot Sport 4S (stock OEM)",
-        tire_category="endurance_200tw",
+        tire_category="street",
         mod_level="stock",
         source="lapmeta.com/en/track/variation/15",
-        notes="Stock FL5 on OEM PS4S (endurance_200tw in tire_db)",
+        notes="Stock FL5 on OEM PS4S (street TW300 in tire_db)",
         tire_db_key="michelin_ps4s",
     ),
     RealWorldLapTime(
@@ -256,10 +257,10 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         track_name="Barber Motorsports Park",
         lap_time_s=_parse_time("1:33.09"),
         tire_model="Dunlop DH Slick",
-        tire_category="r_compound",
+        tire_category="slick",
         mod_level="stock",
         source="fastestlaps.com/tracks/barber-motorsports-park",
-        notes="DH Slick = r_compound / full slick grip",
+        notes="DH Slick = full slick, no tread pattern",
         tire_db_key="dunlop_dh_slick",
     ),
     RealWorldLapTime(
@@ -284,10 +285,10 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         track_name="Barber Motorsports Park",
         lap_time_s=_parse_time("1:51.38"),
         tire_model="Michelin Pilot Sport 4S 255/40+275/40R19",
-        tire_category="endurance_200tw",
+        tire_category="street",
         mod_level="stock",
         source="mustang6g.com/forums/threads/s550-lap-times-road-course.35500/",
-        notes="Stock PP1 on OEM PS4S (endurance_200tw in tire_db)",
+        notes="Stock PP1 on OEM PS4S (street TW300 in tire_db)",
         tire_db_key="michelin_ps4s",
     ),
     RealWorldLapTime(
@@ -296,10 +297,10 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         track_name="Barber Motorsports Park",
         lap_time_s=_parse_time("1:37.06"),
         tire_model="Pirelli Slicks 305 square",
-        tire_category="r_compound",
+        tire_category="slick",
         mod_level="heavy",
         source="mustang6g.com/forums/threads/s550-lap-times-road-course.35500/",
-        notes="2015 GT Performance Plus, heavily modified, Pirelli slicks",
+        notes="2015 GT Performance Plus, heavily modified, Pirelli full slicks",
         tire_db_key="pirelli_slick_305",
     ),
     # --- Ford Mustang Shelby GT350 ---
@@ -322,10 +323,10 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         track_name="Barber Motorsports Park",
         lap_time_s=_parse_time("1:36.46"),
         tire_model="Michelin Pilot Sport 4S (OEM)",
-        tire_category="endurance_200tw",
+        tire_category="street",
         mod_level="stock",
         source="lapmeta.com/en/model/13/chevrolet-corvette-c8-stingray-z51",
-        notes="Stock Z51 on OEM PS4S (endurance_200tw in tire_db)",
+        notes="Stock Z51 on OEM PS4S (street TW300 in tire_db)",
         tire_db_key="michelin_ps4s",
     ),
     # --- Corvette C8 Z06 ---
@@ -505,10 +506,10 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         track_name="Atlanta Motorsports Park",
         lap_time_s=_parse_time("1:27.58"),
         tire_model="Pirelli slicks",
-        tire_category="r_compound",
+        tire_category="slick",
         mod_level="stock",
         source="rennlist.com",
-        notes="2017, Pirelli slicks = r_compound",
+        notes="2017, Pirelli full slicks",
         tire_db_key="pirelli_slick_305",
     ),
     # --- Corvette C8 Z06 ---
@@ -518,10 +519,10 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         track_name="Atlanta Motorsports Park",
         lap_time_s=_parse_time("1:31.35"),
         tire_model="Michelin Pilot Sport 4S (OEM)",
-        tire_category="endurance_200tw",
+        tire_category="street",
         mod_level="stock",
         source="lapmeta.com/en/track/variation/27",
-        notes="Stock Z06 on OEM PS4S (endurance_200tw in tire_db)",
+        notes="Stock Z06 on OEM PS4S (street TW300 in tire_db)",
         tire_db_key="michelin_ps4s",
     ),
 ]
