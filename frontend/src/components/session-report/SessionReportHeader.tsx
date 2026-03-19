@@ -5,7 +5,7 @@ import { ShareButton } from '@/components/dashboard/ShareButton';
 import { ShareSessionDialog } from '@/components/comparison/ShareSessionDialog';
 import { AssignEquipmentButton } from '@/components/equipment/AssignEquipmentButton';
 import { useUnits } from '@/hooks/useUnits';
-import { isDemoSession } from '@/hooks/useDemo';
+import { useIsDemoView } from '@/hooks/useDemo';
 import {
   Popover,
   PopoverContent,
@@ -94,6 +94,7 @@ function BreakdownRow({ label, value }: { label: string; value: number | null | 
 
 export function SessionReportHeader({ session, gpsQuality, sessionId }: SessionReportHeaderProps) {
   const { formatTemp } = useUnits();
+  const isDemoView = useIsDemoView(sessionId);
   const score = session?.session_score;
   const hasBreakdown =
     session?.score_consistency != null ||
@@ -157,7 +158,7 @@ export function SessionReportHeader({ session, gpsQuality, sessionId }: SessionR
             {session.weather_temp_c != null ? formatTemp(session.weather_temp_c) : ''} {session.weather_condition}
           </span>
         )}
-        {sessionId && !isDemoSession(sessionId) && (
+        {sessionId && !isDemoView && (
           <>
             <AssignEquipmentButton sessionId={sessionId} />
             <ShareButton sessionId={sessionId} />

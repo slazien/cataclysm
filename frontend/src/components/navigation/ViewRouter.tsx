@@ -10,7 +10,7 @@ import { DeepDive } from '@/components/deep-dive/DeepDive';
 import { ProgressView } from '@/components/progress/ProgressView';
 import { PitLaneDebrief } from '@/components/debrief/PitLaneDebrief';
 import { DemoBanner } from '@/components/shared/DemoBanner';
-import { isDemoSession } from '@/hooks/useDemo';
+import { useIsDemoView } from '@/hooks/useDemo';
 
 function ViewContent({ activeView, activeSessionId }: { activeView: string; activeSessionId: string }) {
   switch (activeView) {
@@ -51,6 +51,7 @@ export function ViewRouter() {
   const activeView = useUiStore((s) => s.activeView);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const resetAnalysis = useAnalysisStore((s) => s.reset);
+  const isDemoView = useIsDemoView(activeSessionId);
   const prevSessionId = useRef(activeSessionId);
 
   // Reset analysis state when switching sessions to prevent stale data crashes
@@ -80,7 +81,7 @@ export function ViewRouter() {
         exit={{ opacity: 0, y: -4 }}
         transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
       >
-        {isDemoSession(activeSessionId) && <DemoBanner />}
+        {isDemoView && <DemoBanner />}
         <ViewContent activeView={activeView} activeSessionId={activeSessionId} />
       </motion.div>
     </AnimatePresence>

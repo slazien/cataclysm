@@ -6,7 +6,7 @@ import { MessageCircle, Pin, Plus, StickyNote } from 'lucide-react';
 import { useCoachStore, useNotesStore, useSessionStore } from '@/stores';
 import { callTriggerAdd } from '@/stores/useStickyStore';
 import { useIsMobile } from '@/hooks/useMediaQuery';
-import { isDemoSession } from '@/hooks/useDemo';
+import { useIsDemoView } from '@/hooks/useDemo';
 
 interface ToolItem {
   id: string;
@@ -46,10 +46,10 @@ export function FloatingToolsMenu() {
     setOpen(false);
   }, [toggleCoach]);
 
+  const isDemo = useIsDemoView(activeSessionId);
+
   // Hide when a panel is already open (they have their own close controls)
   if (notesPanelOpen || coachPanelOpen) return null;
-
-  const isDemo = isDemoSession(activeSessionId);
 
   const allItems: ToolItem[] = [
     {
