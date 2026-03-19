@@ -36,7 +36,7 @@ from cataclysm.tire_db import lookup_tire
 from cataclysm.track_db import TrackLayout, lookup_track
 from cataclysm.track_reference import get_track_reference
 from cataclysm.vehicle_db import VehicleSpec, find_vehicle
-from cataclysm.velocity_profile import VehicleParams, compute_optimal_profile
+from cataclysm.velocity_profile import G, VehicleParams, compute_optimal_profile
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 
@@ -552,6 +552,11 @@ def _vehicle_spec_to_params(
     dt_eff = _DRIVETRAIN_EFFICIENCY.get(spec.drivetrain, 0.85)
     wheel_power_w = spec.hp * 745.7 * dt_eff
 
+    # Aero downforce coefficient: k = 0.5 * rho * CL_A / (m * G)
+    aero_coeff = 0.0
+    if spec.cl_a > 0 and weight_kg > 0:
+        aero_coeff = 0.5 * _AIR_DENSITY * spec.cl_a / (weight_kg * G)
+
     return VehicleParams(
         mu=mu,
         max_lateral_g=mu,
@@ -559,6 +564,7 @@ def _vehicle_spec_to_params(
         max_decel_g=mu * _BRAKE_EFFICIENCY,
         top_speed_mps=80.0,
         friction_circle_exponent=CATEGORY_FRICTION_CIRCLE_EXPONENT[compound],
+        aero_coefficient=aero_coeff,
         drag_coefficient=drag_coeff,
         load_sensitivity_exponent=CATEGORY_LOAD_SENSITIVITY_EXPONENT[compound],
         cg_height_m=spec.cg_height_m,

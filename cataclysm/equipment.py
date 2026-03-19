@@ -284,6 +284,14 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
         wheel_power_w = profile.vehicle.hp * 745.7 * dt_eff
         mass_for_params = weight_kg
 
+    # Compute aero downforce coefficient: k = 0.5 * rho * CL_A / (m * G)
+    # Used in solver: mu_effective = mu + k * v^2
+    from cataclysm.velocity_profile import G
+
+    aero_coeff = 0.0
+    if profile.vehicle is not None and profile.vehicle.cl_a > 0 and mass_for_params > 0:
+        aero_coeff = 0.5 * _AIR_DENSITY * profile.vehicle.cl_a / (mass_for_params * G)
+
     return VehicleParams(
         mu=mu,
         max_lateral_g=mu,
@@ -291,6 +299,7 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
         max_decel_g=mu * _BRAKE_EFFICIENCY,
         top_speed_mps=80.0,
         friction_circle_exponent=CATEGORY_FRICTION_CIRCLE_EXPONENT[category],
+        aero_coefficient=aero_coeff,
         drag_coefficient=drag_coeff,
         load_sensitivity_exponent=CATEGORY_LOAD_SENSITIVITY_EXPONENT[category],
         cg_height_m=profile.vehicle.cg_height_m if profile.vehicle is not None else 0.0,
