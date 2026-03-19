@@ -14,10 +14,13 @@ Sources: LapMeta.com, FastestLaps.com, NASA Mid-South, Rennlist, GR86.org
 
 from __future__ import annotations
 
+import argparse
 import csv
+import datetime
 import json
 import math
 import os
+import subprocess
 import sys
 from dataclasses import dataclass
 
@@ -30,9 +33,9 @@ from cataclysm.equipment import (
     _CATEGORY_ACCEL_G,
     CATEGORY_BRAKING_MU_RATIO,
     CATEGORY_FRICTION_CIRCLE_EXPONENT,
+    CATEGORY_GRIP_UTILIZATION,
     CATEGORY_LOAD_SENSITIVITY_EXPONENT,
     CATEGORY_MU_DEFAULTS,
-    CATEGORY_GRIP_UTILIZATION,
     CATEGORY_PEAK_SLIP_ANGLE_DEG,
     CATEGORY_THERMAL_PENALTY,
     TireCompoundCategory,
@@ -746,8 +749,36 @@ def print_results(results: list[ComparisonResult]) -> None:
             )
 
 
-def validate_comparison(results: list[ComparisonResult]) -> None:
-    """Run validation checks on comparison results."""
+_ACCEPTANCE_CRITERIA = {
+    "mean_ratio_min": 0.95,
+    "mean_ratio_max": 1.02,
+    "std_ratio_max": 0.045,
+    "exceedance_5pct_max": 5,
+    "category_mean_min": 0.88,
+    "category_mean_max": 1.08,
+}
+
+
+def _get_git_sha() -> str:
+    """Return short git SHA, or 'unknown' if not in a repo."""
+    try:
+        return (
+            subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"],
+                stderr=subprocess.DEVNULL,
+            )
+            .decode()
+            .strip()
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return "unknown"
+
+
+def validate_comparison(results: list[ComparisonResult]) -> bool:
+    """Run validation checks with formal acceptance criteria.
+
+    Returns True if all checks pass, False otherwise.
+    """
     print(f"\n\n{'=' * 90}")
     print("VALIDATION CHECKS")
     print(f"{'=' * 90}")
@@ -755,7 +786,7 @@ def validate_comparison(results: list[ComparisonResult]) -> None:
     issues: list[str] = []
     ratios = [r.efficiency_ratio for r in results]
 
-    # --- Check 1: Efficiency ratio range ---
+    # --- Check 1: Efficiency ratio distribution ---
     print("\n1. EFFICIENCY RATIO DISTRIBUTION")
 
     mean_ratio = float(np.mean(ratios))
@@ -763,46 +794,66 @@ def validate_comparison(results: list[ComparisonResult]) -> None:
     std_ratio = float(np.std(ratios))
     p5 = float(np.percentile(ratios, 5))
     p95 = float(np.percentile(ratios, 95))
+    exceedance_5pct = int(sum(1 for r in ratios if r > 1.05))
 
     print(f"  Count:  {len(ratios)}")
-    print(f"  Mean:   {mean_ratio:.3f}")
-    print(f"  Median: {median_ratio:.3f}")
-    print(f"  Std:    {std_ratio:.3f}")
+    print(f"  Mean:   {mean_ratio:.4f}")
+    print(f"  Median: {median_ratio:.4f}")
+    print(f"  Std:    {std_ratio:.4f}")
     print(f"  P5-P95: [{p5:.3f}, {p95:.3f}]")
 
     # How many exceed 1.0? (real driver beat our prediction)
     exceeds = [r for r in results if r.efficiency_ratio > 1.0]
     exceeds_pct = len(exceeds) / len(results) * 100
     print(f"  Exceeds 1.0: {len(exceeds)}/{len(results)} ({exceeds_pct:.0f}%)")
+    print(f"  Exceeds 1.05: {exceedance_5pct}/{len(results)}")
 
     if exceeds:
-        print("  Details of exceedances:")
+        print("  Details of exceedances >1.0:")
         for r in sorted(exceeds, key=lambda x: x.efficiency_ratio, reverse=True):
+            flag = " ← OVER 1.05" if r.efficiency_ratio > 1.05 else ""
             print(
                 f"    {r.car_label} at {r.track}: ratio={r.efficiency_ratio:.3f} "
                 f"(real {_fmt_time(r.real_time_s)}, predicted {_fmt_time(r.predicted_time_s)}, "
-                f"mu={r.mu}, {r.tire_model})"
+                f"mu={r.mu}, {r.tire_model}){flag}"
             )
 
-    # Acceptance criteria
-    if 0.85 <= mean_ratio <= 1.02:
-        print(f"\n  Mean ratio check: PASS ({mean_ratio:.3f} in [0.85, 1.02])")
-    else:
-        msg = f"Mean ratio {mean_ratio:.3f} outside [0.85, 1.02]"
-        issues.append(msg)
-        print(f"\n  Mean ratio check: FAIL — {msg}")
+    # --- Acceptance checks ---
+    print(f"\n  {'CHECK':<40} {'RESULT':<6} {'VALUE':<20} {'THRESHOLD'}")
+    print(f"  {'-' * 85}")
 
-    if exceeds_pct <= 30:
-        print(f"  Exceedance check: PASS ({exceeds_pct:.0f}% ≤ 30%)")
-    else:
-        msg = f"{exceeds_pct:.0f}% of entries exceed 1.0 (threshold: 30%)"
-        issues.append(msg)
-        print(f"  Exceedance check: WARN — {msg}")
+    c = _ACCEPTANCE_CRITERIA
 
-    # --- Check 2: Breakdown by tire category ---
+    def _check(name: str, passed: bool, value_str: str, threshold_str: str) -> None:
+        status = "PASS" if passed else "FAIL"
+        print(f"  {name:<40} {status:<6} {value_str:<20} {threshold_str}")
+        if not passed:
+            issues.append(f"{name}: {value_str} (threshold: {threshold_str})")
+
+    _check(
+        "Mean ratio",
+        c["mean_ratio_min"] <= mean_ratio <= c["mean_ratio_max"],
+        f"{mean_ratio:.4f}",
+        f"[{c['mean_ratio_min']}, {c['mean_ratio_max']}]",
+    )
+    _check(
+        "Std ratio",
+        std_ratio <= c["std_ratio_max"],
+        f"{std_ratio:.4f}",
+        f"≤ {c['std_ratio_max']}",
+    )
+    _check(
+        "Exceedances >1.05",
+        exceedance_5pct <= c["exceedance_5pct_max"],
+        str(exceedance_5pct),
+        f"≤ {c['exceedance_5pct_max']}",
+    )
+
+    # --- Check 2: Per-category breakdown ---
     print("\n2. BREAKDOWN BY TIRE CATEGORY")
 
-    for cat in ["street", "endurance_200tw", "super_200tw", "100tw", "r_compound", "slick"]:
+    cat_order = ["street", "endurance_200tw", "super_200tw", "100tw", "r_compound", "slick"]
+    for cat in cat_order:
         cat_results = [r for r in results if r.tire_category == cat]
         if not cat_results:
             print(f"  {cat}: no data")
@@ -811,9 +862,16 @@ def validate_comparison(results: list[ComparisonResult]) -> None:
         cat_ratios = [r.efficiency_ratio for r in cat_results]
         cat_mean = float(np.mean(cat_ratios))
         cat_range = f"[{min(cat_ratios):.3f}, {max(cat_ratios):.3f}]"
-        print(f"  {cat:<18}: n={len(cat_results)}, mean={cat_mean:.3f}, range={cat_range}")
+        in_range = c["category_mean_min"] <= cat_mean <= c["category_mean_max"]
+        flag = "" if in_range else " ← OUT OF RANGE"
+        print(f"  {cat:<18}: n={len(cat_results)}, mean={cat_mean:.3f}, range={cat_range}{flag}")
+        if not in_range:
+            issues.append(
+                f"Category {cat} mean={cat_mean:.3f} outside "
+                f"[{c['category_mean_min']}, {c['category_mean_max']}]"
+            )
 
-    # --- Check 3: Breakdown by track ---
+    # --- Check 3: Per-track breakdown ---
     print("\n3. BREAKDOWN BY TRACK")
 
     for track in sorted(set(r.track for r in results)):
@@ -841,22 +899,22 @@ def validate_comparison(results: list[ComparisonResult]) -> None:
     else:
         print(
             f"  Mean efficiency ratio = {mean_ratio:.3f} means our solver predicts "
-            f"SLOWER lap times than real drivers achieve on average."
+            f"lap times that are {(mean_ratio - 1) * 100:.1f}% slower than real-world "
+            f"drivers achieve on average."
         )
-        print("  Possible explanations:")
-        print("    - Real tire grip (mu) is higher than our category defaults")
-        print("    - Vehicle modifications not captured in our spec database")
-        print("    - Track layout length mismatch between GPS-derived and official")
 
     # --- Summary ---
+    passed = len(issues) == 0
     print(f"\n{'=' * 90}")
-    if not issues:
-        print("ALL CHECKS PASS")
+    if passed:
+        print("ALL CHECKS PASS ✓")
     else:
-        print(f"ISSUES FOUND ({len(issues)}):")
+        print(f"CHECKS FAILED ({len(issues)}):")
         for issue in issues:
-            print(f"  - {issue}")
+            print(f"  ✗ {issue}")
     print(f"{'=' * 90}")
+
+    return passed
 
 
 def export_csv(results: list[ComparisonResult]) -> None:
@@ -905,56 +963,186 @@ def export_csv(results: list[ComparisonResult]) -> None:
     print(f"\nExported {len(results)} rows to {path}")
 
 
+def _compute_summary(results: list[ComparisonResult]) -> dict:
+    """Compute summary statistics from comparison results."""
+    ratios = [r.efficiency_ratio for r in results]
+
+    summary: dict = {
+        "n_entries": len(results),
+        "mean_ratio": float(np.mean(ratios)),
+        "median_ratio": float(np.median(ratios)),
+        "std_ratio": float(np.std(ratios)),
+        "exceedance_count_5pct": int(sum(1 for r in ratios if r > 1.05)),
+        "entries_above_1": int(sum(1 for r in ratios if r > 1.0)),
+    }
+
+    # Per-category stats
+    cat_order = ["street", "endurance_200tw", "super_200tw", "100tw", "r_compound", "slick"]
+    per_category: dict[str, dict] = {}
+    for cat in cat_order:
+        cat_ratios = [r.efficiency_ratio for r in results if r.tire_category == cat]
+        if cat_ratios:
+            per_category[cat] = {
+                "n": len(cat_ratios),
+                "mean": round(float(np.mean(cat_ratios)), 4),
+                "std": round(float(np.std(cat_ratios)), 4),
+                "min": round(float(min(cat_ratios)), 4),
+                "max": round(float(max(cat_ratios)), 4),
+            }
+    summary["per_category"] = per_category
+
+    return summary
+
+
 def export_baseline_json(results: list[ComparisonResult]) -> str:
     """Export a machine-readable JSON baseline for A/B regression testing."""
-    ratios = [r.efficiency_ratio for r in results]
-    r_compound_ratios = [r.efficiency_ratio for r in results if r.tire_category == "r_compound"]
+    git_sha = _get_git_sha()
+    today = datetime.date.today().isoformat()
 
     baseline = {
-        "date": "2026-03-19",
-        "solver_version": "pre-tier1",
+        "date": today,
+        "git_sha": git_sha,
+        "acceptance_criteria": _ACCEPTANCE_CRITERIA,
         "entries": [
             {
                 "car": r.car_label,
                 "track": r.track,
                 "real_s": r.real_time_s,
-                "predicted_s": r.predicted_time_s,
-                "ratio": r.efficiency_ratio,
+                "predicted_s": round(r.predicted_time_s, 3),
+                "ratio": round(r.efficiency_ratio, 4),
                 "tire_category": r.tire_category,
                 "tire_model": r.tire_model,
                 "mu": r.mu,
             }
             for r in results
         ],
-        "summary": {
-            "mean_ratio": float(np.mean(ratios)),
-            "median_ratio": float(np.median(ratios)),
-            "std_ratio": float(np.std(ratios)),
-            "exceedance_count_5pct": int(sum(1 for r in ratios if r > 1.05)),
-            "r_compound_mean": float(np.mean(r_compound_ratios)) if r_compound_ratios else None,
-        },
+        "summary": _compute_summary(results),
     }
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    baseline_path = os.path.join(OUTPUT_DIR, "physics_baseline_2026-03-19.json")
+    baseline_path = os.path.join(OUTPUT_DIR, "physics_baseline.json")
     with open(baseline_path, "w") as f:
         json.dump(baseline, f, indent=2)
 
-    print(f"\nBaseline saved to {baseline_path}")
+    print(f"\nBaseline saved to {baseline_path} (git: {git_sha})")
     return baseline_path
+
+
+def compare_to_baseline(
+    results: list[ComparisonResult],
+    baseline_path: str,
+) -> bool:
+    """Compare current results against a saved baseline. Returns True if no regressions."""
+    if not os.path.exists(baseline_path):
+        print(f"\n  No baseline found at {baseline_path} — skipping regression check.")
+        return True
+
+    with open(baseline_path) as f:
+        baseline = json.load(f)
+
+    prev = baseline["summary"]
+    curr = _compute_summary(results)
+
+    print(f"\n{'=' * 90}")
+    b_date = baseline.get("date", "?")
+    b_sha = baseline.get("git_sha", "?")
+    print(f"REGRESSION CHECK vs baseline ({b_date} / {b_sha})")
+    print(f"{'=' * 90}")
+
+    regressions: list[str] = []
+
+    def _cmp(name: str, curr_val: float, prev_val: float, lower_is_better: bool = True) -> None:
+        delta = curr_val - prev_val
+        direction = "↑" if delta > 0 else "↓" if delta < 0 else "="
+        better = (delta < 0) if lower_is_better else (delta > 0)
+        # Regression threshold: 10% relative worsening
+        threshold = abs(prev_val) * 0.10 if prev_val != 0 else 0.01
+        is_regression = (delta > threshold) if lower_is_better else (delta < -threshold)
+        status = "REGRESS" if is_regression else ("better" if better else "same")
+        print(
+            f"  {name:<25} {prev_val:>8.4f} → {curr_val:>8.4f}  "
+            f"({direction}{abs(delta):.4f})  [{status}]"
+        )
+        if is_regression:
+            regressions.append(f"{name}: {prev_val:.4f} → {curr_val:.4f}")
+
+    print(f"\n  {'Metric':<25} {'Previous':>8}   {'Current':>8}   {'Delta':>10}  Status")
+    print(f"  {'-' * 75}")
+
+    _cmp("mean_ratio", curr["mean_ratio"], prev["mean_ratio"], lower_is_better=False)
+    _cmp("std_ratio", curr["std_ratio"], prev["std_ratio"], lower_is_better=True)
+    _cmp(
+        "exceedances_5pct",
+        float(curr["exceedance_count_5pct"]),
+        float(prev["exceedance_count_5pct"]),
+        lower_is_better=True,
+    )
+
+    # Per-category comparison
+    prev_cats = prev.get("per_category", {})
+    curr_cats = curr.get("per_category", {})
+    if prev_cats and curr_cats:
+        print("\n  Per-category mean changes:")
+        for cat in ["street", "endurance_200tw", "super_200tw", "100tw", "r_compound", "slick"]:
+            if cat in prev_cats and cat in curr_cats:
+                pm = prev_cats[cat]["mean"]
+                cm = curr_cats[cat]["mean"]
+                delta = cm - pm
+                # For category means, closer to 1.0 is better
+                prev_dist = abs(pm - 1.0)
+                curr_dist = abs(cm - 1.0)
+                better = curr_dist < prev_dist
+                status = "better" if better else ("same" if abs(delta) < 0.002 else "worse")
+                print(f"    {cat:<18}: {pm:.3f} → {cm:.3f} ({delta:+.3f}) [{status}]")
+
+    passed = len(regressions) == 0
+    print()
+    if passed:
+        print("  No regressions detected ✓")
+    else:
+        print(f"  REGRESSIONS DETECTED ({len(regressions)}):")
+        for reg in regressions:
+            print(f"    ✗ {reg}")
+
+    return passed
 
 
 def main() -> None:
     """Run the full real-world comparison pipeline."""
+    parser = argparse.ArgumentParser(
+        description="Physics validation: real-world lap time comparison"
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit with code 1 if acceptance criteria fail",
+    )
+    parser.add_argument(
+        "--compare",
+        metavar="BASELINE_JSON",
+        help="Compare against a saved baseline JSON for regression detection",
+    )
+    args = parser.parse_args()
+
     results = run_comparison()
     if not results:
         print("ERROR: No comparison results generated!")
         sys.exit(1)
 
     print_results(results)
-    validate_comparison(results)
+    passed = validate_comparison(results)
     export_csv(results)
     export_baseline_json(results)
+
+    # Regression check
+    if args.compare:
+        regression_ok = compare_to_baseline(results, args.compare)
+        if not regression_ok and args.strict:
+            sys.exit(2)
+
+    if args.strict and not passed:
+        print("\n--strict mode: exiting with code 1 due to failed checks.")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
