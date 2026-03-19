@@ -729,6 +729,26 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         stock_tire_size_rear="315/30R21",
         notes="4.0 L flat-6 NA. Swan-neck wing.",
     ),
+    "porsche_911_gt3_rs_992": VehicleSpec(
+        make="Porsche",
+        model="911 GT3 RS",
+        generation="992",
+        year_range=(2023, 2025),
+        weight_kg=1450,
+        wheelbase_m=2.457,
+        track_width_front_m=1.610,
+        track_width_rear_m=1.582,
+        cg_height_m=0.44,
+        weight_dist_front_pct=38.0,
+        drivetrain="RWD",
+        hp=518,
+        torque_nm=465,
+        has_aero=True,
+        cd_a=0.86,
+        stock_tire_size_front="275/35R20",
+        stock_tire_size_rear="335/30R21",
+        notes="4.0 L flat-6 NA (525 PS). 409 kg downforce at 200 km/h. DRS wing.",
+    ),
     # -----------------------------------------------------------------------
     # Nissan
     # -----------------------------------------------------------------------
@@ -771,6 +791,26 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         stock_tire_size_front="225/50R18",
         stock_tire_size_rear="245/45R18",
         notes="3.7 L VQ37VHR V6 (270 lb-ft).",
+    ),
+    "nissan_z_rz34": VehicleSpec(
+        make="Nissan",
+        model="Z",
+        generation="RZ34",
+        year_range=(2023, 2025),
+        weight_kg=1604,
+        wheelbase_m=2.550,
+        track_width_front_m=1.545,
+        track_width_rear_m=1.560,
+        cg_height_m=0.48,
+        weight_dist_front_pct=55.0,
+        drivetrain="RWD",
+        hp=400,
+        torque_nm=475,
+        has_aero=False,
+        cd_a=0.57,
+        stock_tire_size_front="255/40R19",
+        stock_tire_size_rear="275/35R19",
+        notes="3.0 L VR30DDTT twin-turbo V6. Performance grade.",
     ),
     # -----------------------------------------------------------------------
     # Subaru WRX STI
@@ -1369,6 +1409,26 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         stock_tire_size_rear="285/30R20",
         notes='3.0 L S55 twin-turbo Competition. 19/20" wheels.',
     ),
+    "bmw_m4_g82_competition": VehicleSpec(
+        make="BMW",
+        model="M4",
+        generation="G82",
+        year_range=(2021, 2025),
+        weight_kg=1725,
+        wheelbase_m=2.857,
+        track_width_front_m=1.604,
+        track_width_rear_m=1.618,
+        cg_height_m=0.52,
+        weight_dist_front_pct=54.0,
+        drivetrain="RWD",
+        hp=503,
+        torque_nm=650,
+        has_aero=False,
+        cd_a=0.70,
+        stock_tire_size_front="275/35R19",
+        stock_tire_size_rear="285/30R20",
+        notes="3.0 L S58 twin-turbo I6. RWD Competition coupe.",
+    ),
     # -----------------------------------------------------------------------
     # Chevrolet Camaro 1LE
     # -----------------------------------------------------------------------
@@ -1393,7 +1453,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         notes="6.2 L LT1 V8. Track-tuned suspension, Brembo brakes, aero package.",
     ),
     # -----------------------------------------------------------------------
-    # Ford Mustang Shelby GT350 / Mach 1
+    # Ford Mustang Shelby GT350 / GT500 / Mach 1
     # -----------------------------------------------------------------------
     "ford_mustang_gt350": VehicleSpec(
         make="Ford",
@@ -1414,6 +1474,26 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         stock_tire_size_front="295/35R19",
         stock_tire_size_rear="305/35R19",
         notes="5.2 L Voodoo flat-plane V8. MagneRide. Track-focused Mustang.",
+    ),
+    "ford_mustang_gt500_s550": VehicleSpec(
+        make="Ford",
+        model="Mustang Shelby GT500",
+        generation="S550",
+        year_range=(2020, 2022),
+        weight_kg=1917,
+        wheelbase_m=2.720,
+        track_width_front_m=1.610,
+        track_width_rear_m=1.605,
+        cg_height_m=0.53,
+        weight_dist_front_pct=57.0,
+        drivetrain="RWD",
+        hp=760,
+        torque_nm=847,
+        has_aero=True,
+        cd_a=0.78,
+        stock_tire_size_front="305/30R20",
+        stock_tire_size_rear="305/30R20",
+        notes="5.2 L Predator supercharged V8. Carbon Fiber Track Pack optional.",
     ),
     "ford_mustang_mach1_s550": VehicleSpec(
         make="Ford",
