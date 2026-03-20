@@ -1,0 +1,39 @@
+year,car,vehicle_db_match,lap_time_s,lap_time_str,tires,tire_category,mod_level,source_quality,driver_level,notes
+2018,Honda Civic Type R FK8,honda_civic_type_r_fk8,104.22,1:44.22,Continental ExtremeContact Sport,street,stock,professional,pro,Randy Pobst 2018 BDC
+2019,Toyota GR Supra A90,toyota_gr_supra_a90,100.57,1:40.57,Michelin Pilot Super Sport,endurance_200tw,stock,professional,pro,Randy Pobst 2019 BDC
+2020,Chevrolet Corvette C8 Z51,chevrolet_corvette_c8_z51,97.83,1:37.83,Michelin Pilot Sport 4S,endurance_200tw,stock,professional,pro,Randy Pobst 2020 BDC
+2018,Chevrolet Corvette C7 ZR1,chevrolet_corvette_c7_zr1,93.20,1:33.20,Michelin Pilot Sport Cup 2,super_200tw,stock,professional,pro,Randy Pobst 2018 BDC. Z07 package.
+2016,Chevrolet Corvette C7 Z06 Z07,chevrolet_corvette_c7_z06,93.05,1:33.05,Michelin Pilot Sport Cup 2,super_200tw,stock,professional,pro,Randy Pobst standalone hot lap
+2009,Chevrolet Corvette C6 ZR1,chevrolet_corvette_c6_zr1,95.83,1:35.83,unknown,endurance_200tw,stock,professional,pro,Randy Pobst MT Laguna Lap
+2009,Chevrolet Corvette C6 Z06,chevrolet_corvette_c6_z06,100.92,1:40.92,unknown,endurance_200tw,stock,professional,pro,Randy Pobst MT Laguna Lap
+2011,Chevrolet Corvette C6 Z06 Centennial Z07,chevrolet_corvette_c6_z06,94.43,1:34.43,unknown,super_200tw,stock,professional,pro,Randy Pobst 2011 BDC fastest
+2016,Chevrolet Camaro SS 1LE 6th,chevrolet_camaro_ss_1le_6g,97.78,1:37.78,Goodyear Eagle F1 SuperCar 3,endurance_200tw,stock,professional,pro,Randy Pobst 2016 BDC
+2018,Chevrolet Camaro ZL1 1LE 6th,chevrolet_camaro_zl1_6th,94.30,1:34.30,Goodyear Eagle F1 SuperCar 3,100tw,stock,professional,pro,Randy Pobst 2017/2018
+2014,Chevrolet Camaro Z/28 5th,chevrolet_camaro_ss_6th,97.82,1:37.82,unknown,100tw,stock,professional,pro,Randy Pobst 2014 BDC
+2016,Ford Mustang GT350R S550,ford_mustang_gt350,96.11,1:36.11,Michelin Pilot Sport Cup 2,super_200tw,stock,professional,pro,Randy Pobst 2016 BDC
+2019,Ford Mustang GT350 S550,ford_mustang_gt350,96.83,1:36.83,unknown,super_200tw,stock,professional,pro,Randy Pobst 2019 BDC
+2020,Ford Mustang GT500 CFTP S550,ford_mustang_gt_s550,93.84,1:33.84,Michelin Pilot Sport Cup 2,super_200tw,stock,professional,pro,Randy Pobst 2020 BDC. Fastest Mustang ever at Laguna.
+2011,Ford Mustang Boss 302 LS S197,ford_mustang_gt_s197,101.06,1:41.06,unknown,endurance_200tw,stock,professional,pro,Randy Pobst 2011 BDC
+2014,BMW M4 F82,bmw_m4_f82_competition,99.69,1:39.69,unknown,endurance_200tw,stock,professional,pro,Randy Pobst 2014 BDC
+2016,BMW M4 GTS F82,bmw_m4_f82_competition,97.66,1:37.66,unknown,super_200tw,stock,professional,pro,Randy Pobst 2016 BDC
+2019,BMW M2 Competition F87,bmw_m2_f87,100.83,1:40.83,Michelin Pilot Super Sport,endurance_200tw,stock,professional,pro,Randy Pobst 2019 BDC
+2008,BMW M3 E92,bmw_m3_e92,102.96,1:42.96,Michelin Pilot Sport PS2,endurance_200tw,stock,professional,pro,Randy Pobst MT Laguna Lap
+2009,Nissan GT-R R35,nissan_gtr_r35,100.45,1:40.45,Dunlop SP Sport 6000,street,stock,professional,pro,Randy Pobst MT Laguna Lap
+2011,Nissan GT-R R35 Track,nissan_gtr_r35,96.35,1:36.35,unknown,endurance_200tw,stock,professional,pro,Randy Pobst 2011 BDC
+2014,Nissan GT-R Nismo R35,nissan_gtr_r35,95.51,1:35.51,unknown,super_200tw,stock,professional,pro,Randy Pobst 2014 BDC fastest
+2013,Nissan GT-R Black R35,nissan_gtr_r35,96.30,1:36.30,run-flats (OEM),endurance_200tw,stock,professional,pro,Randy Pobst 2013 BDC
+2014,Subaru WRX STI VA,subaru_wrx_sti_va,107.16,1:47.16,unknown,endurance_200tw,stock,professional,pro,Randy Pobst 2014 BDC. AWD.
+2015,Porsche Cayman GT4 981,porsche_cayman_gt4_718,97.43,1:37.43,unknown,super_200tw,stock,professional,pro,Randy Pobst 2015 BDC
+2017,Porsche 718 Cayman S,porsche_cayman_718,100.05,1:40.05,unknown,endurance_200tw,stock,professional,pro,Randy Pobst 2017 BDC
+2020,Porsche 718 Cayman GT4,porsche_cayman_gt4_718,96.14,1:36.14,Michelin Pilot Sport 4S,endurance_200tw,stock,professional,pro,Randy Pobst 2020 BDC
+2009,Porsche Cayman S 987 PDK,porsche_cayman_987,102.95,1:42.95,unknown,endurance_200tw,stock,professional,pro,Randy Pobst MT Laguna Lap
+2008,Porsche 911 GT3 997,porsche_911_gt3_991,99.57,1:39.57,Michelin Pilot Sport Cup,super_200tw,stock,professional,pro,Randy Pobst MT Laguna Lap. PCCB.
+2011,Porsche 911 GT3 RS 997.2,porsche_911_gt3_991,96.77,1:36.77,unknown,super_200tw,stock,professional,pro,Randy Pobst 2011 BDC
+2015,Mercedes-AMG C63 S W205,mercedes_amg_c63_w205,100.50,1:40.50,unknown,endurance_200tw,stock,professional,pro,Randy Pobst 2015 BDC
+2015,Lexus RC-F,lexus_rc_f,103.20,1:43.20,unknown,endurance_200tw,stock,professional,pro,Randy Pobst 2015 BDC
+2018,Audi TT RS,audi_ttrs_8s,99.95,1:39.95,unknown,endurance_200tw,stock,professional,pro,Randy Pobst 2018 BDC. AWD.
+2014,Volkswagen GTI Mk7,volkswagen_gti_mk7,110.11,1:50.11,unknown,street,stock,professional,pro,Randy Pobst 2014 BDC
+2015,Mazda MX-5 Miata ND,mazda_miata_nd,110.68,1:50.68,unknown,endurance_200tw,stock,professional,pro,Randy Pobst 2015 BDC
+2017,Chevrolet Corvette C7 Grand Sport Z07,chevrolet_corvette_c7,95.62,1:35.62,unknown,super_200tw,stock,professional,pro,Randy Pobst 2017 BDC
+2019,Dodge Challenger Hellcat Redeye,dodge_challenger_srt_392,102.70,1:42.70,unknown,endurance_200tw,stock,professional,pro,Randy Pobst 2019 BDC
+2012,Subaru BRZ,toyota_gr86_zn8,111.30,1:51.30,unknown,endurance_200tw,stock,professional,pro,Randy Pobst 2012 BDC. Same platform as GR86.
