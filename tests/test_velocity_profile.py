@@ -1934,3 +1934,48 @@ class TestDenominatorClamping:
 
         # Mid-corner speed should be higher with per-corner mu
         assert profile_percorner.optimal_speed_mps[300] > profile_global.optimal_speed_mps[300]
+
+
+def test_elevation_confidence_scales_vertical_curvature() -> None:
+    """When elevation_confidence < 1.0, vertical curvature effect is reduced."""
+    from cataclysm.curvature import CurvatureResult
+
+    n = 100
+    distance = np.linspace(0, 70, n)
+    curvature = np.full(n, 0.01)  # gentle curve
+    vert_curv = np.full(n, 0.005)  # moderate compression
+
+    cr = CurvatureResult(
+        distance_m=distance,
+        curvature=curvature,
+        abs_curvature=np.abs(curvature),
+        heading_rad=np.zeros(n),
+        x_smooth=np.zeros(n),
+        y_smooth=np.zeros(n),
+    )
+
+    params_full = VehicleParams(mu=1.0, max_accel_g=0.5, max_decel_g=1.0, max_lateral_g=1.0)
+    params_half = VehicleParams(
+        mu=1.0,
+        max_accel_g=0.5,
+        max_decel_g=1.0,
+        max_lateral_g=1.0,
+        elevation_confidence=0.5,
+    )
+
+    profile_full = compute_optimal_profile(
+        cr, params_full, closed_circuit=False, vertical_curvature=vert_curv
+    )
+    profile_half = compute_optimal_profile(
+        cr, params_half, closed_circuit=False, vertical_curvature=vert_curv
+    )
+    profile_none = compute_optimal_profile(cr, params_full, closed_circuit=False)
+
+    # Half confidence should produce speeds between no-vert and full-vert
+    mid_full = float(np.mean(profile_full.optimal_speed_mps))
+    mid_half = float(np.mean(profile_half.optimal_speed_mps))
+    mid_none = float(np.mean(profile_none.optimal_speed_mps))
+
+    assert mid_none < mid_half < mid_full, (
+        f"Expected none({mid_none:.2f}) < half({mid_half:.2f}) < full({mid_full:.2f})"
+    )

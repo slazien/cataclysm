@@ -73,6 +73,9 @@ class VehicleParams:
     max_lateral_jerk_gs: float = 0.0  # max d(lateral_g)/ds rate (G/m); 0 = disabled
     traction_multiplier: float = 1.0  # AWD traction advantage (>1 = more grip-limited accel)
     power_band_factor: float = 1.0  # fraction of peak power across RPM range (0-1); 1.0 = CVT/flat
+    elevation_confidence: float = (
+        1.0  # weight for vertical curvature correction [0,1]; 1.0 = full trust
+    )
 
 
 @dataclass
@@ -182,6 +185,12 @@ def _compute_max_cornering_speed(
     kappa_v = (
         vertical_curvature if vertical_curvature is not None else np.zeros(n, dtype=np.float64)
     )
+
+    # Scale vertical curvature by elevation confidence.
+    # Low-confidence elevation data should have reduced influence
+    # to prevent spurious compression/crest corrections from noisy data.
+    if params.elevation_confidence < 1.0:
+        kappa_v = kappa_v * params.elevation_confidence
 
     curved_mask = abs_curvature > 1e-6
 
