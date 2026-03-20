@@ -94,6 +94,22 @@
 
 **Why**: Built `TRACK_BANKING` dict + `get_track_banking()` + `TrackReference.banking_deg` infrastructure before discovering that `banking.py` already had `apply_banking_to_mu_array()` and `_auto_detect_camber()` in `corner_enrichment.py` already estimated banking from telemetry — tracked as IMP-2 in `tasks/`. The existing code was more physically correct (full `(mu+tan(θ))/(1-mu·tan(θ))` formula vs simple `mu+tan(θ)`) and per-corner rather than track-level. Both approaches ended up being useful (track-level for validation, per-corner for production), but discovering existing code first would have saved 30 min and produced a cleaner architecture.
 
+## Lead With Root-Cause Fix, Not Workaround (2026-03-19)
+
+**Pattern**: When proposing approaches for a fix, lead with the root-cause solution even if it's more work. Present workarounds as fallbacks, not recommendations. If the user asks "what's the most proper fix?" you've already proposed the wrong thing first.
+
+**Why**: Proposed frontend-only merge (Approach A) as recommended approach for priority corner inconsistency. User had to push back with "What's the most proper fix?" to get the correct answer: change the backend prompt to stop asking the LLM to rank/estimate what the physics engine already computes. The frontend-only approach would have papered over the symptom (different corners in different tabs) without fixing the root cause (LLM re-guessing physics data).
+
+**Error signature**: Recommending "simplest approach" when the problem has a clear root cause that can be eliminated. If the fix involves working around bad data instead of fixing the data source, it's a workaround.
+
+## Don't Ask the LLM to Re-Derive What Deterministic Systems Already Computed (2026-03-19)
+
+**Pattern**: When a deterministic computation (physics engine, algorithm, database query) produces a ranked/scored result, NEVER ask the LLM to re-estimate those values. Feed the LLM the computed values as constraints and ask it only for text/explanation/coaching. The LLM's job is to *explain*, not to *rank*.
+
+**Why**: The coaching prompt fed physics `corner_opportunities` (with exact `time_cost_s` per corner) as input, then asked the LLM to "identify the N corners with the largest improvement opportunity" and estimate `time_cost_s` — re-guessing values it was literally given. Result: Report and Debrief tabs showed different corners because the LLM's ranking diverged from physics. Fix: pre-select corners by physics ranking, tell LLM "write coaching text for THESE corners."
+
+**Error signature**: An LLM prompt that says "estimate" or "identify the top N" for a quantity that a prior computation already determined. The LLM will hallucinate different values each generation.
+
 **Error signature**: Building a new module for functionality that already exists but is unwired. Red flag: creating `get_track_banking()` when `apply_banking_to_mu_array()` exists. Always check `tasks/solver_audit_status.md` and grep for domain terms first.
 
 ## WSL: Use `explorer.exe` or `cmd.exe /c start` for Windows Apps (2026-03-20)
