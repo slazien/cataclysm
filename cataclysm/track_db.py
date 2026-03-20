@@ -1012,6 +1012,436 @@ LAGUNA_SECA = TrackLayout(
     ],
 )
 
+# ---------------------------------------------------------------------------
+# Michelin Raceway Road Atlanta
+# ---------------------------------------------------------------------------
+# Sources:
+#   - iRacing official track page (turn-by-turn descriptions)
+#   - racingcircuits.info historical circuit documentation
+#   - NASA Southeast driving guides
+#   - Track reference: OSM centerline (4090m, 3 ways / 230 nodes)
+
+ROAD_ATLANTA = TrackLayout(
+    name="Michelin Raceway Road Atlanta",
+    center_lat=34.145,
+    center_lon=-83.815,
+    country="US",
+    length_m=4088.0,
+    elevation_range_m=23.0,  # ~75 ft
+    corners=[
+        OfficialCorner(
+            number=1,
+            name="Uphill Sweeper",
+            fraction=0.050,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="uphill",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Fast uphill right-hand sweeper at start. Track rises through "
+                "the corner adding grip — carry maximum speed and commit early."
+            ),
+        ),
+        OfficialCorner(
+            number=2,
+            name="Crest Left",
+            fraction=0.095,
+            direction="left",
+            corner_type="sweeper",
+            elevation_trend="crest",
+            camber="off-camber",
+            blind=True,
+            coaching_notes=(
+                "Left-hander cresting a hill — car goes light over the top. "
+                "Use a late turn-in and smooth inputs; the off-camber exit "
+                "punishes an early apex."
+            ),
+        ),
+        OfficialCorner(
+            number=3,
+            name="The Esses Entry",
+            fraction=0.140,
+            direction="right",
+            corner_type="esses",
+            elevation_trend="downhill",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Entry to the Esses — downhill right-hander beginning the "
+                "descent. Set up wide left and take a geometric line to link "
+                "into T4."
+            ),
+        ),
+        OfficialCorner(
+            number=4,
+            name="The Esses Exit",
+            fraction=0.175,
+            direction="left",
+            corner_type="esses",
+            elevation_trend="uphill",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Uphill left-hand exit of the Esses. Use the elevation change "
+                "to help rotate the car and get on power early."
+            ),
+        ),
+        OfficialCorner(
+            number=5,
+            name="Downhill Kink",
+            fraction=0.215,
+            direction="right",
+            corner_type="kink",
+            elevation_trend="downhill",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Brief right-hand kink on the short downhill straight before "
+                "T6. Flat or near-flat in most cars — position for the hard "
+                "braking zone at T6."
+            ),
+        ),
+        OfficialCorner(
+            number=6,
+            name="Banked Fast Right",
+            fraction=0.255,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="flat",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Banked 90-degree right at high speed. The positive banking "
+                "loads the outside tires — carry more speed than feels "
+                "comfortable and trust the camber."
+            ),
+        ),
+        OfficialCorner(
+            number=7,
+            name="Hairpin",
+            fraction=0.315,
+            direction="left",
+            corner_type="hairpin",
+            elevation_trend="flat",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Slowest corner on circuit — key overtaking zone. Hard braking "
+                "required; use a very late apex to maximize exit speed onto the "
+                "long back straight."
+            ),
+        ),
+        OfficialCorner(
+            number=8,
+            name="Back Straight Chicane Entry",
+            fraction=0.530,
+            direction="right",
+            corner_type="chicane",
+            elevation_trend="crest",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Right-hand entry to the chicane mid-back-straight. The track "
+                "crests here — stay composed and set up left for the hard left "
+                "of T9."
+            ),
+        ),
+        OfficialCorner(
+            number=9,
+            name="Back Straight Chicane Exit",
+            fraction=0.575,
+            direction="left",
+            corner_type="chicane",
+            elevation_trend="downhill",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Sharp left completing the chicane; replaced the old 'Dip' in "
+                "1996. Track falls away on exit — early throttle causes "
+                "understeer."
+            ),
+        ),
+        OfficialCorner(
+            number=10,
+            name="Bridge Approach",
+            fraction=0.720,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="uphill",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Sweeping right before the bridge complex. Uphill approach "
+                "compresses suspension — use the extra grip to carry good "
+                "entry speed and position for T11."
+            ),
+        ),
+        OfficialCorner(
+            number=11,
+            name="Bridge Turn",
+            fraction=0.790,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="flat",
+            camber="positive",
+            blind=True,
+            coaching_notes=(
+                "The iconic thread-the-needle turn under the bridge — blind "
+                "apex and tight walls demand precise placement. Commit to your "
+                "reference point early."
+            ),
+        ),
+        OfficialCorner(
+            number=12,
+            name="Roller Coaster",
+            fraction=0.910,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="downhill",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Fast downhill sweeper onto the pit straight — most critical "
+                "corner for lap time. Trail-brake to rotate and get on power "
+                "before the apex to maximize exit speed."
+            ),
+        ),
+    ],
+)
+
+# ---------------------------------------------------------------------------
+# Virginia International Raceway — Full Course
+# ---------------------------------------------------------------------------
+# Sources:
+#   - OSM named sections (Hog Pen, Horseshoe, NASCAR Bend, etc.)
+#   - VIR official corner guide and track maps
+#   - Track reference: OSM centerline (5262m, 17 ways / 246 nodes)
+# Note: Corner fractions estimated from OSM section geometry.
+#   Will be refined when real telemetry data becomes available.
+
+VIR_FULL_COURSE = TrackLayout(
+    name="Virginia International Raceway",
+    center_lat=36.567,
+    center_lon=-79.206,
+    country="US",
+    length_m=5263.0,
+    elevation_range_m=30.0,  # ~100 ft
+    corners=[
+        OfficialCorner(
+            number=1,
+            name="Oak Tree",
+            fraction=0.025,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="flat",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Fast right-hander after S/F. Named for the historic oak tree "
+                "nearby. Carry speed and set up for the climb."
+            ),
+        ),
+        OfficialCorner(
+            number=2,
+            name="Roller Coaster Entry",
+            fraction=0.065,
+            direction="left",
+            corner_type="sweeper",
+            elevation_trend="uphill",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Left sweeper beginning the Roller Coaster climb. Track rises "
+                "through the turn adding mechanical grip."
+            ),
+        ),
+        OfficialCorner(
+            number=3,
+            name="Roller Coaster Crest",
+            fraction=0.100,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="crest",
+            camber="positive",
+            blind=True,
+            coaching_notes=(
+                "Right sweeper over a blind crest — car goes light at the top. "
+                "Commitment is key; pick your line before cresting."
+            ),
+        ),
+        OfficialCorner(
+            number=4,
+            name="Spiral",
+            fraction=0.155,
+            direction="left",
+            corner_type="sweeper",
+            elevation_trend="downhill",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Multi-apex left spiraling downhill. Let the car flow naturally "
+                "through the radius change; avoid over-braking."
+            ),
+        ),
+        OfficialCorner(
+            number=5,
+            name="Hog Pen",
+            fraction=0.225,
+            direction="right",
+            corner_type="hairpin",
+            elevation_trend="flat",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Tight right hairpin — one of the slowest points. Trail-brake "
+                "to rotate and prioritize exit speed onto the long straight "
+                "toward the Climbing Esses."
+            ),
+        ),
+        OfficialCorner(
+            number=6,
+            name="Climbing Esses Left",
+            fraction=0.315,
+            direction="left",
+            corner_type="esses",
+            elevation_trend="uphill",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "First part of the Climbing Esses — uphill left. Flow through "
+                "with minimal steering input to maintain momentum."
+            ),
+        ),
+        OfficialCorner(
+            number=7,
+            name="Climbing Esses Right",
+            fraction=0.350,
+            direction="right",
+            corner_type="esses",
+            elevation_trend="uphill",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Second part of the Climbing Esses — uphill right. Smooth "
+                "transition from T6; let the car settle before the next section."
+            ),
+        ),
+        OfficialCorner(
+            number=8,
+            name="Horseshoe",
+            fraction=0.435,
+            direction="left",
+            corner_type="sweeper",
+            elevation_trend="flat",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Long sweeping left-hander — a horseshoe shape. Stay patient "
+                "and use all the track on exit to carry maximum speed."
+            ),
+        ),
+        OfficialCorner(
+            number=9,
+            name="NASCAR Bend",
+            fraction=0.510,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="flat",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Sweeping right-hander — named for the NASCAR-style banking. "
+                "Trust the camber and carry speed; opens into a short straight."
+            ),
+        ),
+        OfficialCorner(
+            number=10,
+            name="Left Hook",
+            fraction=0.575,
+            direction="left",
+            corner_type="sweeper",
+            elevation_trend="flat",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Sharp left — sets up the approach to Snake. Trail-brake and "
+                "clip the apex precisely."
+            ),
+        ),
+        OfficialCorner(
+            number=11,
+            name="The Bitch",
+            fraction=0.620,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="flat",
+            camber="off-camber",
+            blind=False,
+            coaching_notes=(
+                "Fast right sweeper with off-camber exit — earned its name. "
+                "Patience on throttle exit prevents the rear from stepping out."
+            ),
+        ),
+        OfficialCorner(
+            number=12,
+            name="Snake Entry",
+            fraction=0.680,
+            direction="left",
+            corner_type="esses",
+            elevation_trend="flat",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Left-hand entry into the Snake complex. Flow through with "
+                "minimal corrections; the sequence rewards rhythm."
+            ),
+        ),
+        OfficialCorner(
+            number=13,
+            name="Snake Exit",
+            fraction=0.720,
+            direction="right",
+            corner_type="esses",
+            elevation_trend="flat",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Right-hand exit of the Snake — opens onto a short straight before South Bend."
+            ),
+        ),
+        OfficialCorner(
+            number=14,
+            name="South Bend",
+            fraction=0.790,
+            direction="left",
+            corner_type="sweeper",
+            elevation_trend="downhill",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Downhill left sweeper leading to the back section. The "
+                "descending track adds speed — moderate braking with a late "
+                "apex."
+            ),
+        ),
+        OfficialCorner(
+            number=15,
+            name="South Bend Exit",
+            fraction=0.830,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="downhill",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Right-hand exit linking South Bend to the Oak Tree approach. "
+                "Smooth inputs on the descending track."
+            ),
+        ),
+    ],
+)
+
 # Registry of known tracks — keys are normalized (lowercased, stripped).
 _TRACK_REGISTRY: dict[str, TrackLayout] = {
     "barber motorsports park": BARBER_MOTORSPORTS_PARK,
@@ -1022,6 +1452,11 @@ _TRACK_REGISTRY: dict[str, TrackLayout] = {
     "laguna seca": LAGUNA_SECA,
     "weathertech raceway laguna seca": LAGUNA_SECA,
     "mazda raceway laguna seca": LAGUNA_SECA,
+    "road atlanta": ROAD_ATLANTA,
+    "michelin raceway road atlanta": ROAD_ATLANTA,
+    "virginia international raceway": VIR_FULL_COURSE,
+    "vir": VIR_FULL_COURSE,
+    "vir full course": VIR_FULL_COURSE,
 }
 
 
