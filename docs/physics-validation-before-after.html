@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Physics Validation — Before vs After | 2026-03-19</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+    background: #0a0c10; color: #c9d1d9;
+    padding: 2rem; max-width: 1200px; margin: 0 auto;
+  }
+  h1 { font-size: 1.6rem; margin-bottom: 0.3rem;
+    background: linear-gradient(135deg, #58a6ff, #bc8cff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  h2 { font-size: 1.1rem; color: #58a6ff; margin: 2rem 0 0.8rem; border-bottom: 1px solid #21262d; padding-bottom: 0.4rem; }
+  .subtitle { color: #8b949e; font-size: 0.85rem; margin-bottom: 2rem; }
+  table { border-collapse: collapse; width: 100%; margin-bottom: 1.5rem; font-size: 0.85rem; }
+  th { text-align: left; padding: 0.5rem 0.8rem; border-bottom: 2px solid #30363d; color: #8b949e; font-weight: 600; }
+  td { padding: 0.4rem 0.8rem; border-bottom: 1px solid #21262d; }
+  tr:hover { background: #161b22; }
+  .better { color: #3fb950; } .worse { color: #f85149; } .same { color: #8b949e; }
+  .metric-card { display: inline-block; background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+    padding: 1rem 1.4rem; margin: 0.4rem; min-width: 140px; text-align: center; }
+  .metric-val { font-size: 1.5rem; font-weight: 700; }
+  .metric-label { font-size: 0.75rem; color: #8b949e; margin-top: 0.2rem; }
+  .metric-delta { font-size: 0.8rem; margin-top: 0.3rem; }
+  .chart-container { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.2rem; margin: 1rem 0; }
+  canvas { width: 100%; height: 300px; }
+  .bar { display: inline-block; height: 18px; border-radius: 3px; margin: 1px 0; }
+  .bar-label { font-size: 0.75rem; display: inline-block; width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-val { font-size: 0.75rem; color: #8b949e; margin-left: 4px; }
+  .tag { display: inline-block; padding: 1px 6px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
+  .tag-street { background: #1f3a1f; color: #3fb950; }
+  .tag-endurance { background: #2d2a1f; color: #d29922; }
+  .tag-super { background: #2a1f2d; color: #bc8cff; }
+  .tag-100tw { background: #1f2a2d; color: #58a6ff; }
+  .tag-rcomp { background: #2d1f1f; color: #f85149; }
+  .tag-slick { background: #1f1f2d; color: #79c0ff; }
+</style>
+</head>
+<body>
+
+<h1>Physics Validation Report</h1>
+<div class="subtitle">Before → After comparison · 70 → 73 entries · 3 tracks · Generated 2026-03-19 22:56</div>
+
+<h2>Key Metrics</h2>
+<div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+<div class="metric-card">
+  <div class="metric-val better">0.0319</div>
+  <div class="metric-label">Std</div>
+  <div class="metric-delta better">0.0348 → 0.0319</div>
+</div><div class="metric-card">
+  <div class="metric-val better">3.13s</div>
+  <div class="metric-label">RMSE</div>
+  <div class="metric-delta better">3.35s → 3.13s</div>
+</div><div class="metric-card">
+  <div class="metric-val better">2.56%</div>
+  <div class="metric-label">MAPE</div>
+  <div class="metric-delta better">2.70% → 2.56%</div>
+</div><div class="metric-card">
+  <div class="metric-val better">4</div>
+  <div class="metric-label">Exceedances</div>
+  <div class="metric-delta better">6 → 4</div>
+</div><div class="metric-card">
+  <div class="metric-val worse">1.0051</div>
+  <div class="metric-label">Mean</div>
+  <div class="metric-delta worse">1.0044 → 1.0051</div>
+</div></div>
+
+<h2>Per-Category Accuracy</h2>
+<table>
+<tr><th>Category</th><th>n</th><th>Before</th><th>After</th><th>Delta</th><th>Direction</th></tr>
+<tr>
+  <td><span class="tag tag-street">street</span></td>
+  <td>12</td><td>1.0324</td><td>1.0189</td>
+  <td class="better">-0.0135</td><td class="better">✅ closer to 1.0</td>
+</tr><tr>
+  <td><span class="tag tag-endurance">endurance_200tw</span></td>
+  <td>18</td><td>0.9987</td><td>1.0028</td>
+  <td class="worse">+0.0041</td><td class="worse">⚠️ away from 1.0</td>
+</tr><tr>
+  <td><span class="tag tag-super">super_200tw</span></td>
+  <td>24</td><td>1.0062</td><td>1.0078</td>
+  <td class="worse">+0.0016</td><td class="worse">⚠️ away from 1.0</td>
+</tr><tr>
+  <td><span class="tag tag-100tw">100tw</span></td>
+  <td>5</td><td>0.9891</td><td>0.9923</td>
+  <td class="better">+0.0032</td><td class="better">✅ closer to 1.0</td>
+</tr><tr>
+  <td><span class="tag tag-rcompound">r_compound</span></td>
+  <td>7</td><td>0.9888</td><td>0.9961</td>
+  <td class="better">+0.0073</td><td class="better">✅ closer to 1.0</td>
+</tr><tr>
+  <td><span class="tag tag-slick">slick</span></td>
+  <td>7</td><td>0.9934</td><td>0.9967</td>
+  <td class="better">+0.0032</td><td class="better">✅ closer to 1.0</td>
+</tr></table>
+
+<h2>Per-Track Accuracy</h2>
+<table>
+<tr><th>Track</th><th>n</th><th>Before</th><th>After</th><th>Delta</th></tr>
+<tr><td>Atlanta</td><td>14</td><td>1.0015</td><td>0.9964</td><td class="worse">-0.0051</td></tr><tr><td>Barber</td><td>40</td><td>1.0115</td><td>1.0137</td><td class="worse">+0.0022</td></tr><tr><td>Roebling Road</td><td>19</td><td>0.9928</td><td>0.9936</td><td class="better">+0.0008</td></tr></table>
+
+<h2>Per-Entry Ratio Distribution</h2>
+<div class="chart-container">
+<div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Mustang GT S550 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:8.450000000000014%;background:#f85149;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.917</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Mustang GT S550 <span style="color:#6e7681">(Roebling Road)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:14.600000000000001%;background:#f85149;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.929</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Mustang GT S550 <span style="color:#6e7681">(Roebling Road)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:26.200000000000003%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.952</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Nissan 370Z <span style="color:#6e7681">(Atlanta)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:29.89999999999998%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.960</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">WRX STI GD <span style="color:#6e7681">(Roebling Road)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:29.99999999999997%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.960</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Corvette C5 Z06 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:31.349999999999987%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.963</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Cayman GT4 718 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:32.54999999999997%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.965</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">GR86 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:32.899999999999984%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.966</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Civic Type R FK8 <span style="color:#6e7681">(Roebling Road)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:33.54999999999997%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.967</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">GT350 <span style="color:#6e7681">(Roebling Road)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:33.99999999999997%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.968</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Audi TT RS 8S <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:33.99999999999997%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.968</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">GR86 <span style="color:#6e7681">(Atlanta)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:34.49999999999997%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.969</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Civic Type R FK8 (FL5 proxy) <span style="color:#6e7681">(Atlanta)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:35.20000000000001%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.970</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Corvette C8 Z06 <span style="color:#6e7681">(Atlanta)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:37.64999999999996%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.975</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">BMW M4 F82 <span style="color:#6e7681">(Roebling Road)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:38.20000000000001%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.976</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Cayman GT4 718 <span style="color:#6e7681">(Atlanta)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:38.549999999999976%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.977</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">GT350 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:40.099999999999966%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.980</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Civic Type R FK8 (FL5 proxy) <span style="color:#6e7681">(Atlanta)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:42.70000000000002%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.985</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Corvette C7 Grand Sport <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:42.85%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.986</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">GR86 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:42.94999999999999%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.986</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Cayman GT4 718 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:44.69999999999996%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.989</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Corvette C7 Z06 <span style="color:#6e7681">(Atlanta)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:44.800000000000004%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.990</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">911 GT3 991 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:46.4%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.993</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Cayman GT4 718 <span style="color:#6e7681">(Roebling Road)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:46.54999999999998%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.993</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Mustang GT S550 <span style="color:#6e7681">(Roebling Road)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:46.64999999999997%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.993</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">BMW M2 G87 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:47.499999999999986%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.995</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Camaro ZL1 1LE <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:47.750000000000014%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.996</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">GR86 <span style="color:#6e7681">(Atlanta)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:47.750000000000014%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.996</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">BMW M3 E92 <span style="color:#6e7681">(Atlanta)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:47.80000000000001%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.996</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Camaro SS 1LE <span style="color:#6e7681">(Roebling Road)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:48.750000000000014%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.998</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Nissan GT-R R35 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:49.09999999999998%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.998</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Veloster N <span style="color:#6e7681">(Roebling Road)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:49.14999999999997%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">0.998</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">GR86 (FR-S proxy) <span style="color:#6e7681">(Roebling Road)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:49.85000000000001%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.000</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Corvette C8 Z06 <span style="color:#6e7681">(Roebling Road)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:50.09999999999998%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.000</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Nissan GT-R R35 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:50.19999999999997%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.000</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">BMW M2 G87 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:52.80000000000001%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.006</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">GR86 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:53.14999999999998%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.006</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Lexus RC F <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:53.75000000000002%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.008</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Miata ND <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:54.85000000000001%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.010</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Nissan GT-R R35 <span style="color:#6e7681">(Atlanta)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:55.04999999999999%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.010</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">911 GT3 992 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:55.199999999999974%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.010</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Mustang GT S550 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:55.199999999999974%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.010</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">GR Supra A90 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:55.199999999999974%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.010</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Subaru BRZ <span style="color:#6e7681">(Roebling Road)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:55.449999999999946%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.011</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Focus RS Mk3 <span style="color:#6e7681">(Roebling Road)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:58.14999999999998%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.016</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Corvette C6 Z06 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:58.29999999999996%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.017</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Civic Type R FL5 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:58.54999999999993%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.017</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Lotus Elise S2 <span style="color:#6e7681">(Atlanta)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:58.600000000000044%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.017</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">GR86 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:58.850000000000016%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.018</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Nissan 350Z <span style="color:#6e7681">(Roebling Road)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:59.54999999999993%;background:#3fb950;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.019</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Nissan GT-R R35 <span style="color:#6e7681">(Roebling Road)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:60.09999999999999%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.020</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Golf R Mk7 <span style="color:#6e7681">(Roebling Road)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:60.54999999999994%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.021</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">BMW M3 E92 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:60.75000000000003%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.022</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">GR Supra A90 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:62.95%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.026</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Elantra N <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:63.44999999999995%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.027</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">BMW M3 F80 <span style="color:#6e7681">(Roebling Road)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:63.49999999999994%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.027</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">GR86 <span style="color:#6e7681">(Roebling Road)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:64.34999999999997%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.029</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Golf R Mk7 <span style="color:#6e7681">(Atlanta)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:65.54999999999994%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.031</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Corvette C5 Z06 <span style="color:#6e7681">(Atlanta)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:67.1%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.034</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Corvette C8 Z51 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:67.80000000000003%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.036</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Corvette C8 Z06 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:68.14999999999999%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.036</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Nissan 350Z <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:69.44999999999996%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.039</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Civic Type R FL5 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:69.75000000000003%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.040</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Focus RS Mk3 <span style="color:#6e7681">(Atlanta)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:69.75000000000003%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.040</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Miata NA <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:69.80000000000003%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.040</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Honda Civic Si FC1 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:72.00000000000001%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.044</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Cayman GT4 718 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:73.75000000000004%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.048</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">WRX STI <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:74.24999999999999%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.048</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Golf R Mk7 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:74.85000000000002%;background:#d29922;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.050</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">BMW M3 CS G80 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:78.00000000000001%;background:#f85149;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.056</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">BMW M2 Competition F87 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:79.80000000000004%;background:#f85149;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.060</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Nissan GT-R R35 <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:90.34999999999998%;background:#f85149;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.081</span>
+</div><div style="margin:1px 0;display:flex;align-items:center;">
+  <span class="bar-label">Nissan 350Z <span style="color:#6e7681">(Barber)</span></span>
+  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
+    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
+    <div class="bar" style="width:91.64999999999995%;background:#f85149;position:absolute;left:0;"></div>
+  </div>
+  <span class="bar-val">1.083</span>
+</div></div>
+
+<h2>Biggest Changes (Before → After)</h2>
+<table>
+<tr><th>Car</th><th>Track</th><th>Tire</th><th>Before</th><th>After</th><th>Change</th></tr>
+<tr><td>Nissan GT-R R35</td><td>Barber</td><td><span class="tag tag-street">street</span></td>
+    <td>1.115</td><td>1.081</td><td class="better">-0.034 ✅</td></tr><tr><td>Golf R Mk7</td><td>Atlanta</td><td><span class="tag tag-street">street</span></td>
+    <td>1.064</td><td>1.031</td><td class="better">-0.033 ✅</td></tr><tr><td>Focus RS Mk3</td><td>Atlanta</td><td><span class="tag tag-street">street</span></td>
+    <td>1.072</td><td>1.040</td><td class="better">-0.033 ✅</td></tr><tr><td>Golf R Mk7</td><td>Roebling Road</td><td><span class="tag tag-street">street</span></td>
+    <td>1.044</td><td>1.021</td><td class="better">-0.022 ✅</td></tr><tr><td>Focus RS Mk3</td><td>Roebling Road</td><td><span class="tag tag-street">street</span></td>
+    <td>1.039</td><td>1.016</td><td class="better">-0.022 ✅</td></tr><tr><td>Subaru BRZ</td><td>Roebling Road</td><td><span class="tag tag-street">street</span></td>
+    <td>1.032</td><td>1.011</td><td class="better">-0.021 ✅</td></tr><tr><td>Mustang GT S550</td><td>Roebling Road</td><td><span class="tag tag-rcompound">r_compound</span></td>
+    <td>0.942</td><td>0.952</td><td class="better">-0.010 ✅</td></tr><tr><td>Mustang GT S550</td><td>Roebling Road</td><td><span class="tag tag-rcompound">r_compound</span></td>
+    <td>0.919</td><td>0.929</td><td class="better">-0.010 ✅</td></tr><tr><td colspan="6" style="border-top:2px solid #30363d;"></td></tr><tr><td>Miata NA</td><td>Barber</td><td><span class="tag tag-rcompound">r_compound</span></td>
+    <td>1.026</td><td>1.040</td><td class="worse">+0.013 ⚠️</td></tr><tr><td>Civic Type R FL5</td><td>Barber</td><td><span class="tag tag-super">super_200tw</span></td>
+    <td>1.007</td><td>1.017</td><td class="worse">+0.010 ⚠️</td></tr><tr><td>Nissan 350Z</td><td>Roebling Road</td><td><span class="tag tag-rcompound">r_compound</span></td>
+    <td>1.010</td><td>1.019</td><td class="worse">+0.009 ⚠️</td></tr><tr><td>Mustang GT S550</td><td>Barber</td><td><span class="tag tag-slick">slick</span></td>
+    <td>1.002</td><td>1.010</td><td class="worse">+0.008 ⚠️</td></tr><tr><td>Civic Type R FL5</td><td>Barber</td><td><span class="tag tag-endurance">endurance_200tw</span></td>
+    <td>1.032</td><td>1.040</td><td class="worse">+0.007 ⚠️</td></tr></table>
+
+<h2>Changes Applied</h2>
+<table>
+<tr><th>Phase</th><th>Change</th><th>Impact</th></tr>
+<tr><td>1A</td><td>Street tire mu 0.85 → 0.90</td><td>Street mean 1.032 → 1.019</td></tr>
+<tr><td>1B</td><td>AWD traction multiplier 1.04 → 1.05</td><td>AWD group improved</td></tr>
+<tr><td>2</td><td>power_band_factor (15 cars, 0.80-0.95)</td><td>NA vs turbo differentiation</td></tr>
+<tr><td>3</td><td>Track banking (Barber 0-4° from iRacing)</td><td>Barber mean 1.016 → 1.014</td></tr>
+<tr><td>4</td><td>Tire thermal model (coaching)</td><td>Not in solver — coaching features</td></tr>
+<tr><td>IMP-2</td><td>Wire banking.py into pipeline</td><td>Telemetry-based banking now live</td></tr>
+</table>
+
+<div style="margin-top:3rem;padding:1rem;background:#161b22;border:1px solid #30363d;border-radius:8px;">
+  <p style="color:#8b949e;font-size:0.8rem;">
+    Barber bias diagnosis: All exceedances at Barber. +1.8% systematic bias from GPS curvature overestimation (~1%) + missing banking (~0.3%).
+    Remaining gap is data quality, not solver error. Next step: better Barber track reference from high-quality GPS session.
+  </p>
+</div>
+
+</body></html>
