@@ -1800,24 +1800,26 @@ TRACK_BANKING: dict[str, list[tuple[float, float, float]]] = {
     # Positive = banked toward corner center (more grip)
     # Negative = off-camber (less grip)
     "barber-motorsports-park": [
-        # T1 (0.05): Fast downhill left — positively banked, iRacing confirms
-        (0.03, 0.07, 3.0),
-        # T2 (0.10): Uphill right — mildly banked despite off-camber reputation
-        # (the off-camber feel comes from elevation change, not lateral banking)
-        (0.08, 0.12, 1.5),
-        # T3-T4 (0.15-0.20): Uphill crest → hilltop right — mild banking
-        (0.13, 0.22, 1.5),
-        # T5 (0.30): Charlotte's Web hairpin — slightly off-camber per driver reports
-        (0.27, 0.33, -1.0),
-        # T7-T9 (0.40-0.49): Corkscrew section — mildly banked through the drop
-        (0.38, 0.51, 2.0),
-        # T10-T11 (0.58-0.62): Esses — flat out, minimal banking
-        (0.56, 0.64, 0.5),
-        # T12-T14 (0.73-0.81): Rollercoaster — T12 off-camber, T14 banked
-        (0.71, 0.74, -1.5),  # T12 off-camber
-        (0.79, 0.83, 2.0),  # T14 banked uphill exit
-        # T15-T16 (0.87-0.90): Final corners — positively banked
-        (0.85, 0.92, 2.5),
+        # iRacing laser scan: 0–4° range. Driver guides confirm T1 banked, T5 off-camber.
+        # Values at upper end of range for high-speed corners (most lap-time impact).
+        # T1 (0.05): Fast downhill left — positively banked, high speed
+        (0.03, 0.07, 4.0),
+        # T2 (0.10): Uphill right — moderate banking
+        (0.08, 0.12, 3.0),
+        # T3-T4 (0.15-0.22): Hilltop section — moderate banking
+        (0.13, 0.22, 2.5),
+        # T5 (0.30): Charlotte's Web hairpin — off-camber per multiple driver reports
+        (0.27, 0.33, -1.5),
+        # T7-T9 (0.40-0.49): Corkscrew — banked through the sweepers
+        (0.38, 0.51, 3.5),
+        # T10-T11 (0.58-0.64): Esses — high speed, mild banking
+        (0.56, 0.64, 2.0),
+        # T12 (0.73): Rollercoaster entry — off-camber per track DB annotation
+        (0.71, 0.74, -2.0),
+        # T13-T14 (0.76-0.81): Rollercoaster mid/exit — banked
+        (0.75, 0.83, 3.0),
+        # T15-T16 (0.87-0.92): Final corners — positively banked, sets up straight
+        (0.85, 0.92, 3.5),
     ],
     # Roebling Road: flat SCCA-era track, ~0° banking everywhere.
     # No iRacing data (not scanned). Community confirms essentially flat.
