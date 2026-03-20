@@ -239,6 +239,35 @@ def _percentile(sorted_values: list[float], pct: float) -> float:
     return sorted_values[idx]
 
 
+async def get_task_median_latency_s(
+    db: AsyncSession,
+    task: str,
+    model: str,
+    *,
+    limit: int = 50,
+) -> float | None:
+    """Return median latency (seconds) for a task+model from recent successful events.
+
+    Returns None if no matching events exist.
+    """
+    stmt = (
+        select(LLMUsageEvent.latency_ms)
+        .where(
+            LLMUsageEvent.task == task,
+            LLMUsageEvent.model == model,
+            LLMUsageEvent.success.is_(True),
+        )
+        .order_by(LLMUsageEvent.event_timestamp.desc())
+        .limit(limit)
+    )
+    rows = (await db.execute(stmt)).scalars().all()
+    if not rows:
+        return None
+    sorted_ms = sorted(rows)
+    median_ms = _percentile(sorted_ms, 0.50)
+    return round(median_ms / 1000.0, 1)
+
+
 async def get_llm_usage_dashboard_db(db: AsyncSession, *, days: int = 30) -> dict[str, Any]:
     """Return dashboard-shaped usage aggregates for admin analytics views."""
     clamped_days = max(0, min(days, 365))

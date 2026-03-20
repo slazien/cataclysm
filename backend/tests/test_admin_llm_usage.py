@@ -184,3 +184,146 @@ def test_require_admin_uses_configurable_allowlist(monkeypatch: pytest.MonkeyPat
     with pytest.raises(HTTPException) as exc:
         require_admin(blocked)
     assert exc.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_get_task_median_latency_s_returns_median(
+    _test_db: None,
+) -> None:
+    """Median latency from recent successful events for a specific task+model."""
+    from backend.api.services.llm_usage_store import get_task_median_latency_s
+    from backend.tests.conftest import _test_session_factory
+
+    async with _test_session_factory() as db:
+        base = datetime.now(UTC)
+        events = [
+            LLMUsageEvent(
+                event_timestamp=base - timedelta(seconds=i),
+                task="coaching_report",
+                provider="anthropic",
+                model="claude-haiku-4-5-20251001",
+                success=True,
+                input_tokens=100,
+                output_tokens=100,
+                cached_input_tokens=0,
+                cache_creation_input_tokens=0,
+                latency_ms=ms,
+                cost_usd=0.01,
+            )
+            for i, ms in enumerate([10000, 20000, 30000, 40000, 50000])
+        ]
+        db.add_all(events)
+        await db.flush()
+
+        result = await get_task_median_latency_s(db, "coaching_report", "claude-haiku-4-5-20251001")
+        assert result is not None
+        assert result == 30.0
+
+
+@pytest.mark.asyncio
+async def test_get_task_median_latency_s_no_data(
+    _test_db: None,
+) -> None:
+    """Returns None when no matching events exist."""
+    from backend.api.services.llm_usage_store import get_task_median_latency_s
+    from backend.tests.conftest import _test_session_factory
+
+    async with _test_session_factory() as db:
+        result = await get_task_median_latency_s(db, "coaching_report", "nonexistent-model")
+        assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_task_median_latency_s_ignores_failures(
+    _test_db: None,
+) -> None:
+    """Only successful events are included in the median."""
+    from backend.api.services.llm_usage_store import get_task_median_latency_s
+    from backend.tests.conftest import _test_session_factory
+
+    async with _test_session_factory() as db:
+        base = datetime.now(UTC)
+        db.add_all(
+            [
+                LLMUsageEvent(
+                    event_timestamp=base,
+                    task="coaching_report",
+                    provider="anthropic",
+                    model="test-model",
+                    success=True,
+                    input_tokens=100,
+                    output_tokens=100,
+                    cached_input_tokens=0,
+                    cache_creation_input_tokens=0,
+                    latency_ms=5000,
+                    cost_usd=0.01,
+                ),
+                LLMUsageEvent(
+                    event_timestamp=base - timedelta(seconds=1),
+                    task="coaching_report",
+                    provider="anthropic",
+                    model="test-model",
+                    success=False,
+                    input_tokens=100,
+                    output_tokens=0,
+                    cached_input_tokens=0,
+                    cache_creation_input_tokens=0,
+                    latency_ms=120000,
+                    cost_usd=0.0,
+                    error="timeout",
+                ),
+            ]
+        )
+        await db.flush()
+
+        result = await get_task_median_latency_s(db, "coaching_report", "test-model")
+        assert result is not None
+        assert result == 5.0
+
+
+@pytest.mark.asyncio
+async def test_get_task_median_latency_s_filters_by_model(
+    _test_db: None,
+) -> None:
+    """Events for different models are not mixed."""
+    from backend.api.services.llm_usage_store import get_task_median_latency_s
+    from backend.tests.conftest import _test_session_factory
+
+    async with _test_session_factory() as db:
+        base = datetime.now(UTC)
+        db.add_all(
+            [
+                LLMUsageEvent(
+                    event_timestamp=base,
+                    task="coaching_report",
+                    provider="anthropic",
+                    model="model-a",
+                    success=True,
+                    input_tokens=100,
+                    output_tokens=100,
+                    cached_input_tokens=0,
+                    cache_creation_input_tokens=0,
+                    latency_ms=10000,
+                    cost_usd=0.01,
+                ),
+                LLMUsageEvent(
+                    event_timestamp=base - timedelta(seconds=1),
+                    task="coaching_report",
+                    provider="openai",
+                    model="model-b",
+                    success=True,
+                    input_tokens=100,
+                    output_tokens=100,
+                    cached_input_tokens=0,
+                    cache_creation_input_tokens=0,
+                    latency_ms=50000,
+                    cost_usd=0.01,
+                ),
+            ]
+        )
+        await db.flush()
+
+        result_a = await get_task_median_latency_s(db, "coaching_report", "model-a")
+        result_b = await get_task_median_latency_s(db, "coaching_report", "model-b")
+        assert result_a == 10.0
+        assert result_b == 50.0
