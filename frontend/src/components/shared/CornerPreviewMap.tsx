@@ -183,7 +183,20 @@ export function CornerPreviewMap({ cornerNum, width = 320, height = 220 }: Corne
 
           {apexPos && (
             <Marker longitude={apexPos[0]} latitude={apexPos[1]} anchor="center">
-              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--cata-accent)] text-[10px] font-bold text-black shadow">
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 22,
+                height: 22,
+                borderRadius: '50%',
+                backgroundColor: '#f59e0b',
+                fontSize: 11,
+                fontWeight: 700,
+                color: '#000',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.5)',
+                lineHeight: 1,
+              }}>
                 {cornerNum}
               </div>
             </Marker>
