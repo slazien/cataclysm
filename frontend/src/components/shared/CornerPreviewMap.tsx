@@ -53,7 +53,12 @@ export function CornerPreviewMap({ cornerNum, width = 320, height = 220 }: Corne
   const { data: multiLap } = useMultiLapData(sessionId, lapNums);
 
   const [mapLoaded, setMapLoaded] = useState(false);
-  const onLoad = useCallback(() => setMapLoaded(true), []);
+  const [visible, setVisible] = useState(false);
+  const onLoad = useCallback(() => {
+    setMapLoaded(true);
+    // Delay visibility until tiles have rendered to prevent blink
+    setTimeout(() => setVisible(true), 200);
+  }, []);
 
   const corner = useMemo(
     () => corners?.find((c) => c.number === cornerNum) ?? null,
@@ -146,7 +151,14 @@ export function CornerPreviewMap({ cornerNum, width = 320, height = 220 }: Corne
   }
 
   return (
-    <div className="overflow-hidden rounded-t-lg" style={{ width, height }}>
+    <div className="relative overflow-hidden rounded-t-lg" style={{ width, height }}>
+      {/* Loading skeleton visible until map tiles render */}
+      {!visible && (
+        <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg-base)] text-xs text-[var(--text-secondary)]">
+          Loading map...
+        </div>
+      )}
+      <div style={{ opacity: visible ? 1 : 0, transition: 'opacity 250ms ease-in' }} className="h-full w-full">
       <MapGL
         mapboxAccessToken={MAPBOX_TOKEN}
         initialViewState={{ bounds, fitBoundsOptions: { padding: 30 } }}
@@ -181,6 +193,7 @@ export function CornerPreviewMap({ cornerNum, width = 320, height = 220 }: Corne
           </>
         )}
       </MapGL>
+      </div>
     </div>
   );
 }
