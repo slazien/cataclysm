@@ -4,6 +4,7 @@ import { useRef, useEffect, useCallback } from 'react';
 import * as d3 from 'd3';
 import type { LapData, IdealLapData, Corner } from '@/lib/types';
 import { distanceToGpsIndex } from '@/hooks/useOptimalReplay';
+import { useUnits } from '@/hooks/useUnits';
 
 const PADDING = 30;
 
@@ -39,6 +40,7 @@ export function OptimalReplayMap({
   idealDistance,
   idealIndex,
 }: OptimalReplayMapProps) {
+  const { formatDistance } = useUnits();
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const projRef = useRef<{
@@ -263,8 +265,8 @@ export function OptimalReplayMap({
       const gapM = lapData.distance_m[idealEnd] - lapData.distance_m[actualEnd];
       const gapText =
         gapM >= 0
-          ? `Ideal +${gapM.toFixed(0)}m ahead`
-          : `You +${Math.abs(gapM).toFixed(0)}m ahead`;
+          ? `Ideal +${formatDistance(gapM)} ahead`
+          : `You +${formatDistance(Math.abs(gapM))} ahead`;
       const gapColor = gapM >= 0 ? '#fbbf24' : '#4ade80';
 
       ctx.font = '600 11px system-ui, sans-serif';
@@ -272,7 +274,7 @@ export function OptimalReplayMap({
       ctx.textAlign = 'right';
       ctx.fillText(gapText, w - 12, h - 12);
     }
-  }, [actualIndex, idealDistance, idealIndex, lapData, idealLap, corners]);
+  }, [actualIndex, idealDistance, idealIndex, lapData, idealLap, corners, formatDistance]);
 
   return (
     <div ref={containerRef} className="relative h-full w-full">

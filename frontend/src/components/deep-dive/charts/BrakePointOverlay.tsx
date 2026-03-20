@@ -8,6 +8,7 @@ import { useSessionLaps } from '@/hooks/useSession';
 import { useSessionStore } from '@/stores';
 import { useAnalysisStore } from '@/stores';
 import { colors } from '@/lib/design-tokens';
+import { useUnits } from '@/hooks/useUnits';
 import type { LapData } from '@/lib/types';
 import type { GeoJSON } from 'geojson';
 
@@ -101,6 +102,7 @@ export function BrakePointOverlay({
   const { data: laps } = useSessionLaps(activeSessionId);
   const hoveredPedalPoint = useAnalysisStore((s) => s.hoveredPedalPoint);
   const setHoveredPedalPoint = useAnalysisStore((s) => s.setHoveredPedalPoint);
+  const { formatDistance } = useUnits();
 
   const bestLapNumber = useMemo(() => {
     if (!laps || laps.length === 0) return null;
@@ -488,21 +490,21 @@ export function BrakePointOverlay({
           {stats.distToApex != null && (
             <p className="text-xs text-[var(--text-primary)]">
               <span className="text-[var(--text-secondary)]">Best brake: </span>
-              <span className="font-semibold tabular-nums">{stats.distToApex}m</span>
+              <span className="font-semibold tabular-nums">{formatDistance(stats.distToApex)}</span>
               <span className="text-[var(--text-secondary)]"> before apex</span>
             </p>
           )}
           {stats.spreadM != null && (
             <p className="text-xs text-[var(--text-primary)]">
               <span className="text-[var(--text-secondary)]">Spread: </span>
-              <span className="font-semibold tabular-nums">±{stats.spreadM.toFixed(1)}m</span>
+              <span className="font-semibold tabular-nums">±{formatDistance(stats.spreadM, 1)}</span>
             </p>
           )}
           {stats.brakeGapM != null && Math.abs(stats.brakeGapM) >= 0.5 && (
             <p className="text-xs text-[var(--text-primary)]">
               <span style={{ color: colors.motorsport.brake }} className="text-[var(--text-secondary)]">Brake gap: </span>
               <span className="font-semibold tabular-nums">
-                {stats.brakeGapM > 0 ? `${stats.brakeGapM.toFixed(1)}m late` : `${Math.abs(stats.brakeGapM).toFixed(1)}m early`}
+                {stats.brakeGapM > 0 ? `${formatDistance(stats.brakeGapM, 1)} late` : `${formatDistance(Math.abs(stats.brakeGapM), 1)} early`}
               </span>
             </p>
           )}
@@ -510,7 +512,7 @@ export function BrakePointOverlay({
             <p className="text-xs text-[var(--text-primary)]">
               <span style={{ color: colors.motorsport.throttle }} className="text-[var(--text-secondary)]">Throttle gap: </span>
               <span className="font-semibold tabular-nums">
-                {stats.throttleGapM > 0 ? `${stats.throttleGapM.toFixed(1)}m late` : `${Math.abs(stats.throttleGapM).toFixed(1)}m early`}
+                {stats.throttleGapM > 0 ? `${formatDistance(stats.throttleGapM, 1)} late` : `${formatDistance(Math.abs(stats.throttleGapM), 1)} early`}
               </span>
             </p>
           )}
