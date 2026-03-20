@@ -2300,8 +2300,8 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
 # =========================================================================
 # ROAD ATLANTA — LapMeta community HPDE data (4,088m / 2.54mi)
 # Source: lapmeta.com/en/track/variation/18
-# DISABLED: OSM reference has ~13% curvature overestimation (same as Laguna).
-# Re-enable by appending to CURATED_LAP_TIMES after racing line optimizer.
+# DISABLED: OSM reference has ~13% curvature overestimation.
+# Needs real GPS telemetry (RaceChrono/PDR/iRacing) to be usable.
 # =========================================================================
 _ROAD_ATLANTA_ENTRIES: list[RealWorldLapTime] = [
     # --- Corvette C8 Z51 ---
@@ -2513,6 +2513,10 @@ _ROAD_ATLANTA_ENTRIES: list[RealWorldLapTime] = [
         source_quality="aggregated",
     ),
 ]
+
+# Road Atlanta entries NOT merged — OSM reference has ~13% curvature
+# overestimation. Re-enable when real GPS telemetry is available.
+# CURATED_LAP_TIMES.extend(_ROAD_ATLANTA_ENTRIES)
 
 
 # ---------------------------------------------------------------------------
