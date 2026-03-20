@@ -108,6 +108,42 @@ TRACKS: dict[str, OSMTrackConfig] = {
         expected_length_m=4088.0,  # 2.54 mi
         reverse=True,  # OSM way has oneway=-1
     ),
+    "vir-grand-west": OSMTrackConfig(
+        slug="virginia-international-raceway-grand-west",
+        display_name="Virginia International Raceway — Grand West",
+        # Grand West = Full Course but replaces the direct Oak Tree→Roller
+        # Coaster connector (91012202, 289m) with a longer detour through
+        # the Patriot Course infield section (~1674m).
+        # Route: ...Oak Tree → 1315957536 → Patriot(20299611) → 989707445
+        #        → Roller Coaster → ...
+        overpass_query=(
+            "[out:json];"
+            "("
+            "way(1315957516);"  # Hog Pen (start)
+            "way(20293988);"  # VIR main section
+            "way(1315957517);"  # VIR connector
+            "way(1315957518);"  # Horseshoe
+            "way(1315957519);"  # VIR connector
+            "way(1315957520);"  # NASCAR Bend
+            "way(1315957521);"  # VIR connector
+            "way(1315957522);"  # Left Hook
+            "way(1315957523);"  # VIR connector
+            "way(1315957524);"  # Snake
+            "way(1315957525);"  # unnamed (Snake→South Bend)
+            "way(1315957526);"  # South Bend
+            "way(1315957527);"  # unnamed (South Bend→Oak Tree)
+            "way(1315957528);"  # Oak Tree Curve
+            # Grand West divergence: infield detour instead of 91012202
+            "way(1315957536);"  # unnamed (Oak Tree→Patriot connector)
+            "way(20299611);"  # Patriot Course (main infield loop)
+            "way(989707445);"  # unnamed (Patriot→Roller Coaster area)
+            "way(1315957529);"  # Roller Coaster
+            "way(1315957530);"  # unnamed (Roller Coaster→Hog Pen)
+            ");(._;>;);out body;"
+        ),
+        expected_length_m=6598.0,  # 4.1 mi
+        reverse=False,
+    ),
 }
 
 
@@ -156,9 +192,7 @@ def fetch_osm_coordinates(config: OSMTrackConfig) -> tuple[np.ndarray, np.ndarra
     print(f"  Found {len(ways)} way(s) and {len(nodes)} nodes")
 
     # Order ways by connectivity (each way's last node connects to next way's first)
-    ordered_node_ids = (
-        ways[0]["nodes"] if len(ways) == 1 else _stitch_ways(ways, nodes)
-    )
+    ordered_node_ids = ways[0]["nodes"] if len(ways) == 1 else _stitch_ways(ways, nodes)
 
     # Extract lat/lon
     lats = []
