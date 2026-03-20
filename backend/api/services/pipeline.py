@@ -1576,6 +1576,46 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
                     calibrated_vp.mu,
                 )
 
+        # Build empirical GGV envelope from all coaching laps' telemetry.
+        # This gives the solver speed-dependent lateral/braking limits
+        # that capture real aero, tire, and suspension effects.
+        ggv = None
+        if calibrated_vp is not None:
+            coaching_laps = session_data.coaching_laps
+            all_speed: list[np.ndarray] = []
+            all_lat_g: list[np.ndarray] = []
+            all_lon_g: list[np.ndarray] = []
+            for lap_num in coaching_laps:
+                if lap_num not in session_data.processed.resampled_laps:
+                    continue
+                lap_df = session_data.processed.resampled_laps[lap_num]
+                if "speed_mps" in lap_df.columns and "lateral_g" in lap_df.columns:
+                    spd = lap_df["speed_mps"].to_numpy()
+                    lat = lap_df["lateral_g"].to_numpy()
+                    mask = np.isfinite(spd) & np.isfinite(lat)
+                    all_speed.append(spd[mask])
+                    all_lat_g.append(lat[mask])
+                    lon_col = "longitudinal_g" if "longitudinal_g" in lap_df.columns else None
+                    if lon_col:
+                        lon = lap_df[lon_col].to_numpy()
+                        all_lon_g.append(lon[mask])
+                    else:
+                        all_lon_g.append(np.zeros(int(np.sum(mask))))
+            if all_speed:
+                from cataclysm.ggv_envelope import build_ggv_from_telemetry
+
+                combined_speed = np.concatenate(all_speed)
+                combined_lat = np.concatenate(all_lat_g)
+                combined_lon = np.concatenate(all_lon_g)
+                ggv = build_ggv_from_telemetry(combined_speed, combined_lat, combined_lon)
+                if ggv is not None:
+                    logger.debug(
+                        "Built GGV envelope for sid=%s: %d speed bins, %d total points",
+                        session_id,
+                        len(ggv.speed_bins),
+                        int(np.sum(ggv.point_counts)),
+                    )
+
         # Compute elevation gradient and vertical curvature for the solver
         # Prefer resolved altitude (canonical/LIDAR), fall back to GPS
         gradient_sin = None
@@ -1628,10 +1668,30 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
                     mu_array = np.full(len(curvature_result.distance_m), base_mu)
                 mu_array = mu_array + banking_mu_boost
 
+        # Apply GGV and elevation_confidence to solver params
+        solver_params = calibrated_vp
+        if calibrated_vp is not None:
+            from dataclasses import replace as dc_replace
+
+            updates: dict[str, object] = {}
+            if ggv is not None:
+                updates["ggv"] = ggv
+            elev_confidence = 1.0 if resolved_alt is not None else 0.7
+            if elev_confidence < 1.0:
+                updates["elevation_confidence"] = elev_confidence
+            if updates:
+                solver_params = dc_replace(calibrated_vp, **updates)  # type: ignore[arg-type]
+                logger.debug(
+                    "Solver params updated for sid=%s: ggv=%s, elev_confidence=%.1f",
+                    session_id,
+                    ggv is not None,
+                    elev_confidence,
+                )
+
         # Solve optimal velocity profile (uses pre-calibrated params)
         optimal = compute_optimal_profile(
             curvature_result,
-            params=calibrated_vp,
+            params=solver_params,
             gradient_sin=gradient_sin,
             mu_array=mu_array,
             vertical_curvature=vert_curvature,

@@ -29,6 +29,7 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from cataclysm.curvature import CurvatureResult
+from cataclysm.elevation_profile import compute_gradient_array, compute_vertical_curvature
 from cataclysm.equipment import (
     _CATEGORY_ACCEL_G,
     CATEGORY_BRAKING_MU_RATIO,
@@ -44,7 +45,7 @@ from cataclysm.equipment import (
 )
 from cataclysm.tire_db import lookup_tire
 from cataclysm.track_db import TrackLayout, lookup_track
-from cataclysm.track_reference import get_track_reference
+from cataclysm.track_reference import TrackReference, get_track_reference
 from cataclysm.vehicle_db import VehicleSpec, find_vehicle
 from cataclysm.velocity_profile import G, VehicleParams, compute_optimal_profile
 
@@ -2524,9 +2525,7 @@ _EXCLUDED_TRACKS: set[str] = {
     "WeatherTech Raceway Laguna Seca",  # OSM centerline ~28% curvature overestimate
     "Michelin Raceway Road Atlanta",  # OSM centerline ~13% curvature overestimate
 }
-CURATED_LAP_TIMES = [
-    rw for rw in CURATED_LAP_TIMES if rw.track_name not in _EXCLUDED_TRACKS
-]
+CURATED_LAP_TIMES = [rw for rw in CURATED_LAP_TIMES if rw.track_name not in _EXCLUDED_TRACKS]
 
 
 # ---------------------------------------------------------------------------
@@ -2640,7 +2639,10 @@ def run_comparison() -> list[ComparisonResult]:
     print()
 
     # Load track references
-    track_data: dict[str, tuple[CurvatureResult, TrackLayout]] = {}
+    track_data: dict[
+        str,
+        tuple[CurvatureResult, TrackLayout, TrackReference, np.ndarray | None],
+    ] = {}
     track_names = sorted(set(rw.track_name for rw in CURATED_LAP_TIMES))
 
     for track_name in track_names:
@@ -2679,7 +2681,7 @@ def run_comparison() -> list[ComparisonResult]:
             skipped += 1
             continue
 
-        curvature_result, _, track_ref, track_banking = track_data[rw.track_name]
+        curvature_result, layout, track_ref, track_banking = track_data[rw.track_name]
 
         # Get tire category
         if rw.tire_category not in TIRE_CATEGORIES:
@@ -2698,13 +2700,45 @@ def run_comparison() -> list[ComparisonResult]:
 
         mu = tire_mu if tire_mu is not None else CATEGORY_MU_DEFAULTS[compound]
 
+        # Apply track surface quality multiplier
+        surface_mu = mu
+        if layout.surface_quality != 1.0:
+            surface_mu = mu * layout.surface_quality
+
         # Run solver (apply track banking as mu boost if available)
-        params = _vehicle_spec_to_params(spec, compound, mu_override=tire_mu)
+        params = _vehicle_spec_to_params(
+            spec, compound, mu_override=surface_mu if surface_mu != mu else tire_mu
+        )
         mu_array = None
         if track_banking is not None:
             banking_rad = np.radians(track_banking)
             mu_array = np.full(len(curvature_result.distance_m), params.mu) + np.tan(banking_rad)
-        optimal = compute_optimal_profile(curvature_result, params=params, mu_array=mu_array)
+
+        # Compute elevation gradient and vertical curvature from track reference
+        gradient_sin = None
+        vert_curvature = None
+        elev_confidence = 1.0
+        if track_ref.elevation_m is not None:
+            dist = curvature_result.distance_m
+            gradient_sin = compute_gradient_array(track_ref.elevation_m, dist)
+            vert_curvature = compute_vertical_curvature(track_ref.elevation_m, dist)
+            # Set elevation confidence based on GPS quality score
+            # High quality (>90) = full trust, low quality (<70) = reduced
+            elev_confidence = min(1.0, max(0.5, (track_ref.gps_quality_score - 50.0) / 50.0))
+
+        # Apply elevation confidence to params
+        if elev_confidence < 1.0:
+            from dataclasses import replace
+
+            params = replace(params, elevation_confidence=elev_confidence)
+
+        optimal = compute_optimal_profile(
+            curvature_result,
+            params=params,
+            mu_array=mu_array,
+            gradient_sin=gradient_sin,
+            vertical_curvature=vert_curvature,
+        )
 
         efficiency = optimal.lap_time_s / rw.lap_time_s
 
