@@ -85,7 +85,7 @@ TRACKS: dict[str, OSMTrackConfig] = {
         reverse=False,
     ),
     "laguna-seca": OSMTrackConfig(
-        slug="laguna-seca",
+        slug="weathertech-raceway-laguna-seca",
         display_name="WeatherTech Raceway Laguna Seca",
         overpass_query=(
             '[out:json];way["highway"="raceway"](36.57,-121.77,36.60,-121.74);(._;>;);out body;'
@@ -94,7 +94,7 @@ TRACKS: dict[str, OSMTrackConfig] = {
         reverse=False,
     ),
     "road-atlanta": OSMTrackConfig(
-        slug="road-atlanta",
+        slug="michelin-raceway-road-atlanta",
         display_name="Michelin Raceway Road Atlanta",
         # Full course: main way + The Esses section + connector
         overpass_query=(
