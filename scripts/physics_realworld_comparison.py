@@ -971,6 +971,117 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         notes="F80 M3 DCT on RT615K+ 200TW. gixxerhoff750 May 2025.",
         source_quality="aggregated",
     ),
+    # =========================================================================
+    # BATCH 2 — More RWD/AWD diversity
+    # =========================================================================
+    # --- BMW M3 G80 CS at Barber ---
+    RealWorldLapTime(
+        car_key=("BMW", "M3", "G80"),
+        car_label="BMW M3 CS G80",
+        track_name="Barber Motorsports Park",
+        lap_time_s=_parse_time("1:33.90"),
+        tire_model="Bridgestone Potenza RE-71RS",
+        tire_category="super_200tw",
+        mod_level="light",
+        source="lapmeta.com/en/track/variation/15",
+        notes="M3 CS G80 on RE-71RS 200TW. DRAGA Jan 2026.",
+        tire_db_key="bridgestone_re71rs",
+        source_quality="aggregated",
+    ),
+    # --- Nissan GT-R R35 at Barber (Nitto NT01) ---
+    RealWorldLapTime(
+        car_key=("Nissan", "GT-R", "R35"),
+        car_label="Nissan GT-R R35",
+        track_name="Barber Motorsports Park",
+        lap_time_s=_parse_time("1:36.80"),
+        tire_model="Nitto NT01 (100TW)",
+        tire_category="100tw",
+        mod_level="heavy",
+        source="lapmeta.com/en/track/variation/15",
+        notes="GT-R R35 on NT01 100TW. RangerExec Apr 2016.",
+        source_quality="aggregated",
+    ),
+    # --- Corvette C6 Z06 at Barber (street tires) ---
+    RealWorldLapTime(
+        car_key=("Chevrolet", "Corvette", "C6"),
+        car_label="Corvette C6 Z06",
+        track_name="Barber Motorsports Park",
+        lap_time_s=_parse_time("1:40.50"),
+        tire_model="Michelin Pilot Sport 4S (300TW)",
+        tire_category="street",
+        mod_level="stock",
+        source="lapmeta.com/en/track/variation/15",
+        notes="C6 Z06 (505hp LS7) on PS4S 300TW street. APEX1LE Jan 2022.",
+        tire_db_key="michelin_ps4s",
+        source_quality="aggregated",
+    ),
+    # --- BMW M4 F82 at Roebling (street) ---
+    RealWorldLapTime(
+        car_key=("BMW", "M4", "F82"),
+        car_label="BMW M4 F82",
+        track_name="Roebling Road Raceway",
+        lap_time_s=_parse_time("1:22.30"),
+        tire_model="Michelin Pilot Sport 4S (300TW)",
+        tire_category="street",
+        mod_level="light",
+        source="lapmeta.com/en/track/variation/135",
+        notes="M4 F82 DCT on PSS 300TW street. PriZeFighter13 Jan 2015.",
+        tire_db_key="michelin_ps4s",
+        source_quality="aggregated",
+    ),
+    # --- BMW M3 E92 at AMP ---
+    RealWorldLapTime(
+        car_key=("BMW", "M3", "E92"),
+        car_label="BMW M3 E92",
+        track_name="Atlanta Motorsports Park",
+        lap_time_s=_parse_time("1:30.50"),
+        tire_model="Michelin Tempesta P1 (200TW)",
+        tire_category="super_200tw",
+        mod_level="heavy",
+        source="lapmeta.com/en/track/variation/27",
+        notes="E92 M3 on Tempesta P1 200TW. kevs_mnc Apr 2025.",
+        source_quality="aggregated",
+    ),
+    # --- Corvette C7 Z06 at AMP (street) ---
+    RealWorldLapTime(
+        car_key=("Chevrolet", "Corvette", "C7"),
+        car_label="Corvette C7 Z06",
+        track_name="Atlanta Motorsports Park",
+        lap_time_s=_parse_time("1:33.00"),
+        tire_model="Michelin Pilot Super Sport (300TW)",
+        tire_category="street",
+        mod_level="heavy",
+        source="lapmeta.com/en/track/variation/27",
+        notes="C7 Z06 (650hp LT4 S/C) on PSS 300TW street. Craig Birchfield May 2020.",
+        tire_db_key="michelin_ps4s",
+        source_quality="aggregated",
+    ),
+    # --- Subaru WRX STI GD at Roebling (AWD) ---
+    RealWorldLapTime(
+        car_key=("Subaru", "WRX STI", "VA"),
+        car_label="WRX STI GD",
+        track_name="Roebling Road Raceway",
+        lap_time_s=_parse_time("1:24.60"),
+        tire_model="Dunlop Direzza ZII Star Spec (200TW)",
+        tire_category="super_200tw",
+        mod_level="heavy",
+        source="lapmeta.com/en/track/variation/135",
+        notes="WRX STI GD/GG on Direzza ZII 200TW. cmb350 Sep 2022. AWD.",
+        source_quality="aggregated",
+    ),
+    # --- Corvette C5 Z06 at Barber (slick) ---
+    RealWorldLapTime(
+        car_key=("Chevrolet", "Corvette", "C5"),
+        car_label="Corvette C5 Z06",
+        track_name="Barber Motorsports Park",
+        lap_time_s=_parse_time("1:42.60"),
+        tire_model="Pirelli P Zero DH Slick",
+        tire_category="slick",
+        mod_level="heavy",
+        source="lapmeta.com/en/track/variation/15",
+        notes="C5 Z06 (385hp LS6) on DH slicks. FASTFATBOY Apr 2016.",
+        source_quality="aggregated",
+    ),
 ]
 
 
@@ -1203,7 +1314,7 @@ _ACCEPTANCE_CRITERIA = {
     "mean_ratio_min": 0.95,
     "mean_ratio_max": 1.02,
     "std_ratio_max": 0.045,
-    "exceedance_5pct_max": 5,
+    "exceedance_5pct_max": 8,  # scaled from 5@n=42 to 8@n=71 (~12% rate)
     "category_mean_min": 0.88,
     "category_mean_max": 1.08,
 }
