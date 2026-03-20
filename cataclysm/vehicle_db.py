@@ -42,6 +42,7 @@ class VehicleSpec:
     stock_tire_size_front: str | None = None  # e.g. "205/45R17"; OEM stock size
     stock_tire_size_rear: str | None = None  # same as front for square setups
     notes: str | None = None
+    power_band_factor: float = 0.90  # fraction of peak power available across RPM range
 
 
 # ---------------------------------------------------------------------------
@@ -71,6 +72,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         stock_tire_size_front="185/60R14",
         stock_tire_size_rear="185/60R14",
         notes="1.6 L B6-ZE. Lightest Miata generation.",
+        power_band_factor=0.85,
     ),
     "mazda_miata_nb": VehicleSpec(
         make="Mazda",
@@ -91,6 +93,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         stock_tire_size_front="185/60R14",
         stock_tire_size_rear="185/60R14",
         notes="1.8 L BP-4W. Refined NA platform.",
+        power_band_factor=0.85,
     ),
     "mazda_miata_nc": VehicleSpec(
         make="Mazda",
@@ -111,6 +114,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         stock_tire_size_front="205/50R16",
         stock_tire_size_rear="205/50R16",
         notes="2.0 L MZR. Larger and heavier than NB.",
+        power_band_factor=0.85,
     ),
     "mazda_miata_nd": VehicleSpec(
         make="Mazda",
@@ -131,6 +135,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         stock_tire_size_front="195/50R16",
         stock_tire_size_rear="195/50R16",
         notes="2.0 L Skyactiv-G. Returns to lightweight roots.",
+        power_band_factor=0.85,
     ),
     # -----------------------------------------------------------------------
     # Honda
@@ -196,6 +201,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         stock_tire_size_front="265/35R19",
         stock_tire_size_rear="265/35R19",
         notes="2.0 L K20C1 turbo revised. Improved aero.",
+        power_band_factor=0.82,
     ),
     "honda_s2000_ap1": VehicleSpec(
         make="Honda",
@@ -216,6 +222,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         stock_tire_size_front="205/55R16",
         stock_tire_size_rear="225/50R16",
         notes="2.0 L F20C, 9000 RPM redline.",
+        power_band_factor=0.80,
     ),
     # -----------------------------------------------------------------------
     # Subaru / Toyota 86
@@ -467,6 +474,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         stock_tire_size_front="275/30R20",
         stock_tire_size_rear="345/25R21",
         notes="5.5 L LT6 flat-plane NA V8 (470 lb-ft). Mid-engine. Z07 adds massive wing.",
+        power_band_factor=0.85,
     ),
     "chevrolet_corvette_c8_zr1": VehicleSpec(
         make="Chevrolet",
@@ -551,6 +559,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         stock_tire_size_front="275/40R18",
         stock_tire_size_rear="285/35R19",
         notes="3.0 L S58 twin-turbo. Competition RWD (DIN weight).",
+        power_band_factor=0.95,
     ),
     "bmw_m2_f87": VehicleSpec(
         make="BMW",
@@ -591,6 +600,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         stock_tire_size_front="275/35R19",
         stock_tire_size_rear="285/35R19",
         notes="3.0 L S58 twin-turbo inline-6.",
+        power_band_factor=0.95,
     ),
     # -----------------------------------------------------------------------
     # Ford Mustang GT
@@ -614,6 +624,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         stock_tire_size_front="235/50R18",
         stock_tire_size_rear="235/50R18",
         notes="5.0 L Coyote V8 (2013-14 spec). Solid rear axle.",
+        power_band_factor=0.88,
     ),
     "ford_mustang_gt_s550": VehicleSpec(
         make="Ford",
@@ -634,6 +645,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         stock_tire_size_front="255/40R19",
         stock_tire_size_rear="275/40R19",
         notes="5.0 L Coyote V8 (420 lb-ft, 2018+ spec). IRS upgrade.",
+        power_band_factor=0.88,
     ),
     "ford_mustang_gt_s650": VehicleSpec(
         make="Ford",
@@ -654,6 +666,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         stock_tire_size_front="255/40R19",
         stock_tire_size_rear="255/40R19",
         notes="5.0 L Coyote Gen-4 V8 (415 lb-ft).",
+        power_band_factor=0.88,
     ),
     # -----------------------------------------------------------------------
     # Porsche
@@ -827,6 +840,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         stock_tire_size_front="245/40R18",
         stock_tire_size_rear="245/40R18",
         notes="2.5 L EJ257 turbo. DCCD AWD system.",
+        power_band_factor=0.92,
     ),
     # -----------------------------------------------------------------------
     # Toyota GR Supra
@@ -1183,6 +1197,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         stock_tire_size_front="255/40R20",
         stock_tire_size_rear="285/35R20",
         notes="3.8 L VR38DETT twin-turbo V6 (2017+ spec). ATTESA E-TS AWD.",
+        power_band_factor=0.93,
     ),
     # -----------------------------------------------------------------------
     # Hyundai Elantra N
@@ -1498,6 +1513,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         stock_tire_size_front="215/45R17",
         stock_tire_size_rear="245/40R17",
         notes="2.2 L F22C1 inline-4. Lower redline (8200 RPM). Wider power band than AP1.",
+        power_band_factor=0.80,
     ),
     # -----------------------------------------------------------------------
     # Mitsubishi Lancer Evolution

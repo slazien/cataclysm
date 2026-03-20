@@ -46,6 +46,7 @@ OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 _BRAKE_EFFICIENCY = 0.95
 _AIR_DENSITY = 1.225
 _DRIVETRAIN_EFFICIENCY: dict[str, float] = {"RWD": 0.85, "FWD": 0.82, "AWD": 0.80}
+_DRIVETRAIN_TRACTION_MULTIPLIER: dict[str, float] = {"RWD": 1.0, "FWD": 1.0, "AWD": 1.05}
 _AERO_EFFICIENCY = 0.85  # real-world aero efficiency
 
 # ---------------------------------------------------------------------------
@@ -148,6 +149,7 @@ def _vehicle_spec_to_params(
     # Wheel power
     dt_eff = _DRIVETRAIN_EFFICIENCY.get(spec.drivetrain, 0.85)
     wheel_power_w = spec.hp * 745.7 * dt_eff
+    traction_mult = _DRIVETRAIN_TRACTION_MULTIPLIER.get(spec.drivetrain, 1.0)
 
     return VehicleParams(
         mu=mu,
@@ -166,6 +168,8 @@ def _vehicle_spec_to_params(
         mass_kg=weight_kg,
         cornering_drag_factor=cornering_drag,
         max_lateral_jerk_gs=lateral_jerk,
+        traction_multiplier=traction_mult,
+        power_band_factor=spec.power_band_factor,
     )
 
 
