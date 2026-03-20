@@ -175,6 +175,22 @@ CATEGORY_LLTD_PENALTY: dict[TireCompoundCategory, float] = {
     TireCompoundCategory.SLICK: 0.98,
 }
 
+# Lateral jerk limit (G/m) — models tire relaxation length and yaw inertia.
+# Limits how fast lateral G can change per meter of distance traveled.
+# Physical basis: tire relaxation length L_relax ≈ 0.15-0.3m, plus yaw inertia.
+# Effective transition distance is ~3-5× L_relax, giving jerk ≈ mu / transition_dist.
+# Higher-grip tires have shorter relaxation lengths but higher forces;
+# street tires have longer relaxation and lower peak G.
+# Conservative: only affects rapid direction changes (chicanes, esses, S-curves).
+CATEGORY_LATERAL_JERK_GS: dict[TireCompoundCategory, float] = {
+    TireCompoundCategory.STREET: 0.8,
+    TireCompoundCategory.ENDURANCE_200TW: 1.0,
+    TireCompoundCategory.SUPER_200TW: 1.2,
+    TireCompoundCategory.TW_100: 1.4,
+    TireCompoundCategory.R_COMPOUND: 1.6,
+    TireCompoundCategory.SLICK: 1.8,
+}
+
 _BRAKE_EFFICIENCY = 0.95  # real-world brake efficiency factor
 _AIR_DENSITY = 1.225  # kg/m^3, sea level ISA standard atmosphere
 _DRIVETRAIN_EFFICIENCY: dict[str, float] = {"RWD": 0.85, "FWD": 0.88, "AWD": 0.80}
@@ -377,6 +393,7 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
 
     slip_angle_deg = CATEGORY_PEAK_SLIP_ANGLE_DEG.get(category, 6.0)
     cornering_drag = math.sin(math.radians(slip_angle_deg))
+    lateral_jerk = CATEGORY_LATERAL_JERK_GS.get(category, 5.0)
 
     return VehicleParams(
         mu=mu,
@@ -398,4 +415,5 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
         wheel_power_w=wheel_power_w,
         mass_kg=mass_for_params,
         cornering_drag_factor=cornering_drag,
+        max_lateral_jerk_gs=lateral_jerk,
     )

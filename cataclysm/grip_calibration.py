@@ -253,6 +253,7 @@ def apply_calibration_to_params(
         mass_kg=base_params.mass_kg,
         braking_mu_ratio=base_params.braking_mu_ratio,
         cornering_drag_factor=base_params.cornering_drag_factor,
+        max_lateral_jerk_gs=base_params.max_lateral_jerk_gs,
     )
 
 

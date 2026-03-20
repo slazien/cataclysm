@@ -1,6 +1,6 @@
 {
   "date": "2026-03-19",
-  "git_sha": "1a89205",
+  "git_sha": "76a3e26",
   "acceptance_criteria": {
     "mean_ratio_min": 0.95,
     "mean_ratio_max": 1.02,

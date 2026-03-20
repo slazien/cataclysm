@@ -28,9 +28,10 @@ from cataclysm.equipment import (
     _CATEGORY_ACCEL_G,
     CATEGORY_BRAKING_MU_RATIO,
     CATEGORY_FRICTION_CIRCLE_EXPONENT,
+    CATEGORY_GRIP_UTILIZATION,
+    CATEGORY_LATERAL_JERK_GS,
     CATEGORY_LOAD_SENSITIVITY_EXPONENT,
     CATEGORY_MU_DEFAULTS,
-    CATEGORY_GRIP_UTILIZATION,
     CATEGORY_PEAK_SLIP_ANGLE_DEG,
     CATEGORY_THERMAL_PENALTY,
     TireCompoundCategory,
@@ -142,6 +143,7 @@ def _vehicle_spec_to_params(
     braking_ratio = CATEGORY_BRAKING_MU_RATIO.get(compound, 1.10)
     slip_angle_deg = CATEGORY_PEAK_SLIP_ANGLE_DEG.get(compound, 6.0)
     cornering_drag = math.sin(math.radians(slip_angle_deg))
+    lateral_jerk = CATEGORY_LATERAL_JERK_GS.get(compound, 5.0)
 
     # Wheel power
     dt_eff = _DRIVETRAIN_EFFICIENCY.get(spec.drivetrain, 0.85)
@@ -163,6 +165,7 @@ def _vehicle_spec_to_params(
         wheel_power_w=wheel_power_w,
         mass_kg=weight_kg,
         cornering_drag_factor=cornering_drag,
+        max_lateral_jerk_gs=lateral_jerk,
     )
 
 

@@ -70,6 +70,7 @@ class VehicleParams:
     mass_kg: float = 0.0  # Vehicle mass in kg; 0 = use max_accel_g only
     braking_mu_ratio: float = 1.0  # ratio of peak braking mu to peak lateral mu (>1.0 = ellipse)
     cornering_drag_factor: float = 0.0  # sin(peak_slip_angle) — induced drag from tire slip
+    max_lateral_jerk_gs: float = 0.0  # max d(lateral_g)/ds rate (G/m); 0 = disabled
 
 
 @dataclass
@@ -113,6 +114,7 @@ def _compute_max_cornering_speed(
     gradient_sin: np.ndarray | None = None,
     mu_array: np.ndarray | None = None,
     vertical_curvature: np.ndarray | None = None,
+    step_m: float = 0.7,
 ) -> np.ndarray:
     """Compute the maximum speed at each point from curvature and grip.
 
@@ -221,6 +223,31 @@ def _compute_max_cornering_speed(
     max_speed[bad_mask] = params.top_speed_mps
 
     np.clip(max_speed, MIN_SPEED_MPS, params.top_speed_mps, out=max_speed)
+
+    # Lateral jerk constraint: limit how fast lateral G can change per meter.
+    # Models tire relaxation length and yaw inertia — prevents unrealistic
+    # instant transitions in chicanes and rapid direction changes.
+    if params.max_lateral_jerk_gs > 0:
+        jerk = params.max_lateral_jerk_gs
+        ds = step_m
+        # Forward pass: lateral G can't increase faster than jerk * ds per step
+        for i in range(1, n):
+            lat_g_prev = max_speed[i - 1] ** 2 * abs_curvature[i - 1] / G
+            allowed_lat_g = lat_g_prev + jerk * ds
+            if abs_curvature[i] > 1e-6:
+                jerk_limited_speed = np.sqrt(allowed_lat_g * G / abs_curvature[i])
+                if jerk_limited_speed < max_speed[i]:
+                    max_speed[i] = jerk_limited_speed
+        # Backward pass: same constraint in reverse direction
+        for i in range(n - 2, -1, -1):
+            lat_g_next = max_speed[i + 1] ** 2 * abs_curvature[i + 1] / G
+            allowed_lat_g = lat_g_next + jerk * ds
+            if abs_curvature[i] > 1e-6:
+                jerk_limited_speed = np.sqrt(allowed_lat_g * G / abs_curvature[i])
+                if jerk_limited_speed < max_speed[i]:
+                    max_speed[i] = jerk_limited_speed
+        # Re-clamp after jerk smoothing
+        np.clip(max_speed, MIN_SPEED_MPS, params.top_speed_mps, out=max_speed)
 
     return max_speed
 
@@ -465,7 +492,7 @@ def compute_optimal_profile(
 
     # Step 1: cornering speed limit at every point
     max_corner_speed = _compute_max_cornering_speed(
-        abs_k, params, gradient_sin, mu_array, vertical_curvature
+        abs_k, params, gradient_sin, mu_array, vertical_curvature, step_m=step_m
     )
 
     if closed_circuit and n >= 4:
