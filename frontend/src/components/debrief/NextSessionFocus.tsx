@@ -3,10 +3,10 @@
 import { Target } from 'lucide-react';
 import { useUnits } from '@/hooks/useUnits';
 import { formatCoachingText } from '@/lib/textUtils';
-import type { PriorityCorner } from '@/lib/types';
+import type { MergedPriority } from '@/lib/types';
 
 interface NextSessionFocusProps {
-  priority: PriorityCorner;
+  priority: MergedPriority;
 }
 
 /**
@@ -16,7 +16,7 @@ interface NextSessionFocusProps {
  */
 export function NextSessionFocus({ priority }: NextSessionFocusProps) {
   const { resolveSpeed } = useUnits();
-  const tip = formatCoachingText(resolveSpeed(priority.tip));
+  const tip = formatCoachingText(resolveSpeed(priority.tip ?? ''));
   const timeCost = priority.time_cost_s;
 
   return (
@@ -28,7 +28,7 @@ export function NextSessionFocus({ priority }: NextSessionFocusProps) {
             Next Session Focus
           </h3>
           <p className="font-[family-name:var(--font-display)] text-lg font-bold leading-snug text-[var(--text-primary)] lg:text-xl">
-            {tip}
+            {tip || `Focus on Turn ${priority.corner}`}
           </p>
           {timeCost > 0 && (
             <p className="mt-1 text-sm text-[var(--text-secondary)]">

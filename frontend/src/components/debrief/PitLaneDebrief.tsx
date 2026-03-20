@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useSession } from '@/hooks/useSession';
 import { useConsistency, useOptimalComparison } from '@/hooks/useAnalysis';
 import { useCoachingReport } from '@/hooks/useCoaching';
+import { useMergedPriorities } from '@/hooks/useMergedPriorities';
 import { useSessionStore, useUiStore, useAnalysisStore } from '@/stores';
 import { MarkdownText } from '@/components/shared/MarkdownText';
 import { useUnits } from '@/hooks/useUnits';
@@ -145,6 +146,10 @@ export function PitLaneDebrief() {
 
   const { isNovice, isAdvanced, showFeature } = useSkillLevel();
 
+  // Skill-level corner count: novice 2, intermediate 3, advanced 4
+  const maxCorners = isNovice ? 2 : isAdvanced ? 4 : 3;
+  const mergedPriorities = useMergedPriorities(report, optimalComparison, maxCorners);
+
   const [reviewMode, setReviewMode] = useState<ReviewMode>(getStoredReviewMode);
 
   function handleModeChange(mode: ReviewMode) {
@@ -180,13 +185,10 @@ export function PitLaneDebrief() {
     ? Math.round(normalizeScore(consistency.lap_consistency.consistency_score))
     : null;
 
-  const topPriority = report?.priority_corners?.[0] ?? null;
+  const topPriority = mergedPriorities[0] ?? null;
   const is15m = reviewMode === '15m' || reviewMode === '1hr';
   const is1hr = reviewMode === '1hr';
   const showOptimal = showFeature('optimal_comparison');
-
-  // Skill-level corner count: novice 2, intermediate 3, advanced 4
-  const maxCorners = isNovice ? 2 : isAdvanced ? 4 : 3;
 
   // Optimal gap to show in 5m mode as a compact stat
   const gapToOptimal = optimalComparison?.is_valid
@@ -235,8 +237,8 @@ export function PitLaneDebrief() {
       <SectionDivider />
 
       {/* Top time-loss corners — count adapts to skill level */}
-      {report?.priority_corners && report.priority_corners.length > 0 && (
-        <TimeLossCorners corners={report.priority_corners.slice(0, maxCorners)} />
+      {mergedPriorities.length > 0 && (
+        <TimeLossCorners corners={mergedPriorities} />
       )}
 
       {/* Quick tip — always in 5m */}
@@ -262,7 +264,7 @@ export function PitLaneDebrief() {
             <TracksideCard
               session={session}
               consistencyScore={consistencyScore}
-              topCorners={report?.priority_corners?.slice(0, maxCorners) ?? []}
+              topCorners={mergedPriorities}
               gapToOptimal={gapToOptimal}
               optimalLapTime={optimalComparison?.is_valid ? optimalComparison.optimal_lap_time_s : null}
             />
@@ -331,13 +333,13 @@ export function PitLaneDebrief() {
           <ReviewChecklist sessionId={sessionId} />
 
           {/* Deep dive links for each priority corner */}
-          {report?.priority_corners && report.priority_corners.length > 0 && (
+          {mergedPriorities.length > 0 && (
             <div className="rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-5">
               <h3 className="mb-3 border-l-[3px] border-[var(--text-secondary)] pl-3 font-[family-name:var(--font-display)] text-sm font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                 Deep Dive Into Each Corner
               </h3>
               <div className="flex flex-wrap gap-2">
-                {report.priority_corners.slice(0, maxCorners).map((pc) => (
+                {mergedPriorities.map((pc) => (
                   <button
                     key={pc.corner}
                     type="button"

@@ -5,12 +5,12 @@ import { Share2 } from 'lucide-react';
 import { formatLapTime } from '@/lib/formatters';
 import { useUnits } from '@/hooks/useUnits';
 import { formatCoachingText } from '@/lib/textUtils';
-import type { SessionSummary, PriorityCorner } from '@/lib/types';
+import type { SessionSummary, MergedPriority } from '@/lib/types';
 
 interface TracksideCardProps {
   session: SessionSummary;
   consistencyScore: number | null;
-  topCorners: PriorityCorner[];
+  topCorners: MergedPriority[];
   gapToOptimal: number | null;
   optimalLapTime: number | null;
 }
@@ -47,7 +47,7 @@ export function TracksideCard({
       '',
       'Focus:',
       ...topCorners.map(
-        (c) => `  T${c.corner}: ${fmt(c.tip)} (−${c.time_cost_s.toFixed(1)}s)`,
+        (c) => `  T${c.corner}: ${fmt(c.tip ?? 'Focus on this corner')} (−${c.time_cost_s.toFixed(1)}s)`,
       ),
     ].filter((l): l is string => l != null);
     const text = lines.join('\n');
@@ -95,7 +95,7 @@ export function TracksideCard({
             Focus
           </p>
           <p className="font-[family-name:var(--font-display)] text-lg font-bold leading-snug text-[var(--text-primary)]">
-            T{topCorners[0].corner}: {fmt(topCorners[0].tip)}
+            T{topCorners[0].corner}: {fmt(topCorners[0].tip ?? 'Focus on this corner')}
           </p>
         </div>
       )}
@@ -106,7 +106,7 @@ export function TracksideCard({
           {topCorners.map((c) => (
             <div key={c.corner} className="flex items-start gap-2 text-sm">
               <span className="shrink-0 font-medium text-[var(--text-primary)]">T{c.corner}</span>
-              <span className="min-w-0 flex-1 leading-snug text-[var(--text-secondary)]">{fmt(c.tip)}</span>
+              <span className="min-w-0 flex-1 leading-snug text-[var(--text-secondary)]">{fmt(c.tip ?? 'Review in Deep Dive')}</span>
               <span className="shrink-0 font-mono text-xs font-semibold text-[var(--color-brake)]">
                 −{c.time_cost_s.toFixed(1)}s
               </span>

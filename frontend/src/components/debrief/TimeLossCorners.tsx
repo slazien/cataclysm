@@ -4,14 +4,14 @@ import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { MarkdownText } from '@/components/shared/MarkdownText';
 import { useUnits } from '@/hooks/useUnits';
-import type { PriorityCorner } from '@/lib/types';
+import type { MergedPriority } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 interface TimeLossCornersProps {
-  corners: PriorityCorner[];
+  corners: MergedPriority[];
 }
 
-function CornerRow({ pc }: { pc: PriorityCorner }) {
+function CornerRow({ pc }: { pc: MergedPriority }) {
   const [expanded, setExpanded] = useState(false);
   const { resolveSpeed } = useUnits();
 
@@ -28,7 +28,7 @@ function CornerRow({ pc }: { pc: PriorityCorner }) {
 
       {/* Tip — full text when expanded, 2-line clamp when collapsed */}
       <span className={cn('min-w-0 flex-1 text-sm text-[var(--text-secondary)] text-left', !expanded && 'line-clamp-2')}>
-        <MarkdownText>{resolveSpeed(pc.tip)}</MarkdownText>
+        <MarkdownText>{resolveSpeed(pc.tip ?? 'Review corner data in Deep Dive')}</MarkdownText>
       </span>
 
       <span className="shrink-0 flex items-center gap-2">
@@ -52,7 +52,7 @@ export function TimeLossCorners({ corners }: TimeLossCornersProps) {
     <div className="rounded-xl border border-[var(--cata-border)] bg-[var(--bg-surface)] p-5">
       {/* Section header with amber left-border accent */}
       <h3 className="mb-4 border-l-[3px] border-[var(--cata-accent)] pl-3 font-[family-name:var(--font-display)] text-sm font-bold uppercase tracking-widest text-[var(--cata-accent)]">
-        Top 3 Focus
+        Top {corners.length} Focus
       </h3>
 
       {/* Expandable list — tap to reveal full coaching tip */}
