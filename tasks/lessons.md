@@ -88,6 +88,22 @@
 
 **Error signature**: `ConnectionRefusedError: [Errno 111] Connect call failed ('127.0.0.1', 5432)` in TestLifespan tests after adding any new startup function. The fix is always the same: add a mock entry to `_base_lifespan_patches` + extend every test context.
 
+## Search for Existing Code Before Building New Infrastructure (2026-03-20)
+
+**Pattern**: Before implementing new infrastructure (new module, new data structure, new pipeline wiring), grep the codebase for existing implementations of the same concept. Search for the domain terms (e.g., "banking", "camber", "thermal") across ALL of `cataclysm/`, `backend/`, and `tasks/`.
+
+**Why**: Built `TRACK_BANKING` dict + `get_track_banking()` + `TrackReference.banking_deg` infrastructure before discovering that `banking.py` already had `apply_banking_to_mu_array()` and `_auto_detect_camber()` in `corner_enrichment.py` already estimated banking from telemetry — tracked as IMP-2 in `tasks/`. The existing code was more physically correct (full `(mu+tan(θ))/(1-mu·tan(θ))` formula vs simple `mu+tan(θ)`) and per-corner rather than track-level. Both approaches ended up being useful (track-level for validation, per-corner for production), but discovering existing code first would have saved 30 min and produced a cleaner architecture.
+
+**Error signature**: Building a new module for functionality that already exists but is unwired. Red flag: creating `get_track_banking()` when `apply_banking_to_mu_array()` exists. Always check `tasks/solver_audit_status.md` and grep for domain terms first.
+
+## WSL: Use `explorer.exe` or `cmd.exe /c start` for Windows Apps (2026-03-20)
+
+**Pattern**: In WSL, `firefox <file>` does NOT open Windows Firefox. Use `explorer.exe "$(wslpath -w path)"` or `cmd.exe /c start firefox "$(wslpath -w path)"`. The `wslpath -w` converts Linux paths to Windows format.
+
+**Why**: `firefox docs/file.html` silently fails in WSL — the Linux `firefox` binary either doesn't exist or opens a headless instance the user never sees. User had to ask twice.
+
+**Error signature**: User says "you didn't open Firefox" after a `firefox <file> &>/dev/null &` command.
+
 ## "File Not Found" ≠ "Work Never Done" — Check Conversation Histories (2026-03-19)
 
 **Pattern**: When asked whether past work was completed, NEVER conclude "it was never executed" based solely on filesystem searches. In a worktree-based workflow, artifacts (scripts, CSVs, reports) exist transiently during execution and vanish when the worktree is cleaned up. Always search `~/.claude/projects/<project>/*.jsonl` conversation histories as a primary evidence source — they are the only durable record of worktree-based work.

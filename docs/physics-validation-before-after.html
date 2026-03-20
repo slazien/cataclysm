@@ -2,654 +2,794 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Physics Validation — Before vs After | 2026-03-19</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Physics Validation — Before vs After (70 → 155 entries)</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
-    background: #0a0c10; color: #c9d1d9;
-    padding: 2rem; max-width: 1200px; margin: 0 auto;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #0f1117;
+    color: #e0e0e0;
+    padding: 2rem 1rem;
+    max-width: 1400px;
+    margin: 0 auto;
   }
-  h1 { font-size: 1.6rem; margin-bottom: 0.3rem;
-    background: linear-gradient(135deg, #58a6ff, #bc8cff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  h2 { font-size: 1.1rem; color: #58a6ff; margin: 2rem 0 0.8rem; border-bottom: 1px solid #21262d; padding-bottom: 0.4rem; }
-  .subtitle { color: #8b949e; font-size: 0.85rem; margin-bottom: 2rem; }
-  table { border-collapse: collapse; width: 100%; margin-bottom: 1.5rem; font-size: 0.85rem; }
-  th { text-align: left; padding: 0.5rem 0.8rem; border-bottom: 2px solid #30363d; color: #8b949e; font-weight: 600; }
-  td { padding: 0.4rem 0.8rem; border-bottom: 1px solid #21262d; }
-  tr:hover { background: #161b22; }
-  .better { color: #3fb950; } .worse { color: #f85149; } .same { color: #8b949e; }
-  .metric-card { display: inline-block; background: #161b22; border: 1px solid #30363d; border-radius: 8px;
-    padding: 1rem 1.4rem; margin: 0.4rem; min-width: 140px; text-align: center; }
-  .metric-val { font-size: 1.5rem; font-weight: 700; }
-  .metric-label { font-size: 0.75rem; color: #8b949e; margin-top: 0.2rem; }
-  .metric-delta { font-size: 0.8rem; margin-top: 0.3rem; }
-  .chart-container { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.2rem; margin: 1rem 0; }
-  canvas { width: 100%; height: 300px; }
-  .bar { display: inline-block; height: 18px; border-radius: 3px; margin: 1px 0; }
-  .bar-label { font-size: 0.75rem; display: inline-block; width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .bar-val { font-size: 0.75rem; color: #8b949e; margin-left: 4px; }
-  .tag { display: inline-block; padding: 1px 6px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
-  .tag-street { background: #1f3a1f; color: #3fb950; }
-  .tag-endurance { background: #2d2a1f; color: #d29922; }
-  .tag-super { background: #2a1f2d; color: #bc8cff; }
-  .tag-100tw { background: #1f2a2d; color: #58a6ff; }
-  .tag-rcomp { background: #2d1f1f; color: #f85149; }
-  .tag-slick { background: #1f1f2d; color: #79c0ff; }
+  h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    text-align: center;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle { color: #9ca3af; text-align: center; margin: 0.5rem 0 0.5rem; }
+  .date { color: #6b7280; text-align: center; font-size: 0.8rem; margin-bottom: 2rem; }
+
+  /* KPI row */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  .kpi {
+    background: #1a1d2e;
+    border-radius: 12px;
+    padding: 1.2rem;
+    text-align: center;
+    border: 1px solid #2a2d3e;
+  }
+  .kpi .value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .kpi .before { font-size: 0.85rem; color: #6b7280; margin-top: 0.2rem; }
+  .kpi .label { color: #9ca3af; font-size: 0.8rem; margin-top: 0.3rem; }
+  .kpi.green .value { color: #34d399; }
+  .kpi.blue .value { color: #60a5fa; }
+  .kpi.amber .value { color: #fbbf24; }
+  .kpi.purple .value { color: #a78bfa; }
+  .kpi.bad-kpi .value { color: #f87171; }
+
+  /* Chart containers */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  @media (max-width: 900px) { .chart-grid { grid-template-columns: 1fr; } }
+  .chart-card {
+    background: #1a1d2e;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #2a2d3e;
+  }
+  .chart-card.full { grid-column: 1 / -1; }
+  .chart-card h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #d1d5db;
+  }
+  .chart-wrap { position: relative; height: 300px; }
+  .chart-wrap.tall { height: 400px; }
+
+  /* Table */
+  .table-card {
+    background: #1a1d2e;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #2a2d3e;
+    overflow-x: auto;
+    margin-bottom: 2rem;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  th { text-align: left; padding: 0.5rem; color: #9ca3af; border-bottom: 1px solid #2a2d3e; font-weight: 500; }
+  td { padding: 0.5rem; border-bottom: 1px solid #1f2233; }
+  tr:hover td { background: #1f2233; }
+  .ratio-cell { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .good { color: #34d399; }
+  .warn { color: #fbbf24; }
+  .bad { color: #f87171; }
+
+  /* Tier badge */
+  .tier-section {
+    background: #1a1d2e;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #2a2d3e;
+    margin-bottom: 2rem;
+  }
+  .tier-bar {
+    display: flex;
+    height: 36px;
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 1rem 0;
+  }
+  .tier-bar div {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .tier-d { background: #166534; flex: 1; color: #bbf7d0; }
+  .tier-c { background: #1e40af; flex: 1; color: #bfdbfe; }
+  .tier-b { background: #6d28d9; flex: 1; color: #ddd6fe; }
+  .tier-a { background: #92400e; flex: 1; color: #fef3c7; }
+  .tier-active { outline: 3px solid #fbbf24; outline-offset: -3px; }
+  .tier-reqs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-top: 1rem; font-size: 0.78rem; }
+  .tier-req { background: #0f1117; border-radius: 6px; padding: 0.6rem; }
+  .tier-req h4 { font-size: 0.72rem; color: #9ca3af; margin-bottom: 0.3rem; }
+
+  /* Comparison badge */
+  .comparison-badges {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+  }
+  .badge {
+    background: #1a1d2e;
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    border: 1px solid #2a2d3e;
+    flex: 1;
+    min-width: 250px;
+  }
+  .badge h3 { font-size: 0.85rem; color: #9ca3af; margin-bottom: 0.5rem; }
+  .badge .big { font-size: 1.6rem; font-weight: 700; }
+  .badge .detail { font-size: 0.78rem; color: #6b7280; margin-top: 0.3rem; }
+
+  /* Note card */
+  .note-card {
+    background: #1a1d2e;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #2a2d3e;
+    margin-bottom: 2rem;
+  }
+  .note-card h2 { font-size: 1rem; margin-bottom: 0.8rem; color: #d1d5db; }
+  .note-card p { font-size: 0.85rem; color: #9ca3af; line-height: 1.6; }
+  .note-card .highlight { color: #fbbf24; font-weight: 600; }
+
+  footer { text-align: center; color: #4b5563; font-size: 0.75rem; margin-top: 2rem; }
 </style>
 </head>
 <body>
 
-<h1>Physics Validation Report</h1>
-<div class="subtitle">Before → After comparison · 70 → 73 entries · 3 tracks · Generated 2026-03-19 22:56</div>
+<h1>Physics Validation: Before vs After</h1>
+<p class="subtitle">70-entry baseline (3 tracks) vs 155-entry expanded dataset (5 tracks)</p>
+<p class="date">Generated 2026-03-20 03:02 UTC &middot; Branch temp/physics-val-improvements &middot; Commit 1c971c4</p>
 
-<h2>Key Metrics</h2>
-<div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
-<div class="metric-card">
-  <div class="metric-val better">0.0319</div>
-  <div class="metric-label">Std</div>
-  <div class="metric-delta better">0.0348 → 0.0319</div>
-</div><div class="metric-card">
-  <div class="metric-val better">3.13s</div>
-  <div class="metric-label">RMSE</div>
-  <div class="metric-delta better">3.35s → 3.13s</div>
-</div><div class="metric-card">
-  <div class="metric-val better">2.56%</div>
-  <div class="metric-label">MAPE</div>
-  <div class="metric-delta better">2.70% → 2.56%</div>
-</div><div class="metric-card">
-  <div class="metric-val better">4</div>
-  <div class="metric-label">Exceedances</div>
-  <div class="metric-delta better">6 → 4</div>
-</div><div class="metric-card">
-  <div class="metric-val worse">1.0051</div>
-  <div class="metric-label">Mean</div>
-  <div class="metric-delta worse">1.0044 → 1.0051</div>
-</div></div>
+<!-- Dataset comparison badges -->
+<div class="comparison-badges">
+  <div class="badge">
+    <h3>BEFORE (Old Baseline)</h3>
+    <div class="big" style="color:#60a5fa">70 entries</div>
+    <div class="detail">3 tracks &middot; 6 tire categories</div>
+    <div class="detail">Tracks: AMP, Barber, Roebling</div>
+  </div>
+  <div class="badge">
+    <h3>AFTER (Current Full Dataset)</h3>
+    <div class="big" style="color:#34d399">155 entries</div>
+    <div class="detail">5 tracks &middot; 6 tire categories</div>
+    <div class="detail">Tracks: AMP, Barber, Roebling, VIR GW, Laguna Seca</div>
+  </div>
+  <div class="badge">
+    <h3>Same 3 Tracks (Apples-to-Apples)</h3>
+    <div class="big" style="color:#a78bfa">73 entries</div>
+    <div class="detail">Mean: 1.0044 &#8594; 1.0051 | Std: 0.0350 &#8594; 0.0321</div>
+    <div class="detail">MAPE: 2.70% &#8594; 2.56% | Exc: 9 &#8594; 6</div>
+  </div>
+</div>
 
-<h2>Per-Category Accuracy</h2>
-<table>
-<tr><th>Category</th><th>n</th><th>Before</th><th>After</th><th>Delta</th><th>Direction</th></tr>
-<tr>
-  <td><span class="tag tag-street">street</span></td>
-  <td>12</td><td>1.0324</td><td>1.0189</td>
-  <td class="better">-0.0135</td><td class="better">✅ closer to 1.0</td>
-</tr><tr>
-  <td><span class="tag tag-endurance">endurance_200tw</span></td>
-  <td>18</td><td>0.9987</td><td>1.0028</td>
-  <td class="worse">+0.0041</td><td class="worse">⚠️ away from 1.0</td>
-</tr><tr>
-  <td><span class="tag tag-super">super_200tw</span></td>
-  <td>24</td><td>1.0062</td><td>1.0078</td>
-  <td class="worse">+0.0016</td><td class="worse">⚠️ away from 1.0</td>
-</tr><tr>
-  <td><span class="tag tag-100tw">100tw</span></td>
-  <td>5</td><td>0.9891</td><td>0.9923</td>
-  <td class="better">+0.0032</td><td class="better">✅ closer to 1.0</td>
-</tr><tr>
-  <td><span class="tag tag-rcompound">r_compound</span></td>
-  <td>7</td><td>0.9888</td><td>0.9961</td>
-  <td class="better">+0.0073</td><td class="better">✅ closer to 1.0</td>
-</tr><tr>
-  <td><span class="tag tag-slick">slick</span></td>
-  <td>7</td><td>0.9934</td><td>0.9967</td>
-  <td class="better">+0.0032</td><td class="better">✅ closer to 1.0</td>
-</tr></table>
+<!-- KPI Row: Before -> After -->
+<div class="kpi-row">
+  <div class="kpi bad-kpi">
+    <div class="value">1.0351 <span style="color:#f87171">&#9650;</span></div>
+    <div class="before">was 1.0044</div>
+    <div class="label">Mean Ratio (all 155)</div>
+  </div>
+  <div class="kpi bad-kpi">
+    <div class="value">0.0628 <span style="color:#f87171">&#9650;</span></div>
+    <div class="before">was 0.0350</div>
+    <div class="label">Std Deviation</div>
+  </div>
+  <div class="kpi bad-kpi">
+    <div class="value">4.84% <span style="color:#f87171">&#9650;</span></div>
+    <div class="before">was 2.70%</div>
+    <div class="label">MAPE</div>
+  </div>
+  <div class="kpi bad-kpi">
+    <div class="value">7.38s <span style="color:#f87171">&#9650;</span></div>
+    <div class="before">was 3.35s</div>
+    <div class="label">RMSE</div>
+  </div>
+  <div class="kpi bad-kpi">
+    <div class="value">42 / 155 <span style="color:#f87171">&#9650;</span></div>
+    <div class="before">was 9 / 70</div>
+    <div class="label">Exceedances &gt;5%</div>
+  </div>
+  <div class="kpi green">
+    <div class="value">0.965 <span style="color:#34d399">&#9650;</span></div>
+    <div class="before">was 0.876</div>
+    <div class="label">R&sup2; Calibration</div>
+  </div>
+</div>
 
-<h2>Per-Track Accuracy</h2>
-<table>
-<tr><th>Track</th><th>n</th><th>Before</th><th>After</th><th>Delta</th></tr>
-<tr><td>Atlanta</td><td>14</td><td>1.0015</td><td>0.9964</td><td class="worse">-0.0051</td></tr><tr><td>Barber</td><td>40</td><td>1.0115</td><td>1.0137</td><td class="worse">+0.0022</td></tr><tr><td>Roebling Road</td><td>19</td><td>0.9928</td><td>0.9936</td><td class="better">+0.0008</td></tr></table>
+<!-- Accuracy Tier -->
+<div class="tier-section">
+  <h2 style="font-size:1rem; margin-bottom:0.5rem;">Accuracy Tier Assessment
+    <span style="font-size:0.7rem; color:#9ca3af;">Before: B: Setup &#8594; After (all): A: Screening</span>
+  </h2>
+  <div class="tier-bar">
+    <div class="tier-d ">D: Engineering</div>
+    <div class="tier-c ">C: Coaching</div>
+    <div class="tier-b ">B: Setup </div>
+    <div class="tier-a tier-active">A: Screening &#9733;</div>
+  </div>
+  <div class="tier-reqs">
+    <div class="tier-req">
+      <h4>D: Engineering</h4>
+      <div>Bias &lt;0.5% <span class="bad">&#10007; 3.51%</span></div>
+      <div>Std &lt;1.5% <span class="bad">&#10007; 6.28%</span></div>
+      <div>MAPE &lt;1.0% <span class="bad">&#10007; 4.84%</span></div>
+    </div>
+    <div class="tier-req">
+      <h4>C: Coaching</h4>
+      <div>Bias &lt;1.0% <span class="bad">&#10007; 3.51%</span></div>
+      <div>Std &lt;3.5% <span class="bad">&#10007; 6.28%</span></div>
+      <div>MAPE &lt;3.0% <span class="bad">&#10007; 4.84%</span></div>
+    </div>
+    <div class="tier-req">
+      <h4>B: Setup</h4>
+      <div>Bias &lt;2.0% <span class="bad">&#10007; 3.51%</span></div>
+      <div>Std &lt;5.0% <span class="bad">&#10007; 6.28%</span></div>
+      <div>MAPE &lt;5.0% <span class="good">&#10003; 4.84%</span></div>
+    </div>
+    <div class="tier-req">
+      <h4>A: Screening</h4>
+      <div>Bias &lt;5.0% <span class="good">&#10003; 3.51%</span></div>
+      <div>Std &lt;8.0% <span class="good">&#10003; 6.28%</span></div>
+      <div>MAPE &lt;10.0% <span class="good">&#10003; 4.84%</span></div>
+    </div>
+  </div>
+</div>
 
-<h2>Per-Entry Ratio Distribution</h2>
-<div class="chart-container">
-<div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Mustang GT S550 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:8.450000000000014%;background:#f85149;position:absolute;left:0;"></div>
+<!-- Charts -->
+<div class="chart-grid">
+  <!-- Scatter: Real vs Predicted -->
+  <div class="chart-card">
+    <h2>Real vs Predicted Lap Times (155 entries)</h2>
+    <div class="chart-wrap"><canvas id="scatterChart"></canvas></div>
   </div>
-  <span class="bar-val">0.917</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Mustang GT S550 <span style="color:#6e7681">(Roebling Road)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:14.600000000000001%;background:#f85149;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.929</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Mustang GT S550 <span style="color:#6e7681">(Roebling Road)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:26.200000000000003%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.952</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Nissan 370Z <span style="color:#6e7681">(Atlanta)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:29.89999999999998%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.960</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">WRX STI GD <span style="color:#6e7681">(Roebling Road)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:29.99999999999997%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.960</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Corvette C5 Z06 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:31.349999999999987%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.963</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Cayman GT4 718 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:32.54999999999997%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.965</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">GR86 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:32.899999999999984%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.966</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Civic Type R FK8 <span style="color:#6e7681">(Roebling Road)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:33.54999999999997%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.967</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">GT350 <span style="color:#6e7681">(Roebling Road)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:33.99999999999997%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.968</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Audi TT RS 8S <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:33.99999999999997%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.968</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">GR86 <span style="color:#6e7681">(Atlanta)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:34.49999999999997%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.969</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Civic Type R FK8 (FL5 proxy) <span style="color:#6e7681">(Atlanta)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:35.20000000000001%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.970</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Corvette C8 Z06 <span style="color:#6e7681">(Atlanta)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:37.64999999999996%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.975</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">BMW M4 F82 <span style="color:#6e7681">(Roebling Road)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:38.20000000000001%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.976</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Cayman GT4 718 <span style="color:#6e7681">(Atlanta)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:38.549999999999976%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.977</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">GT350 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:40.099999999999966%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.980</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Civic Type R FK8 (FL5 proxy) <span style="color:#6e7681">(Atlanta)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:42.70000000000002%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.985</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Corvette C7 Grand Sport <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:42.85%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.986</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">GR86 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:42.94999999999999%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.986</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Cayman GT4 718 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:44.69999999999996%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.989</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Corvette C7 Z06 <span style="color:#6e7681">(Atlanta)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:44.800000000000004%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.990</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">911 GT3 991 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:46.4%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.993</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Cayman GT4 718 <span style="color:#6e7681">(Roebling Road)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:46.54999999999998%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.993</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Mustang GT S550 <span style="color:#6e7681">(Roebling Road)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:46.64999999999997%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.993</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">BMW M2 G87 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:47.499999999999986%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.995</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Camaro ZL1 1LE <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:47.750000000000014%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.996</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">GR86 <span style="color:#6e7681">(Atlanta)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:47.750000000000014%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.996</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">BMW M3 E92 <span style="color:#6e7681">(Atlanta)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:47.80000000000001%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.996</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Camaro SS 1LE <span style="color:#6e7681">(Roebling Road)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:48.750000000000014%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.998</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Nissan GT-R R35 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:49.09999999999998%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.998</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Veloster N <span style="color:#6e7681">(Roebling Road)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:49.14999999999997%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">0.998</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">GR86 (FR-S proxy) <span style="color:#6e7681">(Roebling Road)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:49.85000000000001%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.000</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Corvette C8 Z06 <span style="color:#6e7681">(Roebling Road)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:50.09999999999998%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.000</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Nissan GT-R R35 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:50.19999999999997%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.000</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">BMW M2 G87 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:52.80000000000001%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.006</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">GR86 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:53.14999999999998%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.006</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Lexus RC F <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:53.75000000000002%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.008</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Miata ND <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:54.85000000000001%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.010</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Nissan GT-R R35 <span style="color:#6e7681">(Atlanta)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:55.04999999999999%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.010</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">911 GT3 992 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:55.199999999999974%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.010</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Mustang GT S550 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:55.199999999999974%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.010</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">GR Supra A90 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:55.199999999999974%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.010</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Subaru BRZ <span style="color:#6e7681">(Roebling Road)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:55.449999999999946%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.011</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Focus RS Mk3 <span style="color:#6e7681">(Roebling Road)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:58.14999999999998%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.016</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Corvette C6 Z06 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:58.29999999999996%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.017</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Civic Type R FL5 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:58.54999999999993%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.017</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Lotus Elise S2 <span style="color:#6e7681">(Atlanta)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:58.600000000000044%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.017</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">GR86 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:58.850000000000016%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.018</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Nissan 350Z <span style="color:#6e7681">(Roebling Road)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:59.54999999999993%;background:#3fb950;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.019</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Nissan GT-R R35 <span style="color:#6e7681">(Roebling Road)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:60.09999999999999%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.020</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Golf R Mk7 <span style="color:#6e7681">(Roebling Road)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:60.54999999999994%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.021</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">BMW M3 E92 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:60.75000000000003%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.022</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">GR Supra A90 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:62.95%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.026</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Elantra N <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:63.44999999999995%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.027</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">BMW M3 F80 <span style="color:#6e7681">(Roebling Road)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:63.49999999999994%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.027</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">GR86 <span style="color:#6e7681">(Roebling Road)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:64.34999999999997%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.029</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Golf R Mk7 <span style="color:#6e7681">(Atlanta)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:65.54999999999994%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.031</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Corvette C5 Z06 <span style="color:#6e7681">(Atlanta)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:67.1%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.034</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Corvette C8 Z51 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:67.80000000000003%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.036</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Corvette C8 Z06 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:68.14999999999999%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.036</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Nissan 350Z <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:69.44999999999996%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.039</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Civic Type R FL5 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:69.75000000000003%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.040</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Focus RS Mk3 <span style="color:#6e7681">(Atlanta)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:69.75000000000003%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.040</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Miata NA <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:69.80000000000003%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.040</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Honda Civic Si FC1 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:72.00000000000001%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.044</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Cayman GT4 718 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:73.75000000000004%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.048</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">WRX STI <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:74.24999999999999%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.048</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Golf R Mk7 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:74.85000000000002%;background:#d29922;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.050</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">BMW M3 CS G80 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:78.00000000000001%;background:#f85149;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.056</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">BMW M2 Competition F87 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:79.80000000000004%;background:#f85149;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.060</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Nissan GT-R R35 <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:90.34999999999998%;background:#f85149;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.081</span>
-</div><div style="margin:1px 0;display:flex;align-items:center;">
-  <span class="bar-label">Nissan 350Z <span style="color:#6e7681">(Barber)</span></span>
-  <div style="flex:1;position:relative;height:18px;background:#21262d;border-radius:3px;">
-    <div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:#30363d;"></div>
-    <div class="bar" style="width:91.64999999999995%;background:#f85149;position:absolute;left:0;"></div>
-  </div>
-  <span class="bar-val">1.083</span>
-</div></div>
 
-<h2>Biggest Changes (Before → After)</h2>
-<table>
-<tr><th>Car</th><th>Track</th><th>Tire</th><th>Before</th><th>After</th><th>Change</th></tr>
-<tr><td>Nissan GT-R R35</td><td>Barber</td><td><span class="tag tag-street">street</span></td>
-    <td>1.115</td><td>1.081</td><td class="better">-0.034 ✅</td></tr><tr><td>Golf R Mk7</td><td>Atlanta</td><td><span class="tag tag-street">street</span></td>
-    <td>1.064</td><td>1.031</td><td class="better">-0.033 ✅</td></tr><tr><td>Focus RS Mk3</td><td>Atlanta</td><td><span class="tag tag-street">street</span></td>
-    <td>1.072</td><td>1.040</td><td class="better">-0.033 ✅</td></tr><tr><td>Golf R Mk7</td><td>Roebling Road</td><td><span class="tag tag-street">street</span></td>
-    <td>1.044</td><td>1.021</td><td class="better">-0.022 ✅</td></tr><tr><td>Focus RS Mk3</td><td>Roebling Road</td><td><span class="tag tag-street">street</span></td>
-    <td>1.039</td><td>1.016</td><td class="better">-0.022 ✅</td></tr><tr><td>Subaru BRZ</td><td>Roebling Road</td><td><span class="tag tag-street">street</span></td>
-    <td>1.032</td><td>1.011</td><td class="better">-0.021 ✅</td></tr><tr><td>Mustang GT S550</td><td>Roebling Road</td><td><span class="tag tag-rcompound">r_compound</span></td>
-    <td>0.942</td><td>0.952</td><td class="better">-0.010 ✅</td></tr><tr><td>Mustang GT S550</td><td>Roebling Road</td><td><span class="tag tag-rcompound">r_compound</span></td>
-    <td>0.919</td><td>0.929</td><td class="better">-0.010 ✅</td></tr><tr><td colspan="6" style="border-top:2px solid #30363d;"></td></tr><tr><td>Miata NA</td><td>Barber</td><td><span class="tag tag-rcompound">r_compound</span></td>
-    <td>1.026</td><td>1.040</td><td class="worse">+0.013 ⚠️</td></tr><tr><td>Civic Type R FL5</td><td>Barber</td><td><span class="tag tag-super">super_200tw</span></td>
-    <td>1.007</td><td>1.017</td><td class="worse">+0.010 ⚠️</td></tr><tr><td>Nissan 350Z</td><td>Roebling Road</td><td><span class="tag tag-rcompound">r_compound</span></td>
-    <td>1.010</td><td>1.019</td><td class="worse">+0.009 ⚠️</td></tr><tr><td>Mustang GT S550</td><td>Barber</td><td><span class="tag tag-slick">slick</span></td>
-    <td>1.002</td><td>1.010</td><td class="worse">+0.008 ⚠️</td></tr><tr><td>Civic Type R FL5</td><td>Barber</td><td><span class="tag tag-endurance">endurance_200tw</span></td>
-    <td>1.032</td><td>1.040</td><td class="worse">+0.007 ⚠️</td></tr></table>
+  <!-- Histogram -->
+  <div class="chart-card">
+    <h2>Ratio Distribution (green = within 2%)</h2>
+    <div class="chart-wrap"><canvas id="histChart"></canvas></div>
+  </div>
 
-<h2>Changes Applied</h2>
-<table>
-<tr><th>Phase</th><th>Change</th><th>Impact</th></tr>
-<tr><td>1A</td><td>Street tire mu 0.85 → 0.90</td><td>Street mean 1.032 → 1.019</td></tr>
-<tr><td>1B</td><td>AWD traction multiplier 1.04 → 1.05</td><td>AWD group improved</td></tr>
-<tr><td>2</td><td>power_band_factor (15 cars, 0.80-0.95)</td><td>NA vs turbo differentiation</td></tr>
-<tr><td>3</td><td>Track banking (Barber 0-4° from iRacing)</td><td>Barber mean 1.016 → 1.014</td></tr>
-<tr><td>4</td><td>Tire thermal model (coaching)</td><td>Not in solver — coaching features</td></tr>
-<tr><td>IMP-2</td><td>Wire banking.py into pipeline</td><td>Telemetry-based banking now live</td></tr>
-</table>
+  <!-- Category: Before vs After -->
+  <div class="chart-card">
+    <h2>Mean Ratio by Tire Category: Before vs After</h2>
+    <div class="chart-wrap"><canvas id="categoryChart"></canvas></div>
+  </div>
 
-<div style="margin-top:3rem;padding:1rem;background:#161b22;border:1px solid #30363d;border-radius:8px;">
-  <p style="color:#8b949e;font-size:0.8rem;">
-    Barber bias diagnosis: All exceedances at Barber. +1.8% systematic bias from GPS curvature overestimation (~1%) + missing banking (~0.3%).
-    Remaining gap is data quality, not solver error. Next step: better Barber track reference from high-quality GPS session.
+  <!-- Track: Before vs After -->
+  <div class="chart-card">
+    <h2>Mean Ratio by Track (After = 5 tracks)</h2>
+    <div class="chart-wrap"><canvas id="trackChart"></canvas></div>
+  </div>
+</div>
+
+<!-- Full data table -->
+<div class="table-card">
+  <h2 style="font-size:1rem; margin-bottom:1rem;">All 155 Entries (Sorted by Track, then Ratio)</h2>
+  <table>
+    <thead>
+      <tr><th>Car</th><th>Track</th><th>Tire</th><th>Cat</th><th>&mu;</th><th>Real</th><th>Predicted</th><th>Ratio</th><th>&Delta;</th></tr>
+    </thead>
+    <tbody>
+    <tr><td>Nissan 370Z</td><td>AMP</td><td style="font-size:0.75rem">Bridgestone Potenza RE-71RS</td><td><span style="color:#34d399">super 200tw</span></td><td>1.12</td><td>1:34.60</td><td>1:30.80</td><td class="ratio-cell warn">0.960</td><td style="color:#60a5fa">-3.8s</td></tr>
+    <tr><td>GR86</td><td>AMP</td><td style="font-size:0.75rem">Bridgestone RE71RS</td><td><span style="color:#34d399">super 200tw</span></td><td>1.12</td><td>1:36.00</td><td>1:33.02</td><td class="ratio-cell warn">0.969</td><td style="color:#60a5fa">-3.0s</td></tr>
+    <tr><td>Civic Type R FK8 (FL5 proxy)</td><td>AMP</td><td style="font-size:0.75rem">Kumho V730</td><td><span style="color:#34d399">super 200tw</span></td><td>1.06</td><td>1:35.91</td><td>1:33.07</td><td class="ratio-cell warn">0.970</td><td style="color:#60a5fa">-2.8s</td></tr>
+    <tr><td>Corvette C8 Z06</td><td>AMP</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S (OEM)</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.03</td><td>1:31.35</td><td>1:29.09</td><td class="ratio-cell warn">0.975</td><td style="color:#60a5fa">-2.3s</td></tr>
+    <tr><td>Cayman GT4 718</td><td>AMP</td><td style="font-size:0.75rem">Pirelli slicks</td><td><span style="color:#a78bfa">slick</span></td><td>1.40</td><td>1:27.58</td><td>1:25.57</td><td class="ratio-cell warn">0.977</td><td style="color:#60a5fa">-2.0s</td></tr>
+    <tr><td>Civic Type R FK8 (FL5 proxy)</td><td>AMP</td><td style="font-size:0.75rem">Hankook Ventus RS4</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:35.83</td><td>1:34.43</td><td class="ratio-cell good">0.985</td><td style="color:#60a5fa">-1.4s</td></tr>
+    <tr><td>Corvette C7 Z06</td><td>AMP</td><td style="font-size:0.75rem">Michelin Pilot Super Sport (300TW)</td><td><span style="color:#9ca3af">street</span></td><td>1.03</td><td>1:33.00</td><td>1:32.03</td><td class="ratio-cell good">0.990</td><td style="color:#60a5fa">-1.0s</td></tr>
+    <tr><td>GR86</td><td>AMP</td><td style="font-size:0.75rem">Falken Azenis RT660 245/40/17</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.05</td><td>1:34.90</td><td>1:34.47</td><td class="ratio-cell good">0.996</td><td style="color:#60a5fa">-0.4s</td></tr>
+    <tr><td>BMW M3 E92</td><td>AMP</td><td style="font-size:0.75rem">Michelin Tempesta P1 (200TW)</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>1:30.50</td><td>1:30.10</td><td class="ratio-cell good">0.996</td><td style="color:#60a5fa">-0.4s</td></tr>
+    <tr><td>Nissan GT-R R35</td><td>AMP</td><td style="font-size:0.75rem">Dunlop DH Slick</td><td><span style="color:#a78bfa">slick</span></td><td>1.42</td><td>1:23.90</td><td>1:24.74</td><td class="ratio-cell good">1.010</td><td style="color:#fbbf24">+0.8s</td></tr>
+    <tr><td>Lotus Elise S2</td><td>AMP</td><td style="font-size:0.75rem">Yokohama AD07 (180TW)</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:32.90</td><td>1:34.50</td><td class="ratio-cell good">1.017</td><td style="color:#fbbf24">+1.6s</td></tr>
+    <tr><td>Golf R Mk7</td><td>AMP</td><td style="font-size:0.75rem">Firestone Firehawk Indy 500 (340TW)</td><td><span style="color:#9ca3af">street</span></td><td>0.90</td><td>1:37.90</td><td>1:40.94</td><td class="ratio-cell warn">1.031</td><td style="color:#fbbf24">+3.0s</td></tr>
+    <tr><td>Corvette C5 Z06</td><td>AMP</td><td style="font-size:0.75rem">Bridgestone Potenza RE-71RS</td><td><span style="color:#34d399">super 200tw</span></td><td>1.12</td><td>1:27.20</td><td>1:30.19</td><td class="ratio-cell warn">1.034</td><td style="color:#fbbf24">+3.0s</td></tr>
+    <tr><td>Focus RS Mk3</td><td>AMP</td><td style="font-size:0.75rem">Kumho Ecsta S1 Evo3 K127 (340TW)</td><td><span style="color:#9ca3af">street</span></td><td>0.90</td><td>1:35.90</td><td>1:39.69</td><td class="ratio-cell warn">1.040</td><td style="color:#fbbf24">+3.8s</td></tr>
+    <tr><td>Mustang GT S550</td><td>Barber</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S 255/40+275/</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.03</td><td>1:51.38</td><td>1:42.12</td><td class="ratio-cell bad">0.917</td><td style="color:#60a5fa">-9.3s</td></tr>
+    <tr><td>Corvette C5 Z06</td><td>Barber</td><td style="font-size:0.75rem">Pirelli P Zero DH Slick</td><td><span style="color:#a78bfa">slick</span></td><td>1.42</td><td>1:42.60</td><td>1:38.77</td><td class="ratio-cell warn">0.963</td><td style="color:#60a5fa">-3.8s</td></tr>
+    <tr><td>Cayman GT4 718</td><td>Barber</td><td style="font-size:0.75rem">Michelin Pilot Sport Cup 2 (OEM)</td><td><span style="color:#34d399">super 200tw</span></td><td>1.15</td><td>1:41.43</td><td>1:37.89</td><td class="ratio-cell warn">0.965</td><td style="color:#60a5fa">-3.5s</td></tr>
+    <tr><td>GR86</td><td>Barber</td><td style="font-size:0.75rem">Michelin Pilot Super Sport 300TW (O</td><td><span style="color:#9ca3af">street</span></td><td>1.03</td><td>1:52.10</td><td>1:48.27</td><td class="ratio-cell warn">0.966</td><td style="color:#60a5fa">-3.8s</td></tr>
+    <tr><td>Audi TT RS 8S</td><td>Barber</td><td style="font-size:0.75rem">Goodyear SuperCar 3 (220TW)</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:46.90</td><td>1:43.47</td><td class="ratio-cell warn">0.968</td><td style="color:#60a5fa">-3.4s</td></tr>
+    <tr><td>GT350</td><td>Barber</td><td style="font-size:0.75rem">Goodyear SuperCar 3 325/30R19 squar</td><td><span style="color:#34d399">super 200tw</span></td><td>1.12</td><td>1:40.26</td><td>1:38.28</td><td class="ratio-cell good">0.980</td><td style="color:#60a5fa">-2.0s</td></tr>
+    <tr><td>Corvette C7 Grand Sport</td><td>Barber</td><td style="font-size:0.75rem">DH Slick</td><td><span style="color:#a78bfa">slick</span></td><td>1.42</td><td>1:36.80</td><td>1:35.42</td><td class="ratio-cell good">0.986</td><td style="color:#60a5fa">-1.4s</td></tr>
+    <tr><td>GR86</td><td>Barber</td><td style="font-size:0.75rem">Falken Azenis RT660 245/40/17</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.05</td><td>1:47.66</td><td>1:46.14</td><td class="ratio-cell good">0.986</td><td style="color:#60a5fa">-1.5s</td></tr>
+    <tr><td>Cayman GT4 718</td><td>Barber</td><td style="font-size:0.75rem">Bridgestone RE-71RS 245/40/19 & 285</td><td><span style="color:#34d399">super 200tw</span></td><td>1.12</td><td>1:39.80</td><td>1:38.75</td><td class="ratio-cell good">0.989</td><td style="color:#60a5fa">-1.1s</td></tr>
+    <tr><td>911 GT3 991</td><td>Barber</td><td style="font-size:0.75rem">Hoosier R7</td><td><span style="color:#f472b6">r compound</span></td><td>1.38</td><td>1:35.05</td><td>1:34.36</td><td class="ratio-cell good">0.993</td><td style="color:#60a5fa">-0.7s</td></tr>
+    <tr><td>BMW M2 G87</td><td>Barber</td><td style="font-size:0.75rem">unknown (assumed endurance 200tw)</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:43.18</td><td>1:42.66</td><td class="ratio-cell good">0.995</td><td style="color:#60a5fa">-0.5s</td></tr>
+    <tr><td>Camaro ZL1 1LE</td><td>Barber</td><td style="font-size:0.75rem">Goodyear Eagle F1 SuperCar 3R 100TW</td><td><span style="color:#fbbf24">100tw</span></td><td>1.20</td><td>1:35.90</td><td>1:35.47</td><td class="ratio-cell good">0.996</td><td style="color:#60a5fa">-0.4s</td></tr>
+    <tr><td>Nissan GT-R R35</td><td>Barber</td><td style="font-size:0.75rem">Nitto NT01 (100TW)</td><td><span style="color:#fbbf24">100tw</span></td><td>1.20</td><td>1:36.80</td><td>1:36.62</td><td class="ratio-cell good">0.998</td><td style="color:#60a5fa">-0.2s</td></tr>
+    <tr><td>Nissan GT-R R35</td><td>Barber</td><td style="font-size:0.75rem">Hoosier R7</td><td><span style="color:#f472b6">r compound</span></td><td>1.38</td><td>1:35.30</td><td>1:35.34</td><td class="ratio-cell good">1.000</td><td style="color:#fbbf24">+0.0s</td></tr>
+    <tr><td>BMW M2 G87</td><td>Barber</td><td style="font-size:0.75rem">Hankook Ventus RS4</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:42.09</td><td>1:42.66</td><td class="ratio-cell good">1.006</td><td style="color:#fbbf24">+0.6s</td></tr>
+    <tr><td>GR86</td><td>Barber</td><td style="font-size:0.75rem">Yokohama Advan A052 245/40/17</td><td><span style="color:#34d399">super 200tw</span></td><td>1.13</td><td>1:43.88</td><td>1:44.54</td><td class="ratio-cell good">1.006</td><td style="color:#fbbf24">+0.7s</td></tr>
+    <tr><td>Lexus RC F</td><td>Barber</td><td style="font-size:0.75rem">Bridgestone Potenza RE-71RS</td><td><span style="color:#34d399">super 200tw</span></td><td>1.12</td><td>1:39.00</td><td>1:39.74</td><td class="ratio-cell good">1.008</td><td style="color:#fbbf24">+0.7s</td></tr>
+    <tr><td>Miata ND</td><td>Barber</td><td style="font-size:0.75rem">unknown</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:48.36</td><td>1:49.41</td><td class="ratio-cell good">1.010</td><td style="color:#fbbf24">+1.1s</td></tr>
+    <tr><td>911 GT3 992</td><td>Barber</td><td style="font-size:0.75rem">Dunlop DH Slick</td><td><span style="color:#a78bfa">slick</span></td><td>1.40</td><td>1:33.09</td><td>1:34.06</td><td class="ratio-cell good">1.010</td><td style="color:#fbbf24">+1.0s</td></tr>
+    <tr><td>Mustang GT S550</td><td>Barber</td><td style="font-size:0.75rem">Pirelli Slicks 305 square</td><td><span style="color:#a78bfa">slick</span></td><td>1.40</td><td>1:37.06</td><td>1:38.07</td><td class="ratio-cell good">1.010</td><td style="color:#fbbf24">+1.0s</td></tr>
+    <tr><td>GR Supra A90</td><td>Barber</td><td style="font-size:0.75rem">Michelin Pilot Super Sport 300TW</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.03</td><td>1:41.60</td><td>1:42.66</td><td class="ratio-cell good">1.010</td><td style="color:#fbbf24">+1.1s</td></tr>
+    <tr><td>Corvette C6 Z06</td><td>Barber</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S (300TW)</td><td><span style="color:#9ca3af">street</span></td><td>1.03</td><td>1:40.50</td><td>1:42.17</td><td class="ratio-cell good">1.017</td><td style="color:#fbbf24">+1.7s</td></tr>
+    <tr><td>Civic Type R FL5</td><td>Barber</td><td style="font-size:0.75rem">Yokohama Advan A052</td><td><span style="color:#34d399">super 200tw</span></td><td>1.13</td><td>1:40.90</td><td>1:42.63</td><td class="ratio-cell good">1.017</td><td style="color:#fbbf24">+1.7s</td></tr>
+    <tr><td>GR86</td><td>Barber</td><td style="font-size:0.75rem">Hankook RS4 (coilovers)</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:45.88</td><td>1:47.75</td><td class="ratio-cell good">1.018</td><td style="color:#fbbf24">+1.9s</td></tr>
+    <tr><td>BMW M3 E92</td><td>Barber</td><td style="font-size:0.75rem">Michelin Pilot Sport Cup 2 R (200TW</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>1:38.60</td><td>1:40.72</td><td class="ratio-cell warn">1.022</td><td style="color:#fbbf24">+2.1s</td></tr>
+    <tr><td>GR Supra A90</td><td>Barber</td><td style="font-size:0.75rem">Bridgestone Potenza RE-71RS</td><td><span style="color:#34d399">super 200tw</span></td><td>1.12</td><td>1:38.00</td><td>1:40.54</td><td class="ratio-cell warn">1.026</td><td style="color:#fbbf24">+2.5s</td></tr>
+    <tr><td>Elantra N</td><td>Barber</td><td style="font-size:0.75rem">Kumho Ecsta V730</td><td><span style="color:#34d399">super 200tw</span></td><td>1.06</td><td>1:42.80</td><td>1:45.57</td><td class="ratio-cell warn">1.027</td><td style="color:#fbbf24">+2.8s</td></tr>
+    <tr><td>Corvette C8 Z51</td><td>Barber</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S (OEM)</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.03</td><td>1:36.46</td><td>1:39.89</td><td class="ratio-cell warn">1.036</td><td style="color:#fbbf24">+3.4s</td></tr>
+    <tr><td>Corvette C8 Z06</td><td>Barber</td><td style="font-size:0.75rem">Yokohama Advan A052</td><td><span style="color:#34d399">super 200tw</span></td><td>1.13</td><td>1:31.90</td><td>1:35.24</td><td class="ratio-cell warn">1.036</td><td style="color:#fbbf24">+3.3s</td></tr>
+    <tr><td>Nissan 350Z</td><td>Barber</td><td style="font-size:0.75rem">Hoosier R7</td><td><span style="color:#f472b6">r compound</span></td><td>1.38</td><td>1:38.10</td><td>1:41.91</td><td class="ratio-cell warn">1.039</td><td style="color:#fbbf24">+3.8s</td></tr>
+    <tr><td>Civic Type R FL5</td><td>Barber</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S (stock OEM)</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.03</td><td>1:40.90</td><td>1:44.88</td><td class="ratio-cell warn">1.040</td><td style="color:#fbbf24">+4.0s</td></tr>
+    <tr><td>Miata NA</td><td>Barber</td><td style="font-size:0.75rem">Hoosier (NASA TT class)</td><td><span style="color:#f472b6">r compound</span></td><td>1.38</td><td>1:48.08</td><td>1:52.36</td><td class="ratio-cell warn">1.040</td><td style="color:#fbbf24">+4.3s</td></tr>
+    <tr><td>Honda Civic Si FC1</td><td>Barber</td><td style="font-size:0.75rem">Goodyear SuperCar 3 (220TW)</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:45.00</td><td>1:49.62</td><td class="ratio-cell warn">1.044</td><td style="color:#fbbf24">+4.6s</td></tr>
+    <tr><td>Cayman GT4 718</td><td>Barber</td><td style="font-size:0.75rem">Yokohama A052 or similar</td><td><span style="color:#34d399">super 200tw</span></td><td>1.13</td><td>1:33.99</td><td>1:38.46</td><td class="ratio-cell warn">1.048</td><td style="color:#fbbf24">+4.5s</td></tr>
+    <tr><td>WRX STI</td><td>Barber</td><td style="font-size:0.75rem">Yokohama ADVAN A052</td><td><span style="color:#34d399">super 200tw</span></td><td>1.13</td><td>1:38.90</td><td>1:43.70</td><td class="ratio-cell warn">1.048</td><td style="color:#fbbf24">+4.8s</td></tr>
+    <tr><td>Golf R Mk7</td><td>Barber</td><td style="font-size:0.75rem">Continental CSC5P (240TW)</td><td><span style="color:#9ca3af">street</span></td><td>0.90</td><td>1:47.00</td><td>1:52.31</td><td class="ratio-cell warn">1.050</td><td style="color:#fbbf24">+5.3s</td></tr>
+    <tr><td>BMW M3 CS G80</td><td>Barber</td><td style="font-size:0.75rem">Bridgestone Potenza RE-71RS</td><td><span style="color:#34d399">super 200tw</span></td><td>1.12</td><td>1:33.90</td><td>1:39.16</td><td class="ratio-cell bad">1.056</td><td style="color:#fbbf24">+5.3s</td></tr>
+    <tr><td>BMW M2 Competition F87</td><td>Barber</td><td style="font-size:0.75rem">Bridgestone Potenza RE-71RS</td><td><span style="color:#34d399">super 200tw</span></td><td>1.12</td><td>1:35.80</td><td>1:41.51</td><td class="ratio-cell bad">1.060</td><td style="color:#fbbf24">+5.7s</td></tr>
+    <tr><td>Nissan GT-R R35</td><td>Barber</td><td style="font-size:0.75rem">Dunlop SP Sport 600 DSST (OEM)</td><td><span style="color:#9ca3af">street</span></td><td>0.90</td><td>1:38.70</td><td>1:46.67</td><td class="ratio-cell bad">1.081</td><td style="color:#fbbf24">+8.0s</td></tr>
+    <tr><td>Nissan 350Z</td><td>Barber</td><td style="font-size:0.75rem">Yokohama RE040 (140TW)</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:38.50</td><td>1:46.70</td><td class="ratio-cell bad">1.083</td><td style="color:#fbbf24">+8.2s</td></tr>
+    <tr><td>Mustang GT S550</td><td>Roebling</td><td style="font-size:0.75rem">Hoosier R7 315/30/18</td><td><span style="color:#f472b6">r compound</span></td><td>1.38</td><td>1:22.58</td><td>1:16.74</td><td class="ratio-cell bad">0.929</td><td style="color:#60a5fa">-5.8s</td></tr>
+    <tr><td>Mustang GT S550</td><td>Roebling</td><td style="font-size:0.75rem">Hoosier A7 315 square</td><td><span style="color:#f472b6">r compound</span></td><td>1.42</td><td>1:19.90</td><td>1:16.09</td><td class="ratio-cell warn">0.952</td><td style="color:#60a5fa">-3.8s</td></tr>
+    <tr><td>WRX STI GD</td><td>Roebling</td><td style="font-size:0.75rem">Dunlop Direzza ZII Star Spec (200TW</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>1:24.60</td><td>1:21.21</td><td class="ratio-cell warn">0.960</td><td style="color:#60a5fa">-3.4s</td></tr>
+    <tr><td>Civic Type R FK8</td><td>Roebling</td><td style="font-size:0.75rem">Continental ContactSport 6 (200TW)</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:25.00</td><td>1:22.20</td><td class="ratio-cell warn">0.967</td><td style="color:#60a5fa">-2.8s</td></tr>
+    <tr><td>GT350</td><td>Roebling</td><td style="font-size:0.75rem">Goodyear SuperCar 3R</td><td><span style="color:#fbbf24">100tw</span></td><td>1.20</td><td>1:18.70</td><td>1:16.18</td><td class="ratio-cell warn">0.968</td><td style="color:#60a5fa">-2.5s</td></tr>
+    <tr><td>BMW M4 F82</td><td>Roebling</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S (300TW)</td><td><span style="color:#9ca3af">street</span></td><td>1.03</td><td>1:22.30</td><td>1:20.36</td><td class="ratio-cell warn">0.976</td><td style="color:#60a5fa">-1.9s</td></tr>
+    <tr><td>Cayman GT4 718</td><td>Roebling</td><td style="font-size:0.75rem">Bridgestone RE71RS</td><td><span style="color:#34d399">super 200tw</span></td><td>1.12</td><td>1:17.79</td><td>1:17.26</td><td class="ratio-cell good">0.993</td><td style="color:#60a5fa">-0.5s</td></tr>
+    <tr><td>Mustang GT S550</td><td>Roebling</td><td style="font-size:0.75rem">Kumho V730 305 square</td><td><span style="color:#34d399">super 200tw</span></td><td>1.06</td><td>1:20.38</td><td>1:19.84</td><td class="ratio-cell good">0.993</td><td style="color:#60a5fa">-0.5s</td></tr>
+    <tr><td>Camaro SS 1LE</td><td>Roebling</td><td style="font-size:0.75rem">Goodyear Eagle F1 SuperCar 3 305/30</td><td><span style="color:#34d399">super 200tw</span></td><td>1.12</td><td>1:18.00</td><td>1:17.81</td><td class="ratio-cell good">0.998</td><td style="color:#60a5fa">-0.2s</td></tr>
+    <tr><td>Veloster N</td><td>Roebling</td><td style="font-size:0.75rem">Falken Azenis RT660</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.05</td><td>1:21.70</td><td>1:21.56</td><td class="ratio-cell good">0.998</td><td style="color:#60a5fa">-0.1s</td></tr>
+    <tr><td>GR86 (FR-S proxy)</td><td>Roebling</td><td style="font-size:0.75rem">Nitto NT01</td><td><span style="color:#fbbf24">100tw</span></td><td>1.20</td><td>1:20.47</td><td>1:20.45</td><td class="ratio-cell good">1.000</td><td style="color:#60a5fa">-0.0s</td></tr>
+    <tr><td>Corvette C8 Z06</td><td>Roebling</td><td style="font-size:0.75rem">Pirelli P Zero Trofeo R (Z07 pkg)</td><td><span style="color:#fbbf24">100tw</span></td><td>1.18</td><td>1:14.29</td><td>1:14.30</td><td class="ratio-cell good">1.000</td><td style="color:#fbbf24">+0.0s</td></tr>
+    <tr><td>Subaru BRZ</td><td>Roebling</td><td style="font-size:0.75rem">Michelin Primacy 3 240TW (stock)</td><td><span style="color:#9ca3af">street</span></td><td>0.90</td><td>1:26.70</td><td>1:27.64</td><td class="ratio-cell good">1.011</td><td style="color:#fbbf24">+0.9s</td></tr>
+    <tr><td>Focus RS Mk3</td><td>Roebling</td><td style="font-size:0.75rem">Kumho Ecsta S1 Evo3 K127 (340TW)</td><td><span style="color:#9ca3af">street</span></td><td>0.90</td><td>1:25.00</td><td>1:26.38</td><td class="ratio-cell good">1.016</td><td style="color:#fbbf24">+1.4s</td></tr>
+    <tr><td>Nissan 350Z</td><td>Roebling</td><td style="font-size:0.75rem">Hoosier R7</td><td><span style="color:#f472b6">r compound</span></td><td>1.38</td><td>1:17.60</td><td>1:19.09</td><td class="ratio-cell good">1.019</td><td style="color:#fbbf24">+1.5s</td></tr>
+    <tr><td>Nissan GT-R R35</td><td>Roebling</td><td style="font-size:0.75rem">Dunlop DH Slick</td><td><span style="color:#a78bfa">slick</span></td><td>1.42</td><td>1:13.40</td><td>1:14.88</td><td class="ratio-cell warn">1.020</td><td style="color:#fbbf24">+1.5s</td></tr>
+    <tr><td>Golf R Mk7</td><td>Roebling</td><td style="font-size:0.75rem">Firestone Firehawk Indy 500 (340TW)</td><td><span style="color:#9ca3af">street</span></td><td>0.90</td><td>1:25.50</td><td>1:27.31</td><td class="ratio-cell warn">1.021</td><td style="color:#fbbf24">+1.8s</td></tr>
+    <tr><td>BMW M3 F80</td><td>Roebling</td><td style="font-size:0.75rem">Falken Azenis RT615K+ (200TW)</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>1:16.70</td><td>1:18.77</td><td class="ratio-cell warn">1.027</td><td style="color:#fbbf24">+2.1s</td></tr>
+    <tr><td>GR86</td><td>Roebling</td><td style="font-size:0.75rem">Michelin Pilot Sport 4 (OEM stock)</td><td><span style="color:#9ca3af">street</span></td><td>0.88</td><td>1:25.90</td><td>1:28.37</td><td class="ratio-cell warn">1.029</td><td style="color:#fbbf24">+2.5s</td></tr>
+    <tr><td>Honda S2000 CR</td><td>VIR GW</td><td style="font-size:0.75rem">Bridgestone Potenza RE070R</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>3:15.00</td><td>3:06.10</td><td class="ratio-cell warn">0.954</td><td style="color:#60a5fa">-8.9s</td></tr>
+    <tr><td>Alfa Romeo Giulia QV</td><td>VIR GW</td><td style="font-size:0.75rem">Pirelli P Zero Corsa</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>2:57.20</td><td>2:51.42</td><td class="ratio-cell warn">0.967</td><td style="color:#60a5fa">-5.8s</td></tr>
+    <tr><td>Acura Integra Type S</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport Cup 2</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>3:04.20</td><td>2:59.26</td><td class="ratio-cell warn">0.973</td><td style="color:#60a5fa">-4.9s</td></tr>
+    <tr><td>Lexus RC F Track Edition</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>3:02.60</td><td>2:58.85</td><td class="ratio-cell warn">0.980</td><td style="color:#60a5fa">-3.8s</td></tr>
+    <tr><td>Subaru BRZ Limited ZD8</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>3:12.40</td><td>3:08.57</td><td class="ratio-cell good">0.980</td><td style="color:#60a5fa">-3.8s</td></tr>
+    <tr><td>Chevrolet Camaro SS 1LE</td><td>VIR GW</td><td style="font-size:0.75rem">Goodyear Eagle F1 SuperCar 3R</td><td><span style="color:#fbbf24">100tw</span></td><td>1.20</td><td>2:54.80</td><td>2:51.36</td><td class="ratio-cell good">0.980</td><td style="color:#60a5fa">-3.4s</td></tr>
+    <tr><td>Subaru WRX STI VA</td><td>VIR GW</td><td style="font-size:0.75rem">Dunlop Sport Maxx</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>3:10.50</td><td>3:06.85</td><td class="ratio-cell good">0.981</td><td style="color:#60a5fa">-3.7s</td></tr>
+    <tr><td>Mazda MX-5 Miata ND2</td><td>VIR GW</td><td style="font-size:0.75rem">Bridgestone Potenza S007A</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>3:15.60</td><td>3:11.99</td><td class="ratio-cell good">0.982</td><td style="color:#60a5fa">-3.6s</td></tr>
+    <tr><td>Toyota GR86 Premium</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>3:11.80</td><td>3:08.57</td><td class="ratio-cell good">0.983</td><td style="color:#60a5fa">-3.2s</td></tr>
+    <tr><td>Nissan GT-R R35</td><td>VIR GW</td><td style="font-size:0.75rem">Dunlop SP Sport Maxx GT 600 DSST</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>2:53.20</td><td>2:50.83</td><td class="ratio-cell good">0.986</td><td style="color:#60a5fa">-2.4s</td></tr>
+    <tr><td>Mercedes-AMG C63 S W205</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport Cup 2</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>2:57.10</td><td>2:54.81</td><td class="ratio-cell good">0.987</td><td style="color:#60a5fa">-2.3s</td></tr>
+    <tr><td>Subaru WRX STI Type RA</td><td>VIR GW</td><td style="font-size:0.75rem">Dunlop Sport Maxx Race</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>3:04.90</td><td>3:02.98</td><td class="ratio-cell good">0.990</td><td style="color:#60a5fa">-1.9s</td></tr>
+    <tr><td>Hyundai Veloster N</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>3:07.70</td><td>3:05.97</td><td class="ratio-cell good">0.991</td><td style="color:#60a5fa">-1.7s</td></tr>
+    <tr><td>Volkswagen Golf GTI Mk8</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>3:11.40</td><td>3:09.91</td><td class="ratio-cell good">0.992</td><td style="color:#60a5fa">-1.5s</td></tr>
+    <tr><td>Honda Civic Type R FK8 LE</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport Cup 2</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>3:00.70</td><td>2:59.51</td><td class="ratio-cell good">0.993</td><td style="color:#60a5fa">-1.2s</td></tr>
+    <tr><td>Subaru STI S209</td><td>VIR GW</td><td style="font-size:0.75rem">Dunlop Sport Maxx Race</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>3:03.40</td><td>3:02.98</td><td class="ratio-cell good">0.998</td><td style="color:#60a5fa">-0.4s</td></tr>
+    <tr><td>Toyota GR Corolla</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>3:07.10</td><td>3:06.72</td><td class="ratio-cell good">0.998</td><td style="color:#60a5fa">-0.4s</td></tr>
+    <tr><td>Honda Civic Type R FK8</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>3:03.90</td><td>3:03.58</td><td class="ratio-cell good">0.998</td><td style="color:#60a5fa">-0.3s</td></tr>
+    <tr><td>Chevrolet Camaro ZL1 1LE</td><td>VIR GW</td><td style="font-size:0.75rem">Goodyear Eagle F1 SuperCar 3R</td><td><span style="color:#fbbf24">100tw</span></td><td>1.20</td><td>2:45.70</td><td>2:45.51</td><td class="ratio-cell good">0.999</td><td style="color:#60a5fa">-0.2s</td></tr>
+    <tr><td>Ford Mustang Shelby GT350R</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport Cup 2</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>2:51.80</td><td>2:51.73</td><td class="ratio-cell good">1.000</td><td style="color:#60a5fa">-0.1s</td></tr>
+    <tr><td>Hyundai Elantra N</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>3:06.40</td><td>3:06.62</td><td class="ratio-cell good">1.001</td><td style="color:#fbbf24">+0.2s</td></tr>
+    <tr><td>BMW M2 F87</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Super Sport</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>3:01.90</td><td>3:02.19</td><td class="ratio-cell good">1.002</td><td style="color:#fbbf24">+0.3s</td></tr>
+    <tr><td>BMW M3 CS G80</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport Cup 2 R</td><td><span style="color:#fbbf24">100tw</span></td><td>1.20</td><td>2:50.00</td><td>2:50.49</td><td class="ratio-cell good">1.003</td><td style="color:#fbbf24">+0.5s</td></tr>
+    <tr><td>Chevrolet Camaro ZL1 1LE</td><td>VIR GW</td><td style="font-size:0.75rem">Goodyear Eagle F1 SuperCar 3R</td><td><span style="color:#fbbf24">100tw</span></td><td>1.20</td><td>2:45.00</td><td>2:45.51</td><td class="ratio-cell good">1.003</td><td style="color:#fbbf24">+0.5s</td></tr>
+    <tr><td>Ford Focus RS Mk3</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport 3</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>3:03.90</td><td>3:04.48</td><td class="ratio-cell good">1.003</td><td style="color:#fbbf24">+0.6s</td></tr>
+    <tr><td>Toyota GR Supra 3.0</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Super Sport</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>2:59.30</td><td>3:00.40</td><td class="ratio-cell good">1.006</td><td style="color:#fbbf24">+1.1s</td></tr>
+    <tr><td>Ford Mustang GT PP2 S550</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport Cup 2</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>2:53.80</td><td>2:55.12</td><td class="ratio-cell good">1.008</td><td style="color:#fbbf24">+1.3s</td></tr>
+    <tr><td>BMW M2 G87</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>2:56.90</td><td>2:58.26</td><td class="ratio-cell good">1.008</td><td style="color:#fbbf24">+1.4s</td></tr>
+    <tr><td>Nissan GT-R NISMO R35</td><td>VIR GW</td><td style="font-size:0.75rem">Dunlop SP Sport Maxx GT 600 DSST</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>2:49.40</td><td>2:50.83</td><td class="ratio-cell good">1.008</td><td style="color:#fbbf24">+1.4s</td></tr>
+    <tr><td>Audi RS3</td><td>VIR GW</td><td style="font-size:0.75rem">Pirelli P Zero Trofeo R</td><td><span style="color:#fbbf24">100tw</span></td><td>1.20</td><td>2:52.50</td><td>2:54.40</td><td class="ratio-cell good">1.011</td><td style="color:#fbbf24">+1.9s</td></tr>
+    <tr><td>Honda Civic Type R FL5</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport Cup 2</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>2:58.80</td><td>3:01.09</td><td class="ratio-cell good">1.013</td><td style="color:#fbbf24">+2.3s</td></tr>
+    <tr><td>BMW M2 Competition F87</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Super Sport</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>2:59.70</td><td>3:02.19</td><td class="ratio-cell good">1.014</td><td style="color:#fbbf24">+2.5s</td></tr>
+    <tr><td>Porsche 718 Cayman GT4</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport Cup 2</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>2:50.30</td><td>2:52.88</td><td class="ratio-cell good">1.015</td><td style="color:#fbbf24">+2.6s</td></tr>
+    <tr><td>Porsche 911 GT3 991.2</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport Cup 2</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>2:47.00</td><td>2:49.57</td><td class="ratio-cell good">1.015</td><td style="color:#fbbf24">+2.6s</td></tr>
+    <tr><td>BMW M240i xDrive G42</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>3:00.60</td><td>3:03.56</td><td class="ratio-cell good">1.016</td><td style="color:#fbbf24">+3.0s</td></tr>
+    <tr><td>Ford Mustang Dark Horse S650</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport Cup 2</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>2:51.20</td><td>2:54.58</td><td class="ratio-cell good">1.020</td><td style="color:#fbbf24">+3.4s</td></tr>
+    <tr><td>BMW M4 CSL G82</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport Cup 2 R</td><td><span style="color:#fbbf24">100tw</span></td><td>1.20</td><td>2:47.50</td><td>2:51.10</td><td class="ratio-cell warn">1.022</td><td style="color:#fbbf24">+3.6s</td></tr>
+    <tr><td>Ford Mustang Mach 1 S550</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport Cup 2</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>2:51.40</td><td>2:55.12</td><td class="ratio-cell warn">1.022</td><td style="color:#fbbf24">+3.7s</td></tr>
+    <tr><td>Honda Civic Si</td><td>VIR GW</td><td style="font-size:0.75rem">Continental ExtremeContact Sport 02</td><td><span style="color:#9ca3af">street</span></td><td>0.90</td><td>3:16.90</td><td>3:21.47</td><td class="ratio-cell warn">1.023</td><td style="color:#fbbf24">+4.6s</td></tr>
+    <tr><td>BMW M3 Competition xDrive G80</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>2:53.50</td><td>2:57.76</td><td class="ratio-cell warn">1.024</td><td style="color:#fbbf24">+4.3s</td></tr>
+    <tr><td>Toyota GR Supra 3.0 Manual</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>2:55.60</td><td>3:00.40</td><td class="ratio-cell warn">1.027</td><td style="color:#fbbf24">+4.8s</td></tr>
+    <tr><td>Volkswagen GTI Mk7</td><td>VIR GW</td><td style="font-size:0.75rem">Continental ExtremeContact DW</td><td><span style="color:#9ca3af">street</span></td><td>0.90</td><td>3:14.60</td><td>3:20.28</td><td class="ratio-cell warn">1.029</td><td style="color:#fbbf24">+5.7s</td></tr>
+    <tr><td>Porsche 911 GT3 992</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport Cup 2 R</td><td><span style="color:#fbbf24">100tw</span></td><td>1.20</td><td>2:40.60</td><td>2:45.86</td><td class="ratio-cell warn">1.033</td><td style="color:#fbbf24">+5.3s</td></tr>
+    <tr><td>Chevrolet Corvette Stingray Z51 C8</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>2:49.00</td><td>2:54.90</td><td class="ratio-cell warn">1.035</td><td style="color:#fbbf24">+5.9s</td></tr>
+    <tr><td>Chevrolet Corvette ZR1 C7</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport Cup 2</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>2:39.50</td><td>2:45.73</td><td class="ratio-cell warn">1.039</td><td style="color:#fbbf24">+6.2s</td></tr>
+    <tr><td>Toyota GR Corolla Morizo</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>2:59.60</td><td>3:06.72</td><td class="ratio-cell warn">1.040</td><td style="color:#fbbf24">+7.1s</td></tr>
+    <tr><td>Audi TT RS 8S</td><td>VIR GW</td><td style="font-size:0.75rem">Pirelli P Zero</td><td><span style="color:#9ca3af">street</span></td><td>0.90</td><td>2:58.50</td><td>3:08.56</td><td class="ratio-cell bad">1.056</td><td style="color:#fbbf24">+10.1s</td></tr>
+    <tr><td>Porsche 718 Cayman GT4 RS</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport Cup 2 R</td><td><span style="color:#fbbf24">100tw</span></td><td>1.20</td><td>2:40.50</td><td>2:49.90</td><td class="ratio-cell bad">1.058</td><td style="color:#fbbf24">+9.4s</td></tr>
+    <tr><td>Chevrolet Corvette Z06 C8</td><td>VIR GW</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>2:38.60</td><td>2:51.04</td><td class="ratio-cell bad">1.078</td><td style="color:#fbbf24">+12.4s</td></tr>
+    <tr><td>Chevrolet Corvette C6 Z06</td><td>Laguna Seca</td><td style="font-size:0.75rem">unknown</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:40.92</td><td>1:50.61</td><td class="ratio-cell bad">1.096</td><td style="color:#fbbf24">+9.7s</td></tr>
+    <tr><td>Lexus RC F</td><td>Laguna Seca</td><td style="font-size:0.75rem">unknown</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:43.20</td><td>1:54.09</td><td class="ratio-cell bad">1.105</td><td style="color:#fbbf24">+10.9s</td></tr>
+    <tr><td>BMW M3 E92</td><td>Laguna Seca</td><td style="font-size:0.75rem">Michelin Pilot Sport PS2</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:42.96</td><td>1:54.55</td><td class="ratio-cell bad">1.113</td><td style="color:#fbbf24">+11.6s</td></tr>
+    <tr><td>Mazda MX-5 Miata ND</td><td>Laguna Seca</td><td style="font-size:0.75rem">unknown</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:50.68</td><td>2:03.20</td><td class="ratio-cell bad">1.113</td><td style="color:#fbbf24">+12.5s</td></tr>
+    <tr><td>Chevrolet Camaro ZL1 1LE 6th</td><td>Laguna Seca</td><td style="font-size:0.75rem">Goodyear Eagle F1 SuperCar 3</td><td><span style="color:#fbbf24">100tw</span></td><td>1.20</td><td>1:34.30</td><td>1:45.23</td><td class="ratio-cell bad">1.116</td><td style="color:#fbbf24">+10.9s</td></tr>
+    <tr><td>Subaru WRX STI VA</td><td>Laguna Seca</td><td style="font-size:0.75rem">unknown</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:47.16</td><td>1:59.74</td><td class="ratio-cell bad">1.117</td><td style="color:#fbbf24">+12.6s</td></tr>
+    <tr><td>Dodge Challenger Hellcat Redeye</td><td>Laguna Seca</td><td style="font-size:0.75rem">unknown</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:42.70</td><td>1:55.16</td><td class="ratio-cell bad">1.121</td><td style="color:#fbbf24">+12.5s</td></tr>
+    <tr><td>Ford Mustang GT350 S550</td><td>Laguna Seca</td><td style="font-size:0.75rem">unknown</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>1:36.83</td><td>1:49.36</td><td class="ratio-cell bad">1.129</td><td style="color:#fbbf24">+12.5s</td></tr>
+    <tr><td>Chevrolet Corvette C7 ZR1</td><td>Laguna Seca</td><td style="font-size:0.75rem">Michelin Pilot Sport Cup 2</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>1:33.20</td><td>1:45.70</td><td class="ratio-cell bad">1.134</td><td style="color:#fbbf24">+12.5s</td></tr>
+    <tr><td>BMW M4 GTS F82</td><td>Laguna Seca</td><td style="font-size:0.75rem">unknown</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>1:37.66</td><td>1:50.87</td><td class="ratio-cell bad">1.135</td><td style="color:#fbbf24">+13.2s</td></tr>
+    <tr><td>Mercedes-AMG C63 S W205</td><td>Laguna Seca</td><td style="font-size:0.75rem">unknown</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:40.50</td><td>1:54.25</td><td class="ratio-cell bad">1.137</td><td style="color:#fbbf24">+13.7s</td></tr>
+    <tr><td>Ford Mustang GT350R S550</td><td>Laguna Seca</td><td style="font-size:0.75rem">Michelin Pilot Sport Cup 2</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>1:36.11</td><td>1:49.36</td><td class="ratio-cell bad">1.138</td><td style="color:#fbbf24">+13.3s</td></tr>
+    <tr><td>Chevrolet Corvette C8 Z51</td><td>Laguna Seca</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:37.83</td><td>1:51.35</td><td class="ratio-cell bad">1.138</td><td style="color:#fbbf24">+13.5s</td></tr>
+    <tr><td>BMW M4 F82</td><td>Laguna Seca</td><td style="font-size:0.75rem">unknown</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:39.69</td><td>1:53.49</td><td class="ratio-cell bad">1.139</td><td style="color:#fbbf24">+13.8s</td></tr>
+    <tr><td>Nissan GT-R Nismo R35</td><td>Laguna Seca</td><td style="font-size:0.75rem">unknown</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>1:35.51</td><td>1:48.75</td><td class="ratio-cell bad">1.139</td><td style="color:#fbbf24">+13.2s</td></tr>
+    <tr><td>Ford Mustang Boss 302 LS S197</td><td>Laguna Seca</td><td style="font-size:0.75rem">unknown</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:41.06</td><td>1:55.10</td><td class="ratio-cell bad">1.139</td><td style="color:#fbbf24">+14.0s</td></tr>
+    <tr><td>Porsche Cayman S 987 PDK</td><td>Laguna Seca</td><td style="font-size:0.75rem">unknown</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:42.95</td><td>1:57.36</td><td class="ratio-cell bad">1.140</td><td style="color:#fbbf24">+14.4s</td></tr>
+    <tr><td>Chevrolet Corvette C7 Z06 Z07</td><td>Laguna Seca</td><td style="font-size:0.75rem">Michelin Pilot Sport Cup 2</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>1:33.05</td><td>1:46.09</td><td class="ratio-cell bad">1.140</td><td style="color:#fbbf24">+13.0s</td></tr>
+    <tr><td>Chevrolet Corvette C6 ZR1</td><td>Laguna Seca</td><td style="font-size:0.75rem">unknown</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:35.83</td><td>1:49.32</td><td class="ratio-cell bad">1.141</td><td style="color:#fbbf24">+13.5s</td></tr>
+    <tr><td>Chevrolet Corvette C6 Z06 Centennial Z07</td><td>Laguna Seca</td><td style="font-size:0.75rem">unknown</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>1:34.43</td><td>1:47.73</td><td class="ratio-cell bad">1.141</td><td style="color:#fbbf24">+13.3s</td></tr>
+    <tr><td>Chevrolet Corvette C7 Grand Sport Z07</td><td>Laguna Seca</td><td style="font-size:0.75rem">unknown</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>1:35.62</td><td>1:49.35</td><td class="ratio-cell bad">1.144</td><td style="color:#fbbf24">+13.7s</td></tr>
+    <tr><td>Toyota GR Supra A90</td><td>Laguna Seca</td><td style="font-size:0.75rem">Michelin Pilot Super Sport</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:40.57</td><td>1:55.28</td><td class="ratio-cell bad">1.146</td><td style="color:#fbbf24">+14.7s</td></tr>
+    <tr><td>Audi TT RS</td><td>Laguna Seca</td><td style="font-size:0.75rem">unknown</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:39.95</td><td>1:54.82</td><td class="ratio-cell bad">1.149</td><td style="color:#fbbf24">+14.9s</td></tr>
+    <tr><td>BMW M2 Competition F87</td><td>Laguna Seca</td><td style="font-size:0.75rem">Michelin Pilot Super Sport</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:40.83</td><td>1:56.55</td><td class="ratio-cell bad">1.156</td><td style="color:#fbbf24">+15.7s</td></tr>
+    <tr><td>Nissan GT-R R35 Track</td><td>Laguna Seca</td><td style="font-size:0.75rem">unknown</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:36.35</td><td>1:51.42</td><td class="ratio-cell bad">1.157</td><td style="color:#fbbf24">+15.1s</td></tr>
+    <tr><td>Nissan GT-R Black R35</td><td>Laguna Seca</td><td style="font-size:0.75rem">run-flats (OEM)</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:36.30</td><td>1:51.42</td><td class="ratio-cell bad">1.157</td><td style="color:#fbbf24">+15.1s</td></tr>
+    <tr><td>Chevrolet Camaro SS 1LE 6th</td><td>Laguna Seca</td><td style="font-size:0.75rem">Goodyear Eagle F1 SuperCar 3</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:37.78</td><td>1:53.90</td><td class="ratio-cell bad">1.165</td><td style="color:#fbbf24">+16.1s</td></tr>
+    <tr><td>Nissan GT-R R35</td><td>Laguna Seca</td><td style="font-size:0.75rem">Dunlop SP Sport 6000</td><td><span style="color:#9ca3af">street</span></td><td>0.90</td><td>1:40.45</td><td>1:57.48</td><td class="ratio-cell bad">1.170</td><td style="color:#fbbf24">+17.0s</td></tr>
+    <tr><td>Porsche 718 Cayman GT4</td><td>Laguna Seca</td><td style="font-size:0.75rem">Michelin Pilot Sport 4S</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:36.14</td><td>1:52.93</td><td class="ratio-cell bad">1.175</td><td style="color:#fbbf24">+16.8s</td></tr>
+    <tr><td>Volkswagen GTI Mk7</td><td>Laguna Seca</td><td style="font-size:0.75rem">unknown</td><td><span style="color:#9ca3af">street</span></td><td>0.90</td><td>1:50.11</td><td>2:09.44</td><td class="ratio-cell bad">1.175</td><td style="color:#fbbf24">+19.3s</td></tr>
+    <tr><td>Porsche 718 Cayman S</td><td>Laguna Seca</td><td style="font-size:0.75rem">unknown</td><td><span style="color:#60a5fa">endurance 200tw</span></td><td>1.00</td><td>1:40.05</td><td>1:57.65</td><td class="ratio-cell bad">1.176</td><td style="color:#fbbf24">+17.6s</td></tr>
+    <tr><td>Honda Civic Type R FK8</td><td>Laguna Seca</td><td style="font-size:0.75rem">Continental ExtremeContact Sport</td><td><span style="color:#9ca3af">street</span></td><td>0.90</td><td>1:44.22</td><td>2:03.73</td><td class="ratio-cell bad">1.187</td><td style="color:#fbbf24">+19.5s</td></tr>
+    <tr><td>Ford Mustang GT500 CFTP S550</td><td>Laguna Seca</td><td style="font-size:0.75rem">Michelin Pilot Sport Cup 2</td><td><span style="color:#34d399">super 200tw</span></td><td>1.10</td><td>1:33.84</td><td>1:51.79</td><td class="ratio-cell bad">1.191</td><td style="color:#fbbf24">+18.0s</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Laguna Seca bias diagnosis -->
+<div class="note-card">
+  <h2>Laguna Seca Systematic Bias Diagnosis</h2>
+  <p>
+    The Laguna Seca entries show a <span class="highlight">mean ratio of ~1.14</span> (14% over-prediction),
+    far above the ~1.0 mean for the other 4 tracks. This is almost certainly a
+    <span class="highlight">track reference issue</span> rather than a physics engine flaw:
+  </p>
+  <p style="margin-top:0.6rem;">
+    &bull; All 33 Laguna Seca entries
+    are from Car &amp; Driver Lightning Lap data (professional drivers, well-known cars).<br>
+    &bull; The same cars/tires at VIR and Barber produce ratios near 1.0.<br>
+    &bull; The Laguna Seca track reference geometry (OSM-derived centerline, elevation profile) likely has
+    errors in corner radii or track length that systematically inflate predicted times.<br>
+    &bull; <span class="highlight">Excluding Laguna Seca</span>, the remaining 122 entries have metrics
+    much closer to the original 3-track baseline.
   </p>
 </div>
 
-</body></html>
+<!-- Changes applied -->
+<div class="note-card">
+  <h2>Changes Applied in This Iteration</h2>
+  <p>
+    &bull; <span class="highlight">Expanded from 70 to 155 entries</span> across 5 tracks (added VIR Grand West, Laguna Seca).<br>
+    &bull; VIR: 49 entries from Car &amp; Driver Lightning Lap (professional testing, mean ratio 1.007 = excellent).<br>
+    &bull; Laguna Seca: 33 entries from C&amp;D Lightning Lap (mean ratio 1.143 = track reference needs work).<br>
+    &bull; New entries include professional-grade data sources with controlled testing conditions.<br>
+    &bull; Added 3 Barber entries (GT-R, C5 Z06, 350Z, Golf R) and 3 more community entries for original 3 tracks.
+  </p>
+</div>
+
+<footer>
+  Cataclysm Physics Validation &middot; Before (70) vs After (155) entries
+  &middot; 5 tracks &middot; Sources: LapMeta, FastestLaps, Car &amp; Driver Lightning Lap,
+  NASA Mid-South, Rennlist, GR86.org, Mustang6G, Camaro6
+</footer>
+
+<script>
+// --- DATA ---
+const entries = [
+  {car:"Nissan 370Z",track:"AMP",tire:"Bridgestone Potenza RE-71RS",cat:"super_200tw",mu:1.12,real:94.60,pred:90.796,ratio:0.9598},
+  {car:"GR86",track:"AMP",tire:"Bridgestone RE71RS",cat:"super_200tw",mu:1.12,real:96.00,pred:93.021,ratio:0.9690},
+  {car:"Civic Type R FK8 (FL5 proxy)",track:"AMP",tire:"Kumho V730",cat:"super_200tw",mu:1.06,real:95.91,pred:93.073,ratio:0.9704},
+  {car:"Corvette C8 Z06",track:"AMP",tire:"Michelin Pilot Sport 4S (OEM)",cat:"endurance_200tw",mu:1.03,real:91.35,pred:89.092,ratio:0.9753},
+  {car:"Cayman GT4 718",track:"AMP",tire:"Pirelli slicks",cat:"slick",mu:1.40,real:87.58,pred:85.571,ratio:0.9771},
+  {car:"Civic Type R FK8 (FL5 proxy)",track:"AMP",tire:"Hankook Ventus RS4",cat:"endurance_200tw",mu:1.00,real:95.83,pred:94.432,ratio:0.9854},
+  {car:"Corvette C7 Z06",track:"AMP",tire:"Michelin Pilot Super Sport (30",cat:"street",mu:1.03,real:93.00,pred:92.031,ratio:0.9896},
+  {car:"GR86",track:"AMP",tire:"Falken Azenis RT660 245/40/17",cat:"endurance_200tw",mu:1.05,real:94.90,pred:94.471,ratio:0.9955},
+  {car:"BMW M3 E92",track:"AMP",tire:"Michelin Tempesta P1 (200TW)",cat:"super_200tw",mu:1.10,real:90.50,pred:90.100,ratio:0.9956},
+  {car:"Nissan GT-R R35",track:"AMP",tire:"Dunlop DH Slick",cat:"slick",mu:1.42,real:83.90,pred:84.744,ratio:1.0101},
+  {car:"Lotus Elise S2",track:"AMP",tire:"Yokohama AD07 (180TW)",cat:"endurance_200tw",mu:1.00,real:92.90,pred:94.499,ratio:1.0172},
+  {car:"Golf R Mk7",track:"AMP",tire:"Firestone Firehawk Indy 500 (3",cat:"street",mu:0.90,real:97.90,pred:100.941,ratio:1.0311},
+  {car:"Corvette C5 Z06",track:"AMP",tire:"Bridgestone Potenza RE-71RS",cat:"super_200tw",mu:1.12,real:87.20,pred:90.185,ratio:1.0342},
+  {car:"Focus RS Mk3",track:"AMP",tire:"Kumho Ecsta S1 Evo3 K127 (340T",cat:"street",mu:0.90,real:95.90,pred:99.687,ratio:1.0395},
+  {car:"Mustang GT S550",track:"Barber",tire:"Michelin Pilot Sport 4S 255/40",cat:"endurance_200tw",mu:1.03,real:111.38,pred:102.125,ratio:0.9169},
+  {car:"Corvette C5 Z06",track:"Barber",tire:"Pirelli P Zero DH Slick",cat:"slick",mu:1.42,real:102.60,pred:98.773,ratio:0.9627},
+  {car:"Cayman GT4 718",track:"Barber",tire:"Michelin Pilot Sport Cup 2 (OE",cat:"super_200tw",mu:1.15,real:101.43,pred:97.889,ratio:0.9651},
+  {car:"GR86",track:"Barber",tire:"Michelin Pilot Super Sport 300",cat:"street",mu:1.03,real:112.10,pred:108.267,ratio:0.9658},
+  {car:"Audi TT RS 8S",track:"Barber",tire:"Goodyear SuperCar 3 (220TW)",cat:"endurance_200tw",mu:1.00,real:106.90,pred:103.474,ratio:0.9680},
+  {car:"GT350",track:"Barber",tire:"Goodyear SuperCar 3 325/30R19 ",cat:"super_200tw",mu:1.12,real:100.26,pred:98.279,ratio:0.9802},
+  {car:"Corvette C7 Grand Sport",track:"Barber",tire:"DH Slick",cat:"slick",mu:1.42,real:96.80,pred:95.417,ratio:0.9857},
+  {car:"GR86",track:"Barber",tire:"Falken Azenis RT660 245/40/17",cat:"endurance_200tw",mu:1.05,real:107.66,pred:106.142,ratio:0.9859},
+  {car:"Cayman GT4 718",track:"Barber",tire:"Bridgestone RE-71RS 245/40/19 ",cat:"super_200tw",mu:1.12,real:99.80,pred:98.746,ratio:0.9894},
+  {car:"911 GT3 991",track:"Barber",tire:"Hoosier R7",cat:"r_compound",mu:1.38,real:95.05,pred:94.362,ratio:0.9928},
+  {car:"BMW M2 G87",track:"Barber",tire:"unknown (assumed endurance 200",cat:"endurance_200tw",mu:1.00,real:103.18,pred:102.664,ratio:0.9950},
+  {car:"Camaro ZL1 1LE",track:"Barber",tire:"Goodyear Eagle F1 SuperCar 3R ",cat:"100tw",mu:1.20,real:95.90,pred:95.471,ratio:0.9955},
+  {car:"Nissan GT-R R35",track:"Barber",tire:"Nitto NT01 (100TW)",cat:"100tw",mu:1.20,real:96.80,pred:96.622,ratio:0.9982},
+  {car:"Nissan GT-R R35",track:"Barber",tire:"Hoosier R7",cat:"r_compound",mu:1.38,real:95.30,pred:95.339,ratio:1.0004},
+  {car:"BMW M2 G87",track:"Barber",tire:"Hankook Ventus RS4",cat:"endurance_200tw",mu:1.00,real:102.09,pred:102.664,ratio:1.0056},
+  {car:"GR86",track:"Barber",tire:"Yokohama Advan A052 245/40/17",cat:"super_200tw",mu:1.13,real:103.88,pred:104.539,ratio:1.0063},
+  {car:"Lexus RC F",track:"Barber",tire:"Bridgestone Potenza RE-71RS",cat:"super_200tw",mu:1.12,real:99.00,pred:99.740,ratio:1.0075},
+  {car:"Miata ND",track:"Barber",tire:"unknown",cat:"endurance_200tw",mu:1.00,real:108.36,pred:109.411,ratio:1.0097},
+  {car:"911 GT3 992",track:"Barber",tire:"Dunlop DH Slick",cat:"slick",mu:1.40,real:93.09,pred:94.058,ratio:1.0104},
+  {car:"Mustang GT S550",track:"Barber",tire:"Pirelli Slicks 305 square",cat:"slick",mu:1.40,real:97.06,pred:98.071,ratio:1.0104},
+  {car:"GR Supra A90",track:"Barber",tire:"Michelin Pilot Super Sport 300",cat:"endurance_200tw",mu:1.03,real:101.60,pred:102.655,ratio:1.0104},
+  {car:"Corvette C6 Z06",track:"Barber",tire:"Michelin Pilot Sport 4S (300TW",cat:"street",mu:1.03,real:100.50,pred:102.172,ratio:1.0166},
+  {car:"Civic Type R FL5",track:"Barber",tire:"Yokohama Advan A052",cat:"super_200tw",mu:1.13,real:100.90,pred:102.627,ratio:1.0171},
+  {car:"GR86",track:"Barber",tire:"Hankook RS4 (coilovers)",cat:"endurance_200tw",mu:1.00,real:105.88,pred:107.753,ratio:1.0177},
+  {car:"BMW M3 E92",track:"Barber",tire:"Michelin Pilot Sport Cup 2 R (",cat:"super_200tw",mu:1.10,real:98.60,pred:100.723,ratio:1.0215},
+  {car:"GR Supra A90",track:"Barber",tire:"Bridgestone Potenza RE-71RS",cat:"super_200tw",mu:1.12,real:98.00,pred:100.539,ratio:1.0259},
+  {car:"Elantra N",track:"Barber",tire:"Kumho Ecsta V730",cat:"super_200tw",mu:1.06,real:102.80,pred:105.566,ratio:1.0269},
+  {car:"Corvette C8 Z51",track:"Barber",tire:"Michelin Pilot Sport 4S (OEM)",cat:"endurance_200tw",mu:1.03,real:96.46,pred:99.890,ratio:1.0356},
+  {car:"Corvette C8 Z06",track:"Barber",tire:"Yokohama Advan A052",cat:"super_200tw",mu:1.13,real:91.90,pred:95.238,ratio:1.0363},
+  {car:"Nissan 350Z",track:"Barber",tire:"Hoosier R7",cat:"r_compound",mu:1.38,real:98.10,pred:101.914,ratio:1.0389},
+  {car:"Civic Type R FL5",track:"Barber",tire:"Michelin Pilot Sport 4S (stock",cat:"endurance_200tw",mu:1.03,real:100.90,pred:104.882,ratio:1.0395},
+  {car:"Miata NA",track:"Barber",tire:"Hoosier (NASA TT class)",cat:"r_compound",mu:1.38,real:108.08,pred:112.364,ratio:1.0396},
+  {car:"Honda Civic Si FC1",track:"Barber",tire:"Goodyear SuperCar 3 (220TW)",cat:"endurance_200tw",mu:1.00,real:105.00,pred:109.616,ratio:1.0440},
+  {car:"Cayman GT4 718",track:"Barber",tire:"Yokohama A052 or similar",cat:"super_200tw",mu:1.13,real:93.99,pred:98.456,ratio:1.0475},
+  {car:"WRX STI",track:"Barber",tire:"Yokohama ADVAN A052",cat:"super_200tw",mu:1.13,real:98.90,pred:103.701,ratio:1.0485},
+  {car:"Golf R Mk7",track:"Barber",tire:"Continental CSC5P (240TW)",cat:"street",mu:0.90,real:107.00,pred:112.313,ratio:1.0497},
+  {car:"BMW M3 CS G80",track:"Barber",tire:"Bridgestone Potenza RE-71RS",cat:"super_200tw",mu:1.12,real:93.90,pred:99.163,ratio:1.0560},
+  {car:"BMW M2 Competition F87",track:"Barber",tire:"Bridgestone Potenza RE-71RS",cat:"super_200tw",mu:1.12,real:95.80,pred:101.513,ratio:1.0596},
+  {car:"Nissan GT-R R35",track:"Barber",tire:"Dunlop SP Sport 600 DSST (OEM)",cat:"street",mu:0.90,real:98.70,pred:106.669,ratio:1.0807},
+  {car:"Nissan 350Z",track:"Barber",tire:"Yokohama RE040 (140TW)",cat:"endurance_200tw",mu:1.00,real:98.50,pred:106.702,ratio:1.0833},
+  {car:"Mustang GT S550",track:"Roebling",tire:"Hoosier R7 315/30/18",cat:"r_compound",mu:1.38,real:82.58,pred:76.736,ratio:0.9292},
+  {car:"Mustang GT S550",track:"Roebling",tire:"Hoosier A7 315 square",cat:"r_compound",mu:1.42,real:79.90,pred:76.094,ratio:0.9524},
+  {car:"WRX STI GD",track:"Roebling",tire:"Dunlop Direzza ZII Star Spec (",cat:"super_200tw",mu:1.10,real:84.60,pred:81.214,ratio:0.9600},
+  {car:"Civic Type R FK8",track:"Roebling",tire:"Continental ContactSport 6 (20",cat:"endurance_200tw",mu:1.00,real:85.00,pred:82.203,ratio:0.9671},
+  {car:"GT350",track:"Roebling",tire:"Goodyear SuperCar 3R",cat:"100tw",mu:1.20,real:78.70,pred:76.178,ratio:0.9680},
+  {car:"BMW M4 F82",track:"Roebling",tire:"Michelin Pilot Sport 4S (300TW",cat:"street",mu:1.03,real:82.30,pred:80.361,ratio:0.9764},
+  {car:"Cayman GT4 718",track:"Roebling",tire:"Bridgestone RE71RS",cat:"super_200tw",mu:1.12,real:77.79,pred:77.256,ratio:0.9931},
+  {car:"Mustang GT S550",track:"Roebling",tire:"Kumho V730 305 square",cat:"super_200tw",mu:1.06,real:80.38,pred:79.838,ratio:0.9933},
+  {car:"Camaro SS 1LE",track:"Roebling",tire:"Goodyear Eagle F1 SuperCar 3 3",cat:"super_200tw",mu:1.12,real:78.00,pred:77.808,ratio:0.9975},
+  {car:"Veloster N",track:"Roebling",tire:"Falken Azenis RT660",cat:"endurance_200tw",mu:1.05,real:81.70,pred:81.561,ratio:0.9983},
+  {car:"GR86 (FR-S proxy)",track:"Roebling",tire:"Nitto NT01",cat:"100tw",mu:1.20,real:80.47,pred:80.446,ratio:0.9997},
+  {car:"Corvette C8 Z06",track:"Roebling",tire:"Pirelli P Zero Trofeo R (Z07 p",cat:"100tw",mu:1.18,real:74.29,pred:74.304,ratio:1.0002},
+  {car:"Subaru BRZ",track:"Roebling",tire:"Michelin Primacy 3 240TW (stoc",cat:"street",mu:0.90,real:86.70,pred:87.642,ratio:1.0109},
+  {car:"Focus RS Mk3",track:"Roebling",tire:"Kumho Ecsta S1 Evo3 K127 (340T",cat:"street",mu:0.90,real:85.00,pred:86.384,ratio:1.0163},
+  {car:"Nissan 350Z",track:"Roebling",tire:"Hoosier R7",cat:"r_compound",mu:1.38,real:77.60,pred:79.086,ratio:1.0191},
+  {car:"Nissan GT-R R35",track:"Roebling",tire:"Dunlop DH Slick",cat:"slick",mu:1.42,real:73.40,pred:74.882,ratio:1.0202},
+  {car:"Golf R Mk7",track:"Roebling",tire:"Firestone Firehawk Indy 500 (3",cat:"street",mu:0.90,real:85.50,pred:87.306,ratio:1.0211},
+  {car:"BMW M3 F80",track:"Roebling",tire:"Falken Azenis RT615K+ (200TW)",cat:"super_200tw",mu:1.10,real:76.70,pred:78.767,ratio:1.0270},
+  {car:"GR86",track:"Roebling",tire:"Michelin Pilot Sport 4 (OEM st",cat:"street",mu:0.88,real:85.90,pred:88.366,ratio:1.0287},
+  {car:"Honda S2000 CR",track:"VIR GW",tire:"Bridgestone Potenza RE070R",cat:"super_200tw",mu:1.10,real:195.00,pred:186.105,ratio:0.9544},
+  {car:"Alfa Romeo Giulia QV",track:"VIR GW",tire:"Pirelli P Zero Corsa",cat:"super_200tw",mu:1.10,real:177.20,pred:171.421,ratio:0.9674},
+  {car:"Acura Integra Type S",track:"VIR GW",tire:"Michelin Pilot Sport Cup 2",cat:"super_200tw",mu:1.10,real:184.20,pred:179.258,ratio:0.9732},
+  {car:"Lexus RC F Track Edition",track:"VIR GW",tire:"Michelin Pilot Sport 4S",cat:"endurance_200tw",mu:1.00,real:182.60,pred:178.849,ratio:0.9795},
+  {car:"Subaru BRZ Limited ZD8",track:"VIR GW",tire:"Michelin Pilot Sport 4S",cat:"endurance_200tw",mu:1.00,real:192.40,pred:188.573,ratio:0.9801},
+  {car:"Chevrolet Camaro SS 1LE",track:"VIR GW",tire:"Goodyear Eagle F1 SuperCar 3R",cat:"100tw",mu:1.20,real:174.80,pred:171.359,ratio:0.9803},
+  {car:"Subaru WRX STI VA",track:"VIR GW",tire:"Dunlop Sport Maxx",cat:"endurance_200tw",mu:1.00,real:190.50,pred:186.847,ratio:0.9808},
+  {car:"Mazda MX-5 Miata ND2",track:"VIR GW",tire:"Bridgestone Potenza S007A",cat:"endurance_200tw",mu:1.00,real:195.60,pred:191.993,ratio:0.9816},
+  {car:"Toyota GR86 Premium",track:"VIR GW",tire:"Michelin Pilot Sport 4S",cat:"endurance_200tw",mu:1.00,real:191.80,pred:188.573,ratio:0.9832},
+  {car:"Nissan GT-R R35",track:"VIR GW",tire:"Dunlop SP Sport Maxx GT 600 DS",cat:"super_200tw",mu:1.10,real:173.20,pred:170.832,ratio:0.9863},
+  {car:"Mercedes-AMG C63 S W205",track:"VIR GW",tire:"Michelin Pilot Sport Cup 2",cat:"super_200tw",mu:1.10,real:177.10,pred:174.812,ratio:0.9871},
+  {car:"Subaru WRX STI Type RA",track:"VIR GW",tire:"Dunlop Sport Maxx Race",cat:"super_200tw",mu:1.10,real:184.90,pred:182.984,ratio:0.9896},
+  {car:"Hyundai Veloster N",track:"VIR GW",tire:"Michelin Pilot Sport 4S",cat:"endurance_200tw",mu:1.00,real:187.70,pred:185.974,ratio:0.9908},
+  {car:"Volkswagen Golf GTI Mk8",track:"VIR GW",tire:"Michelin Pilot Sport 4S",cat:"endurance_200tw",mu:1.00,real:191.40,pred:189.910,ratio:0.9922},
+  {car:"Honda Civic Type R FK8 LE",track:"VIR GW",tire:"Michelin Pilot Sport Cup 2",cat:"super_200tw",mu:1.10,real:180.70,pred:179.512,ratio:0.9934},
+  {car:"Subaru STI S209",track:"VIR GW",tire:"Dunlop Sport Maxx Race",cat:"super_200tw",mu:1.10,real:183.40,pred:182.984,ratio:0.9977},
+  {car:"Toyota GR Corolla",track:"VIR GW",tire:"Michelin Pilot Sport 4S",cat:"endurance_200tw",mu:1.00,real:187.10,pred:186.717,ratio:0.9980},
+  {car:"Honda Civic Type R FK8",track:"VIR GW",tire:"Michelin Pilot Sport 4S",cat:"endurance_200tw",mu:1.00,real:183.90,pred:183.576,ratio:0.9982},
+  {car:"Chevrolet Camaro ZL1 1LE",track:"VIR GW",tire:"Goodyear Eagle F1 SuperCar 3R",cat:"100tw",mu:1.20,real:165.70,pred:165.506,ratio:0.9988},
+  {car:"Ford Mustang Shelby GT350R",track:"VIR GW",tire:"Michelin Pilot Sport Cup 2",cat:"super_200tw",mu:1.10,real:171.80,pred:171.726,ratio:0.9996},
+  {car:"Hyundai Elantra N",track:"VIR GW",tire:"Michelin Pilot Sport 4S",cat:"endurance_200tw",mu:1.00,real:186.40,pred:186.624,ratio:1.0012},
+  {car:"BMW M2 F87",track:"VIR GW",tire:"Michelin Pilot Super Sport",cat:"endurance_200tw",mu:1.00,real:181.90,pred:182.188,ratio:1.0016},
+  {car:"BMW M3 CS G80",track:"VIR GW",tire:"Michelin Pilot Sport Cup 2 R",cat:"100tw",mu:1.20,real:170.00,pred:170.489,ratio:1.0029},
+  {car:"Chevrolet Camaro ZL1 1LE",track:"VIR GW",tire:"Goodyear Eagle F1 SuperCar 3R",cat:"100tw",mu:1.20,real:165.00,pred:165.506,ratio:1.0031},
+  {car:"Ford Focus RS Mk3",track:"VIR GW",tire:"Michelin Pilot Sport 3",cat:"endurance_200tw",mu:1.00,real:183.90,pred:184.483,ratio:1.0032},
+  {car:"Toyota GR Supra 3.0",track:"VIR GW",tire:"Michelin Pilot Super Sport",cat:"endurance_200tw",mu:1.00,real:179.30,pred:180.399,ratio:1.0061},
+  {car:"Ford Mustang GT PP2 S550",track:"VIR GW",tire:"Michelin Pilot Sport Cup 2",cat:"super_200tw",mu:1.10,real:173.80,pred:175.121,ratio:1.0076},
+  {car:"BMW M2 G87",track:"VIR GW",tire:"Michelin Pilot Sport 4S",cat:"endurance_200tw",mu:1.00,real:176.90,pred:178.261,ratio:1.0077},
+  {car:"Nissan GT-R NISMO R35",track:"VIR GW",tire:"Dunlop SP Sport Maxx GT 600 DS",cat:"super_200tw",mu:1.10,real:169.40,pred:170.832,ratio:1.0085},
+  {car:"Audi RS3",track:"VIR GW",tire:"Pirelli P Zero Trofeo R",cat:"100tw",mu:1.20,real:172.50,pred:174.398,ratio:1.0110},
+  {car:"Honda Civic Type R FL5",track:"VIR GW",tire:"Michelin Pilot Sport Cup 2",cat:"super_200tw",mu:1.10,real:178.80,pred:181.090,ratio:1.0128},
+  {car:"BMW M2 Competition F87",track:"VIR GW",tire:"Michelin Pilot Super Sport",cat:"endurance_200tw",mu:1.00,real:179.70,pred:182.188,ratio:1.0138},
+  {car:"Porsche 718 Cayman GT4",track:"VIR GW",tire:"Michelin Pilot Sport Cup 2",cat:"super_200tw",mu:1.10,real:170.30,pred:172.880,ratio:1.0152},
+  {car:"Porsche 911 GT3 991.2",track:"VIR GW",tire:"Michelin Pilot Sport Cup 2",cat:"super_200tw",mu:1.10,real:167.00,pred:169.568,ratio:1.0154},
+  {car:"BMW M240i xDrive G42",track:"VIR GW",tire:"Michelin Pilot Sport 4S",cat:"endurance_200tw",mu:1.00,real:180.60,pred:183.559,ratio:1.0164},
+  {car:"Ford Mustang Dark Horse S650",track:"VIR GW",tire:"Michelin Pilot Sport Cup 2",cat:"super_200tw",mu:1.10,real:171.20,pred:174.578,ratio:1.0197},
+  {car:"BMW M4 CSL G82",track:"VIR GW",tire:"Michelin Pilot Sport Cup 2 R",cat:"100tw",mu:1.20,real:167.50,pred:171.105,ratio:1.0215},
+  {car:"Ford Mustang Mach 1 S550",track:"VIR GW",tire:"Michelin Pilot Sport Cup 2",cat:"super_200tw",mu:1.10,real:171.40,pred:175.121,ratio:1.0217},
+  {car:"Honda Civic Si",track:"VIR GW",tire:"Continental ExtremeContact Spo",cat:"street",mu:0.90,real:196.90,pred:201.469,ratio:1.0232},
+  {car:"BMW M3 Competition xDrive G80",track:"VIR GW",tire:"Michelin Pilot Sport 4S",cat:"endurance_200tw",mu:1.00,real:173.50,pred:177.756,ratio:1.0245},
+  {car:"Toyota GR Supra 3.0 Manual",track:"VIR GW",tire:"Michelin Pilot Sport 4S",cat:"endurance_200tw",mu:1.00,real:175.60,pred:180.399,ratio:1.0273},
+  {car:"Volkswagen GTI Mk7",track:"VIR GW",tire:"Continental ExtremeContact DW",cat:"street",mu:0.90,real:194.60,pred:200.275,ratio:1.0292},
+  {car:"Porsche 911 GT3 992",track:"VIR GW",tire:"Michelin Pilot Sport Cup 2 R",cat:"100tw",mu:1.20,real:160.60,pred:165.858,ratio:1.0327},
+  {car:"Chevrolet Corvette Stingray Z51 C8",track:"VIR GW",tire:"Michelin Pilot Sport 4S",cat:"endurance_200tw",mu:1.00,real:169.00,pred:174.900,ratio:1.0349},
+  {car:"Chevrolet Corvette ZR1 C7",track:"VIR GW",tire:"Michelin Pilot Sport Cup 2",cat:"super_200tw",mu:1.10,real:159.50,pred:165.728,ratio:1.0390},
+  {car:"Toyota GR Corolla Morizo",track:"VIR GW",tire:"Michelin Pilot Sport 4S",cat:"endurance_200tw",mu:1.00,real:179.60,pred:186.717,ratio:1.0396},
+  {car:"Audi TT RS 8S",track:"VIR GW",tire:"Pirelli P Zero",cat:"street",mu:0.90,real:178.50,pred:188.556,ratio:1.0563},
+  {car:"Porsche 718 Cayman GT4 RS",track:"VIR GW",tire:"Michelin Pilot Sport Cup 2 R",cat:"100tw",mu:1.20,real:160.50,pred:169.895,ratio:1.0585},
+  {car:"Chevrolet Corvette Z06 C8",track:"VIR GW",tire:"Michelin Pilot Sport 4S",cat:"endurance_200tw",mu:1.00,real:158.60,pred:171.039,ratio:1.0784},
+  {car:"Chevrolet Corvette C6 Z06",track:"Laguna Seca",tire:"unknown",cat:"endurance_200tw",mu:1.00,real:100.92,pred:110.607,ratio:1.0960},
+  {car:"Lexus RC F",track:"Laguna Seca",tire:"unknown",cat:"endurance_200tw",mu:1.00,real:103.20,pred:114.087,ratio:1.1055},
+  {car:"BMW M3 E92",track:"Laguna Seca",tire:"Michelin Pilot Sport PS2",cat:"endurance_200tw",mu:1.00,real:102.96,pred:114.551,ratio:1.1126},
+  {car:"Mazda MX-5 Miata ND",track:"Laguna Seca",tire:"unknown",cat:"endurance_200tw",mu:1.00,real:110.68,pred:123.196,ratio:1.1131},
+  {car:"Chevrolet Camaro ZL1 1LE 6th",track:"Laguna Seca",tire:"Goodyear Eagle F1 SuperCar 3",cat:"100tw",mu:1.20,real:94.30,pred:105.231,ratio:1.1159},
+  {car:"Subaru WRX STI VA",track:"Laguna Seca",tire:"unknown",cat:"endurance_200tw",mu:1.00,real:107.16,pred:119.743,ratio:1.1174},
+  {car:"Dodge Challenger Hellcat Redeye",track:"Laguna Seca",tire:"unknown",cat:"endurance_200tw",mu:1.00,real:102.70,pred:115.160,ratio:1.1213},
+  {car:"Ford Mustang GT350 S550",track:"Laguna Seca",tire:"unknown",cat:"super_200tw",mu:1.10,real:96.83,pred:109.363,ratio:1.1294},
+  {car:"Chevrolet Corvette C7 ZR1",track:"Laguna Seca",tire:"Michelin Pilot Sport Cup 2",cat:"super_200tw",mu:1.10,real:93.20,pred:105.703,ratio:1.1341},
+  {car:"BMW M4 GTS F82",track:"Laguna Seca",tire:"unknown",cat:"super_200tw",mu:1.10,real:97.66,pred:110.874,ratio:1.1353},
+  {car:"Mercedes-AMG C63 S W205",track:"Laguna Seca",tire:"unknown",cat:"endurance_200tw",mu:1.00,real:100.50,pred:114.248,ratio:1.1368},
+  {car:"Ford Mustang GT350R S550",track:"Laguna Seca",tire:"Michelin Pilot Sport Cup 2",cat:"super_200tw",mu:1.10,real:96.11,pred:109.363,ratio:1.1379},
+  {car:"Chevrolet Corvette C8 Z51",track:"Laguna Seca",tire:"Michelin Pilot Sport 4S",cat:"endurance_200tw",mu:1.00,real:97.83,pred:111.347,ratio:1.1382},
+  {car:"BMW M4 F82",track:"Laguna Seca",tire:"unknown",cat:"endurance_200tw",mu:1.00,real:99.69,pred:113.493,ratio:1.1385},
+  {car:"Nissan GT-R Nismo R35",track:"Laguna Seca",tire:"unknown",cat:"super_200tw",mu:1.10,real:95.51,pred:108.752,ratio:1.1386},
+  {car:"Ford Mustang Boss 302 LS S197",track:"Laguna Seca",tire:"unknown",cat:"endurance_200tw",mu:1.00,real:101.06,pred:115.104,ratio:1.1390},
+  {car:"Porsche Cayman S 987 PDK",track:"Laguna Seca",tire:"unknown",cat:"endurance_200tw",mu:1.00,real:102.95,pred:117.355,ratio:1.1399},
+  {car:"Chevrolet Corvette C7 Z06 Z07",track:"Laguna Seca",tire:"Michelin Pilot Sport Cup 2",cat:"super_200tw",mu:1.10,real:93.05,pred:106.087,ratio:1.1401},
+  {car:"Chevrolet Corvette C6 ZR1",track:"Laguna Seca",tire:"unknown",cat:"endurance_200tw",mu:1.00,real:95.83,pred:109.318,ratio:1.1408},
+  {car:"Chevrolet Corvette C6 Z06 Centennial Z07",track:"Laguna Seca",tire:"unknown",cat:"super_200tw",mu:1.10,real:94.43,pred:107.726,ratio:1.1408},
+  {car:"Chevrolet Corvette C7 Grand Sport Z07",track:"Laguna Seca",tire:"unknown",cat:"super_200tw",mu:1.10,real:95.62,pred:109.351,ratio:1.1436},
+  {car:"Toyota GR Supra A90",track:"Laguna Seca",tire:"Michelin Pilot Super Sport",cat:"endurance_200tw",mu:1.00,real:100.57,pred:115.284,ratio:1.1463},
+  {car:"Audi TT RS",track:"Laguna Seca",tire:"unknown",cat:"endurance_200tw",mu:1.00,real:99.95,pred:114.817,ratio:1.1487},
+  {car:"BMW M2 Competition F87",track:"Laguna Seca",tire:"Michelin Pilot Super Sport",cat:"endurance_200tw",mu:1.00,real:100.83,pred:116.547,ratio:1.1559},
+  {car:"Nissan GT-R R35 Track",track:"Laguna Seca",tire:"unknown",cat:"endurance_200tw",mu:1.00,real:96.35,pred:111.425,ratio:1.1565},
+  {car:"Nissan GT-R Black R35",track:"Laguna Seca",tire:"run-flats (OEM)",cat:"endurance_200tw",mu:1.00,real:96.30,pred:111.425,ratio:1.1571},
+  {car:"Chevrolet Camaro SS 1LE 6th",track:"Laguna Seca",tire:"Goodyear Eagle F1 SuperCar 3",cat:"endurance_200tw",mu:1.00,real:97.78,pred:113.897,ratio:1.1648},
+  {car:"Nissan GT-R R35",track:"Laguna Seca",tire:"Dunlop SP Sport 6000",cat:"street",mu:0.90,real:100.45,pred:117.482,ratio:1.1696},
+  {car:"Porsche 718 Cayman GT4",track:"Laguna Seca",tire:"Michelin Pilot Sport 4S",cat:"endurance_200tw",mu:1.00,real:96.14,pred:112.933,ratio:1.1747},
+  {car:"Volkswagen GTI Mk7",track:"Laguna Seca",tire:"unknown",cat:"street",mu:0.90,real:110.11,pred:129.438,ratio:1.1755},
+  {car:"Porsche 718 Cayman S",track:"Laguna Seca",tire:"unknown",cat:"endurance_200tw",mu:1.00,real:100.05,pred:117.650,ratio:1.1759},
+  {car:"Honda Civic Type R FK8",track:"Laguna Seca",tire:"Continental ExtremeContact Spo",cat:"street",mu:0.90,real:104.22,pred:123.733,ratio:1.1872},
+  {car:"Ford Mustang GT500 CFTP S550",track:"Laguna Seca",tire:"Michelin Pilot Sport Cup 2",cat:"super_200tw",mu:1.10,real:93.84,pred:111.792,ratio:1.1913}
+];
+
+const catColors = {
+  street: '#9ca3af',
+  endurance_200tw: '#60a5fa',
+  super_200tw: '#34d399',
+  '100tw': '#fbbf24',
+  r_compound: '#f472b6',
+  slick: '#a78bfa'
+};
+
+// --- Chart defaults ---
+Chart.defaults.color = '#9ca3af';
+Chart.defaults.borderColor = '#2a2d3e';
+Chart.defaults.font.family = 'system-ui, sans-serif';
+
+// 1. Scatter: Real vs Predicted
+new Chart(document.getElementById('scatterChart'), {
+  type: 'scatter',
+  data: {
+    datasets: Object.keys(catColors).map(cat => ({
+      label: cat.replace('_',' '),
+      data: entries.filter(e => e.cat === cat).map(e => ({x: e.real, y: e.pred})),
+      backgroundColor: catColors[cat] + '99',
+      borderColor: catColors[cat],
+      pointRadius: 4,
+      pointHoverRadius: 6,
+    })).concat([{
+      label: 'Perfect',
+      data: [{x:70,y:70},{x:200,y:200}],
+      type: 'line',
+      borderColor: '#4b556388',
+      borderDash: [6,3],
+      pointRadius: 0,
+      borderWidth: 1.5,
+    }])
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8, font: {size: 10} } } },
+    scales: {
+      x: { title: { display: true, text: 'Real Lap Time (s)' }, grid: { color: '#1f2233' } },
+      y: { title: { display: true, text: 'Predicted Optimal (s)' }, grid: { color: '#1f2233' } },
+    }
+  }
+});
+
+// 2. Histogram
+const bins = [];
+for (let b = 0.90; b <= 1.20; b += 0.01) bins.push({lo: b, hi: b+0.01, count: 0});
+entries.forEach(e => {
+  const idx = bins.findIndex(b => e.ratio >= b.lo && e.ratio < b.hi);
+  if (idx >= 0) bins[idx].count++;
+});
+new Chart(document.getElementById('histChart'), {
+  type: 'bar',
+  data: {
+    labels: bins.map(b => b.lo.toFixed(2)),
+    datasets: [{
+      data: bins.map(b => b.count),
+      backgroundColor: bins.map(b => {
+        const mid = (b.lo + b.hi) / 2;
+        if (Math.abs(mid - 1) < 0.02) return '#34d399cc';
+        if (Math.abs(mid - 1) < 0.05) return '#fbbf24cc';
+        return '#f87171cc';
+      }),
+      borderWidth: 0,
+      barPercentage: 1.0,
+      categoryPercentage: 1.0,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { title: { display: true, text: 'Count' }, grid: { color: '#1f2233' } },
+      x: { title: { display: true, text: 'Efficiency Ratio' }, grid: { display: false } }
+    }
+  }
+});
+
+// 3. Category bar chart: Before vs After
+const catLabels = ["street", "endurance 200tw", "super 200tw", "100tw", "r compound", "slick"];
+const catBefore = [1.0324,0.9987,1.0062,0.9891,0.9888,0.9934];
+const catAfter = [1.0482,1.0503,1.0293,1.0133,0.9961,0.9967];
+new Chart(document.getElementById('categoryChart'), {
+  type: 'bar',
+  data: {
+    labels: catLabels,
+    datasets: [
+      {
+        label: 'Before (70)',
+        data: catBefore,
+        backgroundColor: '#60a5fa88',
+        borderColor: '#60a5fa',
+        borderWidth: 1,
+      },
+      {
+        label: 'After (155)',
+        data: catAfter,
+        backgroundColor: '#34d39988',
+        borderColor: '#34d399',
+        borderWidth: 1,
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8 } } },
+    scales: {
+      y: { min: 0.92, max: 1.10, title: { display: true, text: 'Mean Ratio' }, grid: { color: '#1f2233' } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+
+// 4. Track bar chart: All tracks in After
+const trackLabels = ["AMP (n=14)", "Barber (n=40)", "Roebling (n=19)", "VIR GW (n=49)", "Laguna Seca (n=33)"];
+const trackMeans = [0.9964, 1.0137, 0.9936, 1.007, 1.143];
+const trackColorList = ['#60a5fa', '#34d399', '#fbbf24', '#a78bfa', '#f472b6', '#e879f9'];
+new Chart(document.getElementById('trackChart'), {
+  type: 'bar',
+  data: {
+    labels: trackLabels,
+    datasets: [{
+      data: trackMeans,
+      backgroundColor: trackColorList.slice(0, trackLabels.length).map(c => c + 'cc'),
+      borderColor: trackColorList.slice(0, trackLabels.length),
+      borderWidth: 1,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { min: 0.95, max: 1.16, title: { display: true, text: 'Mean Ratio' }, grid: { color: '#1f2233' } },
+      x: { grid: { display: false } }
+    }
+  }
+});
+</script>
+</body>
+</html>
