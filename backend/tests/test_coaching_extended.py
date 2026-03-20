@@ -14,11 +14,13 @@ Missing lines targeted:
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
 from httpx import AsyncClient
 
+from backend.api.db.models import LLMUsageEvent
 from backend.api.routers.coaching import (
     _parse_priority_corner_number,
     _track_task,
@@ -26,13 +28,15 @@ from backend.api.routers.coaching import (
 from backend.api.schemas.coaching import CoachingReportResponse
 from backend.api.services.coaching_store import (
     clear_all_coaching,
+    get_estimated_duration_s,
     get_regen_remaining,
     mark_generating,
+    record_generation_duration,
     record_regeneration,
     store_coaching_report,
     unmark_generating,
 )
-from backend.tests.conftest import build_synthetic_csv
+from backend.tests.conftest import _test_session_factory, build_synthetic_csv
 
 # ---------------------------------------------------------------------------
 # Upload helper
@@ -445,4 +449,60 @@ class TestCoachingStoreMissingLines:
         assert result is not None
         assert result.summary == "Advanced OK"
 
+        clear_all_coaching()
+
+
+# ---------------------------------------------------------------------------
+# TestModelAwareEta — fallback chain: DB median → in-memory avg → 60s default
+# ---------------------------------------------------------------------------
+
+
+class TestModelAwareEta:
+    """Test the model-aware ETA fallback chain."""
+
+    @pytest.mark.asyncio
+    async def test_db_median_returns_correct_value(self) -> None:
+        """When DB has latency data for the routed model, median is correct."""
+        from backend.api.services.llm_usage_store import get_task_median_latency_s
+
+        async with _test_session_factory() as session:
+            base = datetime.now(UTC)
+            session.add_all(
+                [
+                    LLMUsageEvent(
+                        event_timestamp=base - timedelta(seconds=i),
+                        task="coaching_report",
+                        provider="anthropic",
+                        model="claude-haiku-4-5-20251001",
+                        success=True,
+                        input_tokens=100,
+                        output_tokens=100,
+                        cached_input_tokens=0,
+                        cache_creation_input_tokens=0,
+                        latency_ms=ms,
+                        cost_usd=0.01,
+                    )
+                    for i, ms in enumerate([8000, 12000, 10000])
+                ]
+            )
+            await session.flush()
+
+            result = await get_task_median_latency_s(
+                session, "coaching_report", "claude-haiku-4-5-20251001"
+            )
+            assert result is not None
+            assert result == 10.0  # median of [8000, 10000, 12000] ms
+
+    def test_inmemory_fallback_still_works(self) -> None:
+        """In-memory average remains as middle fallback."""
+        clear_all_coaching()
+        record_generation_duration(15.0)
+        record_generation_duration(25.0)
+        assert get_estimated_duration_s() == 20.0
+        clear_all_coaching()
+
+    def test_default_fallback_returns_60s(self) -> None:
+        """When no DB data and no in-memory data, returns 60s default."""
+        clear_all_coaching()
+        assert get_estimated_duration_s() == 60.0
         clear_all_coaching()
