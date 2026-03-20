@@ -2297,6 +2297,223 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
     # (generation mismatch: ZC6 FA20 vs ZN8 FA24).
 ]
 
+# =========================================================================
+# ROAD ATLANTA — LapMeta community HPDE data (4,088m / 2.54mi)
+# Source: lapmeta.com/en/track/variation/18
+# DISABLED: OSM reference has ~13% curvature overestimation (same as Laguna).
+# Re-enable by appending to CURATED_LAP_TIMES after racing line optimizer.
+# =========================================================================
+_ROAD_ATLANTA_ENTRIES: list[RealWorldLapTime] = [
+    # --- Corvette C8 Z51 ---
+    RealWorldLapTime(
+        car_key=("Chevrolet", "Corvette", "Z51 C8"),
+        car_label="Corvette C8 Z51",
+        track_name="Michelin Raceway Road Atlanta",
+        lap_time_s=_parse_time("1:34.30"),
+        tire_model="Hoosier R7",
+        tire_category="r_compound",
+        mod_level="light",
+        source="lapmeta.com/en/track/variation/18",
+        notes="C8 Z51 on R7s. C Penn Nov 2023.",
+        source_quality="aggregated",
+    ),
+    # --- Corvette C7 Z06 ---
+    RealWorldLapTime(
+        car_key=("Chevrolet", "Corvette", "Z06 C7"),
+        car_label="Corvette C7 Z06",
+        track_name="Michelin Raceway Road Atlanta",
+        lap_time_s=_parse_time("1:32.70"),
+        tire_model="Goodyear Eagle F1 Supercar 3R (100TW)",
+        tire_category="100tw",
+        mod_level="heavy",
+        source="lapmeta.com/en/track/variation/18",
+        notes="C7 Z06 on EF1 SC3R 100TW. Justa2L May 2019.",
+        source_quality="aggregated",
+    ),
+    # --- BMW M3 G80 ---
+    RealWorldLapTime(
+        car_key=("BMW", "M3", "G80"),
+        car_label="BMW M3 G80",
+        track_name="Michelin Raceway Road Atlanta",
+        lap_time_s=_parse_time("1:32.20"),
+        tire_model="Hankook A7",
+        tire_category="r_compound",
+        mod_level="heavy",
+        source="lapmeta.com/en/track/variation/18",
+        notes="M3 G80 on A7 slicks. Stormtrooper1le Jun 2022.",
+        source_quality="aggregated",
+    ),
+    # --- BMW M3 E92 ---
+    RealWorldLapTime(
+        car_key=("BMW", "M3", "E92"),
+        car_label="BMW M3 E92",
+        track_name="Michelin Raceway Road Atlanta",
+        lap_time_s=_parse_time("1:32.70"),
+        tire_model="Pirelli P Zero Racing Slicks",
+        tire_category="slick",
+        mod_level="heavy",
+        source="lapmeta.com/en/track/variation/18",
+        notes="E92 M3 on PZero slicks. 2004dsgmach1 Jun 2023.",
+        source_quality="aggregated",
+    ),
+    # --- BMW M4 F82 ---
+    RealWorldLapTime(
+        car_key=("BMW", "M4", "F82"),
+        car_label="BMW M4 F82",
+        track_name="Michelin Raceway Road Atlanta",
+        lap_time_s=_parse_time("1:32.70"),
+        tire_model="Pirelli Tempesta P1 (200TW)",
+        tire_category="super_200tw",
+        mod_level="heavy",
+        source="lapmeta.com/en/track/variation/18",
+        notes="M4 F82 on Tempesta P1 200TW. 09_Motorsports May 2025.",
+        source_quality="aggregated",
+    ),
+    # --- Camaro SS 1LE ---
+    RealWorldLapTime(
+        car_key=("Chevrolet", "Camaro SS 1LE", "6th Gen"),
+        car_label="Camaro SS 1LE",
+        track_name="Michelin Raceway Road Atlanta",
+        lap_time_s=_parse_time("1:33.00"),
+        tire_model="Hankook A7",
+        tire_category="r_compound",
+        mod_level="heavy",
+        source="lapmeta.com/en/track/variation/18",
+        notes="SS 1LE on A7 slicks. 1LETrackdays Dec 2023.",
+        source_quality="aggregated",
+    ),
+    # --- Focus RS Mk3 ---
+    RealWorldLapTime(
+        car_key=("Ford", "Focus RS", "Mk3"),
+        car_label="Focus RS Mk3",
+        track_name="Michelin Raceway Road Atlanta",
+        lap_time_s=_parse_time("1:41.60"),
+        tire_model="Bridgestone Potenza RE-71RS (200TW)",
+        tire_category="super_200tw",
+        mod_level="heavy",
+        source="lapmeta.com/en/track/variation/18",
+        notes="Focus RS Mk3 on RE-71RS 200TW. N Aegerter May 2025.",
+        source_quality="aggregated",
+    ),
+    # --- Honda S2000 AP2 ---
+    RealWorldLapTime(
+        car_key=("Honda", "S2000", "AP2"),
+        car_label="Honda S2000 AP2",
+        track_name="Michelin Raceway Road Atlanta",
+        lap_time_s=_parse_time("1:36.50"),
+        tire_model="Hankook A6",
+        tire_category="r_compound",
+        mod_level="heavy",
+        source="lapmeta.com/en/track/variation/18",
+        notes="S2000 AP2 on A6 r-comp. W Suebhongsang Dec 2011.",
+        source_quality="aggregated",
+    ),
+    # --- BMW M3 F80 ---
+    RealWorldLapTime(
+        car_key=("BMW", "M3", "F80"),
+        car_label="BMW M3 F80",
+        track_name="Michelin Raceway Road Atlanta",
+        lap_time_s=_parse_time("1:37.30"),
+        tire_model="Hankook Ventus RS4 (200TW)",
+        tire_category="super_200tw",
+        mod_level="heavy",
+        source="lapmeta.com/en/track/variation/18",
+        notes="M3 F80 on RS4 200TW. F80Speed77 Nov 2020.",
+        source_quality="aggregated",
+    ),
+    # --- Camaro ZL1 1LE ---
+    RealWorldLapTime(
+        car_key=("Chevrolet", "Camaro ZL1", "6th Gen"),
+        car_label="Camaro ZL1 1LE",
+        track_name="Michelin Raceway Road Atlanta",
+        lap_time_s=_parse_time("1:32.60"),
+        tire_model="Goodyear Eagle F1 Supercar 3R (100TW)",
+        tire_category="100tw",
+        mod_level="light",
+        source="lapmeta.com/en/track/variation/18",
+        notes="ZL1 1LE on EF1 SC3R 100TW. tgolebie Feb 2024.",
+        source_quality="aggregated",
+    ),
+    # --- Nissan GT-R R35 ---
+    RealWorldLapTime(
+        car_key=("Nissan", "GT-R", "R35"),
+        car_label="Nissan GT-R R35",
+        track_name="Michelin Raceway Road Atlanta",
+        lap_time_s=_parse_time("1:29.90"),
+        tire_model="Hoosier R6",
+        tire_category="r_compound",
+        mod_level="heavy",
+        source="lapmeta.com/en/track/variation/18",
+        notes="GT-R R35 on R6 r-comp. mdwgtr Dec 2010.",
+        source_quality="aggregated",
+    ),
+    # --- Honda Civic Type R FL5 ---
+    RealWorldLapTime(
+        car_key=("Honda", "Civic Type R", "FL5"),
+        car_label="Civic Type R FL5",
+        track_name="Michelin Raceway Road Atlanta",
+        lap_time_s=_parse_time("1:37.20"),
+        tire_model="Bridgestone Potenza RE-71RS (200TW)",
+        tire_category="super_200tw",
+        mod_level="light",
+        source="lapmeta.com/en/track/variation/18",
+        notes="FL5 on RE-71RS 200TW. Will Robbins Nov 2025.",
+        source_quality="aggregated",
+    ),
+    # --- BMW M2 Competition F87 ---
+    RealWorldLapTime(
+        car_key=("BMW", "M2", "F87"),
+        car_label="BMW M2 Competition F87",
+        track_name="Michelin Raceway Road Atlanta",
+        lap_time_s=_parse_time("1:36.30"),
+        tire_model="Bridgestone Potenza RE-71RS (200TW)",
+        tire_category="super_200tw",
+        mod_level="heavy",
+        source="lapmeta.com/en/track/variation/18",
+        notes="M2 Comp F87 on RE-71RS 200TW. bkm620 Nov 2022.",
+        source_quality="aggregated",
+    ),
+    # --- Mustang GT S550 ---
+    RealWorldLapTime(
+        car_key=("Ford", "Mustang GT", "S550"),
+        car_label="Mustang GT S550",
+        track_name="Michelin Raceway Road Atlanta",
+        lap_time_s=_parse_time("1:37.10"),
+        tire_model="Hankook A7",
+        tire_category="r_compound",
+        mod_level="heavy",
+        source="lapmeta.com/en/track/variation/18",
+        notes="S550 GT on A7 r-comp. B Dalton Dec 2017.",
+        source_quality="aggregated",
+    ),
+    # --- GR86 / Subaru BRZ ---
+    RealWorldLapTime(
+        car_key=("Toyota", "GR86", "ZN8"),
+        car_label="GR86",
+        track_name="Michelin Raceway Road Atlanta",
+        lap_time_s=_parse_time("1:45.40"),
+        tire_model="Continental ExtremeContact Force (200TW)",
+        tire_category="super_200tw",
+        mod_level="heavy",
+        source="lapmeta.com/en/track/variation/18",
+        notes="GR86 on ECF 200TW. CasualGuy May 2025.",
+        source_quality="aggregated",
+    ),
+    # --- Miata ND ---
+    RealWorldLapTime(
+        car_key=("Mazda", "Miata", "ND"),
+        car_label="Miata ND",
+        track_name="Michelin Raceway Road Atlanta",
+        lap_time_s=_parse_time("1:48.70"),
+        tire_model="Bridgestone Potenza RE-71RS (200TW)",
+        tire_category="super_200tw",
+        mod_level="light",
+        source="lapmeta.com/en/track/variation/18",
+        notes="Miata ND on RE-71RS 200TW. J Zhang Jun 2021.",
+        source_quality="aggregated",
+    ),
+]
+
 
 # ---------------------------------------------------------------------------
 # Vehicle params builder (reused from benchmark script)
