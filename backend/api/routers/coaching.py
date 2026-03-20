@@ -14,6 +14,7 @@ from cataclysm.coaching import CoachingReport, CornerGrade
 from cataclysm.corners_gained import CornersGainedResult
 from cataclysm.driver_archetypes import ArchetypeResult, detect_archetype
 from cataclysm.flow_lap import FlowLapResult
+from cataclysm.llm_gateway import get_task_route_chain
 from cataclysm.optimal_comparison import CornerOpportunity, OptimalComparisonResult
 from cataclysm.pdf_report import ReportContent, generate_pdf
 from cataclysm.skill_detection import SkillAssessment, detect_skill_level
@@ -66,6 +67,7 @@ from backend.api.services.coaching_store import (
     unmark_generating,
 )
 from backend.api.services.db_session_store import get_session_for_user_with_db_sync
+from backend.api.services.llm_usage_store import get_task_median_latency_s
 from backend.api.services.pipeline import get_optimal_comparison_data
 from backend.api.services.session_store import SessionData
 from backend.api.services.track_corners import ensure_corners_current
@@ -140,20 +142,40 @@ def classify_topic(question: str) -> topic_guardrail.TopicClassification:
     return topic_guardrail.classify_topic(question)
 
 
-def _generating_response(
+async def _generating_response(
     session_id: str,
     skill_level: str,
     remaining: int,
+    db: AsyncSession,
 ) -> CoachingReportResponse:
-    """Build a standard 'generating' response with timing info."""
+    """Build a standard 'generating' response with model-aware ETA.
+
+    Fallback chain: DB median (per-model) -> in-memory average -> 60s default.
+    """
     started = get_generation_started_at(session_id, skill_level)
+
+    # Resolve the currently-routed model for coaching_report
+    chain = get_task_route_chain("coaching_report", "anthropic", "claude-haiku-4-5-20251001")
+    _provider, model = chain[0]
+
+    # Try DB-backed median first
+    estimated_s: float | None = None
+    try:
+        estimated_s = await get_task_median_latency_s(db, "coaching_report", model)
+    except Exception:  # noqa: BLE001
+        logger.debug("DB median latency lookup failed, using in-memory fallback")
+
+    # Fallback to in-memory average, then default
+    if estimated_s is None:
+        estimated_s = get_estimated_duration_s()
+
     return CoachingReportResponse(
         session_id=session_id,
         status="generating",
         regen_remaining=remaining,
         regen_max=MAX_DAILY_REGENS,
         generation_started_at=started.isoformat() if started else None,
-        generation_estimated_s=get_estimated_duration_s(),
+        generation_estimated_s=estimated_s,
     )
 
 
@@ -239,7 +261,7 @@ async def generate_report(
 
     # If already generating, return current status
     if is_generating(session_id, body.skill_level):
-        return _generating_response(session_id, body.skill_level, remaining)
+        return await _generating_response(session_id, body.skill_level, remaining, db)
 
     # Force regeneration: check daily limit, then clear existing report
     if body.force:
@@ -267,7 +289,7 @@ async def generate_report(
     # Background task with tracking to prevent GC collection
     _track_task(asyncio.create_task(_run_generation(session_id, sd, body.skill_level)))
 
-    return _generating_response(session_id, body.skill_level, remaining)
+    return await _generating_response(session_id, body.skill_level, remaining, db)
 
 
 # Limit concurrent coaching API calls to avoid rate-limit storms.
@@ -628,7 +650,7 @@ async def get_report(
             return report
 
     if is_generating(session_id, skill_level):
-        return _generating_response(session_id, skill_level, remaining)
+        return await _generating_response(session_id, skill_level, remaining, db)
 
     # No report exists and nothing is generating — return 404.
     # The frontend's useAutoReport will POST to trigger generation.
