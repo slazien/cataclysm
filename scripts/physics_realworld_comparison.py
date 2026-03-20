@@ -1255,8 +1255,9 @@ def run_comparison() -> list[ComparisonResult]:
         if ref is None:
             print(f"  WARN: No canonical reference for '{track_name}', skipping")
             continue
-        track_data[track_name] = (ref.curvature_result, layout)
-        print(f"  Loaded: {track_name} ({ref.track_length_m:.0f}m)")
+        track_data[track_name] = (ref.curvature_result, layout, ref)
+        banking_str = f", banking={'yes' if ref.banking_deg is not None else 'no'}"
+        print(f"  Loaded: {track_name} ({ref.track_length_m:.0f}m{banking_str})")
 
     results: list[ComparisonResult] = []
     skipped = 0
@@ -1275,7 +1276,7 @@ def run_comparison() -> list[ComparisonResult]:
             skipped += 1
             continue
 
-        curvature_result, _ = track_data[rw.track_name]
+        curvature_result, _, track_ref = track_data[rw.track_name]
 
         # Get tire category
         if rw.tire_category not in TIRE_CATEGORIES:
@@ -1294,9 +1295,13 @@ def run_comparison() -> list[ComparisonResult]:
 
         mu = tire_mu if tire_mu is not None else CATEGORY_MU_DEFAULTS[compound]
 
-        # Run solver
+        # Run solver (apply track banking as mu boost if available)
         params = _vehicle_spec_to_params(spec, compound, mu_override=tire_mu)
-        optimal = compute_optimal_profile(curvature_result, params=params)
+        mu_array = None
+        if track_ref.banking_deg is not None:
+            banking_rad = np.radians(track_ref.banking_deg)
+            mu_array = np.full(len(curvature_result.distance_m), params.mu) + np.tan(banking_rad)
+        optimal = compute_optimal_profile(curvature_result, params=params, mu_array=mu_array)
 
         efficiency = optimal.lap_time_s / rw.lap_time_s
 

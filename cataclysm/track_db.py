@@ -1488,6 +1488,20 @@ VIR_FULL_COURSE = TrackLayout(
     ],
 )
 
+# The Grand West Course shares the Full Course corners plus additional
+# Patriot Course infield corners.  For validation purposes, use the same
+# corner set — the additional corners are in the infield section which
+# has minimal impact on lap time ranking.
+VIR_GRAND_WEST = TrackLayout(
+    name="Virginia International Raceway Grand West",
+    center_lat=36.567,
+    center_lon=-79.206,
+    country="US",
+    length_m=6598.0,
+    elevation_range_m=40.0,
+    corners=VIR_FULL_COURSE.corners,  # Reuse Full Course corners
+)
+
 # Registry of known tracks — keys are normalized (lowercased, stripped).
 _TRACK_REGISTRY: dict[str, TrackLayout] = {
     "barber motorsports park": BARBER_MOTORSPORTS_PARK,
@@ -1503,6 +1517,8 @@ _TRACK_REGISTRY: dict[str, TrackLayout] = {
     "virginia international raceway": VIR_FULL_COURSE,
     "vir": VIR_FULL_COURSE,
     "vir full course": VIR_FULL_COURSE,
+    "vir grand west": VIR_GRAND_WEST,
+    "virginia international raceway grand west": VIR_GRAND_WEST,
 }
 
 
@@ -1764,3 +1780,45 @@ def locate_official_corners(
         )
 
     return skeletons
+
+
+# ---------------------------------------------------------------------------
+# Track banking data
+# ---------------------------------------------------------------------------
+
+# Per-track banking profiles: list of (start_frac, end_frac, banking_deg).
+# Fractions are 0-1 of track length. Between entries, banking linearly
+# interpolates.  Sections not covered default to 0° (flat).
+#
+# Sources: iRacing laser scans, sim community measurements, onboard analysis.
+# Conservative estimates — err toward flat when uncertain.
+TRACK_BANKING: dict[str, list[tuple[float, float, float]]] = {
+    # Data to be populated from research (Phase 3A)
+}
+
+
+def get_track_banking(
+    track_slug: str,
+    distance_m: np.ndarray,
+) -> np.ndarray | None:
+    """Build a per-point banking angle array for a track.
+
+    Returns an array of banking angles in degrees aligned to *distance_m*,
+    or None if no banking data is available for the track.
+
+    Banking is linearly interpolated between defined segments.
+    """
+    segments = TRACK_BANKING.get(track_slug)
+    if not segments:
+        return None
+
+    total_len = float(distance_m[-1])
+    banking = np.zeros(len(distance_m), dtype=np.float64)
+
+    for start_frac, end_frac, deg in segments:
+        start_m = start_frac * total_len
+        end_m = end_frac * total_len
+        mask = (distance_m >= start_m) & (distance_m <= end_m)
+        banking[mask] = deg
+
+    return banking

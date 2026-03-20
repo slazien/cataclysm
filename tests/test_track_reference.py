@@ -284,6 +284,7 @@ class TestAlignReferenceToSession:
                 y_smooth=np.zeros(n),
             ),
             elevation_m=np.linspace(200.0, 220.0, n),
+            banking_deg=None,
             reference_lats=np.full(n, 33.5),
             reference_lons=np.full(n, -86.6),
             gps_quality_score=85.0,

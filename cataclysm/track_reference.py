@@ -62,6 +62,7 @@ class TrackReference:
     track_slug: str
     curvature_result: CurvatureResult
     elevation_m: np.ndarray | None
+    banking_deg: np.ndarray | None  # per-point banking angle in degrees; None = flat
     reference_lats: np.ndarray
     reference_lons: np.ndarray
     gps_quality_score: float
@@ -102,6 +103,10 @@ def get_track_reference(layout: TrackLayout) -> TrackReference | None:
         if elevation is not None and len(elevation) == 0:
             elevation = None
 
+        banking = data.get("banking_deg", None)
+        if banking is not None and len(banking) == 0:
+            banking = None
+
         return TrackReference(
             track_slug=meta["track_slug"],
             curvature_result=CurvatureResult(
@@ -113,6 +118,7 @@ def get_track_reference(layout: TrackLayout) -> TrackReference | None:
                 y_smooth=data["y_smooth"],
             ),
             elevation_m=elevation,
+            banking_deg=banking,
             reference_lats=data["reference_lats"],
             reference_lons=data["reference_lons"],
             gps_quality_score=float(meta["gps_quality_score"]),
@@ -154,6 +160,8 @@ def _save_reference(ref: TrackReference) -> None:
     }
     if ref.elevation_m is not None:
         arrays["elevation_m"] = ref.elevation_m
+    if ref.banking_deg is not None:
+        arrays["banking_deg"] = ref.banking_deg
 
     # Atomic write: write to temp file then rename.
     # np.savez_compressed appends .npz if not present, so use .npz suffix
@@ -213,10 +221,16 @@ def build_track_reference(
         curv_norm = curvature_result.distance_m / curvature_result.distance_m[-1]
         aligned_elev = np.interp(curv_norm, best_norm, lidar_alt)
 
+    # Load banking data from track_db if available
+    from cataclysm.track_db import get_track_banking
+
+    banking = get_track_banking(slug, curvature_result.distance_m)
+
     ref = TrackReference(
         track_slug=slug,
         curvature_result=curvature_result,
         elevation_m=aligned_elev,
+        banking_deg=banking,
         reference_lats=best_lap_df["lat"].to_numpy(dtype=np.float64),
         reference_lons=best_lap_df["lon"].to_numpy(dtype=np.float64),
         gps_quality_score=gps_quality_score,

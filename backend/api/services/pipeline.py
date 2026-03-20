@@ -1598,6 +1598,18 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
                 float(np.max(vert_curvature)),
             )
 
+        # Apply track banking as mu boost (mu_eff = mu + tan(banking))
+        track_ref = (
+            get_track_reference(session_data.layout) if session_data.layout is not None else None
+        )
+        if track_ref is not None and track_ref.banking_deg is not None:
+            banking_rad = np.radians(track_ref.banking_deg)
+            banking_mu_boost = np.tan(banking_rad)
+            if mu_array is None:
+                base_mu = calibrated_vp.mu if calibrated_vp else 1.0
+                mu_array = np.full(len(curvature_result.distance_m), base_mu)
+            mu_array = mu_array + banking_mu_boost
+
         # Solve optimal velocity profile (uses pre-calibrated params)
         optimal = compute_optimal_profile(
             curvature_result,

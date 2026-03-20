@@ -333,6 +333,7 @@ def build_reference_from_osm(config: OSMTrackConfig) -> TrackReference:
         track_slug=config.slug,
         curvature_result=curvature_result,
         elevation_m=None,  # OSM doesn't include elevation
+        banking_deg=None,  # Banking data populated separately via track_db
         reference_lats=df["lat"].to_numpy(dtype=np.float64),
         reference_lons=df["lon"].to_numpy(dtype=np.float64),
         gps_quality_score=50.0,  # Lower than real session data (centerline, not racing line)
