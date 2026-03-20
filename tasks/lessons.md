@@ -1,5 +1,29 @@
 # Lessons Learned
 
+## WebFetch Research Agents Waste Tokens on Automotive/Manufacturer Sites (2026-03-20)
+
+**Pattern**: Don't spawn WebFetch-based research agents to scrape tire manufacturer sites (Pirelli, Goodyear, Yokohama), paywalled journals (SAE), or automotive media (Car and Driver). These sites block automated access (403/404). Use WebSearch (which works) for discovery, then rely on existing curated data + domain knowledge for specific values. Kill research agents after ~2 min if they're cycling through 403s.
+
+**Why**: 4 research agents (tire mu, CL·A, banking, jerk) spent 5+ minutes each hitting dead ends. Total: ~$15 in wasted tokens with zero useful data returned. WebSearch finds summaries; WebFetch can't access the full content. For physics parameters, the curated values in tire_db.py and vehicle_db.py are already well-researched.
+
+**Error signature**: Agent output shows repeated `"Request failed with status code 403"`, `"ECONNREFUSED"`, `"status code 404"` across multiple URLs in quick succession.
+
+## Validate Hypotheses Before Implementing Solver Changes (2026-03-20)
+
+**Pattern**: Before implementing a physics solver change (e.g., jerk constraint, thermal model), run a quick diagnostic to check whether the effect would be measurable on current data. For jerk constraint: compute max lateral G change between adjacent points and compare to proposed limit. If the data is already within limits, the change has zero effect.
+
+**Why**: Lateral jerk constraint was correctly implemented (~25 lines of solver code + wiring across 4 files) but had zero measurable effect because track curvature data is already smooth at 0.7m resolution. A 5-line diagnostic script would have revealed this in 10 seconds vs 30 minutes of implementation.
+
+**Error signature**: Physics validation shows all metrics identical before and after a solver change. The constraint never activates.
+
+## Power Derating Needs Compensating Recalibration (2026-03-20)
+
+**Pattern**: When adding a multiplicative derating factor to an already-calibrated parameter (e.g., `power_band_factor` on `wheel_power_w`), ALWAYS simultaneously adjust the base parameter to keep the default case neutral. Otherwise the entire distribution shifts and causes regressions on borderline entries.
+
+**Why**: `power_band_factor=0.90` was applied to `wheel_power_w` without increasing `_CATEGORY_ACCEL_G` by 1/0.90. Result: ALL predictions got ~10% slower acceleration, pushing 5 entries over the 1.05 exceedance threshold. The feature was fully implemented across 5 files then completely reverted.
+
+**Error signature**: After adding a derating factor, validation shows mean shifted uniformly (all categories worse by same amount) and exceedance count jumps.
+
 ## Pattern Propagation Applies to Sibling Data Structures, Not Just Code Patterns (2026-03-19)
 
 **Pattern**: When fixing an unbounded/unsafe data structure, immediately grep for ALL sibling structures with the same pattern in the same module. Fix them all in one pass. CLAUDE.md says "grep for the same pattern elsewhere" — this applies to data structure shapes (unbounded dicts, missing fields in constructors), not just code logic.
