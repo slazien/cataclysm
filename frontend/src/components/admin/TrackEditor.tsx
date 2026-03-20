@@ -18,6 +18,7 @@ import {
   type TrackGeometry,
   type TrackCorner,
 } from "@/lib/admin-api";
+import { TrackEditorSatellite } from "./TrackEditorSatellite";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -421,6 +422,7 @@ export function TrackEditor() {
     null,
   );
   const [addMode, setAddMode] = useState(false);
+  const [satEnabled, setSatEnabled] = useState(false);
   const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
@@ -618,6 +620,15 @@ export function TrackEditor() {
 
         {/* Toolbar */}
         <Button
+          variant={satEnabled ? "default" : "outline"}
+          size="sm"
+          disabled={!geometry || !geometry.lats?.length}
+          onClick={() => setSatEnabled(!satEnabled)}
+          className="min-w-[52px]"
+        >
+          SAT
+        </Button>
+        <Button
           variant={addMode ? "default" : "outline"}
           size="sm"
           disabled={!geometry}
@@ -664,8 +675,19 @@ export function TrackEditor() {
               {(trackDataQuery.error as Error).message}
             </div>
           )}
-          {geometry && (
+          {geometry && !satEnabled && (
             <TrackCanvas
+              geometry={geometry}
+              corners={corners}
+              selectedCornerIdx={selectedCornerIdx}
+              addMode={addMode}
+              onSelectCorner={handleSelectCorner}
+              onDragCorner={handleDragCorner}
+              onAddCorner={handleAddCorner}
+            />
+          )}
+          {geometry && satEnabled && geometry.lats?.length > 0 && (
+            <TrackEditorSatellite
               geometry={geometry}
               corners={corners}
               selectedCornerIdx={selectedCornerIdx}

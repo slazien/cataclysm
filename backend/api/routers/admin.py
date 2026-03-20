@@ -306,6 +306,8 @@ async def get_track_editor(
     x_smooth = data["x_smooth"]
     y_smooth = data["y_smooth"]
     curvature = data["curvature"]
+    ref_lats = data["reference_lats"]
+    ref_lons = data["reference_lons"]
 
     # Downsample to ~1000 points
     step = max(1, len(x_smooth) // 1000)
@@ -313,6 +315,8 @@ async def get_track_editor(
         "x": x_smooth[::step].tolist(),
         "y": y_smooth[::step].tolist(),
         "curvature": curvature[::step].tolist(),
+        "lats": ref_lats[::step].tolist(),
+        "lons": ref_lons[::step].tolist(),
     }
 
     # Load corners: DB first, then fallback to track_db.py

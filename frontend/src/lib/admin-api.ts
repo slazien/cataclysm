@@ -4,6 +4,8 @@ export interface TrackGeometry {
   x: number[];
   y: number[];
   curvature: number[];
+  lats: number[];
+  lons: number[];
 }
 
 export interface TrackCorner {
