@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useSessionStore, useAnalysisStore } from '@/stores';
 import { useLapData, useSessionLaps } from '@/hooks/useSession';
+import { useUnits } from '@/hooks/useUnits';
 import { useCorners, useIdealLap } from '@/hooks/useAnalysis';
 import { useReplay } from '@/hooks/useReplay';
 import { useOptimalReplay } from '@/hooks/useOptimalReplay';
@@ -31,6 +32,7 @@ export function LapReplay() {
   const sessionId = useSessionStore((s) => s.activeSessionId);
   const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
   const { data: laps } = useSessionLaps(sessionId);
+  const { formatSpeed } = useUnits();
   const [mode, setMode] = useState<ReplayMode>('single');
 
   // Determine which lap to replay
@@ -252,7 +254,7 @@ export function LapReplay() {
               {current.idealSpeed != null && (
                 <div className="flex items-center gap-2 text-xs">
                   <span className="text-amber-400">
-                    Ideal: {Math.round(current.idealSpeed)} mph
+                    Ideal: {formatSpeed(current.idealSpeed, 0)}
                   </span>
                   <span
                     className={`font-semibold ${
@@ -261,8 +263,8 @@ export function LapReplay() {
                         : 'text-[var(--color-brake)]'
                     }`}
                   >
-                    {current.speed >= current.idealSpeed ? '+' : ''}
-                    {Math.round(current.speed - current.idealSpeed)} mph
+                    {current.speed >= current.idealSpeed ? '+' : '-'}
+                    {formatSpeed(Math.abs(current.speed - current.idealSpeed), 0)}
                   </span>
                 </div>
               )}
