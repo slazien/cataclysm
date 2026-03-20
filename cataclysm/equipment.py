@@ -57,7 +57,7 @@ class TrackCondition(StrEnum):
 # ---------------------------------------------------------------------------
 
 CATEGORY_MU_DEFAULTS: dict[TireCompoundCategory, float] = {
-    TireCompoundCategory.STREET: 0.85,
+    TireCompoundCategory.STREET: 0.90,
     TireCompoundCategory.ENDURANCE_200TW: 1.00,
     TireCompoundCategory.SUPER_200TW: 1.10,
     TireCompoundCategory.TW_100: 1.20,
@@ -194,6 +194,11 @@ CATEGORY_LATERAL_JERK_GS: dict[TireCompoundCategory, float] = {
 _BRAKE_EFFICIENCY = 0.95  # real-world brake efficiency factor
 _AIR_DENSITY = 1.225  # kg/m^3, sea level ISA standard atmosphere
 _DRIVETRAIN_EFFICIENCY: dict[str, float] = {"RWD": 0.85, "FWD": 0.88, "AWD": 0.80}
+# AWD traction multiplier: distributing drive force across 4 tires means each
+# tire operates at a lower slip ratio → more traction before saturation.
+# RWD/FWD are baseline (1.0); AWD gets ~4% advantage based on validation data
+# showing AWD cars were predicted ~3% too slow.
+_DRIVETRAIN_TRACTION_MULTIPLIER: dict[str, float] = {"RWD": 1.0, "FWD": 1.0, "AWD": 1.04}
 # Real-world aero is less than theoretical: ride height variation under load,
 # yaw angle in corners, turbulence, and imperfect sealing reduce effective CL.
 # Racing engineering literature suggests 70-85% of wind-tunnel CL on track.
@@ -395,6 +400,13 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
     cornering_drag = math.sin(math.radians(slip_angle_deg))
     lateral_jerk = CATEGORY_LATERAL_JERK_GS.get(category, 5.0)
 
+    # AWD traction advantage for grip-limited acceleration
+    traction_mult = (
+        _DRIVETRAIN_TRACTION_MULTIPLIER.get(profile.vehicle.drivetrain, 1.0)
+        if profile.vehicle is not None
+        else 1.0
+    )
+
     return VehicleParams(
         mu=mu,
         max_lateral_g=mu,
@@ -416,4 +428,5 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
         mass_kg=mass_for_params,
         cornering_drag_factor=cornering_drag,
         max_lateral_jerk_gs=lateral_jerk,
+        traction_multiplier=traction_mult,
     )
