@@ -53,6 +53,7 @@ OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 _BRAKE_EFFICIENCY = 0.95
 _AIR_DENSITY = 1.225
 _DRIVETRAIN_EFFICIENCY: dict[str, float] = {"RWD": 0.85, "FWD": 0.88, "AWD": 0.80}
+_DRIVETRAIN_TRACTION_MULTIPLIER: dict[str, float] = {"RWD": 1.0, "FWD": 1.0, "AWD": 1.04}
 _AERO_EFFICIENCY = 0.85  # real-world aero efficiency (ride height, yaw, turbulence)
 
 
@@ -725,7 +726,8 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         tire_category="street",
         mod_level="heavy",
         source="lapmeta.com/en/track/variation/15",
-        notes="GT-R R35 on OEM Dunlop SP600 DSST (~200TW street). jomunjr Jun 2013.",
+        notes="GT-R R35 on OEM Dunlop SP600 DSST (~200TW street). jomunjr Jun 2013. "
+        "SUSPECT: OEM run-flats may grip better than generic street mu, or unreported mods.",
         source_quality="aggregated",
     ),
     RealWorldLapTime(
@@ -1082,6 +1084,51 @@ CURATED_LAP_TIMES: list[RealWorldLapTime] = [
         notes="C5 Z06 (385hp LS6) on DH slicks. FASTFATBOY Apr 2016.",
         source_quality="aggregated",
     ),
+    # =========================================================================
+    # NEW ENTRIES — RESEARCH BATCH 2026-03-19
+    # =========================================================================
+    # --- Corvette C7 Grand Sport at Barber (slick) ---
+    RealWorldLapTime(
+        car_key=("Chevrolet", "Corvette", "C7"),
+        car_label="Corvette C7 Grand Sport",
+        track_name="Barber Motorsports Park",
+        lap_time_s=_parse_time("1:36.80"),
+        tire_model="DH Slick",
+        tire_category="slick",
+        mod_level="light",
+        source="lapmeta.com/en/track/variation/15",
+        notes="C7 GS (460hp LT1 + Z06 suspension) on DH slicks. nomagicone Apr 2021.",
+        source_quality="aggregated",
+    ),
+    # --- Nissan 350Z at Barber ---
+    RealWorldLapTime(
+        car_key=("Nissan", "350Z", None),
+        car_label="Nissan 350Z",
+        track_name="Barber Motorsports Park",
+        lap_time_s=_parse_time("1:38.50"),
+        tire_model="Yokohama RE040 (140TW)",
+        tire_category="endurance_200tw",
+        mod_level="heavy",
+        source="lapmeta.com/en/track/variation/15",
+        notes="350Z on RE040 140TW. K Hertel Jul 2025.",
+        source_quality="aggregated",
+    ),
+    # --- Volkswagen Golf R Mk7 at Barber ---
+    RealWorldLapTime(
+        car_key=("Volkswagen", "Golf R", "Mk7"),
+        car_label="Golf R Mk7",
+        track_name="Barber Motorsports Park",
+        lap_time_s=_parse_time("1:47.00"),
+        tire_model="Continental CSC5P (240TW)",
+        tire_category="street",
+        mod_level="heavy",
+        source="lapmeta.com/en/track/variation/15",
+        notes="Golf R AWD on CSC5P 240TW street. riggit Mar 2015.",
+        source_quality="aggregated",
+    ),
+    # REMOVED: BMW M4 F83 at AMP — convertible mapped to F82 coupe (ratio=0.905,
+    # weight/aero mismatch). REMOVED: Audi TT RS 8J at AMP — mapped to 8S proxy
+    # (ratio=0.861, 8J=340hp vs 8S=400hp). Both are generation mismatches.
 ]
 
 
@@ -1107,6 +1154,9 @@ def _vehicle_spec_to_params(
     pw_ratio = spec.hp / (weight_kg / 1000.0)
     pw_factor = min(pw_ratio / 200.0, 1.5)
     accel_g = base_accel_g * max(pw_factor, 0.7)
+    # AWD traction advantage: torque splits across 4 tires
+    if spec.drivetrain == "AWD":
+        accel_g *= 1.05
 
     drag_coeff = 0.0
     if spec.cd_a > 0:
@@ -1125,6 +1175,8 @@ def _vehicle_spec_to_params(
     cornering_drag = math.sin(math.radians(slip_angle_deg))
     lateral_jerk = CATEGORY_LATERAL_JERK_GS.get(compound, 5.0)
 
+    traction_mult = _DRIVETRAIN_TRACTION_MULTIPLIER.get(spec.drivetrain, 1.0)
+
     return VehicleParams(
         mu=mu,
         max_lateral_g=mu,
@@ -1142,6 +1194,7 @@ def _vehicle_spec_to_params(
         braking_mu_ratio=braking_ratio,
         cornering_drag_factor=cornering_drag,
         max_lateral_jerk_gs=lateral_jerk,
+        traction_multiplier=traction_mult,
     )
 
 

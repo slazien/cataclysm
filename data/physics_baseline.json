@@ -1,6 +1,6 @@
 {
   "date": "2026-03-19",
-  "git_sha": "dba3fbb",
+  "git_sha": "d51285b",
   "acceptance_criteria": {
     "mean_ratio_min": 0.95,
     "mean_ratio_max": 1.02,
@@ -482,11 +482,11 @@
       "car": "Subaru BRZ",
       "track": "Roebling Road Raceway",
       "real_s": 86.7,
-      "predicted_s": 89.495,
-      "ratio": 1.0322,
+      "predicted_s": 87.558,
+      "ratio": 1.0099,
       "tire_category": "street",
       "tire_model": "Michelin Primacy 3 240TW (stock)",
-      "mu": 0.85,
+      "mu": 0.9,
       "source_quality": "aggregated",
       "driver_level": "unknown"
     },
@@ -518,8 +518,8 @@
       "car": "Nissan GT-R R35",
       "track": "Barber Motorsports Park",
       "real_s": 95.3,
-      "predicted_s": 95.392,
-      "ratio": 1.001,
+      "predicted_s": 95.299,
+      "ratio": 1.0,
       "tire_category": "r_compound",
       "tire_model": "Hoosier R7",
       "mu": 1.38,
@@ -530,11 +530,11 @@
       "car": "Nissan GT-R R35",
       "track": "Barber Motorsports Park",
       "real_s": 98.7,
-      "predicted_s": 110.063,
-      "ratio": 1.1151,
+      "predicted_s": 107.4,
+      "ratio": 1.0881,
       "tire_category": "street",
       "tire_model": "Dunlop SP Sport 600 DSST (OEM)",
-      "mu": 0.85,
+      "mu": 0.9,
       "source_quality": "aggregated",
       "driver_level": "unknown"
     },
@@ -542,8 +542,8 @@
       "car": "Nissan GT-R R35",
       "track": "Roebling Road Raceway",
       "real_s": 73.4,
-      "predicted_s": 74.466,
-      "ratio": 1.0145,
+      "predicted_s": 74.439,
+      "ratio": 1.0142,
       "tire_category": "slick",
       "tire_model": "Dunlop DH Slick",
       "mu": 1.42,
@@ -554,8 +554,8 @@
       "car": "Nissan GT-R R35",
       "track": "Atlanta Motorsports Park",
       "real_s": 83.9,
-      "predicted_s": 84.635,
-      "ratio": 1.0088,
+      "predicted_s": 84.535,
+      "ratio": 1.0076,
       "tire_category": "slick",
       "tire_model": "Dunlop DH Slick",
       "mu": 1.42,
@@ -566,8 +566,8 @@
       "car": "WRX STI",
       "track": "Barber Motorsports Park",
       "real_s": 98.9,
-      "predicted_s": 103.858,
-      "ratio": 1.0501,
+      "predicted_s": 103.689,
+      "ratio": 1.0484,
       "tire_category": "super_200tw",
       "tire_model": "Yokohama ADVAN A052",
       "mu": 1.13,
@@ -578,11 +578,11 @@
       "car": "Focus RS Mk3",
       "track": "Roebling Road Raceway",
       "real_s": 85.0,
-      "predicted_s": 88.287,
-      "ratio": 1.0387,
+      "predicted_s": 86.242,
+      "ratio": 1.0146,
       "tire_category": "street",
       "tire_model": "Kumho Ecsta S1 Evo3 K127 (340TW)",
-      "mu": 0.85,
+      "mu": 0.9,
       "source_quality": "aggregated",
       "driver_level": "unknown"
     },
@@ -590,11 +590,11 @@
       "car": "Focus RS Mk3",
       "track": "Atlanta Motorsports Park",
       "real_s": 95.9,
-      "predicted_s": 102.82,
-      "ratio": 1.0722,
+      "predicted_s": 100.218,
+      "ratio": 1.045,
       "tire_category": "street",
       "tire_model": "Kumho Ecsta S1 Evo3 K127 (340TW)",
-      "mu": 0.85,
+      "mu": 0.9,
       "source_quality": "aggregated",
       "driver_level": "unknown"
     },
@@ -602,11 +602,11 @@
       "car": "Golf R Mk7",
       "track": "Roebling Road Raceway",
       "real_s": 85.5,
-      "predicted_s": 89.219,
-      "ratio": 1.0435,
+      "predicted_s": 87.172,
+      "ratio": 1.0196,
       "tire_category": "street",
       "tire_model": "Firestone Firehawk Indy 500 (340TW)",
-      "mu": 0.85,
+      "mu": 0.9,
       "source_quality": "aggregated",
       "driver_level": "unknown"
     },
@@ -614,11 +614,11 @@
       "car": "Golf R Mk7",
       "track": "Atlanta Motorsports Park",
       "real_s": 97.9,
-      "predicted_s": 104.167,
-      "ratio": 1.064,
+      "predicted_s": 101.565,
+      "ratio": 1.0374,
       "tire_category": "street",
       "tire_model": "Firestone Firehawk Indy 500 (340TW)",
-      "mu": 0.85,
+      "mu": 0.9,
       "source_quality": "aggregated",
       "driver_level": "unknown"
     },
@@ -626,8 +626,8 @@
       "car": "Audi TT RS 8S",
       "track": "Barber Motorsports Park",
       "real_s": 106.9,
-      "predicted_s": 103.63,
-      "ratio": 0.9694,
+      "predicted_s": 103.459,
+      "ratio": 0.9678,
       "tire_category": "endurance_200tw",
       "tire_model": "Goodyear SuperCar 3 (220TW)",
       "mu": 1.0,
@@ -770,8 +770,8 @@
       "car": "Nissan GT-R R35",
       "track": "Barber Motorsports Park",
       "real_s": 96.8,
-      "predicted_s": 96.796,
-      "ratio": 1.0,
+      "predicted_s": 96.683,
+      "ratio": 0.9988,
       "tire_category": "100tw",
       "tire_model": "Nitto NT01 (100TW)",
       "mu": 1.2,
@@ -830,8 +830,8 @@
       "car": "WRX STI GD",
       "track": "Roebling Road Raceway",
       "real_s": 84.6,
-      "predicted_s": 80.959,
-      "ratio": 0.957,
+      "predicted_s": 80.872,
+      "ratio": 0.9559,
       "tire_category": "super_200tw",
       "tire_model": "Dunlop Direzza ZII Star Spec (200TW)",
       "mu": 1.1,
@@ -849,34 +849,70 @@
       "mu": 1.42,
       "source_quality": "aggregated",
       "driver_level": "unknown"
+    },
+    {
+      "car": "Corvette C7 Grand Sport",
+      "track": "Barber Motorsports Park",
+      "real_s": 96.8,
+      "predicted_s": 94.952,
+      "ratio": 0.9809,
+      "tire_category": "slick",
+      "tire_model": "DH Slick",
+      "mu": 1.42,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
+    },
+    {
+      "car": "Nissan 350Z",
+      "track": "Barber Motorsports Park",
+      "real_s": 98.5,
+      "predicted_s": 106.845,
+      "ratio": 1.0847,
+      "tire_category": "endurance_200tw",
+      "tire_model": "Yokohama RE040 (140TW)",
+      "mu": 1.0,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
+    },
+    {
+      "car": "Golf R Mk7",
+      "track": "Barber Motorsports Park",
+      "real_s": 107.0,
+      "predicted_s": 112.98,
+      "ratio": 1.0559,
+      "tire_category": "street",
+      "tire_model": "Continental CSC5P (240TW)",
+      "mu": 0.9,
+      "source_quality": "aggregated",
+      "driver_level": "unknown"
     }
   ],
   "summary": {
-    "n_entries": 70,
-    "mean_ratio": 1.004436266397175,
-    "median_ratio": 1.0032376351216978,
-    "std_ratio": 0.035008523639886206,
-    "exceedance_count_5pct": 6,
-    "entries_above_1": 38,
-    "rmse_s": 3.3488661931453176,
-    "mae_s": 2.542311219592647,
-    "mape_pct": 2.6952575457130092,
-    "p90_abs_error_s": 5.020541512047696,
-    "p95_abs_error_s": 6.4740506604619945,
-    "bland_altman_bias_s": 0.4456458163739977,
-    "bland_altman_loa_lower_s": -6.1067256967946415,
-    "bland_altman_loa_upper_s": 6.998017329542637,
-    "calibration_slope": 1.0243057221904157,
-    "calibration_intercept_s": -1.8306996508773352,
-    "calibration_r_squared": 0.896413646981581,
-    "correlation_mu_ratio": -0.35575247284132594,
-    "correlation_mu_pvalue": 0.0025079030992876034,
-    "correlation_weight_ratio": -0.07309914536915905,
-    "correlation_weight_pvalue": 0.5475838393524415,
-    "bootstrap_mean_ci_lower": 0.9963405961345675,
-    "bootstrap_mean_ci_upper": 1.0125229184760989,
-    "bootstrap_std_ci_lower": 0.02932512635451723,
-    "bootstrap_std_ci_upper": 0.04339897965800693,
+    "n_entries": 73,
+    "mean_ratio": 1.0037394204824086,
+    "median_ratio": 1.004439517076427,
+    "std_ratio": 0.033434932601478985,
+    "exceedance_count_5pct": 5,
+    "entries_above_1": 39,
+    "rmse_s": 3.2222184543330576,
+    "mae_s": 2.4688154141935432,
+    "mape_pct": 2.595785362395327,
+    "p90_abs_error_s": 4.830607114406342,
+    "p95_abs_error_s": 6.245580936325877,
+    "bland_altman_bias_s": 0.39747653547920603,
+    "bland_altman_loa_lower_s": -5.913210298414599,
+    "bland_altman_loa_upper_s": 6.708163369373011,
+    "calibration_slope": 1.0422341277832847,
+    "calibration_intercept_s": -3.5702924888273344,
+    "calibration_r_squared": 0.9061998674772072,
+    "correlation_mu_ratio": -0.30661317617227396,
+    "correlation_mu_pvalue": 0.008330718641706926,
+    "correlation_weight_ratio": -0.09417806269424034,
+    "correlation_weight_pvalue": 0.4280498169807115,
+    "bootstrap_mean_ci_lower": 0.9962737865724102,
+    "bootstrap_mean_ci_upper": 1.0115276042904509,
+    "bootstrap_std_ci_lower": 0.02814090595230192,
+    "bootstrap_std_ci_upper": 0.03999578693270188,
     "iqr_outlier_count": 3,
     "iqr_outliers": [
       {
@@ -892,93 +928,93 @@
       {
         "car": "Nissan GT-R R35",
         "track": "Barber Motorsports Park",
-        "ratio": 1.1151
+        "ratio": 1.0881
       }
     ],
     "per_category": {
       "street": {
-        "n": 11,
-        "mean": 1.0324,
-        "std": 0.0406,
+        "n": 12,
+        "mean": 1.0217,
+        "std": 0.0316,
         "min": 0.9721,
-        "max": 1.1151,
-        "bootstrap_mean_ci_lower": 1.0095,
-        "bootstrap_mean_ci_upper": 1.0574
+        "max": 1.0881,
+        "bootstrap_mean_ci_lower": 1.0052,
+        "bootstrap_mean_ci_upper": 1.0409
       },
       "endurance_200tw": {
-        "n": 17,
-        "mean": 0.9987,
-        "std": 0.0304,
+        "n": 18,
+        "mean": 1.0034,
+        "std": 0.0356,
         "min": 0.9163,
-        "max": 1.0461,
-        "bootstrap_mean_ci_lower": 0.9813,
-        "bootstrap_mean_ci_upper": 1.0114
+        "max": 1.0847,
+        "bootstrap_mean_ci_lower": 0.9864,
+        "bootstrap_mean_ci_upper": 1.0191
       },
       "super_200tw": {
         "n": 24,
-        "mean": 1.0062,
+        "mean": 1.0061,
         "std": 0.0312,
-        "min": 0.957,
+        "min": 0.9559,
         "max": 1.0597,
-        "bootstrap_mean_ci_lower": 0.994,
-        "bootstrap_mean_ci_upper": 1.0185
+        "bootstrap_mean_ci_lower": 0.9939,
+        "bootstrap_mean_ci_upper": 1.0187
       },
       "100tw": {
         "n": 5,
-        "mean": 0.9891,
-        "std": 0.0133,
+        "mean": 0.9889,
+        "std": 0.0131,
         "min": 0.9631,
-        "max": 1.0,
-        "bootstrap_mean_ci_lower": 0.9694,
-        "bootstrap_mean_ci_upper": 0.9965
+        "max": 0.9988,
+        "bootstrap_mean_ci_lower": 0.9695,
+        "bootstrap_mean_ci_upper": 0.9961
       },
       "r_compound": {
         "n": 7,
-        "mean": 0.9888,
+        "mean": 0.9887,
         "std": 0.0395,
         "min": 0.9195,
         "max": 1.0329,
-        "bootstrap_mean_ci_lower": 0.9538,
-        "bootstrap_mean_ci_upper": 1.0134
+        "bootstrap_mean_ci_lower": 0.9532,
+        "bootstrap_mean_ci_upper": 1.0128
       },
       "slick": {
-        "n": 6,
-        "mean": 0.9934,
-        "std": 0.0212,
+        "n": 7,
+        "mean": 0.9914,
+        "std": 0.0199,
         "min": 0.957,
-        "max": 1.0145,
-        "bootstrap_mean_ci_lower": 0.9728,
-        "bootstrap_mean_ci_upper": 1.0077
+        "max": 1.0142,
+        "bootstrap_mean_ci_lower": 0.9741,
+        "bootstrap_mean_ci_upper": 1.004
       }
     },
     "per_track": {
       "Atlanta Motorsports Park": {
         "n": 14,
-        "mean": 1.0015,
-        "std": 0.0339,
+        "mean": 0.9975,
+        "std": 0.0269,
         "min": 0.9602,
-        "max": 1.0722
+        "max": 1.045
       },
       "Barber Motorsports Park": {
-        "n": 37,
-        "mean": 1.0115,
+        "n": 40,
+        "mean": 1.0129,
         "std": 0.0343,
         "min": 0.9163,
-        "max": 1.1151
+        "max": 1.0881
       },
       "Roebling Road Raceway": {
         "n": 19,
-        "mean": 0.9928,
-        "std": 0.0328,
+        "mean": 0.9891,
+        "std": 0.0285,
         "min": 0.9195,
-        "max": 1.0435
+        "max": 1.0278
       }
     },
     "per_grip_band": {
       "Low (street+endurance)": {
-        "n": 28,
-        "mean": 1.0119,
-        "std": 0.0384,
+        "n": 30,
+        "mean": 1.0107,
+        "std": 0.0352,
         "categories": [
           "endurance_200tw",
           "street"
@@ -986,17 +1022,17 @@
       },
       "Mid (super+100tw)": {
         "n": 29,
-        "mean": 1.0033,
-        "std": 0.0297,
+        "mean": 1.0031,
+        "std": 0.0296,
         "categories": [
           "100tw",
           "super_200tw"
         ]
       },
       "High (r_compound+slick)": {
-        "n": 13,
-        "mean": 0.9909,
-        "std": 0.0325,
+        "n": 14,
+        "mean": 0.99,
+        "std": 0.0313,
         "categories": [
           "r_compound",
           "slick"
@@ -1005,14 +1041,14 @@
     },
     "per_pw_band": {
       "Low <200 hp/t": {
-        "n": 20,
-        "mean": 1.013,
-        "std": 0.0282
+        "n": 22,
+        "mean": 1.0148,
+        "std": 0.0298
       },
       "Mid 200-350": {
-        "n": 46,
-        "mean": 1.0009,
-        "std": 0.0375
+        "n": 47,
+        "mean": 0.9987,
+        "std": 0.0343
       },
       "High >350": {
         "n": 4,
@@ -1021,45 +1057,45 @@
       }
     },
     "fast_slow_split": {
-      "median_time_s": 95.81,
+      "median_time_s": 95.9,
       "fast": {
-        "n": 35,
-        "mean": 1.0008,
-        "std": 0.0323
+        "n": 36,
+        "mean": 0.9983,
+        "std": 0.0303
       },
       "slow": {
-        "n": 35,
-        "mean": 1.0081,
-        "std": 0.0367
+        "n": 37,
+        "mean": 1.0091,
+        "std": 0.035
       }
     },
     "per_mod_level": {
       "stock": {
         "n": 20,
-        "mean": 0.9955,
-        "std": 0.0311,
+        "mean": 0.9944,
+        "std": 0.0301,
         "min": 0.9163,
         "max": 1.0379,
-        "bootstrap_mean_ci_lower": 0.9804,
-        "bootstrap_mean_ci_upper": 1.0074
+        "bootstrap_mean_ci_lower": 0.98,
+        "bootstrap_mean_ci_upper": 1.006
       },
       "light": {
-        "n": 30,
-        "mean": 1.0016,
-        "std": 0.0341,
+        "n": 31,
+        "mean": 0.9993,
+        "std": 0.0314,
         "min": 0.9195,
-        "max": 1.0722,
-        "bootstrap_mean_ci_lower": 0.9896,
-        "bootstrap_mean_ci_upper": 1.0138
+        "max": 1.0597,
+        "bootstrap_mean_ci_lower": 0.9879,
+        "bootstrap_mean_ci_upper": 1.0098
       },
       "heavy": {
-        "n": 20,
-        "mean": 1.0176,
-        "std": 0.0379,
-        "min": 0.957,
-        "max": 1.1151,
-        "bootstrap_mean_ci_lower": 1.0031,
-        "bootstrap_mean_ci_upper": 1.0354
+        "n": 22,
+        "mean": 1.0185,
+        "std": 0.0355,
+        "min": 0.9559,
+        "max": 1.0881,
+        "bootstrap_mean_ci_lower": 1.0042,
+        "bootstrap_mean_ci_upper": 1.0335
       }
     },
     "per_hp_band": {
@@ -1069,21 +1105,21 @@
         "std": 0.0108
       },
       "Mid 200-400hp": {
-        "n": 31,
-        "mean": 1.0109,
-        "std": 0.0337
+        "n": 33,
+        "mean": 1.0107,
+        "std": 0.0329
       },
       "High >400hp": {
-        "n": 36,
-        "mean": 0.9978,
-        "std": 0.0366
+        "n": 37,
+        "mean": 0.9965,
+        "std": 0.034
       }
     },
     "per_drivetrain": {
       "AWD": {
-        "n": 12,
-        "mean": 1.0278,
-        "std": 0.045
+        "n": 13,
+        "mean": 1.0195,
+        "std": 0.036
       },
       "FWD": {
         "n": 8,
@@ -1091,16 +1127,16 @@
         "std": 0.0306
       },
       "RWD": {
-        "n": 50,
-        "mean": 0.9991,
-        "std": 0.0312
+        "n": 52,
+        "mean": 1.0,
+        "std": 0.0327
       }
     },
     "per_source_quality": {
       "aggregated": {
-        "n": 53,
-        "mean": 1.0119,
-        "std": 0.0326
+        "n": 56,
+        "mean": 1.0106,
+        "std": 0.0308
       },
       "community": {
         "n": 1,
@@ -1121,28 +1157,28 @@
       },
       "pro": {
         "n": 2,
-        "mean": 1.0116,
-        "std": 0.0041
+        "mean": 1.0109,
+        "std": 0.0047
       },
       "unknown": {
-        "n": 67,
-        "mean": 1.0039,
-        "std": 0.0357
+        "n": 70,
+        "mean": 1.0032,
+        "std": 0.034
       }
     },
     "loo_cv": {
       "jackknife_mean_range": [
-        1.0028,
-        1.0057
+        1.0026,
+        1.005
       ],
       "jackknife_std_range": [
-        0.0326,
-        0.0353
+        0.032,
+        0.0337
       ],
-      "jackknife_mean_stability": 0.0029,
+      "jackknife_mean_stability": 0.0024,
       "influential_entries": [],
       "influential_count": 0
     },
-    "accuracy_tier": "B: Setup"
+    "accuracy_tier": "C: Coaching"
   }
 }
