@@ -153,6 +153,17 @@ export interface PriorityCorner {
   tip: string;
 }
 
+export interface MergedPriority {
+  corner: number;
+  time_cost_s: number;
+  issue: string | null;
+  tip: string | null;
+  source: 'physics' | 'llm';
+  speed_gap_mph: number | null;
+  brake_gap_m: number | null;
+  exit_straight_time_cost_s: number | null;
+}
+
 export interface CornerGrade {
   corner: number;
   braking: string;
