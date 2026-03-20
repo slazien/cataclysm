@@ -1793,7 +1793,35 @@ def locate_official_corners(
 # Sources: iRacing laser scans, sim community measurements, onboard analysis.
 # Conservative estimates — err toward flat when uncertain.
 TRACK_BANKING: dict[str, list[tuple[float, float, float]]] = {
-    # Data to be populated from research (Phase 3A)
+    # Sources: iRacing laser scan wiki (0–4° range for Barber), driver guides,
+    # onboard video analysis. Conservative estimates — err toward flat.
+    #
+    # Format: (start_frac, end_frac, banking_deg)
+    # Positive = banked toward corner center (more grip)
+    # Negative = off-camber (less grip)
+    "barber-motorsports-park": [
+        # T1 (0.05): Fast downhill left — positively banked, iRacing confirms
+        (0.03, 0.07, 3.0),
+        # T2 (0.10): Uphill right — mildly banked despite off-camber reputation
+        # (the off-camber feel comes from elevation change, not lateral banking)
+        (0.08, 0.12, 1.5),
+        # T3-T4 (0.15-0.20): Uphill crest → hilltop right — mild banking
+        (0.13, 0.22, 1.5),
+        # T5 (0.30): Charlotte's Web hairpin — slightly off-camber per driver reports
+        (0.27, 0.33, -1.0),
+        # T7-T9 (0.40-0.49): Corkscrew section — mildly banked through the drop
+        (0.38, 0.51, 2.0),
+        # T10-T11 (0.58-0.62): Esses — flat out, minimal banking
+        (0.56, 0.64, 0.5),
+        # T12-T14 (0.73-0.81): Rollercoaster — T12 off-camber, T14 banked
+        (0.71, 0.74, -1.5),  # T12 off-camber
+        (0.79, 0.83, 2.0),  # T14 banked uphill exit
+        # T15-T16 (0.87-0.90): Final corners — positively banked
+        (0.85, 0.92, 2.5),
+    ],
+    # Roebling Road: flat SCCA-era track, ~0° banking everywhere.
+    # No iRacing data (not scanned). Community confirms essentially flat.
+    # Omitted = None = flat (default behavior).
 }
 
 
