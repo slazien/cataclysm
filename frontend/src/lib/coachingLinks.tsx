@@ -1,6 +1,7 @@
 'use client';
 
 import { type ReactNode } from 'react';
+import { CornerRefLink } from '@/components/shared/CornerRefLink';
 
 /**
  * Match corner references: T5, T12, Turn 5, Turn 12
@@ -45,14 +46,12 @@ export function linkifyCoachingRefs(
     if (cornerNum && handlers.onCornerClick) {
       const num = parseInt(cornerNum, 10);
       nodes.push(
-        <button
+        <CornerRefLink
           key={`ref-${key++}`}
-          type="button"
-          onClick={(e) => { e.stopPropagation(); handlers.onCornerClick!(num); }}
-          className="inline cursor-pointer text-[var(--cata-accent)] underline decoration-dotted underline-offset-2 transition-colors hover:text-[var(--cata-accent)]/80"
-        >
-          {fullMatch}
-        </button>,
+          cornerNum={num}
+          label={fullMatch}
+          onNavigate={handlers.onCornerClick}
+        />,
       );
     } else if (lapNum && handlers.onLapClick) {
       const num = parseInt(lapNum, 10);
