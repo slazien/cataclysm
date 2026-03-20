@@ -13,10 +13,14 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from cataclysm.curvature import CurvatureResult
+
+if TYPE_CHECKING:
+    from cataclysm.ggv_envelope import GGVEnvelope
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +79,9 @@ class VehicleParams:
     power_band_factor: float = 1.0  # fraction of peak power across RPM range (0-1); 1.0 = CVT/flat
     elevation_confidence: float = (
         1.0  # weight for vertical curvature correction [0,1]; 1.0 = full trust
+    )
+    ggv: GGVEnvelope | None = (
+        None  # speed-dependent GG envelope; overrides friction circle when set
     )
 
 
@@ -235,6 +242,23 @@ def _compute_max_cornering_speed(
 
     np.clip(max_speed, MIN_SPEED_MPS, params.top_speed_mps, out=max_speed)
 
+    # GGV lateral limit refinement: max cornering speed must not exceed
+    # the speed-dependent lateral G limit from the GGV envelope.
+    if params.ggv is not None:
+        for i in range(n):
+            if abs_curvature[i] > 1e-6:
+                # Iterate: v_max where v²*κ/g = ggv.max_lateral_at_speed(v)
+                v = max_speed[i]
+                for _ in range(5):  # converges in 2-3 iterations
+                    lat_g_at_v = params.ggv.max_lateral_at_speed(v)
+                    v_new = np.sqrt(lat_g_at_v * G / abs_curvature[i])
+                    v_new = min(v_new, params.top_speed_mps)
+                    if abs(v_new - v) < 0.01:
+                        break
+                    v = v_new
+                max_speed[i] = min(max_speed[i], v)
+        np.clip(max_speed, MIN_SPEED_MPS, params.top_speed_mps, out=max_speed)
+
     # Lateral jerk constraint: limit how fast lateral G can change per meter.
     # Models tire relaxation length and yaw inertia — prevents unrealistic
     # instant transitions in chicanes and rapid direction changes.
@@ -280,9 +304,18 @@ def _available_accel(
         lon = max_lon * (1 - (lat/max_lat)^p) ^ (1/p)
     """
     max_lon_g = params.max_accel_g if direction == "accel" else params.max_decel_g
+    max_lat_g = params.max_lateral_g
     exp = params.friction_circle_exponent
 
-    lateral_fraction = (abs(lateral_g_used) / params.max_lateral_g) ** exp
+    # GGV override: speed-dependent limits from telemetry
+    if params.ggv is not None:
+        if direction == "accel":
+            max_lon_g = min(max_lon_g, params.ggv.max_accel_at_speed(speed))
+        else:
+            max_lon_g = min(max_lon_g, params.ggv.max_decel_at_speed(speed))
+        max_lat_g = min(max_lat_g, params.ggv.max_lateral_at_speed(speed))
+
+    lateral_fraction = (abs(lateral_g_used) / max_lat_g) ** exp if max_lat_g > 0 else 1.0
     # Clamp to [0, 1] — if lateral exceeds max, no longitudinal budget remains
     lateral_fraction = min(lateral_fraction, 1.0)
 

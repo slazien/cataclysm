@@ -1979,3 +1979,82 @@ def test_elevation_confidence_scales_vertical_curvature() -> None:
     assert mid_none < mid_half < mid_full, (
         f"Expected none({mid_none:.2f}) < half({mid_half:.2f}) < full({mid_full:.2f})"
     )
+
+
+# ---------------------------------------------------------------------------
+# GGV envelope integration
+# ---------------------------------------------------------------------------
+
+
+def test_ggv_constraint_reduces_speed_at_low_grip_speed() -> None:
+    """GGV with low grip at high speed should slow the car down."""
+    from cataclysm.ggv_envelope import GGVEnvelope
+
+    n = 200
+    distance = np.linspace(0, 140, n)
+    curvature = np.zeros(n)
+    curvature[80:120] = 0.015  # moderate corner mid-track
+
+    cr = CurvatureResult(
+        distance_m=distance,
+        curvature=curvature,
+        abs_curvature=np.abs(curvature),
+        x_smooth=np.zeros(n),
+        y_smooth=np.zeros(n),
+        heading_rad=np.zeros(n),
+    )
+
+    # GGV where lateral grip DROPS at high speed (no aero car, tire overheat)
+    ggv = GGVEnvelope(
+        speed_bins=np.array([10.0, 20.0, 30.0, 40.0, 50.0]),
+        max_lateral_g=np.array([1.0, 0.95, 0.90, 0.85, 0.80]),
+        max_decel_g=np.array([1.0, 1.0, 1.0, 1.0, 1.0]),
+        max_accel_g=np.array([0.5, 0.5, 0.5, 0.5, 0.5]),
+        point_counts=np.array([100, 100, 100, 100, 100]),
+    )
+
+    params_no_ggv = VehicleParams(mu=1.0, max_accel_g=0.5, max_decel_g=1.0, max_lateral_g=1.0)
+    params_with_ggv = VehicleParams(
+        mu=1.0,
+        max_accel_g=0.5,
+        max_decel_g=1.0,
+        max_lateral_g=1.0,
+        ggv=ggv,
+    )
+
+    profile_no_ggv = compute_optimal_profile(cr, params_no_ggv, closed_circuit=False)
+    profile_ggv = compute_optimal_profile(cr, params_with_ggv, closed_circuit=False)
+
+    # GGV with dropping grip should produce a SLOWER lap (longer time)
+    assert profile_ggv.lap_time_s > profile_no_ggv.lap_time_s
+
+
+def test_ggv_none_is_backward_compatible() -> None:
+    """VehicleParams with ggv=None should produce identical results to before."""
+    n = 100
+    distance = np.linspace(0, 70, n)
+    curvature = np.full(n, 0.01)
+
+    cr = CurvatureResult(
+        distance_m=distance,
+        curvature=curvature,
+        abs_curvature=np.abs(curvature),
+        x_smooth=np.zeros(n),
+        y_smooth=np.zeros(n),
+        heading_rad=np.zeros(n),
+    )
+
+    params = VehicleParams(mu=1.0, max_accel_g=0.5, max_decel_g=1.0, max_lateral_g=1.0)
+    params_explicit_none = VehicleParams(
+        mu=1.0,
+        max_accel_g=0.5,
+        max_decel_g=1.0,
+        max_lateral_g=1.0,
+        ggv=None,
+    )
+
+    p1 = compute_optimal_profile(cr, params, closed_circuit=False)
+    p2 = compute_optimal_profile(cr, params_explicit_none, closed_circuit=False)
+
+    assert np.allclose(p1.optimal_speed_mps, p2.optimal_speed_mps)
+    assert abs(p1.lap_time_s - p2.lap_time_s) < 0.001
