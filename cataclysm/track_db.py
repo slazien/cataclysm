@@ -811,6 +811,207 @@ ROEBLING_ROAD_RACEWAY = TrackLayout(
     ],
 )
 
+# ---------------------------------------------------------------------------
+# WeatherTech Raceway Laguna Seca
+# ---------------------------------------------------------------------------
+# Sources:
+#   - Allen Berg Racing Schools corner-by-corner guide
+#   - NASA Speed News "One Lap Around" Laguna Seca
+#   - Trackpedia turn-by-turn guide
+#   - DIY Sim Studio track guide
+#   - WeatherTech Raceway official track information
+#   - Track reference: OSM centerline (3601m, 268 nodes / 9 ways)
+
+LAGUNA_SECA = TrackLayout(
+    name="WeatherTech Raceway Laguna Seca",
+    center_lat=36.584,
+    center_lon=-121.753,
+    country="US",
+    length_m=3602.0,
+    elevation_range_m=55.0,  # ~180 ft, primarily from Corkscrew drop
+    corners=[
+        OfficialCorner(
+            number=1,
+            name="Turn 1",
+            fraction=0.040,
+            direction="left",
+            corner_type="kink",
+            elevation_trend="crest",
+            camber="positive",
+            blind=True,
+            coaching_notes=(
+                "Flat-out or near-flat-out over a blind crest; the car goes light "
+                "making the rear unsettled. Apex mid-corner and aim right to set up "
+                "the brake zone for T2."
+            ),
+        ),
+        OfficialCorner(
+            number=2,
+            name="Andretti Hairpin",
+            fraction=0.105,
+            direction="left",
+            corner_type="hairpin",
+            elevation_trend="flat",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Double-apex left hairpin at the end of the fastest section — prime "
+                "overtaking zone under heavy braking. Hit the first apex then let "
+                "the car drift out before turning back for the second apex."
+            ),
+        ),
+        OfficialCorner(
+            number=3,
+            name="Turn 3",
+            fraction=0.205,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="downhill",
+            camber="off-camber",
+            blind=False,
+            coaching_notes=(
+                "Harder than it looks — mid-corner speed is where lap time is made. "
+                "Avoid braking too late which kills rotation; commit to a confident "
+                "entry and get back to throttle immediately after the apex."
+            ),
+        ),
+        OfficialCorner(
+            number=4,
+            name="Turn 4",
+            fraction=0.265,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="downhill",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Faster than it appears — can be flat or near-flat depending on the "
+                "car. Use a light touch of the inside kerb and focus on a clean exit."
+            ),
+        ),
+        OfficialCorner(
+            number=5,
+            name="Turn 5",
+            fraction=0.340,
+            direction="left",
+            corner_type="sweeper",
+            elevation_trend="uphill",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Long, tightening left-hander — carry more speed than instinct says, "
+                "as slight uphill and positive camber add grip. Exit goes off-camber, "
+                "so manage throttle progressively to avoid being pushed wide."
+            ),
+        ),
+        OfficialCorner(
+            number=6,
+            name="Turn 6",
+            fraction=0.440,
+            direction="left",
+            corner_type="sweeper",
+            elevation_trend="uphill",
+            camber="positive",
+            blind=True,
+            coaching_notes=(
+                "One of the most demanding corners — fast, blind, and uphill. Commit "
+                "fully to turn-in reference; use the inside kerb to rotate, then get "
+                "back to power early for maximum speed onto the Rahal Straight."
+            ),
+        ),
+        OfficialCorner(
+            number=7,
+            name="Turn 7",
+            fraction=0.540,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="uphill",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Braking zone and entry to the Corkscrew complex — brake firmly "
+                "uphill in a straight line before turning right. Position the car "
+                "on the left on exit to set up the plunge into T8."
+            ),
+        ),
+        OfficialCorner(
+            number=8,
+            name="Corkscrew",
+            fraction=0.615,
+            direction="left",
+            corner_type="chicane",
+            elevation_trend="downhill",
+            camber="negative",
+            blind=True,
+            coaching_notes=(
+                "The most famous corner in American motorsport — a blind left-right "
+                "chicane dropping 18m in 140m of track. Brake hard in a straight "
+                "line, trust your reference points as the world drops away."
+            ),
+        ),
+        OfficialCorner(
+            number=9,
+            name="Corkscrew Exit",
+            fraction=0.640,
+            direction="right",
+            corner_type="chicane",
+            elevation_trend="downhill",
+            camber="negative",
+            blind=False,
+            coaching_notes=(
+                "Right-hand exit at the steepest gradient — the car is still falling "
+                "steeply, so avoid aggressive inputs. Get straight as quickly as "
+                "possible to maximize exit speed toward Rainey Curve."
+            ),
+        ),
+        OfficialCorner(
+            number=10,
+            name="Rainey Curve",
+            fraction=0.730,
+            direction="left",
+            corner_type="sweeper",
+            elevation_trend="downhill",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Fast, flowing downhill sweeper named after Wayne Rainey — one of "
+                "the highest-speed corners. Brake only enough to allow rotation and "
+                "use the camber; manage throttle as banking fades on exit."
+            ),
+        ),
+        OfficialCorner(
+            number=11,
+            name="Turn 10",
+            fraction=0.820,
+            direction="right",
+            corner_type="sweeper",
+            elevation_trend="compression",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "Fast right-hander dropping into a well-cambered bowl — the car "
+                "loads up heavily gaining speed through the apex. Clip it and "
+                "track out fully, then reposition left for the final hairpin."
+            ),
+        ),
+        OfficialCorner(
+            number=12,
+            name="Turn 11",
+            fraction=0.905,
+            direction="left",
+            corner_type="hairpin",
+            elevation_trend="flat",
+            camber="positive",
+            blind=False,
+            coaching_notes=(
+                "The most important corner on the circuit — slowest point leading "
+                "onto the long front straight. Delay turn-in, trail-brake to rotate, "
+                "and prioritize a square exit at full throttle."
+            ),
+        ),
+    ],
+)
+
 # Registry of known tracks — keys are normalized (lowercased, stripped).
 _TRACK_REGISTRY: dict[str, TrackLayout] = {
     "barber motorsports park": BARBER_MOTORSPORTS_PARK,
@@ -818,6 +1019,9 @@ _TRACK_REGISTRY: dict[str, TrackLayout] = {
     "amp full": ATLANTA_MOTORSPORTS_PARK,
     "roebling road": ROEBLING_ROAD_RACEWAY,
     "roebling road raceway": ROEBLING_ROAD_RACEWAY,
+    "laguna seca": LAGUNA_SECA,
+    "weathertech raceway laguna seca": LAGUNA_SECA,
+    "mazda raceway laguna seca": LAGUNA_SECA,
 }
 
 
