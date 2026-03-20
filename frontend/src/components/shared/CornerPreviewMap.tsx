@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState, useCallback } from 'react';
-import MapGL, { Source, Layer, Marker } from 'react-map-gl/mapbox';
+import { useMemo, useState, useCallback, useRef } from 'react';
+import MapGL, { Source, Layer, Marker, type MapRef } from 'react-map-gl/mapbox';
 import * as d3 from 'd3';
 import type { LngLatBoundsLike } from 'mapbox-gl';
 import { useSessionStore } from '@/stores';
@@ -45,6 +45,7 @@ function interpolatePosition(
 export function CornerPreviewMap({ cornerNum, width = 320, height = 220 }: CornerPreviewMapProps) {
   const sessionId = useSessionStore((s) => s.activeSessionId);
   const { data: corners } = useCorners(sessionId);
+  const mapRef = useRef<MapRef>(null);
 
   // Use first selected lap, or fall back to lap 1
   const selectedLaps = useAnalysisStore((s) => s.selectedLaps);
@@ -52,13 +53,9 @@ export function CornerPreviewMap({ cornerNum, width = 320, height = 220 }: Corne
   const lapNums = useMemo(() => [lapNum], [lapNum]);
   const { data: multiLap } = useMultiLapData(sessionId, lapNums);
 
-  const [mapLoaded, setMapLoaded] = useState(false);
-  const [visible, setVisible] = useState(false);
-  const onLoad = useCallback(() => {
-    setMapLoaded(true);
-    // Delay visibility until tiles have rendered to prevent blink
-    setTimeout(() => setVisible(true), 200);
-  }, []);
+  // Fade in only after map has finished rendering tiles + layers
+  const [ready, setReady] = useState(false);
+  const onIdle = useCallback(() => setReady(true), []);
 
   const corner = useMemo(
     () => corners?.find((c) => c.number === cornerNum) ?? null,
@@ -131,10 +128,7 @@ export function CornerPreviewMap({ cornerNum, width = 320, height = 220 }: Corne
     const maxLat = Math.max(...allLats) + BOUNDS_PAD;
 
     const computedBounds: LngLatBoundsLike = [[minLon, minLat], [maxLon, maxLat]];
-
-    // Apex position for corner label
     const apex = interpolatePosition(corner.apex_distance_m, lapData);
-
     const fc: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features };
     return { bounds: computedBounds, geojson: fc, apexPos: apex };
   }, [corner, lapData]);
@@ -142,7 +136,7 @@ export function CornerPreviewMap({ cornerNum, width = 320, height = 220 }: Corne
   if (!MAPBOX_TOKEN || !bounds || !geojson) {
     return (
       <div
-        className="flex items-center justify-center rounded bg-[var(--bg-base)] text-xs text-[var(--text-secondary)]"
+        className="flex items-center justify-center rounded-t-lg bg-[var(--bg-base)] text-xs text-[var(--text-secondary)]"
         style={{ width, height }}
       >
         {!MAPBOX_TOKEN ? 'Map unavailable' : 'Loading...'}
@@ -152,47 +146,49 @@ export function CornerPreviewMap({ cornerNum, width = 320, height = 220 }: Corne
 
   return (
     <div className="relative overflow-hidden rounded-t-lg" style={{ width, height }}>
-      {/* Loading skeleton visible until map tiles render */}
-      {!visible && (
-        <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg-base)] text-xs text-[var(--text-secondary)]">
+      {/* Skeleton shown until map is fully rendered (tiles + layers) */}
+      {!ready && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--bg-base)] text-xs text-[var(--text-secondary)]">
           Loading map...
         </div>
       )}
-      <div style={{ opacity: visible ? 1 : 0, transition: 'opacity 250ms ease-in' }} className="h-full w-full">
-      <MapGL
-        mapboxAccessToken={MAPBOX_TOKEN}
-        initialViewState={{ bounds, fitBoundsOptions: { padding: 30 } }}
-        style={{ width: '100%', height: '100%' }}
-        mapStyle="mapbox://styles/mapbox/satellite-v9"
-        interactive={false}
-        attributionControl={false}
-        logoPosition="bottom-right"
-        onLoad={onLoad}
-      >
-        {mapLoaded && (
-          <>
-            <Source id="corner-preview-line" type="geojson" data={geojson}>
-              <Layer
-                id="corner-preview-line-layer"
-                type="line"
-                paint={{
-                  'line-color': ['get', 'color'],
-                  'line-width': 3.5,
-                  'line-opacity': 0.9,
-                }}
-              />
-            </Source>
 
-            {apexPos && (
-              <Marker longitude={apexPos[0]} latitude={apexPos[1]} anchor="center">
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--cata-accent)] text-[10px] font-bold text-black shadow">
-                  {cornerNum}
-                </div>
-              </Marker>
-            )}
-          </>
-        )}
-      </MapGL>
+      <div
+        className="h-full w-full"
+        style={{ opacity: ready ? 1 : 0, transition: 'opacity 200ms ease-in' }}
+      >
+        <MapGL
+          ref={mapRef}
+          mapboxAccessToken={MAPBOX_TOKEN}
+          initialViewState={{ bounds, fitBoundsOptions: { padding: 30 } }}
+          style={{ width: '100%', height: '100%' }}
+          mapStyle="mapbox://styles/mapbox/satellite-v9"
+          interactive={false}
+          attributionControl={false}
+          logoPosition="bottom-right"
+          onIdle={onIdle}
+        >
+          {/* No mapLoaded gate — react-map-gl v8 queues source/layer ops until ready */}
+          <Source id="corner-preview-line" type="geojson" data={geojson}>
+            <Layer
+              id="corner-preview-line-layer"
+              type="line"
+              paint={{
+                'line-color': ['get', 'color'],
+                'line-width': 3.5,
+                'line-opacity': 0.9,
+              }}
+            />
+          </Source>
+
+          {apexPos && (
+            <Marker longitude={apexPos[0]} latitude={apexPos[1]} anchor="center">
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--cata-accent)] text-[10px] font-bold text-black shadow">
+                {cornerNum}
+              </div>
+            </Marker>
+          )}
+        </MapGL>
       </div>
     </div>
   );
