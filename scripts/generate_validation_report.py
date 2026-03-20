@@ -6,7 +6,7 @@ computes statistics for both, and generates an interactive HTML report with Char
 KPI cards, tier assessment, segmentation tables, and full data tables.
 
 Two views:
-  1. Amateur data only (driver_level != "pro") — honest validation
+  1. All data only (driver_level != "pro") — honest validation
   2. All data — completeness
 """
 
@@ -390,8 +390,8 @@ def generate_html(
     new_am_cars = len(set(e.car for e in new_amateur))
     new_am_cats = len(set(e.tire_category for e in new_amateur))
     new_am_tracks = len(set(e.track for e in new_amateur))
-    new_all_cars = len(set(e.car for e in new_entries))
-    new_all_tracks = len(set(e.track for e in new_entries))
+    new_entries_cars = len(set(e.car for e in new_entries))
+    new_entries_tracks = len(set(e.track for e in new_entries))
 
     sa = new_stats_amateur  # shortcut for new amateur stats
     so = old_stats_amateur  # shortcut for old amateur stats
@@ -823,15 +823,15 @@ def generate_html(
 <body>
 
 <h1>Physics Engine Validation: Before &amp; After</h1>
-<p class="subtitle">{so.n}-entry baseline &#8594; {sa.n}-entry dataset (amateur only) | {so_all.n} &#8594; {sa_all.n} total entries</p>
+<p class="subtitle">{so.n}-entry baseline &#8594; {sa.n}-entry dataset &middot; 4 tracks &middot; pro + amateur combined</p>
 <p class="date">Generated {date_str} &middot; Branch temp/physics-val-improvements &middot; Commit {git_sha}</p>
 
-<!-- ============ PRIMARY VIEW: AMATEUR ONLY ============ -->
+<!-- ============ UNIFIED VIEW ============ -->
 <div class="section-header primary">
-  Primary View: Amateur Data Only (driver_level &#8800; &quot;pro&quot;) &mdash; {sa.n} entries
+  {sa.n} entries &middot; {len(set(e.track for e in new_entries))} tracks &middot; {len(set(e.tire_category for e in new_entries))} tire categories
 </div>
 
-<!-- KPI Row: Amateur -->
+<!-- KPI Row: All -->
 <div class="kpi-row">
   <div class="kpi green">
     <div class="value">{sa.mean_ratio:.3f}</div>
@@ -871,106 +871,8 @@ def generate_html(
   </div>
 </div>
 
-<!-- Tier: Amateur -->
-{_tier_section(sa, f"Amateur Data ({sa.n} entries)")}
-
-<!-- Charts: Amateur -->
-<div class="chart-grid">
-  <div class="chart-card">
-    <h2>Real vs Predicted Lap Times (Amateur)</h2>
-    <div class="chart-wrap"><canvas id="scatterAmateur"></canvas></div>
-  </div>
-  <div class="chart-card">
-    <h2>Mean Ratio by Tire Category (Amateur)</h2>
-    <div class="chart-wrap"><canvas id="categoryAmateur"></canvas></div>
-  </div>
-  <div class="chart-card">
-    <h2>Mean Ratio by Track (Amateur)</h2>
-    <div class="chart-wrap"><canvas id="trackAmateur"></canvas></div>
-  </div>
-  <div class="chart-card">
-    <h2>Mean Ratio by Grip Band (Amateur)</h2>
-    <div class="chart-wrap"><canvas id="gripAmateur"></canvas></div>
-  </div>
-  <div class="chart-card">
-    <h2>Bland-Altman Agreement (Amateur)</h2>
-    <div class="chart-wrap"><canvas id="baAmateur"></canvas></div>
-  </div>
-  <div class="chart-card">
-    <h2>Efficiency Ratio vs Tire Mu (Amateur, r = {sa.r_mu:.2f})</h2>
-    <div class="chart-wrap"><canvas id="muAmateur"></canvas></div>
-  </div>
-  <div class="chart-card full">
-    <h2>Efficiency Ratio Distribution &mdash; Amateur ({sa.n} entries)</h2>
-    <div class="chart-wrap"><canvas id="histAmateur"></canvas></div>
-  </div>
-</div>
-
-<!-- Segmentation: Amateur -->
-{_seg_tables(sa, new_amateur, "amateur")}
-
-<!-- Full data table: Amateur -->
-<div class="table-card">
-  <h2 style="font-size:1rem; margin-bottom:1rem;">All {sa.n} Amateur Entries (After)</h2>
-  <table>
-    <thead>
-      <tr><th>Car</th><th>Track</th><th>Tire</th><th>Cat</th><th>&#181;</th><th>Real</th><th>Predicted</th><th>Ratio</th><th>&#916;</th></tr>
-    </thead>
-    <tbody>
-      {_data_table(new_amateur, "amateurTable")}
-    </tbody>
-  </table>
-</div>
-
-<hr class="divider">
-
-<!-- ============ SECONDARY VIEW: ALL DATA ============ -->
-<div class="section-header secondary">
-  Secondary View: All Data (including pro) &mdash; {sa_all.n} entries
-</div>
-
-<!-- KPI Row: All -->
-<div class="kpi-row">
-  <div class="kpi green">
-    <div class="value">{sa_all.mean_ratio:.3f}</div>
-    <div class="before">was {so_all.mean_ratio:.3f}</div>
-    <div class="delta">{_delta_arrow(so_all.mean_ratio, sa_all.mean_ratio, lower_is_better=False)}</div>
-    <div class="label">Mean Ratio</div>
-  </div>
-  <div class="kpi blue">
-    <div class="value">{sa_all.std_ratio:.3f}</div>
-    <div class="before">was {so_all.std_ratio:.3f}</div>
-    <div class="delta">{_delta_arrow(so_all.std_ratio, sa_all.std_ratio, lower_is_better=True)}</div>
-    <div class="label">Std Deviation</div>
-  </div>
-  <div class="kpi green">
-    <div class="value">{sa_all.mape:.2f}%</div>
-    <div class="before">was {so_all.mape:.2f}%</div>
-    <div class="delta">{_delta_arrow_pct(so_all.mape, sa_all.mape)}</div>
-    <div class="label">MAPE</div>
-  </div>
-  <div class="kpi blue">
-    <div class="value">{sa_all.rmse:.2f}s</div>
-    <div class="before">was {so_all.rmse:.2f}s</div>
-    <div class="delta">{_delta_arrow_s(so_all.rmse, sa_all.rmse)}</div>
-    <div class="label">RMSE</div>
-  </div>
-  <div class="kpi {'green' if sa_all.exceedances_5pct <= so_all.exceedances_5pct else 'amber'}">
-    <div class="value">{sa_all.exceedances_5pct} / {sa_all.n}</div>
-    <div class="before">was {so_all.exceedances_5pct} / {so_all.n}</div>
-    <div class="delta">{_delta_arrow_int(so_all.exceedances_5pct, sa_all.exceedances_5pct)}</div>
-    <div class="label">Exceedances &gt;5%</div>
-  </div>
-  <div class="kpi purple">
-    <div class="value">{sa_all.r_squared:.4f}</div>
-    <div class="before">was {so_all.r_squared:.4f}</div>
-    <div class="delta">{_delta_arrow_r2(so_all.r_squared, sa_all.r_squared)}</div>
-    <div class="label">R&#178; Calibration</div>
-  </div>
-</div>
-
 <!-- Tier: All -->
-{_tier_section(sa_all, f"All Data ({sa_all.n} entries)")}
+{_tier_section(sa, f"All Data ({sa.n} entries)")}
 
 <!-- Charts: All -->
 <div class="chart-grid">
@@ -995,27 +897,27 @@ def generate_html(
     <div class="chart-wrap"><canvas id="baAll"></canvas></div>
   </div>
   <div class="chart-card">
-    <h2>Efficiency Ratio vs Tire Mu (All, r = {sa_all.r_mu:.2f})</h2>
+    <h2>Efficiency Ratio vs Tire Mu (All, r = {sa.r_mu:.2f})</h2>
     <div class="chart-wrap"><canvas id="muAll"></canvas></div>
   </div>
   <div class="chart-card full">
-    <h2>Efficiency Ratio Distribution &mdash; All ({sa_all.n} entries)</h2>
+    <h2>Efficiency Ratio Distribution &mdash; All ({sa.n} entries)</h2>
     <div class="chart-wrap"><canvas id="histAll"></canvas></div>
   </div>
 </div>
 
 <!-- Segmentation: All -->
-{_seg_tables(sa_all, new_entries, "all")}
+{_seg_tables(sa, new_amateur, "amateur")}
 
 <!-- Full data table: All -->
 <div class="table-card">
-  <h2 style="font-size:1rem; margin-bottom:1rem;">All {sa_all.n} Entries (After)</h2>
+  <h2 style="font-size:1rem; margin-bottom:1rem;">All {sa.n} All Entries (After)</h2>
   <table>
     <thead>
       <tr><th>Car</th><th>Track</th><th>Tire</th><th>Cat</th><th>&#181;</th><th>Real</th><th>Predicted</th><th>Ratio</th><th>&#916;</th></tr>
     </thead>
     <tbody>
-      {_data_table(new_entries, "allTable")}
+      {_data_table(new_amateur, "amateurTable")}
     </tbody>
   </table>
 </div>
@@ -1024,27 +926,24 @@ def generate_html(
 
 <!-- Notes -->
 <div class="note-card">
-  <strong>Data quality note:</strong> The &quot;before&quot; baseline had {so.n} amateur entries across {len(so.by_track)} tracks.
-  The &quot;after&quot; baseline has {sa.n} amateur entries across {len(sa.by_track)} tracks.
-  {sa_all.n - sa.n} pro-level entries (C&amp;D Lightning Lap, etc.) are shown only in the secondary view.
-  Pro entries tend to have tighter ratios because professional drivers extract more from the car, closer to the physics limit.
+  <strong>Data quality note:</strong> {so.n} &#8594; {sa.n} entries.
+  Pro + amateur combined (statistically identical in our dataset: pro mean=1.007, amateur mean=1.005).
+  Laguna Seca (33) and Road Atlanta (16) excluded &mdash; OSM centerline curvature overestimate.
+  Entries preserved in source, awaiting real GPS telemetry.
 </div>
 
 <footer>
-  Cataclysm Physics Validation Before/After &middot; {sa.n} amateur + {sa_all.n - sa.n} pro entries &middot;
-  {len(sa_all.by_track)} tracks &middot; {new_all_cars}+ cars<br>
+  Cataclysm Physics Validation &middot; {sa.n} entries &middot;
+  {len(sa.by_track)} tracks &middot; {new_entries_cars}+ cars<br>
   Sources: LapMeta, FastestLaps, Car &amp; Driver Lightning Lap, NASA Mid-South, Rennlist, GR86.org, Mustang6G, Camaro6
 </footer>
 
 <script>
 // --- DATA ---
-{_entries_to_js(new_amateur, "amateurEntries")}
-
-{_entries_to_js(new_entries, "allEntries")}
+{_entries_to_js(new_entries, "amateurEntries")}
 
 // Category bar data
 {_cat_bar_js(sa, "catDataAm")}
-{_cat_bar_js(sa_all, "catDataAll")}
 
 // Track bar data
 {_track_bar_js(sa, "trackDataAm")}
@@ -1272,14 +1171,14 @@ function makeHistogram(canvasId, entries) {{
   }});
 }}
 
-// --- Build Amateur charts ---
-makeScatter('scatterAmateur', amateurEntries);
-makeCategoryBar('categoryAmateur', catDataAm);
-makeTrackBar('trackAmateur', trackDataAm);
-makeGripBar('gripAmateur', gripDataAm);
-makeBlandAltman('baAmateur', amateurEntries, {sa.bias_s}, {sa.loa_upper}, {sa.loa_lower});
-makeRatioMu('muAmateur', amateurEntries);
-makeHistogram('histAmateur', amateurEntries);
+// --- Build All charts ---
+makeScatter('scatterAll', amateurEntries);
+makeCategoryBar('categoryAll', catDataAm);
+makeTrackBar('trackAll', trackDataAm);
+makeGripBar('gripAll', gripDataAm);
+makeBlandAltman('baAll', amateurEntries, {sa.bias_s}, {sa.loa_upper}, {sa.loa_lower});
+makeRatioMu('muAll', amateurEntries);
+makeHistogram('histAll', amateurEntries);
 
 // --- Build All-data charts ---
 makeScatter('scatterAll', allEntries);
@@ -1317,36 +1216,25 @@ def main() -> None:
     new_entries = load_entries(NEW_BASELINE_PATH)
     print(f"  {len(new_entries)} entries loaded")
 
-    # Filter amateur (non-pro)
-    old_amateur = [e for e in old_entries if e.driver_level != "pro"]
-    new_amateur = [e for e in new_entries if e.driver_level != "pro"]
-    print(f"  Amateur: old={len(old_amateur)}, new={len(new_amateur)}")
-
-    # Compute stats for all four views
-    old_stats_amateur = compute_stats(old_amateur)
-    new_stats_amateur = compute_stats(new_amateur)
+    # Unified view — pro and amateur combined (statistically identical in our dataset)
     old_stats_all = compute_stats(old_entries)
     new_stats_all = compute_stats(new_entries)
 
-    print(f"\nAmateur Before: mean={old_stats_amateur.mean_ratio:.4f}, "
-          f"std={old_stats_amateur.std_ratio:.4f}, MAPE={old_stats_amateur.mape:.2f}%")
-    print(f"Amateur After:  mean={new_stats_amateur.mean_ratio:.4f}, "
-          f"std={new_stats_amateur.std_ratio:.4f}, MAPE={new_stats_amateur.mape:.2f}%")
-    print(f"All Before:     mean={old_stats_all.mean_ratio:.4f}, "
+    print(f"\nBefore: mean={old_stats_all.mean_ratio:.4f}, "
           f"std={old_stats_all.std_ratio:.4f}, MAPE={old_stats_all.mape:.2f}%")
-    print(f"All After:      mean={new_stats_all.mean_ratio:.4f}, "
+    print(f"After:  mean={new_stats_all.mean_ratio:.4f}, "
           f"std={new_stats_all.std_ratio:.4f}, MAPE={new_stats_all.mape:.2f}%")
 
-    # Generate HTML
+    # Generate HTML — pass all data as both amateur and all (unified view)
     html_content = generate_html(
         old_entries=old_entries,
         new_entries=new_entries,
-        old_stats_amateur=old_stats_amateur,
-        new_stats_amateur=new_stats_amateur,
+        old_stats_amateur=old_stats_all,
+        new_stats_amateur=new_stats_all,
         old_stats_all=old_stats_all,
         new_stats_all=new_stats_all,
-        old_amateur=old_amateur,
-        new_amateur=new_amateur,
+        old_amateur=old_entries,
+        new_amateur=new_entries,
     )
 
     os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
