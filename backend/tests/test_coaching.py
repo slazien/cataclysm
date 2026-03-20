@@ -9,7 +9,6 @@ from unittest.mock import patch
 
 import pytest
 from cataclysm.coaching import CoachingReport, CornerGrade
-from cataclysm.corners_gained import CornerGainDetail, CornersGainedResult
 from httpx import AsyncClient
 
 from backend.api.schemas.coaching import PriorityCornerSchema
@@ -1294,15 +1293,15 @@ def test_priority_corner_schema_clamps_invalid_time_cost_values() -> None:
 
 
 @pytest.mark.asyncio
-async def test_run_generation_caps_and_resorts_priority_time_costs(
+async def test_run_generation_preserves_priority_order_and_clamps_negatives(
     client: AsyncClient,
 ) -> None:
-    """Persist bounded time estimates instead of raw AI claims."""
+    """Priority corners pass through as-is; Pydantic clamps negatives to 0."""
     report = CoachingReport(
         summary="Session summary.",
         priority_corners=[
-            {"corner": 3, "time_cost_s": 9.9, "issue": "late apex", "tip": "wait"},
-            {"corner": 1, "time_cost_s": 0.2, "issue": "brake release", "tip": "ease off"},
+            {"corner": 3, "time_cost_s": 0.3, "issue": "late apex", "tip": "wait"},
+            {"corner": 1, "time_cost_s": 0.1, "issue": "brake release", "tip": "ease off"},
             {"corner": 5, "time_cost_s": -0.4, "issue": "rotation", "tip": "slow hands"},
         ],
         corner_grades=[],
@@ -1310,45 +1309,10 @@ async def test_run_generation_caps_and_resorts_priority_time_costs(
         drills=[],
         raw_response="",
     )
-    bounded = CornersGainedResult(
-        target_lap_s=99.5,
-        current_best_s=100.0,
-        total_gap_s=0.5,
-        per_corner=[
-            CornerGainDetail(
-                corner_number=1,
-                braking_gain_s=0.04,
-                min_speed_gain_s=0.02,
-                throttle_gain_s=0.01,
-                consistency_gain_s=0.03,
-                total_gain_s=0.1,
-            ),
-            CornerGainDetail(
-                corner_number=3,
-                braking_gain_s=0.12,
-                min_speed_gain_s=0.08,
-                throttle_gain_s=0.05,
-                consistency_gain_s=0.05,
-                total_gain_s=0.3,
-            ),
-        ],
-        total_braking_s=0.16,
-        total_min_speed_s=0.1,
-        total_throttle_s=0.06,
-        total_consistency_s=0.08,
-        top_opportunities=[],
-        coaching_summary="",
-    )
 
     session_id = await _upload_session(client)
 
-    with (
-        patch("cataclysm.coaching.generate_coaching_report", return_value=report),
-        patch(
-            "cataclysm.corners_gained.compute_corners_gained",
-            return_value=bounded,
-        ),
-    ):
+    with patch("cataclysm.coaching.generate_coaching_report", return_value=report):
         await client.post(
             f"/api/coaching/{session_id}/report",
             json={"skill_level": "intermediate"},
@@ -1358,6 +1322,7 @@ async def test_run_generation_caps_and_resorts_priority_time_costs(
     response = await client.get(f"/api/coaching/{session_id}/report")
     assert response.status_code == 200
     data = response.json()
+    # Order preserved from LLM (no re-sort); negative clamped to 0 by Pydantic validator
     assert [(pc["corner"], pc["time_cost_s"]) for pc in data["priority_corners"]] == [
         (3, pytest.approx(0.3)),
         (1, pytest.approx(0.1)),

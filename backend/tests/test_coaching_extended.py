@@ -4,7 +4,6 @@ Missing lines targeted:
   [109, 110] — generate_report: force=True but remaining=0 → 429
   [186] — generate_report: already generating → return _generating_response
   [202] — generate_report: existing report with error status → clear + re-generate
-  [243, 244] — _run_generation: session_cap_s from gains.theoretical
   [349] — _run_generation: "Could not parse" in summary → retryable error
   [355, 356, 357] — _run_generation: last_exc raised after all retries
   [365, 366] — _run_generation: RateLimitError → retry with backoff
@@ -22,7 +21,6 @@ from httpx import AsyncClient
 
 from backend.api.routers.coaching import (
     _parse_priority_corner_number,
-    _sanitize_priority_time_cost,
     _track_task,
 )
 from backend.api.schemas.coaching import CoachingReportResponse
@@ -175,65 +173,6 @@ class TestParsePriorityCornerNumber:
     def test_float_string_returns_zero(self) -> None:
         # int("4.9") raises ValueError — returns 0
         assert _parse_priority_corner_number("4.9") == 0
-
-
-# ---------------------------------------------------------------------------
-# _sanitize_priority_time_cost — unit tests
-# ---------------------------------------------------------------------------
-
-
-class TestSanitizePriorityTimeCost:
-    """Unit tests for _sanitize_priority_time_cost."""
-
-    def test_valid_value_is_returned(self) -> None:
-        result = _sanitize_priority_time_cost(
-            1.5, corner_num=3, per_corner_caps={}, session_cap_s=None
-        )
-        assert result == 1.5
-
-    def test_value_capped_at_absolute_maximum(self) -> None:
-        result = _sanitize_priority_time_cost(
-            100.0, corner_num=3, per_corner_caps={}, session_cap_s=None
-        )
-        assert result == 3.0  # _ABSOLUTE_PRIORITY_TIME_CAP_S = 3.0
-
-    def test_session_cap_applied(self) -> None:
-        result = _sanitize_priority_time_cost(
-            3.0, corner_num=3, per_corner_caps={}, session_cap_s=1.0
-        )
-        assert result == 1.0
-
-    def test_per_corner_cap_applied(self) -> None:
-        result = _sanitize_priority_time_cost(
-            3.0, corner_num=3, per_corner_caps={3: 0.5}, session_cap_s=None
-        )
-        assert result == 0.5
-
-    def test_invalid_value_returns_zero(self) -> None:
-        result = _sanitize_priority_time_cost(
-            "not-a-float", corner_num=1, per_corner_caps={}, session_cap_s=None
-        )
-        assert result == 0.0
-
-    def test_negative_value_returns_zero(self) -> None:
-        result = _sanitize_priority_time_cost(
-            -1.0, corner_num=1, per_corner_caps={}, session_cap_s=None
-        )
-        assert result == 0.0
-
-    def test_inf_returns_zero(self) -> None:
-        import math
-
-        result = _sanitize_priority_time_cost(
-            math.inf, corner_num=1, per_corner_caps={}, session_cap_s=None
-        )
-        assert result == 0.0
-
-    def test_none_returns_zero(self) -> None:
-        result = _sanitize_priority_time_cost(
-            None, corner_num=1, per_corner_caps={}, session_cap_s=None
-        )
-        assert result == 0.0
 
 
 # ---------------------------------------------------------------------------
