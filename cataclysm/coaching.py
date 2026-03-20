@@ -461,6 +461,30 @@ def _format_optimal_comparison(result: OptimalComparisonResult) -> str:
     return "\n".join(lines)
 
 
+def _build_priority_corner_instruction(
+    optimal: OptimalComparisonResult,
+    max_priorities: int,
+) -> str:
+    """Build explicit corner list for priority_corners based on physics ranking."""
+    top = [opp for opp in optimal.corner_opportunities[:max_priorities] if opp.time_cost_s > 0]
+    if not top:
+        return ""
+    lines = [
+        "Write coaching text for these specific priority corners "
+        "(ranked by physics time loss — do NOT reorder, add, or remove corners):",
+    ]
+    for opp in top:
+        brake_info = ""
+        if opp.brake_gap_m is not None and abs(opp.brake_gap_m) > 0.5:
+            direction = "early" if opp.brake_gap_m < 0 else "late"
+            brake_info = f", brakes {abs(opp.brake_gap_m):.0f}m {direction}"
+        lines.append(
+            f"- T{opp.corner_number} ({opp.time_cost_s:.2f}s time cost, "
+            f"{opp.speed_gap_mph:+.1f} mph gap{brake_info})"
+        )
+    return "\n".join(lines)
+
+
 def _format_landmark_context(
     all_lap_corners: dict[int, list[Corner]],
     landmarks: list[Landmark],
@@ -898,6 +922,10 @@ def _build_coaching_prompt(
 
     optimal_section = ""
     optimal_instruction = ""
+    # Determine priority corner count by skill level (needed for physics ranking)
+    _max_priority_map = {"novice": 2, "intermediate": 3, "advanced": 4}
+    max_priorities = _max_priority_map.get(effective_skill, 3)
+
     if optimal_comparison is not None:
         optimal_section = f"\n{_format_optimal_comparison(optimal_comparison)}\n"
         optimal_instruction = (
@@ -905,6 +933,13 @@ def _build_coaching_prompt(
             "lap based on the car's grip limits. Reference specific corner "
             "speed gaps when coaching. Larger gaps indicate the driver is "
             "leaving more time on the table.\n"
+        )
+
+    priority_corner_instruction = ""
+    if optimal_comparison is not None:
+        priority_corner_instruction = _build_priority_corner_instruction(
+            optimal_comparison,
+            max_priorities,
         )
 
     equipment_section = _format_equipment_context(equipment_profile, conditions)
@@ -1006,9 +1041,49 @@ def _build_coaching_prompt(
     # Determine the number of corners from the data to constrain the AI output.
     num_corners = len(next(iter(all_lap_corners.values()), []))
 
-    # Determine priority corner count by skill level
-    _max_priority_map = {"novice": 2, "intermediate": 3, "advanced": 4}
-    max_priorities = _max_priority_map.get(effective_skill, 3)
+    # Build conditional priority_corners schema and instruction based on physics
+    if priority_corner_instruction:
+        priority_corners_schema = (
+            '  "priority_corners": [\n'
+            "    {{\n"
+            '      "corner": <corner number from the list above>,\n'
+            '      "issue": "<what the data shows across all laps — include root cause chain>",\n'
+            '      "tip": "<MUST name the corner (T# or name+number) in the first sentence. '
+            "Actionable advice with 'because' clause and what the driver will FEEL>\"\n"
+            "    }}\n"
+            "  ],"
+        )
+        priority_corners_sort = (
+            f"{priority_corner_instruction}\n"
+            "\n"
+            "For each corner listed above, provide coaching text with ONE specific actionable "
+            'change and a "because" clause explaining why. Use the exact corner numbers '
+            "listed above — do NOT reorder, add, or remove corners."
+        )
+    else:
+        priority_corners_schema = (
+            '  "priority_corners": [\n'
+            "    {{\n"
+            '      "corner": <number>,\n'
+            '      "time_cost_s": <estimated avg time lost vs best lap at this corner>,\n'
+            '      "issue": "<what the data shows across all laps — include root cause chain>",\n'
+            '      "tip": "<MUST name the corner (T# or name+number) in the first sentence. '
+            "Actionable advice with 'because' clause and what the driver will FEEL>\"\n"
+            "    }}\n"
+            "  ],"
+        )
+        priority_corners_sort = (
+            f"Sort priority_corners by time_cost_s descending "
+            f"(biggest avg time loss first).\n"
+            f"Identify the {max_priorities} corners with the largest improvement "
+            f"opportunity. "
+            f"For each, provide ONE specific actionable change with a "
+            f'"because" clause explaining why. '
+            f"Do NOT include more than {max_priorities} priorities in "
+            f"priority_corners. "
+            f"If fewer corners have meaningful improvement potential, "
+            f"include only those."
+        )
 
     return f"""<session_data>
 <session_info>
@@ -1064,15 +1139,7 @@ not what the body should do. Include a 'because' clause with data.",
   "summary": "2-3 sentence overview — START with 2-3 data-backed strengths, \
 then transition to the biggest opportunity. End with one reflective question \
 referencing specific telemetry patterns.",
-  "priority_corners": [
-    {{
-      "corner": <number>,
-      "time_cost_s": <estimated avg time lost vs best lap at this corner>,
-      "issue": "<what the data shows across all laps — include root cause chain>",
-      "tip": "<MUST name the corner (T# or name+number) in the first sentence. \
-Actionable advice with 'because' clause and what the driver will FEEL>"
-    }}
-  ],
+{priority_corners_schema}
   "corner_grades": [
     {{
       "corner": <number>,
@@ -1115,11 +1182,7 @@ Structure each drill with markdown: use a bold title, then separate paragraphs \
 (use \\n\\n within the JSON string) for focus areas and measurable targets. \
 Keep each paragraph to 1-2 sentences. Never write a wall of text.
 
-Sort priority_corners by time_cost_s descending (biggest avg time loss first).
-Identify the {max_priorities} corners with the largest improvement opportunity. \
-For each, provide ONE specific actionable change with a "because" clause explaining why. \
-Do NOT include more than {max_priorities} priorities in priority_corners. \
-If fewer corners have meaningful improvement potential, include only those.
+{priority_corners_sort}
 
 Grading criteria (evidence-anchored):
   BRAKING: A = std < 3m + peak G within 0.05G of best |
