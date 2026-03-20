@@ -2518,6 +2518,16 @@ _ROAD_ATLANTA_ENTRIES: list[RealWorldLapTime] = [
 # overestimation. Re-enable when real GPS telemetry is available.
 # CURATED_LAP_TIMES.extend(_ROAD_ATLANTA_ENTRIES)
 
+# Exclude tracks with known OSM curvature quality issues.
+# These entries stay in the source for when we get real GPS telemetry.
+_EXCLUDED_TRACKS: set[str] = {
+    "WeatherTech Raceway Laguna Seca",  # OSM centerline ~28% curvature overestimate
+    "Michelin Raceway Road Atlanta",  # OSM centerline ~13% curvature overestimate
+}
+CURATED_LAP_TIMES = [
+    rw for rw in CURATED_LAP_TIMES if rw.track_name not in _EXCLUDED_TRACKS
+]
+
 
 # ---------------------------------------------------------------------------
 # Vehicle params builder (reused from benchmark script)
