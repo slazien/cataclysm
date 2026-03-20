@@ -9,6 +9,7 @@ import { useCorners, useConsistency, useGPSQuality, useOptimalComparison } from 
 import { usePreviousSessionDelta } from '@/hooks/usePreviousSessionDelta';
 import { useRecentAchievements } from '@/hooks/useAchievements';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
+import { useMergedPriorities } from '@/hooks/useMergedPriorities';
 import { useTour } from '@/hooks/useTour';
 import { getReportSteps } from '@/components/tour/tourSteps';
 import { OptimalGapChart } from './OptimalGapChart';
@@ -119,6 +120,7 @@ export function SessionReport() {
   const { data: gpsQuality } = useGPSQuality(activeSessionId);
   const { data: optimalComparison, isPlaceholderData: isOptimalStale, isPending: isOptimalPending } = useOptimalComparison(activeSessionId);
   const { cornerDeltas } = usePreviousSessionDelta(session, optimalComparison);
+  const mergedPriorities = useMergedPriorities(report, optimalComparison, 3);
   const { data: recentAchievementsData } = useRecentAchievements(!!activeSessionId);
   const { isNovice, isAdvanced, showFeature } = useSkillLevel();
   const skillLevel = useUiStore((s) => s.skillLevel);
@@ -249,13 +251,11 @@ export function SessionReport() {
           </div>
         )}
 
-        {report?.priority_corners && report.priority_corners.length > 0 && (
+        {mergedPriorities.length > 0 && (
           <PriorityCardsSection
-            priorities={report.priority_corners}
+            priorities={mergedPriorities}
             isNovice={isNovice}
-            cornerGrades={report.corner_grades}
-            optimalComparison={optimalComparison}
-            isOptimalRefreshing={isOptimalStale}
+            cornerGrades={report?.corner_grades}
             cornerDeltas={cornerDeltas}
           />
         )}

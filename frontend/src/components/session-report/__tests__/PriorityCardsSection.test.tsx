@@ -70,11 +70,25 @@ vi.mock('lucide-react', () => ({
   ),
 }));
 
+// Helper: create a MergedPriority fixture with defaults
+function mp(overrides: Partial<import('@/lib/types').MergedPriority> & { corner: number }): import('@/lib/types').MergedPriority {
+  return {
+    time_cost_s: 0,
+    issue: '',
+    tip: '',
+    source: 'llm',
+    speed_gap_mph: null,
+    brake_gap_m: null,
+    exit_straight_time_cost_s: null,
+    ...overrides,
+  };
+}
+
 describe('PriorityCardsSection', () => {
   it('renders the "Priority Improvements" heading', () => {
     render(
       <PriorityCardsSection
-        priorities={[{ corner: 4, time_cost_s: 0.45, issue: 'Late apex', tip: 'Wait longer' }]}
+        priorities={[mp({ corner: 4, time_cost_s: 0.45, issue: 'Late apex', tip: 'Wait longer' })]}
         isNovice={false}
       />,
     );
@@ -84,7 +98,7 @@ describe('PriorityCardsSection', () => {
   it('shows bounded opportunity wording instead of a negative loss badge', () => {
     render(
       <PriorityCardsSection
-        priorities={[{ corner: 4, time_cost_s: 0.45, issue: 'Late apex', tip: 'Wait longer' }]}
+        priorities={[mp({ corner: 4, time_cost_s: 0.45, issue: 'Late apex', tip: 'Wait longer' })]}
         isNovice={false}
       />,
     );
@@ -97,7 +111,7 @@ describe('PriorityCardsSection', () => {
     render(
       <PriorityCardsSection
         priorities={[
-          { corner: 7, time_cost_s: 0, issue: 'Turn-in timing', tip: 'Reset hands' },
+          mp({ corner: 7, time_cost_s: 0, issue: 'Turn-in timing', tip: 'Reset hands' }),
         ]}
         isNovice={false}
       />,
@@ -110,8 +124,8 @@ describe('PriorityCardsSection', () => {
     render(
       <PriorityCardsSection
         priorities={[
-          { corner: 3, time_cost_s: 0.5, issue: 'Late braking at corner', tip: 'Brake earlier' },
-          { corner: 7, time_cost_s: 0.3, issue: 'Missing apex', tip: 'Aim tighter' },
+          mp({ corner: 3, time_cost_s: 0.5, issue: 'Late braking at corner', tip: 'Brake earlier' }),
+          mp({ corner: 7, time_cost_s: 0.3, issue: 'Missing apex', tip: 'Aim tighter' }),
         ]}
         isNovice={false}
       />,
@@ -123,7 +137,7 @@ describe('PriorityCardsSection', () => {
   it('renders "Explore in Deep Dive" button for each card', () => {
     render(
       <PriorityCardsSection
-        priorities={[{ corner: 5, time_cost_s: 0.8, issue: 'Slow exit', tip: 'Open throttle' }]}
+        priorities={[mp({ corner: 5, time_cost_s: 0.8, issue: 'Slow exit', tip: 'Open throttle' })]}
         isNovice={false}
       />,
     );
@@ -133,7 +147,7 @@ describe('PriorityCardsSection', () => {
   it('clicking "Explore" calls selectCorner, setMode, setActiveView', () => {
     render(
       <PriorityCardsSection
-        priorities={[{ corner: 5, time_cost_s: 0.8, issue: 'Slow exit', tip: 'Open throttle' }]}
+        priorities={[mp({ corner: 5, time_cost_s: 0.8, issue: 'Slow exit', tip: 'Open throttle' })]}
         isNovice={false}
       />,
     );
@@ -149,7 +163,7 @@ describe('PriorityCardsSection', () => {
     render(
       <PriorityCardsSection
         priorities={[
-          { corner: 1, time_cost_s: 0.3, issue: 'Entry speed', tip: 'This is a helpful tip' },
+          mp({ corner: 1, time_cost_s: 0.3, issue: 'Entry speed', tip: 'This is a helpful tip' }),
         ]}
         isNovice={true}
       />,
@@ -161,7 +175,7 @@ describe('PriorityCardsSection', () => {
     render(
       <PriorityCardsSection
         priorities={[
-          { corner: 1, time_cost_s: 0.3, issue: 'Entry speed', tip: 'Hidden tip text' },
+          mp({ corner: 1, time_cost_s: 0.3, issue: 'Entry speed', tip: 'Hidden tip text' }),
         ]}
         isNovice={false}
       />,
@@ -173,7 +187,7 @@ describe('PriorityCardsSection', () => {
     render(
       <PriorityCardsSection
         priorities={[
-          { corner: 2, time_cost_s: 0.4, issue: 'Late trail brake release', tip: 'Hold longer' },
+          mp({ corner: 2, time_cost_s: 0.4, issue: 'Late trail brake release', tip: 'Hold longer' }),
         ]}
         isNovice={false}
       />,
@@ -197,10 +211,10 @@ describe('PriorityCardsSection', () => {
     render(
       <PriorityCardsSection
         priorities={[
-          { corner: 1, time_cost_s: 0.5, issue: 'Issue 1', tip: '' },
-          { corner: 2, time_cost_s: 0.4, issue: 'Issue 2', tip: '' },
-          { corner: 3, time_cost_s: 0.3, issue: 'Issue 3', tip: '' },
-          { corner: 4, time_cost_s: 0.2, issue: 'Issue 4', tip: '' },
+          mp({ corner: 1, time_cost_s: 0.5, issue: 'Issue 1' }),
+          mp({ corner: 2, time_cost_s: 0.4, issue: 'Issue 2' }),
+          mp({ corner: 3, time_cost_s: 0.3, issue: 'Issue 3' }),
+          mp({ corner: 4, time_cost_s: 0.2, issue: 'Issue 4' }),
         ]}
         isNovice={false}
       />,
@@ -211,88 +225,58 @@ describe('PriorityCardsSection', () => {
     expect(screen.queryByText('Turn 4')).not.toBeInTheDocument();
   });
 
-  it('uses live time cost from optimalComparison when valid', () => {
+  it('uses time_cost_s directly from merged priority (physics source)', () => {
     render(
       <PriorityCardsSection
-        priorities={[{ corner: 5, time_cost_s: 0.4, issue: 'Slow exit', tip: '' }]}
+        priorities={[mp({ corner: 5, time_cost_s: 0.7, issue: 'Slow exit', source: 'physics', speed_gap_mph: 3.0 })]}
         isNovice={false}
-        optimalComparison={{
-          session_id: 's1',
-          actual_lap_time_s: 90,
-          optimal_lap_time_s: 88,
-          total_gap_s: 2,
-          is_valid: true,
-          corner_opportunities: [
-            {
-              corner_number: 5,
-              speed_gap_mph: 3.0,
-              time_cost_s: 0.7,
-              actual_min_speed_mph: 50,
-              optimal_min_speed_mph: 53,
-            },
-          ],
-        }}
       />,
     );
-    // Live time cost is 0.7 -> "Up to 0.7s"
+    // time_cost_s=0.7 -> "Up to 0.7s"
     expect(screen.getByText('Up to 0.7s')).toBeInTheDocument();
   });
 
-  it('uses corner_opportunities even when is_valid is false', () => {
+  it('uses time_cost_s from merged priority (llm fallback source)', () => {
     render(
       <PriorityCardsSection
-        priorities={[{ corner: 5, time_cost_s: 0.4, issue: 'Slow exit', tip: '' }]}
+        priorities={[mp({ corner: 5, time_cost_s: 0.4, issue: 'Slow exit', source: 'llm' })]}
         isNovice={false}
-        optimalComparison={{
-          session_id: 's1',
-          actual_lap_time_s: 90,
-          optimal_lap_time_s: 91,
-          total_gap_s: -1,
-          is_valid: false,
-          corner_opportunities: [
-            {
-              corner_number: 5,
-              speed_gap_mph: 2.0,
-              time_cost_s: 0.6,
-              actual_min_speed_mph: 48,
-              optimal_min_speed_mph: 50,
-            },
-          ],
-        }}
       />,
     );
-    // Uses live time_cost_s=0.6 from corner_opportunities, NOT p.time_cost_s=0.4
-    expect(screen.getByText('Up to 0.6s')).toBeInTheDocument();
+    expect(screen.getByText('Up to 0.4s')).toBeInTheDocument();
   });
 
-  it('falls back to priority time_cost_s when corner_opportunities is empty', () => {
+  it('shows physics fallback tip when issue/tip is null', () => {
     render(
       <PriorityCardsSection
-        priorities={[{ corner: 5, time_cost_s: 0.4, issue: 'Slow exit', tip: '' }]}
-        isNovice={false}
-        optimalComparison={{
-          session_id: 's1',
-          actual_lap_time_s: 90,
-          optimal_lap_time_s: 91,
-          total_gap_s: -1,
-          is_valid: false,
-          corner_opportunities: [],
-        }}
+        priorities={[mp({ corner: 5, time_cost_s: 0.7, issue: null, tip: null, source: 'physics', speed_gap_mph: 3.2, brake_gap_m: -5 })]}
+        isNovice={true}
       />,
     );
-    // No matching corner in opportunities -> falls back to p.time_cost_s = 0.4
-    expect(screen.getByText('Up to 0.4s')).toBeInTheDocument();
+    // Fallback tip: "3.2 mph below optimal, brakes 5m early"
+    expect(screen.getByText(/3\.2 mph below optimal/)).toBeInTheDocument();
+    expect(screen.getByText(/brakes 5m early/)).toBeInTheDocument();
+  });
+
+  it('shows generic fallback tip when no speed gap data', () => {
+    render(
+      <PriorityCardsSection
+        priorities={[mp({ corner: 5, time_cost_s: 0.7, issue: null, tip: null, source: 'physics' })]}
+        isNovice={true}
+      />,
+    );
+    expect(screen.getByText('Review corner data in Deep Dive')).toBeInTheDocument();
   });
 
   it('applies grade-based border color when cornerGrades provided', () => {
     const { container } = render(
       <PriorityCardsSection
         priorities={[
-          { corner: 3, time_cost_s: 0.5, issue: 'Braking too late', tip: '' },
+          mp({ corner: 3, time_cost_s: 0.5, issue: 'Braking too late' }),
         ]}
         isNovice={false}
         cornerGrades={[
-          { corner: 3, braking: 'D', trail_braking: 'C', min_speed: 'B', throttle: 'C' },
+          { corner: 3, braking: 'D', trail_braking: 'C', min_speed: 'B', throttle: 'C', notes: '' },
         ]}
       />,
     );
@@ -307,7 +291,7 @@ describe('PriorityCardsSection', () => {
     ]);
     render(
       <PriorityCardsSection
-        priorities={[{ corner: 5, time_cost_s: 0.4, issue: 'Slow exit', tip: '' }]}
+        priorities={[mp({ corner: 5, time_cost_s: 0.4, issue: 'Slow exit' })]}
         isNovice={false}
         cornerDeltas={deltas}
       />,
@@ -322,7 +306,7 @@ describe('PriorityCardsSection', () => {
     ]);
     render(
       <PriorityCardsSection
-        priorities={[{ corner: 5, time_cost_s: 0.6, issue: 'Slow exit', tip: '' }]}
+        priorities={[mp({ corner: 5, time_cost_s: 0.6, issue: 'Slow exit' })]}
         isNovice={false}
         cornerDeltas={deltas}
       />,
@@ -337,7 +321,7 @@ describe('PriorityCardsSection', () => {
     ]);
     render(
       <PriorityCardsSection
-        priorities={[{ corner: 5, time_cost_s: 0.4, issue: 'Slow exit', tip: '' }]}
+        priorities={[mp({ corner: 5, time_cost_s: 0.4, issue: 'Slow exit' })]}
         isNovice={false}
         cornerDeltas={deltas}
       />,
@@ -349,7 +333,7 @@ describe('PriorityCardsSection', () => {
   it('falls back to accent border when no cornerGrades provided', () => {
     const { container } = render(
       <PriorityCardsSection
-        priorities={[{ corner: 3, time_cost_s: 0.5, issue: 'Test', tip: '' }]}
+        priorities={[mp({ corner: 3, time_cost_s: 0.5, issue: 'Test' })]}
         isNovice={false}
       />,
     );

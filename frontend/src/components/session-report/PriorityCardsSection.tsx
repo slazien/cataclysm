@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ArrowRight, ChevronDown, ChevronUp, TrendingUp, TrendingDown } from 'lucide-react';
 import { useUiStore, useAnalysisStore, useSessionStore } from '@/stores';
-import type { PriorityCorner, CornerGrade, OptimalComparisonData } from '@/lib/types';
+import type { MergedPriority, CornerGrade } from '@/lib/types';
 import type { CornerDelta } from '@/hooks/usePreviousSessionDelta';
 import { useUnits } from '@/hooks/useUnits';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
@@ -24,11 +24,9 @@ const GRADE_BORDER_COLORS: Record<string, string> = {
 };
 
 interface PriorityCardsSectionProps {
-  priorities: PriorityCorner[];
+  priorities: MergedPriority[];
   isNovice: boolean;
   cornerGrades?: CornerGrade[];
-  optimalComparison?: OptimalComparisonData | null;
-  isOptimalRefreshing?: boolean;
   cornerDeltas?: Map<number, CornerDelta> | null;
 }
 
@@ -40,19 +38,15 @@ function PriorityCard({
   p,
   isNovice,
   gradeForCorner,
-  liveTimeCost,
-  isRefreshing,
   delta,
   onExplore,
   feedbackRating,
   onRate,
   feedbackPending,
 }: {
-  p: PriorityCorner;
+  p: MergedPriority;
   isNovice: boolean;
   gradeForCorner: string | null;
-  liveTimeCost?: number;
-  isRefreshing?: boolean;
   delta?: CornerDelta | null;
   onExplore: (corner: number) => void;
   feedbackRating: number;
@@ -63,11 +57,18 @@ function PriorityCard({
   const { resolveSpeed } = useUnits();
   const coachingNav = useCoachingNav();
 
+  const displayTip = p.tip ?? (
+    p.speed_gap_mph != null
+      ? `${Math.abs(p.speed_gap_mph).toFixed(1)} mph below optimal${p.brake_gap_m != null ? `, brakes ${Math.abs(p.brake_gap_m).toFixed(0)}m ${p.brake_gap_m < 0 ? 'early' : 'late'}` : ''}`
+      : 'Review corner data in Deep Dive'
+  );
+  const displayIssue = p.issue ?? '';
+
   const borderColorClass = gradeForCorner
     ? (GRADE_BORDER_COLORS[gradeForCorner] ?? 'border-l-[var(--cata-accent)]')
     : 'border-l-[var(--cata-accent)]';
 
-  const resolvedIssue = formatCoachingText(resolveSpeed(p.issue));
+  const resolvedIssue = formatCoachingText(resolveSpeed(displayIssue));
 
   return (
     <div
@@ -79,8 +80,8 @@ function PriorityCard({
           Turn {p.corner}
         </span>
         <div className="flex shrink-0 items-center gap-1.5">
-          <span className={`rounded-full bg-[var(--color-brake)]/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--color-brake)] ${isRefreshing ? 'animate-pulse' : ''}`}>
-            {formatPriorityBadge(liveTimeCost ?? p.time_cost_s)}
+          <span className="rounded-full bg-[var(--color-brake)]/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-[var(--color-brake)]">
+            {formatPriorityBadge(p.time_cost_s)}
           </span>
           {delta && Math.abs(delta.delta_s) >= 0.05 && (
             <span
@@ -116,8 +117,8 @@ function PriorityCard({
       </button>
 
       {/* Novice tip - always visible when available */}
-      {isNovice && p.tip && (
-        <p className="mb-2 text-xs leading-relaxed text-[var(--text-secondary)]">{formatCoachingText(resolveSpeed(p.tip))}</p>
+      {isNovice && displayTip && (
+        <p className="mb-2 text-xs leading-relaxed text-[var(--text-secondary)]">{formatCoachingText(resolveSpeed(displayTip))}</p>
       )}
 
       {/* Expandable detail section — hidden for novice (tip above is sufficient) */}
@@ -156,7 +157,7 @@ function PriorityCard({
   );
 }
 
-export function PriorityCardsSection({ priorities, isNovice, cornerGrades, optimalComparison, isOptimalRefreshing, cornerDeltas }: PriorityCardsSectionProps) {
+export function PriorityCardsSection({ priorities, isNovice, cornerGrades, cornerDeltas }: PriorityCardsSectionProps) {
   const setActiveView = useUiStore((s) => s.setActiveView);
   const setMode = useAnalysisStore((s) => s.setMode);
   const selectCorner = useAnalysisStore((s) => s.selectCorner);
@@ -185,16 +186,6 @@ export function PriorityCardsSection({ priorities, isNovice, cornerGrades, optim
       <h3 className="mb-3 font-[family-name:var(--font-display)] text-sm font-medium text-[var(--text-secondary)]">Priority Improvements</h3>
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
         {priorities.slice(0, 3).map((p) => {
-          // Use corner_opportunities regardless of is_valid — consistent
-          // with OptimalGapChart and CornerSpeedGapPanel which show
-          // per-corner data even when aggregate comparison is invalid.
-          // Use live time cost from physics when positive; fall back to
-          // coaching report value when the model returns 0 (driver faster
-          // than model — capped from negative).  `||` intentionally treats
-          // 0 as falsy so the fallback fires.
-          const liveTimeCost = optimalComparison?.corner_opportunities?.find(
-            (o) => o.corner_number === p.corner,
-          )?.time_cost_s || undefined;
           const section = `priority_corner_${p.corner}`;
           return (
             <PriorityCard
@@ -202,8 +193,6 @@ export function PriorityCardsSection({ priorities, isNovice, cornerGrades, optim
               p={p}
               isNovice={isNovice}
               gradeForCorner={getGradeForCorner(p.corner)}
-              liveTimeCost={liveTimeCost}
-              isRefreshing={isOptimalRefreshing}
               delta={cornerDeltas?.get(p.corner)}
               onExplore={handleExploreCorner}
               feedbackRating={getRating(section)}
