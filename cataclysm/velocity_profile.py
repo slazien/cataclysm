@@ -71,6 +71,8 @@ class VehicleParams:
     braking_mu_ratio: float = 1.0  # ratio of peak braking mu to peak lateral mu (>1.0 = ellipse)
     cornering_drag_factor: float = 0.0  # sin(peak_slip_angle) — induced drag from tire slip
     max_lateral_jerk_gs: float = 0.0  # max d(lateral_g)/ds rate (G/m); 0 = disabled
+    traction_multiplier: float = 1.0  # AWD traction advantage (>1 = more grip-limited accel)
+    power_band_factor: float = 1.0  # fraction of peak power across RPM range (0-1); 1.0 = CVT/flat
 
 
 @dataclass
@@ -304,6 +306,11 @@ def _forward_pass(
         avg_k = 0.5 * (abs_curvature[i - 1] + abs_curvature[i])
         lateral_g = v_prev**2 * avg_k / G
         accel_g = _available_accel(v_prev, lateral_g, params, "accel")
+        # AWD traction advantage: distributing drive force across 4 wheels
+        # means each tire operates at a lower slip ratio, extracting more
+        # traction before saturation.  Applied before power limit (engine
+        # output is unchanged; only grip-limited accel benefits).
+        accel_g *= params.traction_multiplier
         # Vertical curvature scales grip-limited traction via normal force:
         # N_eff/N_static = 1 + v²·κ_v/g.  Only affects tire-force budget,
         # not power-limited acceleration (engine doesn't care about normal force).
@@ -314,6 +321,7 @@ def _forward_pass(
         # Power-limited regime: a = P/(m*v) at high speed
         if params.wheel_power_w > 0 and params.mass_kg > 0 and v_prev > MIN_SPEED_MPS:
             power_accel_g = params.wheel_power_w / (params.mass_kg * v_prev * G)
+            power_accel_g *= params.power_band_factor
             accel_g = min(accel_g, power_accel_g)
         drag_g = params.drag_coefficient * v_prev**2 / G
         # Cornering drag: tires at slip angle create induced drag proportional

@@ -53,7 +53,7 @@ OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 _BRAKE_EFFICIENCY = 0.95
 _AIR_DENSITY = 1.225
 _DRIVETRAIN_EFFICIENCY: dict[str, float] = {"RWD": 0.85, "FWD": 0.88, "AWD": 0.80}
-_DRIVETRAIN_TRACTION_MULTIPLIER: dict[str, float] = {"RWD": 1.0, "FWD": 1.0, "AWD": 1.04}
+_DRIVETRAIN_TRACTION_MULTIPLIER: dict[str, float] = {"RWD": 1.0, "FWD": 1.0, "AWD": 1.05}
 _AERO_EFFICIENCY = 0.85  # real-world aero efficiency (ride height, yaw, turbulence)
 
 
@@ -1154,9 +1154,6 @@ def _vehicle_spec_to_params(
     pw_ratio = spec.hp / (weight_kg / 1000.0)
     pw_factor = min(pw_ratio / 200.0, 1.5)
     accel_g = base_accel_g * max(pw_factor, 0.7)
-    # AWD traction advantage: torque splits across 4 tires
-    if spec.drivetrain == "AWD":
-        accel_g *= 1.05
 
     drag_coeff = 0.0
     if spec.cd_a > 0:
@@ -1195,6 +1192,7 @@ def _vehicle_spec_to_params(
         cornering_drag_factor=cornering_drag,
         max_lateral_jerk_gs=lateral_jerk,
         traction_multiplier=traction_mult,
+        power_band_factor=spec.power_band_factor,
     )
 
 

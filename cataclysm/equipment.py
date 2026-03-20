@@ -69,13 +69,19 @@ CATEGORY_MU_DEFAULTS: dict[TireCompoundCategory, float] = {
 # Acceleration is drivetrain-limited, not grip-limited, so it doesn't
 # scale 1:1 with tire mu.  Higher-grip tires allow slightly more
 # traction off corners but the engine/gearing is the primary bottleneck.
+#
+# Values are scaled by 1/DEFAULT_POWER_BAND_FACTOR (1/0.90 = 1.111) so that
+# the net acceleration (base * power_band_factor) equals the pre-power-band
+# values for the default case.  Peaky-NA cars (factor<0.90) get less;
+# turbo-flat cars (factor>0.90) get more.
+_DEFAULT_POWER_BAND_FACTOR = 0.90
 _CATEGORY_ACCEL_G: dict[TireCompoundCategory, float] = {
-    TireCompoundCategory.STREET: 0.40,
-    TireCompoundCategory.ENDURANCE_200TW: 0.50,
-    TireCompoundCategory.SUPER_200TW: 0.55,
-    TireCompoundCategory.TW_100: 0.60,
-    TireCompoundCategory.R_COMPOUND: 0.65,
-    TireCompoundCategory.SLICK: 0.70,
+    TireCompoundCategory.STREET: 0.44,
+    TireCompoundCategory.ENDURANCE_200TW: 0.56,
+    TireCompoundCategory.SUPER_200TW: 0.61,
+    TireCompoundCategory.TW_100: 0.67,
+    TireCompoundCategory.R_COMPOUND: 0.72,
+    TireCompoundCategory.SLICK: 0.78,
 }
 
 CATEGORY_WARMUP_LAPS: dict[TireCompoundCategory, float] = {
@@ -198,7 +204,7 @@ _DRIVETRAIN_EFFICIENCY: dict[str, float] = {"RWD": 0.85, "FWD": 0.88, "AWD": 0.8
 # tire operates at a lower slip ratio → more traction before saturation.
 # RWD/FWD are baseline (1.0); AWD gets ~4% advantage based on validation data
 # showing AWD cars were predicted ~3% too slow.
-_DRIVETRAIN_TRACTION_MULTIPLIER: dict[str, float] = {"RWD": 1.0, "FWD": 1.0, "AWD": 1.04}
+_DRIVETRAIN_TRACTION_MULTIPLIER: dict[str, float] = {"RWD": 1.0, "FWD": 1.0, "AWD": 1.05}
 # Real-world aero is less than theoretical: ride height variation under load,
 # yaw angle in corners, turbulence, and imperfect sealing reduce effective CL.
 # Racing engineering literature suggests 70-85% of wind-tunnel CL on track.
@@ -406,6 +412,12 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
         if profile.vehicle is not None
         else 1.0
     )
+    # Power band factor: fraction of peak power usable across RPM range
+    power_band = (
+        profile.vehicle.power_band_factor
+        if profile.vehicle is not None
+        else _DEFAULT_POWER_BAND_FACTOR
+    )
 
     return VehicleParams(
         mu=mu,
@@ -429,4 +441,5 @@ def equipment_to_vehicle_params(profile: EquipmentProfile) -> VehicleParams:
         cornering_drag_factor=cornering_drag,
         max_lateral_jerk_gs=lateral_jerk,
         traction_multiplier=traction_mult,
+        power_band_factor=power_band,
     )

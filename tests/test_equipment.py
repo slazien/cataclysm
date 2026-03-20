@@ -283,7 +283,7 @@ class TestCategoryMuDefaults:
             )
 
     def test_street_mu_value(self) -> None:
-        assert CATEGORY_MU_DEFAULTS[TireCompoundCategory.STREET] == 0.85
+        assert CATEGORY_MU_DEFAULTS[TireCompoundCategory.STREET] == 0.90
 
     def test_slick_mu_value(self) -> None:
         assert CATEGORY_MU_DEFAULTS[TireCompoundCategory.SLICK] == 1.42
@@ -438,7 +438,7 @@ class TestEquipmentToVehicleParams:
         )
         assert params.mu == pytest.approx(expected_mu)
         assert params.max_lateral_g == pytest.approx(expected_mu)
-        assert params.max_accel_g == 0.55  # SUPER_200TW
+        assert params.max_accel_g == 0.61  # SUPER_200TW
         braking_ratio = CATEGORY_BRAKING_MU_RATIO[cat]
         assert params.max_decel_g == pytest.approx(expected_mu * braking_ratio * _BRAKE_EFFICIENCY)
 
@@ -456,7 +456,7 @@ class TestEquipmentToVehicleParams:
         profile = EquipmentProfile(id="p2", name="Street", tires=tire)
         params = equipment_to_vehicle_params(profile)
         assert params.mu == 0.85
-        assert params.max_accel_g == 0.40  # STREET
+        assert params.max_accel_g == 0.44  # STREET (base scaled by 1/0.90 for power_band_factor)
 
     def test_r_compound_higher_decel(self) -> None:
         """R-compound with high mu should produce max_decel_g above 1.0."""
@@ -472,7 +472,7 @@ class TestEquipmentToVehicleParams:
         profile = EquipmentProfile(id="p3", name="Race", tires=tire)
         params = equipment_to_vehicle_params(profile)
         assert params.max_decel_g > 1.0
-        assert params.max_accel_g == 0.65  # R_COMPOUND
+        assert params.max_accel_g == 0.72  # R_COMPOUND (base scaled by 1/0.90)
 
     def test_slick_tire(self) -> None:
         """Slick category should yield highest accel G."""
@@ -496,7 +496,7 @@ class TestEquipmentToVehicleParams:
         )
         assert params.mu == pytest.approx(expected_mu)
         assert params.max_lateral_g == pytest.approx(expected_mu)
-        assert params.max_accel_g == 0.70  # SLICK
+        assert params.max_accel_g == 0.78  # SLICK (base scaled by 1/0.90)
         braking_ratio = CATEGORY_BRAKING_MU_RATIO[cat]
         assert params.max_decel_g == pytest.approx(expected_mu * braking_ratio * _BRAKE_EFFICIENCY)
         assert params.top_speed_mps == 80.0
