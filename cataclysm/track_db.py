@@ -50,6 +50,7 @@ class TrackLayout:
     country: str = ""
     length_m: float | None = None
     elevation_range_m: float | None = None  # max - min altitude across track
+    surface_quality: float = 1.0  # grip multiplier for track surface; >1 = smooth, <1 = rough
 
 
 # ---------------------------------------------------------------------------
