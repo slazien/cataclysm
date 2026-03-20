@@ -1,7 +1,9 @@
 'use client';
 
 import { Target } from 'lucide-react';
+import { MarkdownText } from '@/components/shared/MarkdownText';
 import { useUnits } from '@/hooks/useUnits';
+import { useCoachingNav } from '@/hooks/useCoachingNav';
 import { formatCoachingText } from '@/lib/textUtils';
 import type { MergedPriority } from '@/lib/types';
 
@@ -16,6 +18,7 @@ interface NextSessionFocusProps {
  */
 export function NextSessionFocus({ priority }: NextSessionFocusProps) {
   const { resolveSpeed } = useUnits();
+  const coachingNav = useCoachingNav();
   const tip = formatCoachingText(resolveSpeed(priority.tip ?? ''));
   const timeCost = priority.time_cost_s;
 
@@ -28,7 +31,7 @@ export function NextSessionFocus({ priority }: NextSessionFocusProps) {
             Next Session Focus
           </h3>
           <p className="font-[family-name:var(--font-display)] text-lg font-bold leading-snug text-[var(--text-primary)] lg:text-xl">
-            {tip || `Focus on Turn ${priority.corner}`}
+            {tip ? <MarkdownText linkHandlers={coachingNav}>{tip}</MarkdownText> : `Focus on Turn ${priority.corner}`}
           </p>
           {timeCost > 0 && (
             <p className="mt-1 text-sm text-[var(--text-secondary)]">

@@ -3,7 +3,9 @@
 import { useCallback } from 'react';
 import { Share2 } from 'lucide-react';
 import { formatLapTime } from '@/lib/formatters';
+import { MarkdownText } from '@/components/shared/MarkdownText';
 import { useUnits } from '@/hooks/useUnits';
+import { useCoachingNav } from '@/hooks/useCoachingNav';
 import { formatCoachingText } from '@/lib/textUtils';
 import type { SessionSummary, MergedPriority } from '@/lib/types';
 
@@ -28,6 +30,7 @@ export function TracksideCard({
   optimalLapTime,
 }: TracksideCardProps) {
   const { resolveSpeed } = useUnits();
+  const coachingNav = useCoachingNav();
   const bestLap = session.best_lap_time_s;
 
   /** Resolve speed templates + strip formatting markers */
@@ -95,7 +98,7 @@ export function TracksideCard({
             Focus
           </p>
           <p className="font-[family-name:var(--font-display)] text-lg font-bold leading-snug text-[var(--text-primary)]">
-            T{topCorners[0].corner}: {fmt(topCorners[0].tip ?? 'Focus on this corner')}
+            <MarkdownText linkHandlers={coachingNav}>{`T${topCorners[0].corner}: ${fmt(topCorners[0].tip ?? 'Focus on this corner')}`}</MarkdownText>
           </p>
         </div>
       )}
@@ -104,9 +107,11 @@ export function TracksideCard({
       {topCorners.length > 0 && (
         <div className="mb-4 space-y-2">
           {topCorners.map((c) => (
-            <div key={c.corner} className="flex items-start gap-2 text-sm">
+            <div key={c.corner} className="flex items-baseline gap-2 text-sm">
               <span className="shrink-0 font-medium text-[var(--text-primary)]">T{c.corner}</span>
-              <span className="min-w-0 flex-1 leading-snug text-[var(--text-secondary)]">{fmt(c.tip ?? 'Review in Deep Dive')}</span>
+              <span className="min-w-0 flex-1 leading-snug text-[var(--text-secondary)]">
+                <MarkdownText linkHandlers={coachingNav}>{fmt(c.tip ?? 'Review in Deep Dive')}</MarkdownText>
+              </span>
               <span className="shrink-0 font-mono text-xs font-semibold text-[var(--color-brake)]">
                 −{c.time_cost_s.toFixed(1)}s
               </span>

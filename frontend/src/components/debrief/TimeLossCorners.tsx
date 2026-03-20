@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { MarkdownText } from '@/components/shared/MarkdownText';
 import { useUnits } from '@/hooks/useUnits';
+import { useCoachingNav } from '@/hooks/useCoachingNav';
 import type { MergedPriority } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -14,6 +15,7 @@ interface TimeLossCornersProps {
 function CornerRow({ pc }: { pc: MergedPriority }) {
   const [expanded, setExpanded] = useState(false);
   const { resolveSpeed } = useUnits();
+  const coachingNav = useCoachingNav();
 
   return (
     <button
@@ -28,7 +30,7 @@ function CornerRow({ pc }: { pc: MergedPriority }) {
 
       {/* Tip — full text when expanded, 2-line clamp when collapsed */}
       <span className={cn('min-w-0 flex-1 text-sm text-[var(--text-secondary)] text-left', !expanded && 'line-clamp-2')}>
-        <MarkdownText>{resolveSpeed(pc.tip ?? 'Review corner data in Deep Dive')}</MarkdownText>
+        <MarkdownText linkHandlers={coachingNav}>{resolveSpeed(pc.tip ?? 'Review corner data in Deep Dive')}</MarkdownText>
       </span>
 
       <span className="shrink-0 flex items-center gap-2">
