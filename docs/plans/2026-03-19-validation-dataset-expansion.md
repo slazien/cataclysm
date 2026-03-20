@@ -37,28 +37,37 @@
 
 Each new track reference unlocks an entire ecosystem of published lap times. Priority order by data availability × diversity.
 
-### 1A: VIR (Virginia International Raceway) — Full Course
+### 1A: VIR (Virginia International Raceway) — BOTH Full Course AND Grand Course
 
 **Why #1 priority:** Unlocks Car and Driver Lightning Lap — the single best validated lap time dataset in existence. ~200+ cars, professional drivers, consistent methodology, published tire specs, controlled conditions. Annual since 2008.
 
-**Track specs:** 3.27 mi / 5.26 km, 18 turns, elevation change ~100 ft
+**CRITICAL: VIR has two relevant layouts:**
+- **Full Course**: 3.27 mi / 5.26 km, 18 turns — used by HPDE/community (LapMeta, forums)
+- **Grand Course**: 4.1 mi / 6.6 km — used by C&D Lightning Lap (adds back section)
 
-**How to get GPS trace:**
-1. **Reddit r/CarTrackDays** — post asking for a RaceChrono/Harry's LapTimer session at VIR Full Course. Offer credit in the app.
-2. **VIR HPDE Facebook groups** — "VIR Track Enthusiasts", "NASA Mid-Atlantic"
-3. **RaceChrono community** — racechrono.com forum, search for VIR traces
-4. **SCCA/NASA Mid-South timing data** — race results have GPS-based sector times
-5. **TrackAddict / Harry's LapTimer exports** — search forums for CSV/GPX exports
-6. **Direct outreach** — email VIR's driving experiences dept; they run their own HPDE and may share reference data
-7. **Fallback: synthetic** — build from satellite imagery + elevation data (lower accuracy, last resort)
+Both track references are needed. The Full Course reference was built from OSM (2026-03-19, 5262m). The Grand Course still needs a reference — either from OSM (requires identifying the additional Grand Course ways) or from a GPS trace.
+
+**Status (2026-03-19):**
+- Full Course NPZ: ✅ Built from OSM (5262m, `virginia-international-raceway.npz`)
+- Grand Course NPZ: ❌ Not yet built
+- TrackLayout entry in track_db.py: ❌ Not yet added
+
+**How to get GPS trace (for either layout):**
+1. **HiPo Driver** (hipodriver.com/resources) — Has GPX files for Corvette PDR systems, lists both "VIR Full Course" and "VIR Grand Course"
+2. **OpenStreetMap** — Full Course geometry already extracted (17 ways, 246 nodes)
+3. **Reddit r/CarTrackDays** — post asking for RaceChrono session at VIR
+4. **VIR HPDE Facebook groups** — "VIR Track Enthusiasts", "NASA Mid-Atlantic"
+5. **RaceChrono community** — racechrono.com forum
+6. **Harry's LapTimer** — ~21K laps recorded at VIR (app-locked)
+7. **Serious-Racing** (serious-racing.com) — community GPS lap sharing
 
 **Minimum viable trace requirements:**
-- Full Course layout (not North or South only)
+- Correct layout (Full OR Grand — both are valuable)
 - GPS ≥10 Hz (RaceChrono default)
 - Clean hot lap (no traffic, no off-track)
 - Any car is fine — we just need the racing line geometry
 
-**Unlocked data (Car and Driver Lightning Lap):**
+**Unlocked data (Car and Driver Lightning Lap — Grand Course only):**
 
 | Car | Time | Tires | Year | Key value |
 |-----|------|-------|------|-----------|
@@ -93,20 +102,25 @@ Each new track reference unlocks an entire ecosystem of published lap times. Pri
 
 **Track specs:** 2.238 mi / 3.602 km, 11 turns, elevation change 180 ft
 
-**How to get GPS trace:**
-1. Same channels as VIR — Reddit, RaceChrono forum, SCCA SFR
-2. **iRacing/sim community** — Laguna Seca laser-scanned for iRacing; community GPS traces more common
-3. **Mazda Raceway driving experiences** — they run experiences on the track
+**Status (2026-03-19):**
+- Track reference NPZ: ✅ Built from OSM (3601m, `laguna-seca.npz`, 268 nodes / 9 ways)
+- TrackLayout entry in track_db.py: ❌ Not yet added
+- Note: Track was resurfaced in 2023, making pre/post-2023 times incomparable
+- Harry's LapTimer: ~25K community laps (app-locked, not downloadable)
+
+**For a hot-lap racing line (upgrade from OSM centerline):**
+1. **Spec Miata community** (forum.specmiata.com) — huge Laguna presence
+2. **Speed Ventures / Chin Motorsports** — run regular HPDEs, ask instructors
+3. **NASA NorCal** — SCCA SFR chapter, regular events
+4. **LapMeta** — has vector track map (lapmeta.com/en/track/variation/2), may have coordinate API
 
 **Unlocked data:**
-- MotorTrend Best Driver's Car (annual, ~12 cars/year, pro drivers)
-- MotorTrend Hot Lap (Randy Pobst, dozens of cars)
+- MotorTrend Best Driver's Car (annual, ~12 cars/year, pro drivers, Randy Pobst)
+- MotorTrend Hot Lap (dozens of cars)
+- FL5 Civic Type R FWD record: 1:42.6 (MotorTrend)
 - Massive community dataset (one of the most-driven tracks in the US)
-- Strong representation of Japanese sports cars (Miata, GR86, NSX)
 
 **Expected yield:** 20-40 new entries.
-
-**Effort:** 1-2 days for track reference.
 
 ---
 
@@ -116,14 +130,23 @@ Each new track reference unlocks an entire ecosystem of published lap times. Pri
 
 **Track specs:** 2.54 mi / 4.088 km, 12 turns, elevation change 75 ft
 
+**Status (2026-03-19):**
+- Track reference NPZ: ✅ Built from OSM (4090m, `road-atlanta.npz`, 3 ways / 230 nodes)
+- TrackLayout entry in track_db.py: ❌ Not yet added
+- OSM way 9292566 has `oneway=-1` tag — node order reversed in build
+- Harry's LapTimer: ~12K community laps (app-locked)
+
+**For a hot-lap racing line (upgrade from OSM centerline):**
+1. **Harry's GPS Suite Forum** (forum.gps-laptimer.de) — request shared reference lap
+2. **LapMeta** — 441 laps / 333 vehicles (lapmeta.com/en/track/variation/18)
+3. **NASA Southeast / SCCA Atlanta** — regular Road Atlanta events
+
 **Unlocked data:**
 - IMSA timing data (pro)
 - Massive NASA/SCCA Southeast community data
 - Petit Le Mans supporting race data
 
 **Expected yield:** 15-25 new entries.
-
-**Effort:** 1-2 days.
 
 ---
 
