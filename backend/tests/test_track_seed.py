@@ -26,9 +26,9 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 
 class TestSeedTracks:
     @pytest.mark.asyncio
-    async def test_seeds_three_tracks(self, db_session: AsyncSession) -> None:
+    async def test_seeds_all_tracks(self, db_session: AsyncSession) -> None:
         count = await seed_tracks_from_hardcoded(db_session)
-        assert count == 3
+        assert count == 6
 
     @pytest.mark.asyncio
     async def test_barber_seeded_correctly(self, db_session: AsyncSession) -> None:
@@ -64,7 +64,7 @@ class TestSeedTracks:
     async def test_idempotent(self, db_session: AsyncSession) -> None:
         count1 = await seed_tracks_from_hardcoded(db_session)
         count2 = await seed_tracks_from_hardcoded(db_session)
-        assert count1 == 3
+        assert count1 == 6
         assert count2 == 0
 
     @pytest.mark.asyncio
