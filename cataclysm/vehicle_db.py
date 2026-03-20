@@ -72,7 +72,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         stock_tire_size_front="185/60R14",
         stock_tire_size_rear="185/60R14",
         notes="1.6 L B6-ZE. Lightest Miata generation.",
-        power_band_factor=0.85,
+        power_band_factor=0.90,
     ),
     "mazda_miata_nb": VehicleSpec(
         make="Mazda",
@@ -93,7 +93,7 @@ VEHICLE_DATABASE: dict[str, VehicleSpec] = {
         stock_tire_size_front="185/60R14",
         stock_tire_size_rear="185/60R14",
         notes="1.8 L BP-4W. Refined NA platform.",
-        power_band_factor=0.85,
+        power_band_factor=0.90,
     ),
     "mazda_miata_nc": VehicleSpec(
         make="Mazda",

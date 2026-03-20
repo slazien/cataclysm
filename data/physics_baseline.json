@@ -1,6 +1,6 @@
 {
   "date": "2026-03-19",
-  "git_sha": "f206156",
+  "git_sha": "b42a84d",
   "acceptance_criteria": {
     "mean_ratio_min": 0.95,
     "mean_ratio_max": 1.02,
@@ -14,8 +14,8 @@
       "car": "Miata NA",
       "track": "Barber Motorsports Park",
       "real_s": 108.08,
-      "predicted_s": 114.095,
-      "ratio": 1.0557,
+      "predicted_s": 112.848,
+      "ratio": 1.0441,
       "tire_category": "r_compound",
       "tire_model": "Hoosier (NASA TT class)",
       "mu": 1.38,
@@ -889,30 +889,30 @@
   ],
   "summary": {
     "n_entries": 73,
-    "mean_ratio": 1.0074813741545543,
+    "mean_ratio": 1.0073232946501773,
     "median_ratio": 1.010060861660067,
-    "std_ratio": 0.03310300164116906,
-    "exceedance_count_5pct": 8,
+    "std_ratio": 0.03289668411016369,
+    "exceedance_count_5pct": 7,
     "entries_above_1": 41,
-    "rmse_s": 3.2761211800399415,
-    "mae_s": 2.5509902418001005,
-    "mape_pct": 2.6668924817554465,
-    "p90_abs_error_s": 5.558760254872344,
-    "p95_abs_error_s": 6.060878711908835,
-    "bland_altman_bias_s": 0.7503836190539428,
-    "bland_altman_loa_lower_s": -5.543366195947533,
-    "bland_altman_loa_upper_s": 7.044133434055418,
-    "calibration_slope": 1.0487665213539792,
-    "calibration_intercept_s": -3.8310840945537876,
-    "calibration_r_squared": 0.9081606474803833,
-    "correlation_mu_ratio": -0.21151815812599015,
-    "correlation_mu_pvalue": 0.07243017408274399,
-    "correlation_weight_ratio": -0.11566018706807867,
-    "correlation_weight_pvalue": 0.3298480106867603,
-    "bootstrap_mean_ci_lower": 1.0001332632051314,
-    "bootstrap_mean_ci_upper": 1.0152043659578984,
-    "bootstrap_std_ci_lower": 0.02818659772390079,
-    "bootstrap_std_ci_upper": 0.03929983108111005,
+    "rmse_s": 3.2478836532205486,
+    "mae_s": 2.5339050089670425,
+    "mape_pct": 2.6510845313177542,
+    "p90_abs_error_s": 5.204991887406311,
+    "p95_abs_error_s": 5.96048863919875,
+    "bland_altman_bias_s": 0.7332983862208847,
+    "bland_altman_loa_lower_s": -5.511097869104696,
+    "bland_altman_loa_upper_s": 6.977694641546466,
+    "calibration_slope": 1.0460690887335853,
+    "calibration_intercept_s": -3.594753661949838,
+    "calibration_r_squared": 0.9088753739083002,
+    "correlation_mu_ratio": -0.22090033029753053,
+    "correlation_mu_pvalue": 0.06037154470693217,
+    "correlation_weight_ratio": -0.10236392595683617,
+    "correlation_weight_pvalue": 0.3888145260496212,
+    "bootstrap_mean_ci_lower": 1.0000244630470385,
+    "bootstrap_mean_ci_upper": 1.0149646889919828,
+    "bootstrap_std_ci_lower": 0.027959942420524395,
+    "bootstrap_std_ci_upper": 0.03910415291256685,
     "iqr_outlier_count": 3,
     "iqr_outliers": [
       {
@@ -970,12 +970,12 @@
       },
       "r_compound": {
         "n": 7,
-        "mean": 1.0001,
-        "std": 0.0425,
+        "mean": 0.9984,
+        "std": 0.0405,
         "min": 0.9292,
-        "max": 1.0557,
-        "bootstrap_mean_ci_lower": 0.9657,
-        "bootstrap_mean_ci_upper": 1.0278
+        "max": 1.0441,
+        "bootstrap_mean_ci_lower": 0.9648,
+        "bootstrap_mean_ci_upper": 1.0243
       },
       "slick": {
         "n": 7,
@@ -997,8 +997,8 @@
       },
       "Barber Motorsports Park": {
         "n": 40,
-        "mean": 1.018,
-        "std": 0.034,
+        "mean": 1.0177,
+        "std": 0.0337,
         "min": 0.9203,
         "max": 1.0879
       },
@@ -1031,8 +1031,8 @@
       },
       "High (r_compound+slick)": {
         "n": 14,
-        "mean": 0.9995,
-        "std": 0.033,
+        "mean": 0.9987,
+        "std": 0.0317,
         "categories": [
           "r_compound",
           "slick"
@@ -1042,8 +1042,8 @@
     "per_pw_band": {
       "Low <200 hp/t": {
         "n": 22,
-        "mean": 1.0189,
-        "std": 0.031
+        "mean": 1.0183,
+        "std": 0.0304
       },
       "Mid 200-350": {
         "n": 47,
@@ -1065,8 +1065,8 @@
       },
       "slow": {
         "n": 37,
-        "mean": 1.0135,
-        "std": 0.0347
+        "mean": 1.0132,
+        "std": 0.0344
       }
     },
     "per_mod_level": {
@@ -1081,12 +1081,12 @@
       },
       "light": {
         "n": 31,
-        "mean": 1.0039,
-        "std": 0.0313,
+        "mean": 1.0035,
+        "std": 0.0307,
         "min": 0.9292,
         "max": 1.0601,
-        "bootstrap_mean_ci_lower": 0.9927,
-        "bootstrap_mean_ci_upper": 1.0144
+        "bootstrap_mean_ci_lower": 0.9924,
+        "bootstrap_mean_ci_upper": 1.0138
       },
       "heavy": {
         "n": 22,
@@ -1101,8 +1101,8 @@
     "per_hp_band": {
       "Low <200hp": {
         "n": 3,
-        "mean": 1.029,
-        "std": 0.0232
+        "mean": 1.0251,
+        "std": 0.0165
       },
       "Mid 200-400hp": {
         "n": 33,
@@ -1128,8 +1128,8 @@
       },
       "RWD": {
         "n": 52,
-        "mean": 1.0041,
-        "std": 0.0329
+        "mean": 1.0038,
+        "std": 0.0325
       }
     },
     "per_source_quality": {
@@ -1140,7 +1140,7 @@
       },
       "community": {
         "n": 1,
-        "mean": 1.0557,
+        "mean": 1.0441,
         "std": 0.0
       },
       "primary": {
@@ -1152,7 +1152,7 @@
     "per_driver_level": {
       "advanced_club": {
         "n": 1,
-        "mean": 1.0557,
+        "mean": 1.0441,
         "std": 0.0
       },
       "pro": {
@@ -1168,12 +1168,12 @@
     },
     "loo_cv": {
       "jackknife_mean_range": [
-        1.0064,
-        1.0087
+        1.0062,
+        1.0085
       ],
       "jackknife_std_range": [
-        0.0317,
-        0.0333
+        0.0315,
+        0.0331
       ],
       "jackknife_mean_stability": 0.0023,
       "influential_entries": [],
