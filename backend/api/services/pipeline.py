@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from cataclysm.banking import apply_banking_to_mu_array
 from cataclysm.consistency import compute_session_consistency
 from cataclysm.constants import MPS_TO_MPH
 from cataclysm.corner_enrichment import auto_enrich_corner_metadata
@@ -1598,17 +1599,34 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
                 float(np.max(vert_curvature)),
             )
 
-        # Apply track banking as mu boost (mu_eff = mu + tan(banking))
-        track_ref = (
-            get_track_reference(session_data.layout) if session_data.layout is not None else None
-        )
-        if track_ref is not None and track_ref.banking_deg is not None:
-            banking_rad = np.radians(track_ref.banking_deg)
-            banking_mu_boost = np.tan(banking_rad)
+        # Apply banking corrections to mu_array.
+        # Primary: per-corner banking from telemetry (auto_enrich sets Corner.banking_deg)
+        # Fallback: track-level banking from TRACK_BANKING dict via TrackReference.banking_deg
+        corners_with_banking = [
+            c for c in (session_data.corners or []) if c.banking_deg is not None
+        ]
+        if corners_with_banking:
             if mu_array is None:
                 base_mu = calibrated_vp.mu if calibrated_vp else 1.0
                 mu_array = np.full(len(curvature_result.distance_m), base_mu)
-            mu_array = mu_array + banking_mu_boost
+            mu_array = apply_banking_to_mu_array(
+                mu_array, curvature_result.distance_m, session_data.corners or []
+            )
+            logger.debug("Applied telemetry banking for %d corners", len(corners_with_banking))
+        else:
+            # Fallback to track-level banking from reference NPZ or track_db
+            track_ref = (
+                get_track_reference(session_data.layout)
+                if session_data.layout is not None
+                else None
+            )
+            if track_ref is not None and track_ref.banking_deg is not None:
+                banking_rad = np.radians(track_ref.banking_deg)
+                banking_mu_boost = np.tan(banking_rad)
+                if mu_array is None:
+                    base_mu = calibrated_vp.mu if calibrated_vp else 1.0
+                    mu_array = np.full(len(curvature_result.distance_m), base_mu)
+                mu_array = mu_array + banking_mu_boost
 
         # Solve optimal velocity profile (uses pre-calibrated params)
         optimal = compute_optimal_profile(
