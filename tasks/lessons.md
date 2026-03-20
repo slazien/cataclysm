@@ -112,6 +112,22 @@
 
 **Error signature**: Building a new module for functionality that already exists but is unwired. Red flag: creating `get_track_banking()` when `apply_banking_to_mu_array()` exists. Always check `tasks/solver_audit_status.md` and grep for domain terms first.
 
+## Validate OSM Track References Before Adding Validation Entries (2026-03-20)
+
+**Pattern**: Before adding validation entries for a new track, run a quick sanity check: predict one known lap time using the track reference. If the ratio is >1.05, the reference has curvature overestimation and the entries will fail validation. OSM centerlines systematically overestimate curvature by 15-30% on tight tracks because drivers use wider racing-line arcs.
+
+**Why**: Added 33 Laguna Seca entries and 16 Road Atlanta entries without checking reference quality first. Both had >10% curvature overestimation (Laguna=14.3%, Road Atlanta=13%). Then wasted time applying curvature correction factors (a workaround, not a fix) before user correctly identified this as masking data quality issues. All entries had to be disabled.
+
+**Error signature**: All entries for a new track have ratio >1.05 with small std (tight cluster above 1.0). This is always a track reference issue, not a vehicle modeling issue — vehicle errors produce scatter, track errors produce uniform bias.
+
+## Never Calibrate Correction Factors to Known Lap Times (2026-03-20)
+
+**Pattern**: NEVER apply a correction factor (curvature scale, mu boost) that is calibrated to match known validation entries. This is circular — you're tuning the model to fit the test data, which defeats the purpose of validation. The only valid track reference fixes are: (1) better source data (real GPS), (2) principled algorithms (racing line optimizer), or (3) exclude the track.
+
+**Why**: Applied curvature_scale=0.82 to Laguna Seca, calibrated from C6 Z06 lap time. This made 33 entries "pass" validation, but the correction was just overfitting to the test set. Any new entry at Laguna could still be wrong. User called this out: "is that not a fundamental problem? idk."
+
+**Error signature**: A correction factor that was derived from the same entries it's being used to validate.
+
 ## WSL: Use `explorer.exe` or `cmd.exe /c start` for Windows Apps (2026-03-20)
 
 **Pattern**: In WSL, `firefox <file>` does NOT open Windows Firefox. Use `explorer.exe "$(wslpath -w path)"` or `cmd.exe /c start firefox "$(wslpath -w path)"`. The `wslpath -w` converts Linux paths to Windows format.
