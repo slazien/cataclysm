@@ -202,7 +202,7 @@ _AIR_DENSITY = 1.225  # kg/m^3, sea level ISA standard atmosphere
 _DRIVETRAIN_EFFICIENCY: dict[str, float] = {"RWD": 0.85, "FWD": 0.88, "AWD": 0.80}
 # AWD traction multiplier: distributing drive force across 4 tires means each
 # tire operates at a lower slip ratio → more traction before saturation.
-# RWD/FWD are baseline (1.0); AWD gets ~4% advantage based on validation data
+# RWD/FWD are baseline (1.0); AWD gets ~5% advantage based on validation data
 # showing AWD cars were predicted ~3% too slow.
 _DRIVETRAIN_TRACTION_MULTIPLIER: dict[str, float] = {"RWD": 1.0, "FWD": 1.0, "AWD": 1.05}
 # Real-world aero is less than theoretical: ride height variation under load,

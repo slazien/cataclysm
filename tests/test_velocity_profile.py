@@ -1711,6 +1711,129 @@ class TestPowerLimitedAcceleration:
 
 
 # ---------------------------------------------------------------------------
+# TestTractionMultiplier — AWD traction advantage
+# ---------------------------------------------------------------------------
+
+
+class TestTractionMultiplier:
+    """Tests for the traction_multiplier field in the forward pass."""
+
+    def test_traction_multiplier_increases_grip_limited_accel(self) -> None:
+        """traction_multiplier > 1 should produce faster acceleration at low speed."""
+        corner = np.full(50, 0.03)
+        straight = np.zeros(300)
+        curvature = np.concatenate([corner, straight])
+        cr = _make_curvature_result(curvature, step_m=1.0)
+
+        base = VehicleParams(mu=1.0, max_accel_g=0.5, max_decel_g=1.0, max_lateral_g=1.0)
+        awd = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+            traction_multiplier=1.10,
+        )
+
+        p_base = compute_optimal_profile(cr, base, closed_circuit=False)
+        p_awd = compute_optimal_profile(cr, awd, closed_circuit=False)
+
+        # AWD should be faster on the straight (grip-limited accel)
+        assert p_awd.optimal_speed_mps[200] > p_base.optimal_speed_mps[200]
+        assert p_awd.lap_time_s < p_base.lap_time_s
+
+
+# ---------------------------------------------------------------------------
+# TestPowerBandFactor — engine torque curve derating
+# ---------------------------------------------------------------------------
+
+
+class TestPowerBandFactor:
+    """Tests for the power_band_factor field in the forward pass."""
+
+    def test_low_power_band_slows_power_limited_accel(self) -> None:
+        """power_band_factor < 1.0 should produce slower acceleration at high speed."""
+        corner = np.full(50, 0.04)
+        straight = np.zeros(400)
+        curvature = np.concatenate([corner, straight])
+        cr = _make_curvature_result(curvature, step_m=1.0)
+
+        base = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+            wheel_power_w=150_000,
+            mass_kg=1200,
+            power_band_factor=1.0,
+        )
+        peaky = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+            wheel_power_w=150_000,
+            mass_kg=1200,
+            power_band_factor=0.80,
+        )
+
+        p_base = compute_optimal_profile(cr, base, closed_circuit=False)
+        p_peaky = compute_optimal_profile(cr, peaky, closed_circuit=False)
+
+        # Peaky engine should be slower on the straight
+        assert p_peaky.optimal_speed_mps[-1] < p_base.optimal_speed_mps[-1]
+        assert p_peaky.lap_time_s > p_base.lap_time_s
+
+    def test_power_band_no_effect_without_power_model(self) -> None:
+        """When wheel_power_w=0, power_band_factor should have no effect."""
+        cr = _make_curvature_result(np.zeros(200), step_m=1.0)
+
+        base = VehicleParams(mu=1.0, max_accel_g=0.5, max_decel_g=1.0, max_lateral_g=1.0)
+        derated = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+            power_band_factor=0.50,
+        )
+
+        p1 = compute_optimal_profile(cr, base, closed_circuit=False)
+        p2 = compute_optimal_profile(cr, derated, closed_circuit=False)
+
+        np.testing.assert_array_almost_equal(p1.optimal_speed_mps, p2.optimal_speed_mps)
+
+    def test_corner_speed_unaffected_by_power_band(self) -> None:
+        """power_band_factor should not affect cornering speed (grip-limited)."""
+        cr = _make_curvature_result(np.full(100, 0.02), step_m=1.0)
+
+        base = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+            wheel_power_w=150_000,
+            mass_kg=1200,
+            power_band_factor=1.0,
+        )
+        peaky = VehicleParams(
+            mu=1.0,
+            max_accel_g=0.5,
+            max_decel_g=1.0,
+            max_lateral_g=1.0,
+            wheel_power_w=150_000,
+            mass_kg=1200,
+            power_band_factor=0.80,
+        )
+
+        p1 = compute_optimal_profile(cr, base, closed_circuit=False)
+        p2 = compute_optimal_profile(cr, peaky, closed_circuit=False)
+
+        # Mid-corner speeds should be identical (grip-limited)
+        np.testing.assert_allclose(
+            p1.optimal_speed_mps[40:60], p2.optimal_speed_mps[40:60], atol=0.5
+        )
+
+
+# ---------------------------------------------------------------------------
 # TestDenominatorClamping — vertical curvature safety floor
 # ---------------------------------------------------------------------------
 

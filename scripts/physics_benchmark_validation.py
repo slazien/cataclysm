@@ -30,6 +30,7 @@ from cataclysm.equipment import (
     CATEGORY_FRICTION_CIRCLE_EXPONENT,
     CATEGORY_GRIP_UTILIZATION,
     CATEGORY_LATERAL_JERK_GS,
+    CATEGORY_LLTD_PENALTY,
     CATEGORY_LOAD_SENSITIVITY_EXPONENT,
     CATEGORY_MU_DEFAULTS,
     CATEGORY_PEAK_SLIP_ANGLE_DEG,
@@ -45,7 +46,7 @@ OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 
 _BRAKE_EFFICIENCY = 0.95
 _AIR_DENSITY = 1.225
-_DRIVETRAIN_EFFICIENCY: dict[str, float] = {"RWD": 0.85, "FWD": 0.82, "AWD": 0.80}
+_DRIVETRAIN_EFFICIENCY: dict[str, float] = {"RWD": 0.85, "FWD": 0.88, "AWD": 0.80}
 _DRIVETRAIN_TRACTION_MULTIPLIER: dict[str, float] = {"RWD": 1.0, "FWD": 1.0, "AWD": 1.05}
 _AERO_EFFICIENCY = 0.85  # real-world aero efficiency
 
@@ -120,14 +121,15 @@ def _vehicle_spec_to_params(
     mu_raw = CATEGORY_MU_DEFAULTS[compound]
     grip_util = CATEGORY_GRIP_UTILIZATION.get(compound, 0.96)
     thermal = CATEGORY_THERMAL_PENALTY.get(compound, 1.00)
-    mu = mu_raw * grip_util * thermal
+    lltd = CATEGORY_LLTD_PENALTY.get(compound, 1.00)
+    mu = mu_raw * grip_util * thermal * lltd
     weight_kg = spec.weight_kg
 
     # Acceleration from drivetrain power-to-weight ratio
 
     base_accel_g = _CATEGORY_ACCEL_G[compound]
     pw_ratio = spec.hp / (weight_kg / 1000.0)
-    pw_factor = min(pw_ratio / 250.0, 1.5)
+    pw_factor = min(pw_ratio / 200.0, 1.5)
     accel_g = base_accel_g * max(pw_factor, 0.7)
 
     # Aerodynamic drag
