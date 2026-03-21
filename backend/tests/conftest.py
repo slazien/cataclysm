@@ -240,6 +240,13 @@ def _patch_coaching_db_factory() -> Generator[None, None, None]:
 
 
 @pytest.fixture(autouse=True)
+def _mock_llm_task_available() -> Generator[None, None, None]:
+    """Make is_task_available return True in tests so coaching generation proceeds."""
+    with patch("backend.api.routers.coaching.is_task_available", return_value=True):
+        yield
+
+
+@pytest.fixture(autouse=True)
 def _patch_physics_cache_db_factory() -> Generator[None, None, None]:
     """Route physics cache DB writes to the test SQLite database."""
     with patch(
