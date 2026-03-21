@@ -14,6 +14,7 @@ import type { CoachingReport } from '@/lib/types';
 interface CoachingSummaryHeroProps {
   report: Pick<CoachingReport, 'status' | 'summary' | 'primary_focus' | 'generation_started_at' | 'generation_estimated_s'> | null;
   onRetry?: () => void;
+  postFailed?: boolean;
 }
 
 /** Split summary into a prominent first sentence and the rest. */
@@ -139,8 +140,8 @@ function GeneratingProgress({ startedAt, estimatedS, onRetry }: { startedAt?: st
   );
 }
 
-export function CoachingSummaryHero({ report, onRetry }: CoachingSummaryHeroProps) {
-  const isLoading = !report || report.status === 'generating';
+export function CoachingSummaryHero({ report, onRetry, postFailed }: CoachingSummaryHeroProps) {
+  const isLoading = !postFailed && (!report || report.status === 'generating');
   const { resolveSpeed } = useUnits();
   const coachingNav = useCoachingNav();
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
@@ -157,7 +158,22 @@ export function CoachingSummaryHero({ report, onRetry }: CoachingSummaryHeroProp
         </span>
       </div>
 
-      {isLoading ? (
+      {postFailed ? (
+        <div className="space-y-2">
+          <p className="text-sm text-[var(--text-secondary)]">
+            Failed to start coaching generation.
+          </p>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="rounded-md border border-[var(--cata-accent)]/40 bg-[var(--cata-accent)]/10 px-3 py-1.5 text-xs font-medium text-[var(--cata-accent)] transition-colors hover:bg-[var(--cata-accent)]/20"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      ) : isLoading ? (
         <GeneratingProgress
           startedAt={report?.generation_started_at}
           estimatedS={report?.generation_estimated_s}

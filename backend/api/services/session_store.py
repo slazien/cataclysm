@@ -228,7 +228,7 @@ def delete_session(session_id: str) -> bool:
 def list_sessions() -> list[SessionData]:
     """Return all stored sessions, sorted by date descending."""
     return sorted(
-        _store.values(),
+        list(_store.values()),
         key=lambda s: s.snapshot.session_date_parsed,
         reverse=True,
     )

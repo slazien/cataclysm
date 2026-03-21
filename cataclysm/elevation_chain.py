@@ -36,7 +36,7 @@ async def fetch_best_elevation(
             logger.info("Elevation from USGS 3DEP (%d points)", len(result.altitude_m))
             return result
     except Exception:
-        logger.warning("USGS 3DEP failed", exc_info=True)
+        logger.error("USGS 3DEP failed", exc_info=True)
 
     # 2. Copernicus DEM
     try:
@@ -45,7 +45,7 @@ async def fetch_best_elevation(
             logger.info("Elevation from Copernicus DEM (%d points)", len(result.altitude_m))
             return result
     except Exception:
-        logger.warning("Copernicus DEM failed", exc_info=True)
+        logger.error("Copernicus DEM failed", exc_info=True)
 
     # 3. GPS altitude fallback
     if gps_altitudes is not None and len(gps_altitudes) > 0:
@@ -56,7 +56,7 @@ async def fetch_best_elevation(
             accuracy_m=3.0,
         )
 
-    # Nothing worked — return empty result
+    logger.error("All elevation sources failed — returning empty result")
     return ElevationResult(
         altitude_m=np.array([], dtype=np.float64),
         source="gps_fallback",

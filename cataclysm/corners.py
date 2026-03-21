@@ -144,6 +144,8 @@ def _refine_apex(
 
 def _compute_heading_rate(heading_deg: np.ndarray, step_m: float) -> np.ndarray:
     """Compute heading rate of change in deg/m, handling 360/0 wrap."""
+    if len(heading_deg) < 2:
+        return np.zeros(len(heading_deg), dtype=np.float64)
     diff = np.diff(heading_deg)
     # Normalize angular difference to [-180, 180]
     diff = (diff + 180) % 360 - 180

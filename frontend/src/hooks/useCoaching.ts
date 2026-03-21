@@ -22,7 +22,10 @@ export function useCoachingReport(sessionId: string | null) {
       const { data, status } = query.state;
       if (data?.status === "generating") return 2000;
       // Keep polling on errors — transient failures shouldn't kill the loop
-      if (status === "error") return 3000;
+      if (status === "error") {
+        const errorCount = query.state.errorUpdateCount ?? 0;
+        return errorCount < 10 ? 3000 : false;
+      }
       return false;
     },
   });

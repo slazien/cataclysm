@@ -115,7 +115,7 @@ export function SessionReport() {
   const { data: session } = useSession(activeSessionId);
   const { data: laps } = useSessionLaps(activeSessionId);
   const { data: _corners } = useCorners(activeSessionId);
-  const { report, generatingReport, isSkillMismatch, isGenerating, regenRemaining, regenMax, regenerate, retry: retryCoaching } = useAutoReport(activeSessionId);
+  const { report, generatingReport, isSkillMismatch, isGenerating, isError: coachingPostFailed, regenRemaining, regenMax, regenerate, retry: retryCoaching } = useAutoReport(activeSessionId);
   const { data: consistency } = useConsistency(activeSessionId);
   const { data: gpsQuality } = useGPSQuality(activeSessionId);
   const { data: optimalComparison, isPlaceholderData: isOptimalStale, isPending: isOptimalPending } = useOptimalComparison(activeSessionId);
@@ -230,7 +230,7 @@ export function SessionReport() {
           />
         )}
 
-        <CoachingSummaryHero report={generatingReport ?? report ?? null} onRetry={retryCoaching} />
+        <CoachingSummaryHero report={generatingReport ?? report ?? null} onRetry={retryCoaching} postFailed={coachingPostFailed} />
 
         {report?.skill_level && (
           <div className="flex items-center justify-between -mt-4">

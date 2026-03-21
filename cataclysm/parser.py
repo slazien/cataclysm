@@ -104,7 +104,7 @@ def parse_racechrono_csv(source: str | io.IOBase) -> ParsedSession:
     # Read raw lines for metadata
     head_lines: list[str] = []
     if isinstance(source, str):
-        with open(source) as fh:
+        with open(source, encoding="utf-8") as fh:
             head_lines = [next(fh) for _ in range(METADATA_LINES)]
     else:
         pos = source.tell() if hasattr(source, "tell") else 0

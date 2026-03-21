@@ -503,7 +503,7 @@ async def upload_sessions(
                 except Exception:
                     logger.warning("LIDAR prefetch failed for %s", sid, exc_info=True)
 
-        except (ValueError, KeyError, IndexError, OSError) as exc:
+        except Exception as exc:
             logger.warning("Failed to process %s: %s", f.filename, exc, exc_info=True)
             errors.append(f"{f.filename}: {exc}")
 
@@ -547,7 +547,7 @@ async def claim_anonymous_session(
     sd = session_store.get_session(body.session_id)
     if sd is None:
         raise HTTPException(status_code=404, detail="Session not found or expired")
-    if not sd.is_anonymous:
+    if not sd.is_anonymous or sd.user_id is not None:
         raise HTTPException(status_code=400, detail="Session already claimed")
 
     # Ensure user row exists for FK references

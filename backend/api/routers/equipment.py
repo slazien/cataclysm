@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import uuid
 from datetime import UTC
@@ -49,23 +48,6 @@ from backend.api.services.pipeline import invalidate_physics_cache, invalidate_p
 
 router = APIRouter()
 _logger = logging.getLogger(__name__)
-
-# Track fire-and-forget DB tasks to prevent GC collection
-_bg_tasks: set[asyncio.Task[None]] = set()
-
-
-def _fire_and_forget(coro: object) -> None:
-    """Schedule a coroutine as a background task with error logging."""
-    task: asyncio.Task[None] = asyncio.create_task(coro)  # type: ignore[arg-type]
-    _bg_tasks.add(task)
-    task.add_done_callback(_bg_tasks.discard)
-    task.add_done_callback(
-        lambda t: (
-            _logger.warning("Background DB write failed: %s", t.exception())
-            if not t.cancelled() and t.exception()
-            else None
-        )
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -624,9 +606,10 @@ async def set_session_equipment(
     equipment_store.store_session_equipment(se)
     invalidate_physics_cache(session_id)
     await clear_coaching_data(session_id)
-    # Fire-and-forget: in-memory store is authoritative, DB is crash recovery.
-    # Don't block the HTTP response for the Postgres round-trip.
-    _fire_and_forget(equipment_store.db_persist_session_equipment(se))
+    try:
+        await equipment_store.db_persist_session_equipment(se)
+    except Exception:
+        _logger.error("Failed to persist session equipment to DB", exc_info=True)
 
     return SessionEquipmentResponse(
         session_id=session_id,
@@ -695,10 +678,15 @@ async def set_session_equipment_inline(
     invalidate_physics_cache(session_id)
     await clear_coaching_data(session_id)
 
-    # Only persist to DB for authenticated users; anon profiles migrate on claim.
     if current_user.user_id != "anon":
-        _fire_and_forget(equipment_store.db_persist_profile(profile, user_id=current_user.user_id))
-        _fire_and_forget(equipment_store.db_persist_session_equipment(se))
+        try:
+            await equipment_store.db_persist_profile(profile, user_id=current_user.user_id)
+        except Exception:
+            _logger.error("Failed to persist equipment profile to DB", exc_info=True)
+        try:
+            await equipment_store.db_persist_session_equipment(se)
+        except Exception:
+            _logger.error("Failed to persist session equipment to DB", exc_info=True)
 
     return SessionEquipmentResponse(
         session_id=session_id,

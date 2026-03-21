@@ -831,8 +831,8 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
         all_lap_corners=all_lap_corners,
         anomalous_laps=anomalous,
         file_key=filename,
-        gps_quality_score=gps_quality.overall_score if gps_quality else 100.0,
-        gps_quality_grade=gps_quality.grade if gps_quality else "A",
+        gps_quality_score=gps_quality.overall_score if gps_quality else 0.0,
+        gps_quality_grade=gps_quality.grade if gps_quality else "unknown",
     )
 
     # 10. Eagerly build/update canonical track reference for future sessions

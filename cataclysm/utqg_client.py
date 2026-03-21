@@ -31,7 +31,11 @@ async def lookup_treadwear(brand: str, model: str) -> int | None:
         The treadwear rating as an ``int``, or ``None`` if the tire was
         not found or the request failed.
     """
-    where_clause = f"upper(brandname)=upper('{brand}') AND upper(t_unifiedtm)=upper('{model}')"
+    safe_brand = brand.replace("'", "''")
+    safe_model = model.replace("'", "''")
+    where_clause = (
+        f"upper(brandname)=upper('{safe_brand}') AND upper(t_unifiedtm)=upper('{safe_model}')"
+    )
     params = {
         "$where": where_clause,
         "$limit": "1",

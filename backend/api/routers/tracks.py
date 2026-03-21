@@ -9,7 +9,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from backend.api.config import Settings
-from backend.api.dependencies import get_settings
+from backend.api.dependencies import AuthenticatedUser, get_current_user, get_settings
 from backend.api.services.pipeline import process_file_path
 
 logger = logging.getLogger(__name__)
@@ -19,6 +19,7 @@ router = APIRouter()
 
 @router.get("")
 async def list_track_folders(
+    _current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> list[dict[str, object]]:
     """List available track folders in the data directory.
@@ -39,7 +40,6 @@ async def list_track_folders(
                 {
                     "folder": child.name,
                     "n_files": len(csv_files),
-                    "path": str(child),
                 }
             )
 
@@ -49,6 +49,7 @@ async def list_track_folders(
 @router.post("/{folder}/load")
 async def load_track_folder(
     folder: str,
+    _current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
     settings: Annotated[Settings, Depends(get_settings)],
     limit: int | None = Query(None, ge=1, description="Max number of CSV files to load"),
 ) -> dict[str, object]:

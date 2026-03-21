@@ -179,7 +179,7 @@ class CoachingValidator:
             )
             text = result.text
         except Exception:
-            logger.warning("Coaching validation API call failed", exc_info=True)
+            logger.error("Coaching validation API call failed", exc_info=True)
             return ValidationRecord(timestamp=now, passed=True, skill_level_checked=skill_level)
 
         return self._parse_validation(text, now, skill_level=skill_level)
@@ -231,7 +231,7 @@ class CoachingValidator:
                         data = parsed
 
         if data is None:
-            logger.warning("Could not parse validation response: %s", clean[:200])
+            logger.error("Could not parse validation response: %s", clean[:200])
             return ValidationRecord(
                 timestamp=timestamp, passed=True, skill_level_checked=skill_level
             )

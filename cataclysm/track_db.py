@@ -1705,10 +1705,13 @@ def locate_official_corners(
 
         step_m = float(np.median(np.diff(distance))) if len(distance) > 1 else 0.7
         heading = lap_df["heading_deg"].to_numpy()
-        diff = np.diff(heading)
-        diff = (diff + 180) % 360 - 180
-        rate = diff / step_m
-        rate = np.append(rate, rate[-1])
+        if len(heading) < 2:
+            rate = np.zeros(len(heading), dtype=np.float64)
+        else:
+            diff = np.diff(heading)
+            diff = (diff + 180) % 360 - 180
+            rate = diff / step_m
+            rate = np.append(rate, rate[-1])
         window_pts = max(2, int(SMOOTHING_WINDOW_M / step_m))
         kernel = np.ones(window_pts) / window_pts
         smoothed_rate = np.convolve(np.abs(rate), kernel, mode="same")

@@ -14,7 +14,7 @@ from cataclysm.coaching import CoachingReport, CornerGrade
 from cataclysm.corners_gained import CornersGainedResult
 from cataclysm.driver_archetypes import ArchetypeResult, detect_archetype
 from cataclysm.flow_lap import FlowLapResult
-from cataclysm.llm_gateway import get_task_route_chain
+from cataclysm.llm_gateway import get_task_route_chain, is_task_available
 from cataclysm.optimal_comparison import CornerOpportunity, OptimalComparisonResult
 from cataclysm.pdf_report import ReportContent, generate_pdf
 from cataclysm.skill_detection import SkillAssessment, detect_skill_level
@@ -306,6 +306,19 @@ async def _run_generation(
 ) -> None:
     """Background task that generates the coaching report."""
     logger.info("Coaching generation STARTED for %s (skill=%s)", session_id, skill_level)
+    if not is_task_available("coaching_report"):
+        logger.error("LLM not available for coaching_report task (session %s)", session_id)
+        await store_coaching_report(
+            session_id,
+            CoachingReportResponse(
+                session_id=session_id,
+                status="error",
+                summary="AI coaching is temporarily unavailable. Please retry in a few minutes.",
+            ),
+            skill_level,
+        )
+        unmark_generating(session_id, skill_level)
+        return
     try:
         from cataclysm.coaching import generate_coaching_report
         from cataclysm.corner_analysis import compute_corner_analysis
@@ -497,10 +510,10 @@ async def _run_generation(
                     break
                 except Exception as exc:  # noqa: BLE001
                     last_exc = exc
-                    # Only retry on Anthropic rate-limit (429) errors
                     import anthropic
+                    import openai
 
-                    if isinstance(exc, anthropic.RateLimitError):
+                    if isinstance(exc, (anthropic.RateLimitError, openai.RateLimitError)):
                         wait = 30 * (attempt + 1)
                         logger.warning(
                             "Rate limited for %s, retry %d/%d in %ds",
@@ -933,6 +946,9 @@ async def coaching_chat(
             ).model_dump()
         )
         await websocket.close()
+        return
+    if not sd.is_anonymous and sd.user_id != user.user_id:
+        await websocket.close(code=4003, reason="Not authorized for this session")
         return
     await ensure_corners_current(sd)
 
