@@ -1425,8 +1425,12 @@ def _sanitize_report_speed_markers(report: CoachingReport) -> None:
     """Strip ``{{speed:X}}`` markers from non-speed values across all report text."""
     report.summary = _sanitize_speed_markers(report.summary)
     report.primary_focus = _sanitize_speed_markers(report.primary_focus)
-    report.patterns = [_sanitize_speed_markers(p) for p in report.patterns]
-    report.drills = [_sanitize_speed_markers(d) for d in report.drills]
+    report.patterns = [
+        _sanitize_speed_markers(p) if isinstance(p, str) else str(p) for p in report.patterns
+    ]
+    report.drills = [
+        _sanitize_speed_markers(d) if isinstance(d, str) else str(d) for d in report.drills
+    ]
 
     for priority in report.priority_corners:
         for field_name in ("issue", "tip"):
