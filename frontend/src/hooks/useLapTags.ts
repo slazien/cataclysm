@@ -27,7 +27,7 @@ const DEBOUNCE_MS = 30_000;
 const pendingFlush = new Map<string, ReturnType<typeof setTimeout>>();
 
 function invalidateDownstream(qc: QueryClient, sessionId: string) {
-  qc.invalidateQueries({ queryKey: ["coaching", sessionId] });
+  qc.invalidateQueries({ queryKey: ["coaching-report", sessionId] });
   qc.invalidateQueries({ queryKey: ["optimal-comparison", sessionId] });
   qc.invalidateQueries({ queryKey: ["ideal-lap", sessionId] });
   qc.invalidateQueries({ queryKey: ["sectors", sessionId] });
