@@ -1538,6 +1538,30 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
     # Try LIDAR elevation (async, before entering sync thread)
     lidar_alt = await _try_lidar_elevation(session_data)
 
+    # Load Bayesian per-corner capability factors (async, before sync thread).
+    # Only for authenticated users on known tracks. Pass into _compute via closure.
+    c_factors: dict[int, float] = {}
+    if track_slug and session_data.user_id and session_data.user_id != "anon":
+        try:
+            from backend.api.db.database import async_session_factory
+            from backend.api.services.corner_capability_store import (
+                get_corner_capabilities,
+            )
+
+            async with async_session_factory() as db:
+                c_data = await get_corner_capabilities(db, track_slug, session_data.user_id)
+            # Only apply factors with >= 2 observations to avoid noisy single-session data
+            c_factors = {cn: mu_post for cn, (mu_post, _, n) in c_data.items() if n >= 2}
+            if c_factors:
+                logger.debug(
+                    "Loaded %d C-factors for sid=%s track=%s",
+                    len(c_factors),
+                    session_id,
+                    track_slug,
+                )
+        except Exception:
+            logger.debug("Failed to load C-factors", exc_info=True)
+
     def _compute() -> dict[str, object]:
         processed = session_data.processed
         best_lap_df = processed.resampled_laps[processed.best_lap]
@@ -1600,6 +1624,29 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
                     calibrated_vp.mu,
                 )
 
+        # Apply Bayesian C-factors to mu_array (loaded in async context above).
+        # C-factors encode learned per-corner adjustments from previous sessions —
+        # e.g., banked turns get C > 1, off-camber corners get C < 1.
+        if c_factors and session_data.corners:
+            if mu_array is None:
+                base_mu = calibrated_vp.mu if calibrated_vp else 1.0
+                mu_array = np.full(len(curvature_result.distance_m), base_mu)
+            for corner in session_data.corners:
+                c_val = c_factors.get(corner.number)
+                if (
+                    c_val is not None
+                    and corner.entry_distance_m is not None
+                    and corner.exit_distance_m is not None
+                ):
+                    mask = (curvature_result.distance_m >= corner.entry_distance_m) & (
+                        curvature_result.distance_m <= corner.exit_distance_m
+                    )
+                    mu_array[mask] *= c_val
+            logger.debug(
+                "Applied %d Bayesian C-factors for sid=%s",
+                len(c_factors),
+                session_id,
+            )
         # Compute elevation gradient and vertical curvature for the solver
         # Prefer resolved altitude (canonical/LIDAR), fall back to GPS
         gradient_sin = None
@@ -1828,4 +1875,85 @@ async def get_optimal_comparison_data(
     result = await asyncio.to_thread(_compute)
     _set_physics_cached(session_id, "comparison", result, profile_id)
     await db_set_cached(session_id, "comparison", result, profile_id)
+
+    # Update Bayesian per-corner capability factors from comparison results.
+    # Only for authenticated users on known tracks with valid comparison data.
+    track_slug = track_slug_from_layout(session_data.layout) if session_data.layout else None
+    vp_mu: float | None = None
+    vp_dict = profile_data.get("vehicle_params")
+    if isinstance(vp_dict, dict):
+        raw_mu = vp_dict.get("mu")
+        if isinstance(raw_mu, (int, float)):
+            vp_mu = float(raw_mu)
+    corner_opps = result.get("corner_opportunities")
+    if (
+        track_slug
+        and session_data.user_id
+        and session_data.user_id != "anon"
+        and isinstance(corner_opps, list)
+        and corner_opps
+        and vp_mu is not None
+        and vp_mu > 0
+    ):
+        try:
+            from cataclysm.corner_capability import (
+                bayesian_update_capability,
+                compute_c_obs,
+            )
+
+            from backend.api.db.database import async_session_factory
+            from backend.api.services.corner_capability_store import (
+                get_corner_capabilities,
+                upsert_corner_capability,
+            )
+
+            # Resolve curvature for apex kappa lookup
+            curvature_result, _ = _resolve_curvature_and_elevation(session_data, None)
+            # Build corner number → apex distance map
+            apex_map: dict[int, float] = {}
+            for c in session_data.corners or []:
+                if c.apex_distance_m is not None:
+                    apex_map[c.number] = c.apex_distance_m
+
+            async with async_session_factory() as db:
+                existing = await get_corner_capabilities(db, track_slug, session_data.user_id)
+                for opp in corner_opps:
+                    cn = opp.get("corner_number")
+                    actual_mph = opp.get("actual_min_speed_mph")
+                    if cn is None or actual_mph is None or actual_mph <= 0:
+                        continue
+                    apex_dist = apex_map.get(cn)
+                    if apex_dist is None:
+                        continue
+                    kappa_idx = int(np.searchsorted(curvature_result.distance_m, apex_dist))
+                    kappa_idx = min(kappa_idx, len(curvature_result.abs_curvature) - 1)
+                    kappa = float(curvature_result.abs_curvature[kappa_idx])
+                    if kappa < 0.001:
+                        continue
+                    # Convert actual speed from mph back to m/s
+                    actual_mps = actual_mph / MPS_TO_MPH
+                    c_obs = compute_c_obs(actual_mps, kappa, vp_mu)
+                    mu_prior, sigma_prior, n_obs = existing.get(cn, (1.0, 0.10, 0))
+                    mu_post, sigma_post = bayesian_update_capability(
+                        mu_prior, sigma_prior, c_obs, sigma_obs=0.09
+                    )
+                    await upsert_corner_capability(
+                        db,
+                        track_slug,
+                        cn,
+                        session_data.user_id,
+                        mu_post,
+                        sigma_post,
+                        n_obs + 1,
+                    )
+                await db.commit()
+            logger.debug(
+                "Updated C-factors for sid=%s track=%s user=%s",
+                session_id,
+                track_slug,
+                session_data.user_id,
+            )
+        except Exception:
+            logger.debug("Failed to update C-factors", exc_info=True)
+
     return result
