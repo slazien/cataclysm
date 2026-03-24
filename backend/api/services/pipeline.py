@@ -1670,6 +1670,50 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
                 float(np.max(vert_curvature)),
             )
 
+        # Auto-detect banking from IMU discrepancy (lateral_g vs yaw_rate).
+        # When both sensors are present, the accelerometer reads higher than
+        # expected from curvature alone on banked surfaces (gravity component).
+        # The gyroscope yaw rate is NOT affected by banking, so the difference
+        # reveals the banking angle.  Only sets Corner.banking_deg for corners
+        # that don't already have it from track_db or manual override.
+        if (
+            "yaw_rate_dps" in best_lap_df.columns
+            and "lateral_g" in best_lap_df.columns
+            and session_data.corners
+        ):
+            from cataclysm.banking import detect_banking_from_telemetry
+
+            banking_array = detect_banking_from_telemetry(
+                best_lap_df["lateral_g"].to_numpy(),
+                best_lap_df["yaw_rate_dps"].to_numpy(),
+                best_lap_df["speed_mps"].to_numpy(),
+                curvature_result.distance_m,
+            )
+            if banking_array is not None:
+                banked_count = 0
+                for corner in session_data.corners:
+                    if corner.banking_deg is not None:
+                        continue  # already has banking from track_db or override
+                    if corner.apex_distance_m is None:
+                        continue
+                    entry = corner.entry_distance_m or 0.0
+                    exit_ = corner.exit_distance_m or curvature_result.distance_m[-1]
+                    mask = (curvature_result.distance_m >= entry) & (
+                        curvature_result.distance_m <= exit_
+                    )
+                    if mask.any():
+                        avg_banking = float(np.mean(banking_array[mask]))
+                        if abs(avg_banking) > 1.0:  # only set if meaningfully banked
+                            corner.banking_deg = round(avg_banking, 1)
+                            banked_count += 1
+                if banked_count:
+                    logger.info(
+                        "Auto-detected banking for %d/%d corners in sid=%s",
+                        banked_count,
+                        len(session_data.corners),
+                        session_id,
+                    )
+
         # Apply banking corrections to mu_array.
         # Primary: per-corner banking from telemetry (auto_enrich sets Corner.banking_deg)
         # Fallback: track-level banking from TRACK_BANKING dict via TrackReference.banking_deg

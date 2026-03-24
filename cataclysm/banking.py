@@ -124,3 +124,78 @@ def apply_banking_to_mu_array(
             )
 
     return result
+
+
+def detect_banking_from_telemetry(
+    lateral_g: np.ndarray,
+    yaw_rate_dps: np.ndarray,
+    speed_mps: np.ndarray,
+    distance_m: np.ndarray,
+    *,
+    min_speed_mps: float = 8.0,
+    min_coverage: float = 0.8,
+) -> np.ndarray | None:
+    """Detect track banking from discrepancy between accelerometer and gyroscope.
+
+    When a_y (lateral_g * g) exceeds the centripetal acceleration implied by
+    yaw rate (v * psi_dot), the excess comes from gravity on a banked surface:
+
+        banking_rad = arcsin((a_y - v * psi_dot) / g)
+
+    Parameters
+    ----------
+    lateral_g:
+        Lateral acceleration in G (from accelerometer).
+    yaw_rate_dps:
+        Yaw rate in degrees/second (from gyroscope).
+    speed_mps:
+        Vehicle speed in m/s.
+    distance_m:
+        Distance array corresponding to the other arrays.
+    min_speed_mps:
+        Below this speed both signals are too noisy; banking is zeroed.
+    min_coverage:
+        Minimum fraction of finite yaw_rate + lateral_g samples required.
+
+    Returns
+    -------
+    Array of banking in degrees (positive = banked into corner),
+    or None if insufficient sensor data.
+    """
+    valid_yaw = np.isfinite(yaw_rate_dps)
+    valid_lat = np.isfinite(lateral_g)
+    valid = valid_yaw & valid_lat
+    if valid.mean() < min_coverage:
+        return None
+
+    g = 9.81
+
+    # Convert yaw rate to rad/s
+    yaw_rad_s = np.radians(yaw_rate_dps)
+
+    # Centripetal acceleration from yaw rate: a_centripetal = v * |psi_dot|
+    a_centripetal = speed_mps * np.abs(yaw_rad_s)
+
+    # Measured lateral acceleration (absolute value, in m/s^2)
+    a_measured = np.abs(lateral_g) * g
+
+    # Excess acceleration from banking
+    a_excess = a_measured - a_centripetal
+
+    # banking = arcsin(a_excess / g), clamped to [-1, 1] for arcsin domain
+    sin_banking = np.clip(a_excess / g, -1.0, 1.0)
+    banking_rad = np.arcsin(sin_banking)
+    banking_deg_raw = np.degrees(banking_rad)
+
+    # Zero out low-speed zones where both signals are noisy.
+    # Linear ramp from 0 at min_speed_mps to 1 at 2*min_speed_mps.
+    speed_weight = np.clip((speed_mps - min_speed_mps) / min_speed_mps, 0.0, 1.0)
+    banking_deg_arr = banking_deg_raw * speed_weight
+
+    # Clamp to physically reasonable range (-15 deg to 35 deg)
+    banking_deg_arr = np.clip(banking_deg_arr, -15.0, 35.0)
+
+    # Fill NaN from invalid samples with 0
+    banking_deg_arr = np.where(valid, banking_deg_arr, 0.0)
+
+    return banking_deg_arr

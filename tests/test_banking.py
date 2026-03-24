@@ -244,3 +244,71 @@ class TestEffectiveMuNearSingularity:
         # a large mu and confirm result is clamped.
         result = effective_mu_with_banking(mu=mu, banking_deg=banking_deg)
         assert result == MU_CLAMP_MAX or MU_CLAMP_MIN <= result <= MU_CLAMP_MAX
+
+
+class TestDetectBankingFromTelemetry:
+    """Tests for detect_banking_from_telemetry()."""
+
+    def test_flat_track_returns_near_zero(self) -> None:
+        """When lateral_g matches yaw-rate prediction, banking ~ 0."""
+        from cataclysm.banking import detect_banking_from_telemetry
+
+        n = 200
+        speed_mps = np.full(n, 25.0)
+        # Yaw rate for 50m radius turn: psi_dot = v/r = 25/50 = 0.5 rad/s = 28.65 deg/s
+        yaw_rate_dps = np.full(n, 28.65)
+        # Lateral G from same curvature: a_y = v^2/r = 625/50 = 12.5 m/s^2 = 1.274 G
+        lateral_g = np.full(n, 1.274)
+        distance_m = np.linspace(0, 200, n)
+
+        banking = detect_banking_from_telemetry(lateral_g, yaw_rate_dps, speed_mps, distance_m)
+        assert banking is not None
+        # Should be near zero (flat track)
+        assert np.abs(np.median(banking)) < 1.0  # less than 1 degree
+
+    def test_banked_turn_detects_positive_banking(self) -> None:
+        """Banking should be detected when lateral_g exceeds yaw-rate prediction."""
+        from cataclysm.banking import detect_banking_from_telemetry
+
+        n = 200
+        speed_mps = np.full(n, 30.0)
+        # 80m radius turn: psi_dot = 30/80 = 0.375 rad/s = 21.49 deg/s
+        yaw_rate_dps = np.full(n, 21.49)
+        # Lateral G with 5 deg banking: a_y = v^2/r + g*sin(5deg)
+        # = 900/80 + 9.81*0.0872 = 11.25 + 0.855 = 12.105 m/s^2
+        # In G: 12.105 / 9.81 = 1.234
+        lateral_g = np.full(n, 1.234)
+        distance_m = np.linspace(0, 200, n)
+
+        banking = detect_banking_from_telemetry(lateral_g, yaw_rate_dps, speed_mps, distance_m)
+        assert banking is not None
+        # Should detect ~5 deg banking
+        median_banking = float(np.median(banking))
+        assert 3.0 < median_banking < 7.0  # allow tolerance for filtering
+
+    def test_returns_none_when_no_yaw_rate(self) -> None:
+        """Should return None if yaw_rate is mostly NaN."""
+        from cataclysm.banking import detect_banking_from_telemetry
+
+        n = 100
+        lateral_g = np.full(n, 0.5)
+        yaw_rate_dps = np.full(n, np.nan)  # no yaw rate data
+        speed_mps = np.full(n, 20.0)
+        distance_m = np.linspace(0, 100, n)
+
+        banking = detect_banking_from_telemetry(lateral_g, yaw_rate_dps, speed_mps, distance_m)
+        assert banking is None
+
+    def test_low_speed_zones_zeroed(self) -> None:
+        """Banking estimate should be zero at low speeds (unreliable)."""
+        from cataclysm.banking import detect_banking_from_telemetry
+
+        n = 100
+        speed_mps = np.full(n, 3.0)  # very low speed
+        yaw_rate_dps = np.full(n, 15.0)
+        lateral_g = np.full(n, 0.3)
+        distance_m = np.linspace(0, 100, n)
+
+        banking = detect_banking_from_telemetry(lateral_g, yaw_rate_dps, speed_mps, distance_m)
+        assert banking is not None
+        assert np.max(np.abs(banking)) < 0.5  # near zero at low speed
