@@ -582,3 +582,51 @@ class TestYawRateCurvature:
         result = compute_yaw_rate_curvature(yaw_rate_dps, speed_mps, distance_m)
         assert result is not None
         assert np.median(result) < -0.01
+
+
+# ---------------------------------------------------------------------------
+# TestFuseCurvatureSources
+# ---------------------------------------------------------------------------
+
+
+class TestFuseCurvatureSources:
+    """Tests for fuse_curvature_sources()."""
+
+    def test_fuse_curvature_prefers_yaw_at_apex(self) -> None:
+        """When both sources available, fusion should weight yaw-rate at high-curvature zones."""
+        from cataclysm.curvature import fuse_curvature_sources
+
+        n = 100
+        distance_m = np.linspace(0, 500, n)
+        # GPS curvature: underestimates apex (0.015 instead of 0.02)
+        kappa_gps = np.full(n, 0.005)
+        kappa_gps[40:60] = 0.015  # GPS apex estimate (too low)
+        # Yaw-rate curvature: correct apex (0.02)
+        kappa_yaw = np.full(n, 0.005)
+        kappa_yaw[40:60] = 0.020  # yaw-rate apex estimate (correct)
+
+        fused = fuse_curvature_sources(kappa_gps, kappa_yaw, distance_m)
+        # At apex (indices 40-60), fused should be closer to yaw-rate than GPS
+        apex_fused = np.mean(fused[40:60])
+        assert apex_fused > 0.017  # closer to 0.02 than 0.015
+
+    def test_fuse_returns_gps_when_yaw_is_none(self) -> None:
+        """When yaw-rate is None, should return GPS curvature unchanged."""
+        from cataclysm.curvature import fuse_curvature_sources
+
+        n = 50
+        kappa_gps = np.random.rand(n) * 0.01
+        distance_m = np.linspace(0, 200, n)
+        fused = fuse_curvature_sources(kappa_gps, None, distance_m)
+        np.testing.assert_array_equal(fused, kappa_gps)
+
+    def test_fuse_output_length_matches_input(self) -> None:
+        """Output array length should match input."""
+        from cataclysm.curvature import fuse_curvature_sources
+
+        n = 80
+        kappa_gps = np.full(n, 0.01)
+        kappa_yaw = np.full(n, 0.012)
+        distance_m = np.linspace(0, 300, n)
+        fused = fuse_curvature_sources(kappa_gps, kappa_yaw, distance_m)
+        assert len(fused) == n

@@ -1830,7 +1830,7 @@ class TestFormatOptimalComparison:
 
     def test_no_opportunities_shows_placeholder(self) -> None:
         text = _format_optimal_comparison(self._make_result(opportunities=[]))
-        assert "no corner data available" in text
+        assert "driver meets or exceeds model at all corners" in text
 
     def test_opportunity_with_positive_brake_gap_suppressed(self) -> None:
         """Positive brake_gap_m = driver outperforms model → brake info suppressed."""

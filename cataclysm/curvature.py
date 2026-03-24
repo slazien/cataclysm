@@ -341,3 +341,59 @@ def compute_yaw_rate_curvature(
     kappa = np.clip(kappa, -MAX_PHYSICAL_CURVATURE, MAX_PHYSICAL_CURVATURE)
 
     return kappa
+
+
+# ---------------------------------------------------------------------------
+# GPS + yaw-rate curvature fusion
+# ---------------------------------------------------------------------------
+
+
+def fuse_curvature_sources(
+    kappa_gps: np.ndarray,
+    kappa_yaw: np.ndarray | None,
+    distance_m: np.ndarray,
+    *,
+    yaw_weight_at_apex: float = 0.7,
+    yaw_weight_on_straight: float = 0.3,
+    curvature_threshold: float = 0.005,
+) -> np.ndarray:
+    """Fuse GPS and yaw-rate curvature, weighting yaw-rate more at high-curvature zones.
+
+    At corners (|kappa| > threshold), yaw-rate is more reliable because GPS
+    position-based curvature suffers from second-derivative noise amplification
+    and banking contamination.  On straights, GPS position is more reliable
+    because gyro drift accumulates over distance.
+
+    Parameters
+    ----------
+    kappa_gps:
+        Signed curvature from GPS position (1/m).
+    kappa_yaw:
+        Signed curvature from yaw rate (1/m), or *None* if unavailable.
+    distance_m:
+        Cumulative distance array (metres).  Currently unused but kept for
+        future distance-weighted blending.
+    yaw_weight_at_apex:
+        Weight given to yaw-rate curvature at high-curvature zones.
+    yaw_weight_on_straight:
+        Weight given to yaw-rate curvature on straights.
+    curvature_threshold:
+        Absolute curvature above which the apex weight is used (1/m).
+
+    Returns
+    -------
+    np.ndarray
+        Fused signed curvature array (1/m).
+    """
+    if kappa_yaw is None:
+        return kappa_gps.copy()
+
+    abs_kappa = np.maximum(np.abs(kappa_gps), np.abs(kappa_yaw))
+    # Weight ramp: more yaw-rate weight at higher curvature
+    yaw_weight: np.ndarray = np.where(
+        abs_kappa > curvature_threshold,
+        yaw_weight_at_apex,
+        yaw_weight_on_straight,
+    )
+    fused: np.ndarray = (1.0 - yaw_weight) * kappa_gps + yaw_weight * kappa_yaw
+    return fused

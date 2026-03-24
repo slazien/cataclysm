@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import dataclasses
 import io
 import logging
 import time
@@ -1546,6 +1547,29 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
             session_data,
             lidar_alt,
         )
+
+        # Try yaw-rate curvature from best lap for fusion
+        if "yaw_rate_dps" in best_lap_df.columns:
+            from cataclysm.curvature import compute_yaw_rate_curvature, fuse_curvature_sources
+
+            kappa_yaw = compute_yaw_rate_curvature(
+                best_lap_df["yaw_rate_dps"].to_numpy(),
+                best_lap_df["speed_mps"].to_numpy(),
+                curvature_result.distance_m,
+            )
+            if kappa_yaw is not None:
+                fused = fuse_curvature_sources(
+                    curvature_result.curvature, kappa_yaw, curvature_result.distance_m
+                )
+                curvature_result = dataclasses.replace(
+                    curvature_result,
+                    curvature=fused,
+                    abs_curvature=np.abs(fused),
+                )
+                logger.info(
+                    "Yaw-rate curvature fusion applied for sid=%s",
+                    session_id,
+                )
 
         # Build per-corner mu array using all coaching laps combined.
         # Uses max(global_mu, per_corner_mu) so corners where the driver
