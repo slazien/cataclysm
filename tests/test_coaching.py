@@ -3518,3 +3518,10 @@ class TestNegativeSpeedGapFiltering:
         result = self._make_result(opps)
         text = _format_optimal_comparison(result)
         assert "-1.1" not in text  # raw negative number should not appear
+
+    def test_format_optimal_comparison_all_negative_shows_fallback(self) -> None:
+        """When all corners have negative speed_gap, show fallback message."""
+        opps = [self._make_opps()[0]]  # only negative speed_gap corner
+        result = self._make_result(opps)
+        text = _format_optimal_comparison(result)
+        assert "driver meets or exceeds model" in text

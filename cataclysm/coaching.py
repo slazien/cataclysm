@@ -443,9 +443,11 @@ def _format_optimal_comparison(result: OptimalComparisonResult) -> str:
         "### Per-Corner Speed Gaps (sorted by time cost)",
     ]
 
+    emitted = 0
     for opp in result.corner_opportunities[:10]:  # top 10
         if opp.speed_gap_mph <= 0:
             continue  # driver faster than model — skip from LLM prompt
+        emitted += 1
         brake_info = ""
         # Only report brake gap when driver brakes earlier than physics model
         # (gap < 0). When gap > 0, the driver already outperforms the model's
@@ -457,8 +459,8 @@ def _format_optimal_comparison(result: OptimalComparisonResult) -> str:
             f" ({opp.time_cost_s:.3f}s cost{brake_info})"
         )
 
-    if not result.corner_opportunities:
-        lines.append("- (no corner data available)")
+    if not result.corner_opportunities or emitted == 0:
+        lines.append("- (driver meets or exceeds model at all corners)")
 
     return "\n".join(lines)
 
