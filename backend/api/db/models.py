@@ -758,3 +758,25 @@ class LapTag(Base):
     lap_number: Mapped[int] = mapped_column(Integer, primary_key=True)
     tag: Mapped[str] = mapped_column(String, primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CornerCapabilityFactor(Base):
+    """Bayesian per-corner capability factor — learns from prediction errors across sessions."""
+
+    __tablename__ = "corner_capability_factors"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    track_slug: Mapped[str] = mapped_column(String, nullable=False)
+    corner_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    user_id: Mapped[str] = mapped_column(String, nullable=False)  # plain String, NO FK
+    mu_posterior: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    sigma_posterior: Mapped[float] = mapped_column(Float, nullable=False, default=0.10)
+    n_observations: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_updated: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (
+        UniqueConstraint("track_slug", "corner_number", "user_id", name="uq_corner_capability"),
+        Index("ix_corner_cap_track", "track_slug"),
+    )
