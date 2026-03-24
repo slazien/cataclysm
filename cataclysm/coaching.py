@@ -444,6 +444,8 @@ def _format_optimal_comparison(result: OptimalComparisonResult) -> str:
     ]
 
     for opp in result.corner_opportunities[:10]:  # top 10
+        if opp.speed_gap_mph <= 0:
+            continue  # driver faster than model — skip from LLM prompt
         brake_info = ""
         # Only report brake gap when driver brakes earlier than physics model
         # (gap < 0). When gap > 0, the driver already outperforms the model's
@@ -466,7 +468,11 @@ def _build_priority_corner_instruction(
     max_priorities: int,
 ) -> str:
     """Build explicit corner list for priority_corners based on physics ranking."""
-    top = [opp for opp in optimal.corner_opportunities[:max_priorities] if opp.time_cost_s > 0]
+    top = [
+        opp
+        for opp in optimal.corner_opportunities[:max_priorities]
+        if opp.time_cost_s > 0 and opp.speed_gap_mph > 0
+    ]
     if not top:
         return ""
     lines = [

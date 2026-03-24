@@ -13,6 +13,7 @@ from cataclysm.coaching import (
     CoachingReport,
     CornerGrade,
     _build_coaching_prompt,
+    _build_priority_corner_instruction,
     _corner_label,
     _enforce_novice_constraints,
     _format_all_laps_corners,
@@ -3456,3 +3457,64 @@ class TestAntiHallucinationInstructions:
     ) -> None:
         prompt = _build_coaching_prompt(sample_summaries, sample_all_lap_corners, "Test Track")
         assert "landmarks in natural language" in prompt.lower()
+
+
+class TestNegativeSpeedGapFiltering:
+    """Corners where driver is faster than model should not appear in coaching."""
+
+    @staticmethod
+    def _make_opps() -> list[CornerOpportunity]:
+        return [
+            CornerOpportunity(
+                corner_number=3,
+                actual_min_speed_mps=30.0,
+                optimal_min_speed_mps=29.5,  # driver faster than model
+                speed_gap_mps=-0.5,
+                speed_gap_mph=-1.1,
+                actual_brake_point_m=None,
+                optimal_brake_point_m=None,
+                brake_gap_m=None,
+                throttle_gap_m=None,
+                time_cost_s=0.15,  # positive time_cost but negative speed_gap
+            ),
+            CornerOpportunity(
+                corner_number=5,
+                actual_min_speed_mps=25.0,
+                optimal_min_speed_mps=28.0,  # driver slower than model
+                speed_gap_mps=3.0,
+                speed_gap_mph=6.7,
+                actual_brake_point_m=None,
+                optimal_brake_point_m=None,
+                brake_gap_m=None,
+                throttle_gap_m=None,
+                time_cost_s=0.5,
+            ),
+        ]
+
+    @staticmethod
+    def _make_result(opps: list[CornerOpportunity]) -> OptimalComparisonResult:
+        import numpy as np
+
+        return OptimalComparisonResult(
+            optimal_lap_time_s=80.0,
+            actual_lap_time_s=85.0,
+            total_gap_s=5.0,
+            corner_opportunities=opps,
+            speed_delta_mps=np.zeros(10),
+            distance_m=np.arange(10, dtype=float),
+        )
+
+    def test_build_priority_excludes_negative_speed_gap(self) -> None:
+        """Corners with speed_gap_mph <= 0 should be excluded from priority list."""
+        opps = self._make_opps()
+        result = self._make_result(opps)
+        text = _build_priority_corner_instruction(result, max_priorities=5)
+        assert "T5" in text  # positive speed_gap should be included
+        assert "T3" not in text  # negative speed_gap should be excluded
+
+    def test_format_optimal_comparison_skips_negative_speed_gap(self) -> None:
+        """Corners with negative speed_gap should not leak raw negative numbers."""
+        opps = [self._make_opps()[0]]  # only the negative speed_gap corner
+        result = self._make_result(opps)
+        text = _format_optimal_comparison(result)
+        assert "-1.1" not in text  # raw negative number should not appear
