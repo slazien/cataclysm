@@ -478,3 +478,107 @@ class TestComputeCurvatureFromHeading:
         assert np.max(np.abs(result.curvature)) < 1.0, (
             "Curvature spike detected at heading wrap boundary"
         )
+
+
+# ---------------------------------------------------------------------------
+# TestYawRateCurvature
+# ---------------------------------------------------------------------------
+
+
+class TestYawRateCurvature:
+    """Tests for compute_yaw_rate_curvature()."""
+
+    def test_basic_constant_radius_turn(self) -> None:
+        """Constant yaw rate + constant speed = constant curvature."""
+        from cataclysm.curvature import compute_yaw_rate_curvature
+
+        n = 200
+        # 50m radius turn at 20 m/s → κ = 1/50 = 0.02 m⁻¹
+        # yaw_rate = v * κ = 20 * 0.02 = 0.4 rad/s = 22.92 deg/s
+        speed_mps = np.full(n, 20.0)
+        yaw_rate_dps = np.full(n, 22.92)
+        distance_m = np.linspace(0, 200, n)
+
+        result = compute_yaw_rate_curvature(yaw_rate_dps, speed_mps, distance_m)
+        assert result is not None
+        # Should be ~0.02 m⁻¹ everywhere (allow 5% tolerance for filtering)
+        assert np.abs(np.median(result) - 0.02) < 0.002
+
+    def test_returns_none_when_mostly_nan(self) -> None:
+        """Should return None if >80% of yaw_rate values are NaN."""
+        from cataclysm.curvature import compute_yaw_rate_curvature
+
+        n = 100
+        yaw_rate_dps = np.full(n, np.nan)
+        yaw_rate_dps[:10] = 15.0  # only 10% valid
+        speed_mps = np.full(n, 25.0)
+        distance_m = np.linspace(0, 100, n)
+
+        result = compute_yaw_rate_curvature(yaw_rate_dps, speed_mps, distance_m)
+        assert result is None
+
+    def test_low_speed_returns_zero_curvature(self) -> None:
+        """At very low speeds, curvature should be zeroed to avoid singularity."""
+        from cataclysm.curvature import compute_yaw_rate_curvature
+
+        n = 50
+        speed_mps = np.full(n, 2.0)  # 2 m/s = ~7 km/h (pit lane)
+        yaw_rate_dps = np.full(n, 10.0)
+        distance_m = np.linspace(0, 50, n)
+
+        result = compute_yaw_rate_curvature(yaw_rate_dps, speed_mps, distance_m)
+        assert result is not None
+        # Should be zero or near-zero at low speed
+        assert np.max(np.abs(result)) < 0.005
+
+    def test_returns_none_for_all_nan(self) -> None:
+        """Completely NaN yaw_rate array should return None."""
+        from cataclysm.curvature import compute_yaw_rate_curvature
+
+        n = 100
+        yaw_rate_dps = np.full(n, np.nan)
+        speed_mps = np.full(n, 25.0)
+        distance_m = np.linspace(0, 100, n)
+
+        result = compute_yaw_rate_curvature(yaw_rate_dps, speed_mps, distance_m)
+        assert result is None
+
+    def test_output_length_matches_input(self) -> None:
+        """Output array must have the same length as input arrays."""
+        from cataclysm.curvature import compute_yaw_rate_curvature
+
+        n = 150
+        speed_mps = np.full(n, 30.0)
+        yaw_rate_dps = np.full(n, 10.0)
+        distance_m = np.linspace(0, 150, n)
+
+        result = compute_yaw_rate_curvature(yaw_rate_dps, speed_mps, distance_m)
+        assert result is not None
+        assert len(result) == n
+
+    def test_curvature_clamped_to_physical_max(self) -> None:
+        """Extreme yaw rate should still be clamped to MAX_PHYSICAL_CURVATURE."""
+        from cataclysm.curvature import compute_yaw_rate_curvature
+
+        n = 100
+        # 500 deg/s at 10 m/s → raw κ = 8.73/10 = 0.87 — above 0.33 max
+        speed_mps = np.full(n, 10.0)
+        yaw_rate_dps = np.full(n, 500.0)
+        distance_m = np.linspace(0, 100, n)
+
+        result = compute_yaw_rate_curvature(yaw_rate_dps, speed_mps, distance_m)
+        assert result is not None
+        assert np.all(np.abs(result) <= MAX_PHYSICAL_CURVATURE + 1e-9)
+
+    def test_negative_yaw_rate_produces_negative_curvature(self) -> None:
+        """Negative yaw rate (right turn) should produce negative curvature."""
+        from cataclysm.curvature import compute_yaw_rate_curvature
+
+        n = 200
+        speed_mps = np.full(n, 20.0)
+        yaw_rate_dps = np.full(n, -22.92)  # right turn
+        distance_m = np.linspace(0, 200, n)
+
+        result = compute_yaw_rate_curvature(yaw_rate_dps, speed_mps, distance_m)
+        assert result is not None
+        assert np.median(result) < -0.01

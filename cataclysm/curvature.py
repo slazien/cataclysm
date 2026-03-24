@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 from scipy.interpolate import UnivariateSpline
-from scipy.signal import savgol_filter
+from scipy.signal import butter, filtfilt, savgol_filter
 
 # Physical curvature ceiling — corresponds to a 3 m radius hairpin, the
 # tightest turn any road car can negotiate.  GPS glitches occasionally
@@ -260,3 +260,84 @@ def compute_curvature_from_heading(
         x_smooth=x_smooth,
         y_smooth=y_smooth,
     )
+
+
+# ---------------------------------------------------------------------------
+# Yaw-rate curvature (κ = ψ̇ / v)
+# ---------------------------------------------------------------------------
+
+_YAW_MIN_COVERAGE: float = 0.8  # require ≥80% valid yaw_rate values
+_YAW_MIN_SPEED_MPS: float = 5.0  # below this, yaw-rate curvature unreliable
+_YAW_BLEND_SPEED_MPS: float = 10.0  # full weight to yaw-rate above this
+
+
+def compute_yaw_rate_curvature(
+    yaw_rate_dps: np.ndarray,
+    speed_mps: np.ndarray,
+    distance_m: np.ndarray,
+    *,
+    sample_rate_hz: float = 25.0,
+    filter_cutoff_hz: float = 5.0,
+) -> np.ndarray | None:
+    """Compute curvature from yaw rate: κ = (ψ̇ in rad/s) / v.
+
+    Uses the gyroscope yaw-rate channel from RaceBox/IMU devices.  This
+    avoids GPS second-derivative noise and banking contamination that
+    plague position-based curvature.
+
+    Returns None if insufficient valid yaw_rate data (<80% non-NaN).
+    Zeroes curvature below ``_YAW_MIN_SPEED_MPS`` to avoid
+    division-by-near-zero.  Applies 2nd-order Butterworth low-pass
+    filter (zero-phase) for noise reduction.
+
+    Parameters
+    ----------
+    yaw_rate_dps:
+        Yaw rate in degrees per second.  May contain NaN for missing
+        samples.
+    speed_mps:
+        Vehicle speed in metres per second.
+    distance_m:
+        Cumulative distance array (metres).
+    sample_rate_hz:
+        Sampling rate of the telemetry (Hz).  Used for filter design.
+    filter_cutoff_hz:
+        Low-pass filter cutoff frequency (Hz).
+
+    Returns
+    -------
+    np.ndarray | None
+        Signed curvature array (1/m), or None if data is insufficient.
+    """
+    valid_mask = np.isfinite(yaw_rate_dps)
+    if valid_mask.mean() < _YAW_MIN_COVERAGE:
+        return None
+
+    # Fill NaN gaps with linear interpolation for filtering
+    yaw_filled: np.ndarray = np.interp(distance_m, distance_m[valid_mask], yaw_rate_dps[valid_mask])
+
+    # Butterworth low-pass filter (zero-phase)
+    nyquist = sample_rate_hz / 2.0
+    if filter_cutoff_hz < nyquist:
+        b, a = butter(2, filter_cutoff_hz / nyquist, btype="low")
+        yaw_filtered: np.ndarray = filtfilt(b, a, yaw_filled)
+    else:
+        yaw_filtered = yaw_filled
+
+    # Convert deg/s → rad/s and compute curvature
+    yaw_rad_s = np.radians(yaw_filtered)
+    safe_speed = np.maximum(speed_mps, _YAW_MIN_SPEED_MPS)
+    kappa_raw: np.ndarray = yaw_rad_s / safe_speed
+
+    # Blend to zero below _YAW_MIN_SPEED_MPS
+    blend_weight = np.clip(
+        (speed_mps - _YAW_MIN_SPEED_MPS) / (_YAW_BLEND_SPEED_MPS - _YAW_MIN_SPEED_MPS),
+        0.0,
+        1.0,
+    )
+    kappa: np.ndarray = kappa_raw * blend_weight
+
+    # Apply same physical limits as GPS curvature
+    kappa = np.clip(kappa, -MAX_PHYSICAL_CURVATURE, MAX_PHYSICAL_CURVATURE)
+
+    return kappa
