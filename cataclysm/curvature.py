@@ -389,11 +389,11 @@ def fuse_curvature_sources(
         return kappa_gps.copy()
 
     abs_kappa = np.maximum(np.abs(kappa_gps), np.abs(kappa_yaw))
-    # Weight ramp: more yaw-rate weight at higher curvature
-    yaw_weight: np.ndarray = np.where(
-        abs_kappa > curvature_threshold,
-        yaw_weight_at_apex,
-        yaw_weight_on_straight,
+    # Smooth sigmoid blend: more yaw-rate weight at higher curvature.
+    # Steepness 500 gives ~95% transition within ±0.005 1/m of threshold.
+    sigmoid = 1.0 / (1.0 + np.exp(-500.0 * (abs_kappa - curvature_threshold)))
+    yaw_weight: np.ndarray = (
+        yaw_weight_on_straight + (yaw_weight_at_apex - yaw_weight_on_straight) * sigmoid
     )
     fused: np.ndarray = (1.0 - yaw_weight) * kappa_gps + yaw_weight * kappa_yaw
     return fused

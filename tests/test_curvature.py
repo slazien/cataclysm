@@ -630,3 +630,30 @@ class TestFuseCurvatureSources:
         distance_m = np.linspace(0, 300, n)
         fused = fuse_curvature_sources(kappa_gps, kappa_yaw, distance_m)
         assert len(fused) == n
+
+    def test_smooth_transition_at_threshold(self) -> None:
+        """Weights should transition smoothly, not step, around the threshold.
+
+        A hard step creates a spike in the second derivative of fused curvature
+        that is >>10x the background level.  A sigmoid blend keeps the ratio low.
+        """
+        from cataclysm.curvature import fuse_curvature_sources
+
+        n = 200
+        distance_m = np.linspace(0, 500, n)
+        # Linearly increasing curvature that sweeps through the threshold
+        kappa_gps = np.linspace(0.0, 0.02, n)
+        kappa_yaw = np.linspace(0.001, 0.021, n)
+
+        fused = fuse_curvature_sources(kappa_gps, kappa_yaw, distance_m)
+
+        # Second derivative of fused curvature
+        dd_fused = np.abs(np.diff(fused, n=2))
+        max_dd = float(np.max(dd_fused))
+        median_dd = float(np.median(dd_fused[dd_fused > 0]))
+        # With a hard step, max_dd / median_dd >> 10.  With sigmoid, ratio < 5.
+        ratio = max_dd / median_dd if median_dd > 0 else max_dd
+        assert ratio < 5.0, (
+            f"Curvature has discontinuity: max_dd={max_dd:.6f}, "
+            f"median_dd={median_dd:.6f}, ratio={ratio:.1f}"
+        )
