@@ -1487,6 +1487,68 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
         return calibrated
 
     calibrated_vp = await asyncio.to_thread(_calibrate_sync)
+
+    # Solver-based grip calibration: binary search on mu using the full
+    # velocity solver.  Hoisted to async level (before cache key) so the
+    # sweep-adjusted mu is included in the track-level cache key.
+    # Runs ~48s (6 solver calls) on cache miss, but cached at track level.
+    if calibrated_vp is not None and session_data.corners:
+
+        def _sweep_sync() -> VehicleParams:
+            from cataclysm.curvature import compute_curvature
+            from cataclysm.grip_factor_sweep import solver_based_sweep
+            from cataclysm.track_reference import align_reference_to_session, get_track_reference
+
+            processed = session_data.processed
+            best_lap_df = processed.resampled_laps[processed.best_lap]
+
+            # Resolve curvature (same logic as _compute)
+            layout = session_data.layout
+            curv = None
+            if layout is not None:
+                ref = get_track_reference(layout)
+                if ref is not None:
+                    curv, _ = align_reference_to_session(
+                        ref, best_lap_df["lap_distance_m"].to_numpy()
+                    )
+            if curv is None:
+                curv = compute_curvature(best_lap_df, savgol_window=15)
+
+            # Collect corner apex distances and actual min speeds
+            apex_d: list[float] = []
+            actual_v: list[float] = []
+            for c in session_data.corners:
+                if c.apex_distance_m is not None and c.min_speed_mps is not None:
+                    apex_d.append(c.apex_distance_m)
+                    actual_v.append(c.min_speed_mps)
+            if not apex_d:
+                return calibrated_vp
+
+            sweep_mu, sweep_iters = solver_based_sweep(
+                curv,
+                calibrated_vp,
+                np.array(apex_d),
+                np.array(actual_v),
+            )
+            if abs(sweep_mu - calibrated_vp.mu) > 0.01:
+                old_mu = calibrated_vp.mu
+                adjusted = dataclasses.replace(
+                    calibrated_vp,
+                    mu=sweep_mu,
+                    max_lateral_g=sweep_mu,
+                )
+                logger.info(
+                    "Solver grip sweep: mu %.3f→%.3f (%d iters) for sid=%s",
+                    old_mu,
+                    sweep_mu,
+                    sweep_iters,
+                    session_id,
+                )
+                return adjusted
+            return calibrated_vp
+
+        calibrated_vp = await asyncio.to_thread(_sweep_sync)
+
     calibrated_mu_str = f"{calibrated_vp.mu:.2f}" if calibrated_vp else "default"
     track_slug = track_slug_from_layout(session_data.layout) if session_data.layout else None
 
