@@ -1,7 +1,7 @@
 """Add corner_capability_factors table.
 
 Revision ID: p6f7a8b9c0d1
-Revises: o5e6f7a8b9c0
+Revises: n4d5e6f7a8b9
 Create Date: 2026-03-24
 """
 
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "p6f7a8b9c0d1"
-down_revision = "o5e6f7a8b9c0"
+down_revision = "n4d5e6f7a8b9"
 branch_labels = None
 depends_on = None
 
