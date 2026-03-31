@@ -367,12 +367,13 @@ class TestCallHaikuComparison:
 
     @pytest.mark.asyncio
     async def test_returns_fallback_when_no_api_key(self) -> None:
-        """Returns an error message string when ANTHROPIC_API_KEY is not set."""
-        import os
-
-        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": ""}):
+        """Returns an error message string when no LLM provider is available."""
+        with patch(
+            "cataclysm.llm_gateway.is_task_available",
+            return_value=False,
+        ):
             result = await _call_haiku_comparison("test prompt")
-        assert "unavailable" in result.lower() or "no api key" in result.lower()
+        assert "unavailable" in result.lower()
 
     @pytest.mark.asyncio
     async def test_calls_anthropic_when_key_set(self) -> None:

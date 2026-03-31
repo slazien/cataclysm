@@ -6,13 +6,22 @@ import asyncio
 import logging
 import math
 from dataclasses import dataclass
-from typing import Annotated, Literal, cast
+from typing import TYPE_CHECKING, Annotated, Literal, cast
 
 import numpy as np
+import pandas as pd
 from cataclysm.constants import MPS_TO_MPH
+from cataclysm.timezone_utils import (
+    localize_session_date,
+    resolve_session_timezone,
+    session_date_to_iso,
+)
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select
+
+if TYPE_CHECKING:
+    from backend.api.db.models import Session as SessionModel
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -596,6 +605,41 @@ async def claim_anonymous_session(
     return {"message": f"Session {body.session_id} claimed successfully"}
 
 
+def _get_session_date_iso(sd: session_store.SessionData) -> str:
+    """Return ISO 8601 UTC date from SessionData."""
+    return sd.session_date_iso or session_date_to_iso(sd.snapshot.metadata.session_date)
+
+
+def _get_session_date_local(sd: session_store.SessionData) -> str | None:
+    """Return localized display date, resolving lazily if needed."""
+    if sd.session_date_local:
+        return sd.session_date_local
+    # Lazy resolve for sessions uploaded before timezone support
+    tz = sd.timezone_name
+    if not tz:
+        tz = resolve_session_timezone(sd.parsed.data, sd.snapshot.metadata.track_name)
+    if tz:
+        return localize_session_date(sd.snapshot.metadata.session_date, tz)
+    return None
+
+
+def _lazy_localize_from_db(
+    row: SessionModel,
+    snap: dict[str, object],
+) -> str | None:
+    """Localize session date for DB rows without cached timezone."""
+    tz = snap.get("timezone_name")
+    if not tz:
+        tz = resolve_session_timezone(
+            pd.DataFrame(),  # no telemetry available
+            track_name=row.track_name,
+        )
+    if tz and row.session_date:
+        date_str = row.session_date.strftime("%Y-%m-%d %H:%M:%S")
+        return localize_session_date(date_str, str(tz))
+    return None
+
+
 @router.get("", response_model=SessionList)
 async def list_sessions(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
@@ -636,7 +680,8 @@ async def list_sessions(
                 SessionSummary(
                     session_id=sd.session_id,
                     track_name=sd.snapshot.metadata.track_name,
-                    session_date=sd.snapshot.metadata.session_date,
+                    session_date=_get_session_date_iso(sd),
+                    session_date_local=_get_session_date_local(sd),
                     n_laps=sd.snapshot.n_laps,
                     n_clean_laps=sd.snapshot.n_clean_laps,
                     best_lap_time_s=sd.snapshot.best_lap_time_s,
@@ -678,11 +723,6 @@ async def list_sessions(
         else:
             # Fallback to DB metadata (telemetry not in memory — needs re-upload)
             snap = row.snapshot_json or {}
-            # Prefer the original display string saved at upload time;
-            # fall back to strftime (no raw isoformat with +00:00 timezone).
-            date_str = snap.get("session_date_display") or (
-                row.session_date.strftime("%d/%m/%Y %H:%M") if row.session_date else ""
-            )
             w_data = snap.get("weather")
             gps_data = snap.get("gps_quality")
             score_data = snap.get("scores")
@@ -691,7 +731,10 @@ async def list_sessions(
                 SessionSummary(
                     session_id=row.session_id,
                     track_name=row.track_name,
-                    session_date=date_str,
+                    session_date=(row.session_date.isoformat() + "Z" if row.session_date else ""),
+                    session_date_local=(
+                        snap.get("session_date_local") or _lazy_localize_from_db(row, snap)
+                    ),
                     n_laps=row.n_laps,
                     n_clean_laps=row.n_clean_laps,
                     best_lap_time_s=row.best_lap_time_s,
@@ -755,7 +798,8 @@ async def get_session(
     return SessionSummary(
         session_id=sd.session_id,
         track_name=sd.snapshot.metadata.track_name,
-        session_date=sd.snapshot.metadata.session_date,
+        session_date=_get_session_date_iso(sd),
+        session_date_local=_get_session_date_local(sd),
         n_laps=sd.snapshot.n_laps,
         n_clean_laps=sd.snapshot.n_clean_laps,
         best_lap_time_s=sd.snapshot.best_lap_time_s,
