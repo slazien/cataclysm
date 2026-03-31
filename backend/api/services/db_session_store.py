@@ -263,6 +263,14 @@ async def store_session_db(
             "is_usable": gps.is_usable,
         }
 
+    # Timezone and localized date (for restart survival)
+    if session_data.timezone_name:
+        snapshot_json["timezone_name"] = session_data.timezone_name
+    if session_data.session_date_local:
+        snapshot_json["session_date_local"] = session_data.session_date_local
+    if session_data.session_date_iso:
+        snapshot_json["session_date_iso"] = session_data.session_date_iso
+
     session_row = SessionModel(
         session_id=session_data.session_id,
         user_id=user_id,

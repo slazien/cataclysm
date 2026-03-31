@@ -57,6 +57,11 @@ from cataclysm.optimal_comparison import (
     compare_with_optimal,
 )
 from cataclysm.parser import ParsedSession, parse_racechrono_csv
+from cataclysm.timezone_utils import (
+    localize_session_date,
+    resolve_session_timezone,
+    session_date_to_iso,
+)
 from cataclysm.track_db import TrackLayout, locate_official_corners
 from cataclysm.track_match import detect_track_or_lookup
 from cataclysm.track_reference import (
@@ -853,6 +858,13 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
         except Exception:
             logger.warning("Failed to update track reference for %s", filename, exc_info=True)
 
+    # Resolve timezone from GPS coordinates (or track_db fallback)
+    timezone_name = resolve_session_timezone(parsed.data, parsed.metadata.track_name)
+    session_date_local_str: str | None = None
+    if timezone_name:
+        session_date_local_str = localize_session_date(parsed.metadata.session_date, timezone_name)
+    session_date_iso_str = session_date_to_iso(parsed.metadata.session_date)
+
     return SessionData(
         session_id=snap.session_id,
         snapshot=snap,
@@ -871,6 +883,9 @@ def _run_pipeline_sync(file_bytes: bytes, filename: str) -> SessionData:
         corner_line_profiles=corner_line_profiles,
         layout=layout,
         corner_override_version=corner_version,
+        timezone_name=timezone_name,
+        session_date_local=session_date_local_str,
+        session_date_iso=session_date_iso_str,
     )
 
 
@@ -1499,6 +1514,10 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
             from cataclysm.grip_factor_sweep import solver_based_sweep
             from cataclysm.track_reference import align_reference_to_session, get_track_reference
 
+            # Safe: only called inside `if calibrated_vp is not None` guard
+            assert calibrated_vp is not None
+            vp = calibrated_vp
+
             processed = session_data.processed
             best_lap_df = processed.resampled_laps[processed.best_lap]
 
@@ -1522,18 +1541,18 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
                     apex_d.append(c.apex_distance_m)
                     actual_v.append(c.min_speed_mps)
             if not apex_d:
-                return calibrated_vp
+                return vp
 
             sweep_mu, sweep_iters = solver_based_sweep(
                 curv,
-                calibrated_vp,
+                vp,
                 np.array(apex_d),
                 np.array(actual_v),
             )
-            if abs(sweep_mu - calibrated_vp.mu) > 0.01:
-                old_mu = calibrated_vp.mu
+            if abs(sweep_mu - vp.mu) > 0.01:
+                old_mu = vp.mu
                 adjusted = dataclasses.replace(
-                    calibrated_vp,
+                    vp,
                     mu=sweep_mu,
                     max_lateral_g=sweep_mu,
                 )
@@ -1545,7 +1564,7 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
                     session_id,
                 )
                 return adjusted
-            return calibrated_vp
+            return vp
 
         calibrated_vp = await asyncio.to_thread(_sweep_sync)
 

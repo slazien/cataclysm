@@ -74,6 +74,10 @@ class SessionData:
     layout: TrackLayout | None = None
     # Corner override content hash (None = no override or pre-versioning)
     corner_override_version: str | None = None
+    # Timezone resolved from GPS / track_db
+    timezone_name: str | None = None
+    session_date_local: str | None = None
+    session_date_iso: str | None = None
     # Transient: nulled after DB persistence. Only DB copy (SessionFileModel) is authoritative.
     csv_bytes: bytes | None = field(default=None, repr=False)
 

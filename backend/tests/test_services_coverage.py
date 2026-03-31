@@ -357,6 +357,9 @@ class TestStoreSessionDbGpsCentroidError:
         sd.snapshot.session_date_parsed = MagicMock()
         sd.weather = None
         sd.gps_quality = None
+        sd.timezone_name = None
+        sd.session_date_local = None
+        sd.session_date_iso = None
 
         # The except clause in store_session_db catches (ValueError, KeyError, AttributeError).
         # pandas raises TypeError for non-numeric mean, which is NOT caught.

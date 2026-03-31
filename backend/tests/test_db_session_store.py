@@ -147,6 +147,10 @@ def _make_session_data(
     sd.weather = weather
     sd.gps_quality = gps_quality
     sd.parsed = parsed if parsed is not None else _make_parsed_with_gps()
+    # Timezone fields default to None (not MagicMock) to avoid JSON serialisation errors
+    sd.timezone_name = None
+    sd.session_date_local = None
+    sd.session_date_iso = None
     return sd
 
 
