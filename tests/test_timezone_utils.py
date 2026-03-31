@@ -26,26 +26,39 @@ def test_get_timezone_name_ocean_returns_none() -> None:
 
 
 def test_localize_session_date_utc_to_eastern() -> None:
-    """17:32 UTC → 13:32 EDT during March (DST)."""
+    """17:32 UTC → 1:32 PM EDT during March (DST)."""
     result = localize_session_date("15/03/2026 17:32", "America/New_York")
     assert result is not None
-    assert "13:32" in result
-    assert "EDT" in result
+    assert result == "Mar 15, 2026 · 1:32 PM EDT"
 
 
 def test_localize_session_date_utc_to_eastern_winter() -> None:
-    """17:32 UTC → 12:32 EST during January (no DST)."""
+    """17:32 UTC → 12:32 PM EST during January (no DST)."""
     result = localize_session_date("15/01/2026 17:32", "America/New_York")
     assert result is not None
-    assert "12:32" in result
-    assert "EST" in result
+    assert result == "Jan 15, 2026 · 12:32 PM EST"
+
+
+def test_localize_session_date_utc_to_central() -> None:
+    """12:31 UTC → 7:31 AM CDT for Barber (Central time, March DST)."""
+    result = localize_session_date("21/03/2026 12:31", "America/Chicago")
+    assert result is not None
+    assert result == "Mar 21, 2026 · 7:31 AM CDT"
 
 
 def test_localize_session_date_date_only() -> None:
-    """Date-only strings get midnight converted."""
+    """Date-only strings get midnight UTC converted."""
     result = localize_session_date("15/03/2026", "America/New_York")
     assert result is not None
-    assert "15/03/2026" in result or "14/03/2026" in result  # might roll back a day
+    # Midnight UTC → 8 PM EDT previous day
+    assert result == "Mar 14, 2026 · 8:00 PM EDT"
+
+
+def test_localize_session_date_iso_format() -> None:
+    """ISO format input also works."""
+    result = localize_session_date("2026-03-15 17:32:00", "America/New_York")
+    assert result is not None
+    assert result == "Mar 15, 2026 · 1:32 PM EDT"
 
 
 def test_localize_session_date_invalid_tz() -> None:

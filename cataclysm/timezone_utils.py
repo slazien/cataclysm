@@ -2,7 +2,7 @@
 
 Uses ``timezonefinder`` to map GPS coordinates to an IANA timezone,
 then converts the UTC session datetime to a local time string with
-timezone abbreviation (e.g. ``"15/03/2026 13:32 EDT"``).
+timezone abbreviation (e.g. ``"Mar 15, 2026 · 1:32 PM EDT"``).
 """
 
 from __future__ import annotations
@@ -48,19 +48,19 @@ def localize_session_date(
     session_date_utc: str,
     timezone_name: str,
 ) -> str | None:
-    """Convert a UTC session date string to local time with timezone abbreviation.
+    """Convert a UTC session date string to local time.
 
     Parameters
     ----------
     session_date_utc:
         Date string in one of the RaceChrono formats
-        (``"DD/MM/YYYY HH:MM"`` or ``"DD/MM/YYYY"``).
+        (``"DD/MM/YYYY HH:MM"``) or ISO (``"YYYY-MM-DD HH:MM:SS"``).
     timezone_name:
         IANA timezone name, e.g. ``"America/New_York"``.
 
     Returns
     -------
-    Localized string like ``"15/03/2026 13:32 EDT"``, or ``None`` on failure.
+    Localized string like ``"Mar 21, 2026 · 8:31 AM EDT"``, or ``None`` on failure.
     """
     try:
         tz = ZoneInfo(timezone_name)
@@ -78,7 +78,7 @@ def localize_session_date(
         "%d/%m/%Y",
     ]:
         try:
-            utc_dt = datetime.strptime(session_date_utc.strip(), fmt).replace(  # noqa: DTZ007
+            utc_dt = datetime.strptime(session_date_utc.strip(), fmt).replace(
                 tzinfo=ZoneInfo("UTC"),
             )
             break
@@ -90,4 +90,7 @@ def localize_session_date(
 
     local_dt = utc_dt.astimezone(tz)
     abbrev = local_dt.strftime("%Z")  # e.g. "EDT", "EST", "CET"
-    return f"{local_dt.strftime('%d/%m/%Y %H:%M')} {abbrev}"
+    # Format: "Mar 21, 2026 · 8:31 AM EDT"
+    time_str = local_dt.strftime("%-I:%M %p")  # "8:31 AM" (no leading zero)
+    date_str = local_dt.strftime("%b %-d, %Y")  # "Mar 21, 2026"
+    return f"{date_str} · {time_str} {abbrev}"
