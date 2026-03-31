@@ -8,9 +8,12 @@ timezone abbreviation (e.g. ``"Mar 15, 2026 · 1:32 PM EDT"``).
 from __future__ import annotations
 
 import logging
+import math
 from datetime import datetime
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
+
+import pandas as pd
 
 if TYPE_CHECKING:
     from timezonefinder import TimezoneFinder
@@ -94,3 +97,59 @@ def localize_session_date(
     time_str = local_dt.strftime("%-I:%M %p")  # "8:31 AM" (no leading zero)
     date_str = local_dt.strftime("%b %-d, %Y")  # "Mar 21, 2026"
     return f"{date_str} · {time_str} {abbrev}"
+
+
+def resolve_session_timezone(
+    df: pd.DataFrame,
+    track_name: str | None,
+) -> str | None:
+    """Resolve IANA timezone from session telemetry GPS or track_db fallback."""
+    # Try GPS from telemetry
+    if "lat" in df.columns and "lon" in df.columns:
+        lat_series = df["lat"].dropna()
+        lon_series = df["lon"].dropna()
+        if len(lat_series) > 0 and len(lon_series) > 0:
+            lat = float(lat_series.iloc[0])
+            lon = float(lon_series.iloc[0])
+            if not (math.isnan(lat) or math.isnan(lon)):
+                tz = get_timezone_name(lat, lon)
+                if tz is not None:
+                    return tz
+
+    # Fallback: track_db center coords
+    if track_name:
+        try:
+            from cataclysm.track_db import lookup_track
+
+            info = lookup_track(track_name)
+            if info and info.center_lat and info.center_lon:
+                return get_timezone_name(info.center_lat, info.center_lon)
+        except Exception:
+            logger.debug("track_db fallback failed for %s", track_name, exc_info=True)
+
+    return None
+
+
+def session_date_to_iso(date_str: str) -> str:
+    """Convert a RaceChrono date string to ISO 8601 UTC format.
+
+    Returns the original string unchanged if parsing fails.
+    """
+    cleaned = date_str.strip()
+    for fmt in [
+        "%d/%m/%Y %H:%M",
+        "%d/%m/%Y,%H:%M",
+        "%m/%d/%Y %H:%M",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M",
+        "%d/%m/%Y",
+        "%Y-%m-%d",
+    ]:
+        try:
+            dt = datetime.strptime(cleaned, fmt)  # noqa: DTZ007
+            return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+        except ValueError:
+            continue
+    return date_str

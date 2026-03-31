@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from cataclysm.timezone_utils import get_timezone_name, localize_session_date
+import pandas as pd
+
+from cataclysm.timezone_utils import (
+    get_timezone_name,
+    localize_session_date,
+    resolve_session_timezone,
+    session_date_to_iso,
+)
 
 
 def test_get_timezone_name_amp() -> None:
@@ -69,3 +76,58 @@ def test_localize_session_date_invalid_tz() -> None:
 def test_localize_session_date_bad_date() -> None:
     """Unparseable date → None."""
     assert localize_session_date("not-a-date", "America/New_York") is None
+
+
+# --- resolve_session_timezone ---
+
+
+def test_resolve_session_timezone_from_gps() -> None:
+    """Resolves timezone from GPS coordinates in telemetry DataFrame."""
+    df = pd.DataFrame({"lat": [32.136, 32.137], "lon": [-81.156, -81.157]})
+    tz = resolve_session_timezone(df, track_name=None)
+    assert tz == "America/New_York"
+
+
+def test_resolve_session_timezone_missing_gps_cols() -> None:
+    """Returns None when GPS columns are missing."""
+    df = pd.DataFrame({"speed": [50, 60]})
+    tz = resolve_session_timezone(df, track_name=None)
+    assert tz is None
+
+
+def test_resolve_session_timezone_nan_gps() -> None:
+    """Returns None when GPS values are all NaN."""
+    df = pd.DataFrame({"lat": [float("nan")], "lon": [float("nan")]})
+    tz = resolve_session_timezone(df, track_name=None)
+    assert tz is None
+
+
+def test_resolve_session_timezone_fallback_to_track_db() -> None:
+    """Falls back to track_db center coords when GPS is missing."""
+    df = pd.DataFrame({"speed": [50]})  # no lat/lon
+    tz = resolve_session_timezone(df, track_name="Roebling Road Raceway")
+    # Roebling center coords should resolve to Eastern
+    assert tz == "America/New_York"
+
+
+# --- session_date_to_iso ---
+
+
+def test_session_date_to_iso_ddmmyyyy() -> None:
+    """Converts DD/MM/YYYY HH:MM to ISO 8601 UTC."""
+    assert session_date_to_iso("21/03/2026 12:31") == "2026-03-21T12:31:00Z"
+
+
+def test_session_date_to_iso_date_only() -> None:
+    """Date-only string gets midnight."""
+    assert session_date_to_iso("21/03/2026") == "2026-03-21T00:00:00Z"
+
+
+def test_session_date_to_iso_already_iso() -> None:
+    """ISO input passes through."""
+    assert session_date_to_iso("2026-03-21 12:31:00") == "2026-03-21T12:31:00Z"
+
+
+def test_session_date_to_iso_unparseable() -> None:
+    """Unparseable string returns itself."""
+    assert session_date_to_iso("garbage") == "garbage"
