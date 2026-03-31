@@ -42,20 +42,9 @@ function groupSessionsByTrack(sessions: SessionSummary[]): TrackGroup[] {
   });
 }
 
-function parseDateStr(dateStr: string): Date {
-  // Backend sends DD/MM/YYYY HH:MM (RaceChrono format).
-  // JS Date() parses slash dates as MM/DD/YYYY, producing wrong results.
-  const ddmm = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
-  if (ddmm) {
-    const [, day, month, year, hour, min] = ddmm;
-    return new Date(+year, +month - 1, +day, +(hour ?? 0), +(min ?? 0));
-  }
-  return new Date(dateStr);
-}
-
 function getDateCategory(dateStr: string): string {
   const today = new Date();
-  const date = parseDateStr(dateStr);
+  const date = new Date(dateStr); // ISO string — native parsing works
   if (isNaN(date.getTime())) return 'Older';
   const diffDays = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
 

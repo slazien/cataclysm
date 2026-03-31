@@ -2,6 +2,12 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
 import { QuickTip } from '../QuickTip';
 
+// jsdom doesn't implement window.matchMedia — stub it for CornerRefLink
+vi.stubGlobal(
+  'matchMedia',
+  vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
+);
+
 // Mock useUnits — by default resolveSpeed is a pass-through (imperial, no conversion)
 const mockResolveSpeed = vi.fn((text: string) => text);
 

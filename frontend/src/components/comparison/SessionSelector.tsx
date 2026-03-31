@@ -101,7 +101,7 @@ export function SessionSelector({ currentSessionId }: SessionSelectorProps) {
             Current Session
           </p>
           <p className="mt-1 text-sm font-medium text-[var(--text-primary)]">
-            {currentSession.track_name} &mdash; {currentSession.session_date}
+            {currentSession.track_name} &mdash; {currentSession.session_date_local ?? currentSession.session_date}
           </p>
           <p className="mt-0.5 font-mono text-lg font-semibold text-[var(--text-primary)]">
             {currentSession.best_lap_time_s != null ? formatLapTime(currentSession.best_lap_time_s) : '--:--.---'}
@@ -148,7 +148,7 @@ export function SessionSelector({ currentSessionId }: SessionSelectorProps) {
                       {s.track_name}
                     </p>
                     <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-                      {s.session_date} &middot; {s.n_clean_laps ?? 0}/{s.n_laps ?? 0} clean laps
+                      {s.session_date_local ?? s.session_date} &middot; {s.n_clean_laps ?? 0}/{s.n_laps ?? 0} clean laps
                     </p>
                   </div>
                   <div className="text-right">

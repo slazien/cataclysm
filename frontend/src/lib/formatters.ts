@@ -27,10 +27,38 @@ export function formatTimeShort(seconds: number): string {
 
 /**
  * Parse a session date string from the backend.
- * Backend format: "DD/MM/YYYY HH:MM" — JS Date constructor doesn't parse this.
+ * Primary format: ISO 8601 ("2026-03-21T12:31:00Z").
+ * Fallback: legacy DD/MM/YYYY HH:MM for cached responses.
  */
 export function parseSessionDate(dateStr: string): Date {
-  const [datePart, timePart] = dateStr.split(' ');
-  const [day, month, year] = datePart.split('/');
-  return new Date(`${year}-${month}-${day}T${timePart ?? '00:00'}`);
+  // Try ISO first (new format)
+  const iso = new Date(dateStr);
+  if (!isNaN(iso.getTime()) && dateStr.includes('-')) return iso;
+
+  // Fallback: DD/MM/YYYY HH:MM (legacy cached responses)
+  const ddmm = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+  if (ddmm) {
+    const [, day, month, year, hour, min] = ddmm;
+    return new Date(+year, +month - 1, +day, +(hour ?? 0), +(min ?? 0));
+  }
+
+  return new Date(dateStr);
+}
+
+/**
+ * Format an ISO session date for display when session_date_local is unavailable.
+ * Returns a UTC-based fallback like "Mar 21, 2026 · 12:31 PM UTC".
+ */
+export function formatSessionDate(isoStr: string): string {
+  if (!isoStr) return '—';
+  const d = parseSessionDate(isoStr);
+  if (isNaN(d.getTime())) return '—';
+  const month = d.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' });
+  const day = d.getUTCDate();
+  const year = d.getUTCFullYear();
+  const hours = d.getUTCHours();
+  const minutes = d.getUTCMinutes().toString().padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const h12 = hours % 12 || 12;
+  return `${month} ${day}, ${year} · ${h12}:${minutes} ${ampm} UTC`;
 }

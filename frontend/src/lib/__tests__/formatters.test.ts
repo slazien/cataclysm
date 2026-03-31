@@ -5,6 +5,7 @@ import {
   formatSpeed,
   formatTimeShort,
   parseSessionDate,
+  formatSessionDate,
 } from '../formatters';
 
 // ---------------------------------------------------------------------------
@@ -193,51 +194,50 @@ describe('formatTimeShort', () => {
 // parseSessionDate
 // ---------------------------------------------------------------------------
 describe('parseSessionDate', () => {
-  it('parses a "DD/MM/YYYY HH:MM" string into a Date', () => {
-    const d = parseSessionDate('15/06/2024 14:30');
-    expect(d.getFullYear()).toBe(2024);
-    expect(d.getMonth()).toBe(5); // 0-indexed June
-    expect(d.getDate()).toBe(15);
-    expect(d.getHours()).toBe(14);
-    expect(d.getMinutes()).toBe(30);
+  it('parses ISO 8601 UTC string', () => {
+    const d = parseSessionDate('2026-03-21T12:31:00Z');
+    expect(d.getUTCFullYear()).toBe(2026);
+    expect(d.getUTCMonth()).toBe(2); // March, 0-indexed
+    expect(d.getUTCDate()).toBe(21);
+    expect(d.getUTCHours()).toBe(12);
+    expect(d.getUTCMinutes()).toBe(31);
   });
 
-  it('parses date with time "00:00" correctly', () => {
-    const d = parseSessionDate('01/01/2025 00:00');
-    expect(d.getFullYear()).toBe(2025);
-    expect(d.getMonth()).toBe(0); // January
-    expect(d.getDate()).toBe(1);
+  it('parses ISO without Z suffix', () => {
+    const d = parseSessionDate('2026-03-21T12:31:00');
+    expect(d.getFullYear()).toBe(2026);
+    expect(d.getMonth()).toBe(2);
   });
 
-  it('parses single-digit day and month (zero-padded)', () => {
-    const d = parseSessionDate('03/07/2023 09:15');
-    expect(d.getFullYear()).toBe(2023);
-    expect(d.getMonth()).toBe(6); // July
-    expect(d.getDate()).toBe(3);
-    expect(d.getHours()).toBe(9);
-    expect(d.getMinutes()).toBe(15);
+  it('falls back to DD/MM/YYYY for legacy cached responses', () => {
+    const d = parseSessionDate('21/03/2026 12:31');
+    expect(d.getFullYear()).toBe(2026);
+    expect(d.getMonth()).toBe(2); // March
+    expect(d.getDate()).toBe(21);
   });
 
-  it('falls back to midnight when time part is absent', () => {
-    // "DD/MM/YYYY" with no time — uses '00:00' fallback
-    const d = parseSessionDate('20/11/2022');
-    expect(d.getFullYear()).toBe(2022);
-    expect(d.getMonth()).toBe(10); // November
-    expect(d.getDate()).toBe(20);
-    expect(d.getHours()).toBe(0);
-    expect(d.getMinutes()).toBe(0);
-  });
-
-  it('returns a valid Date instance', () => {
-    const d = parseSessionDate('31/12/2024 23:59');
-    expect(d).toBeInstanceOf(Date);
+  it('returns valid Date for date-only ISO', () => {
+    const d = parseSessionDate('2026-03-21');
+    expect(d.getUTCFullYear()).toBe(2026);
     expect(isNaN(d.getTime())).toBe(false);
   });
+});
 
-  it('parses end-of-year date correctly', () => {
-    const d = parseSessionDate('31/12/2024 23:59');
-    expect(d.getFullYear()).toBe(2024);
-    expect(d.getMonth()).toBe(11); // December
-    expect(d.getDate()).toBe(31);
+// ---------------------------------------------------------------------------
+// formatSessionDate
+// ---------------------------------------------------------------------------
+describe('formatSessionDate', () => {
+  it('formats ISO date to short display format', () => {
+    const result = formatSessionDate('2026-03-21T12:31:00Z');
+    expect(result).toContain('2026');
+    expect(result).toContain('21');
+  });
+
+  it('returns "—" for empty string', () => {
+    expect(formatSessionDate('')).toBe('—');
+  });
+
+  it('returns "—" for unparseable date', () => {
+    expect(formatSessionDate('garbage')).toBe('—');
   });
 });
