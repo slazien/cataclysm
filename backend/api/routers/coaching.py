@@ -677,7 +677,7 @@ def _build_report_content(
     """Convert stored session data + coaching response into ReportContent for PDF generation."""
     snapshot = sd.snapshot
     track_name = snapshot.metadata.track_name
-    session_date = snapshot.metadata.session_date
+    session_date = sd.session_date_local or snapshot.metadata.session_date
     best_lap_number = sd.processed.best_lap
     best_lap_time_s = snapshot.best_lap_time_s
     n_laps = snapshot.n_laps

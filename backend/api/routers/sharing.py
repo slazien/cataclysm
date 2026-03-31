@@ -193,7 +193,7 @@ async def get_public_view(
 
     sd = get_session(shared.session_id)
     if sd is not None:
-        session_date = sd.snapshot.metadata.session_date
+        session_date = sd.session_date_local or sd.snapshot.metadata.session_date
         track_name = sd.snapshot.metadata.track_name
         best_lap_time_s = sd.snapshot.best_lap_time_s
         n_laps = len(sd.processed.lap_summaries)
