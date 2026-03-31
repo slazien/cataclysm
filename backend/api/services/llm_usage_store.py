@@ -75,9 +75,19 @@ async def _persist_batch(events: list[dict[str, Any]]) -> None:
 
 
 async def _worker() -> None:
+    from backend.api.services.activity_tracker import IDLE_POLL_S, is_idle
+
     assert _queue is not None
     while True:
-        first = await _queue.get()
+        # When idle, use a timeout so the blocking get() doesn't prevent
+        # the process from going fully quiet (allows Railway sleep).
+        try:
+            first = await asyncio.wait_for(
+                _queue.get(),
+                timeout=IDLE_POLL_S if is_idle() else None,
+            )
+        except TimeoutError:
+            continue
         batch = [first]
         while len(batch) < _PERSIST_BATCH_SIZE:
             try:

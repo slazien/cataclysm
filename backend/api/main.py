@@ -864,6 +864,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         import time
 
+        from backend.api.services.activity_tracker import record_activity
+
         start = time.perf_counter()
         response = await call_next(request)
         duration_ms = (time.perf_counter() - start) * 1000
@@ -871,6 +873,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         # Skip noisy health/metrics polling
         path = request.url.path
         if path not in ("/health", "/metrics"):
+            record_activity()
             logger.info(
                 "%s %s %d %.0fms",
                 request.method,

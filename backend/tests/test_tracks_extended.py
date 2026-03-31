@@ -95,7 +95,7 @@ class TestListTrackFolders:
                 folder = data[0]
                 assert folder["folder"] == "road_atlanta"
                 assert folder["n_files"] == 2
-                assert "path" in folder
+                assert "folder" in folder
             finally:
                 app.dependency_overrides.pop(get_settings, None)
 

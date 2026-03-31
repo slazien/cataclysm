@@ -129,7 +129,17 @@ async def start_runtime_settings_sync(
     _stop_event = asyncio.Event()
 
     async def _runner() -> None:
+        from backend.api.services.activity_tracker import IDLE_POLL_S, is_idle
+
         while True:
+            if is_idle():
+                assert _stop_event is not None
+                try:
+                    await asyncio.wait_for(_stop_event.wait(), timeout=IDLE_POLL_S)
+                    break
+                except TimeoutError:
+                    continue
+
             try:
                 await sync_llm_routing_setting_once(default_enabled=default_routing_enabled)
             except Exception:

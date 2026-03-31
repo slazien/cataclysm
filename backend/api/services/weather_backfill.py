@@ -209,9 +209,15 @@ _retry_counts: dict[str, int] = {}  # session_id → number of failed attempts
 
 async def _backfill_loop() -> None:
     """Periodically scan DB for sessions without weather and fetch it."""
+    from backend.api.services.activity_tracker import IDLE_POLL_S, is_idle
+
     await asyncio.sleep(INITIAL_SCAN_DELAY_S)
 
     while True:
+        if is_idle():
+            await asyncio.sleep(IDLE_POLL_S)
+            continue
+
         try:
             await _run_backfill_scan()
         except asyncio.CancelledError:
