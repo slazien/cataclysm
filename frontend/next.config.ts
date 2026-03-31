@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   experimental: {
     proxyClientMaxBodySize: "500mb",
+    proxyTimeout: 120_000,
   },
   async rewrites() {
     return [
