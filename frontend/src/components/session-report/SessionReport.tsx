@@ -211,11 +211,18 @@ export function SessionReport() {
             isNovice={isNovice}
             isAdvanced={isAdvanced}
             physicsOptimalLapTime={
-              optimalComparison?.optimal_lap_time_s != null &&
-              optimalComparison.actual_lap_time_s != null &&
-              optimalComparison.optimal_lap_time_s < optimalComparison.actual_lap_time_s
-                ? optimalComparison.optimal_lap_time_s
-                : undefined
+              (() => {
+                const stableOptimal = optimalComparison?.stable_optimal_lap_time_s;
+                const rankingOptimal = optimalComparison?.optimal_lap_time_s;
+                const actualBest = optimalComparison?.actual_lap_time_s;
+                // Prefer stable target (equipment-determined, consistent across sessions).
+                // Only show if faster than driver's best lap.
+                if (stableOptimal != null && actualBest != null && stableOptimal < actualBest)
+                  return stableOptimal;
+                if (rankingOptimal != null && actualBest != null && rankingOptimal < actualBest)
+                  return rankingOptimal;
+                return undefined;
+              })()
             }
             isOptimalRefreshing={isOptimalStale}
             isOptimalPending={isOptimalPending}

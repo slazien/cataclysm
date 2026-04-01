@@ -314,6 +314,7 @@ export interface OptimalComparisonData {
   actual_lap_time_s: number;
   optimal_lap_time_s: number;
   total_gap_s: number; // actual - optimal (positive = driver is slower)
+  stable_optimal_lap_time_s: number | null;
   is_valid: boolean;
   invalid_reasons: string[];
 }

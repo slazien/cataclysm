@@ -274,6 +274,7 @@ async def get_optimal_comparison(
         actual_lap_time_s=result["actual_lap_time_s"],  # type: ignore[arg-type]
         optimal_lap_time_s=result["optimal_lap_time_s"],  # type: ignore[arg-type]
         total_gap_s=result["total_gap_s"],  # type: ignore[arg-type]
+        stable_optimal_lap_time_s=result.get("stable_optimal_lap_time_s"),  # type: ignore[arg-type]
         is_valid=result.get("is_valid", True),  # type: ignore[arg-type]
         invalid_reasons=result.get("invalid_reasons", []),  # type: ignore[arg-type]
     )

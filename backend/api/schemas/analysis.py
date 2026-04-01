@@ -256,6 +256,7 @@ class OptimalComparisonResponse(BaseModel):
     actual_lap_time_s: float
     optimal_lap_time_s: float
     total_gap_s: float  # actual - optimal (positive = driver is slower)
+    stable_optimal_lap_time_s: float | None = None
     is_valid: bool = True
     invalid_reasons: list[str] = Field(default_factory=list)
 
