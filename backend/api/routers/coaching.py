@@ -81,12 +81,10 @@ def _reconstruct_optimal_comparison(raw: dict[str, object]) -> OptimalComparison
     ``get_optimal_comparison_data`` returns a JSON-safe dict.  The coaching
     prompt formatter only needs scalar fields and ``CornerOpportunity`` items,
     so the numpy arrays (``speed_delta_mps``, ``distance_m``) are set to empty.
-    Returns ``None`` when the comparison is flagged invalid.
+    Corner ranking is still useful for coaching even when ``is_valid=False``
+    (absolute time predictions unreliable), so we always return data.
     """
     import numpy as np
-
-    if not raw.get("is_valid", True):
-        return None
 
     opps: list[CornerOpportunity] = []
     corner_opps = raw.get("corner_opportunities") or []
