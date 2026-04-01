@@ -1486,7 +1486,7 @@ async def get_optimal_profile_data(
     # When stable_target=True we use the equipment's base mu directly,
     # producing a session-independent optimal target.
     if stable_target:
-        calibrated_vp = vehicle_params
+        calibrated_vp = vehicle_params or default_vehicle_params()
         key_suffix = "stable"
     else:
         # Hoist grip calibration BEFORE cache checks (~1ms, cheap) so we can
