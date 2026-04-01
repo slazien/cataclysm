@@ -3504,13 +3504,13 @@ class TestNegativeSpeedGapFiltering:
             distance_m=np.arange(10, dtype=float),
         )
 
-    def test_build_priority_excludes_negative_speed_gap(self) -> None:
-        """Corners with speed_gap_mph <= 0 should be excluded from priority list."""
+    def test_build_priority_includes_positive_time_cost_regardless_of_speed_gap(self) -> None:
+        """Corners with time_cost_s > 0 are included even if speed_gap_mph < 0."""
         opps = self._make_opps()
         result = self._make_result(opps)
         text = _build_priority_corner_instruction(result, max_priorities=5)
-        assert "T5" in text  # positive speed_gap should be included
-        assert "T3" not in text  # negative speed_gap should be excluded
+        assert "T5" in text  # positive speed_gap + positive time_cost
+        assert "T3" in text  # negative speed_gap but positive time_cost — still included
 
     def test_format_optimal_comparison_skips_negative_speed_gap(self) -> None:
         """Corners with negative speed_gap should not leak raw negative numbers."""
