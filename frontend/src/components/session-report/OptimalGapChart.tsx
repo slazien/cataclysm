@@ -68,7 +68,13 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
       .sort((a, b) => totalImpactS(b) - totalImpactS(a));
   }, [comparison]);
 
-  const totalGapS = comparison?.total_gap_s ?? null;
+  // Prefer stable target gap for the header (equipment-determined, consistent).
+  // Fall back to ranking gap if stable target unavailable.
+  const totalGapS = comparison
+    ? comparison.stable_optimal_lap_time_s != null
+      ? comparison.actual_lap_time_s - comparison.stable_optimal_lap_time_s
+      : comparison.total_gap_s
+    : null;
 
   const straightsGapS = useMemo(() => {
     if (!comparison?.corner_opportunities || !comparison?.total_gap_s || comparison.total_gap_s <= 0) return 0;
@@ -282,9 +288,11 @@ export function OptimalGapChart({ sessionId, onCornerClick }: OptimalGapChartPro
       {isInvalidComparison && opportunities.length > 0 && (
         <div className="mb-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-1.5">
           <p className="text-[11px] text-amber-400">
-            {comparison && comparison.total_gap_s <= 0
-              ? 'Physics model estimates are approximate — overall gap is negative, individual corners may still be directionally useful'
-              : 'Some per-corner estimates are approximate — the model is slower than your actual speed at a few corners'}
+            {comparison?.stable_optimal_lap_time_s != null
+              ? 'Your lap times exceed the physics model for your current equipment profile. Consider updating your tire or vehicle selection for a more accurate target.'
+              : comparison && comparison.total_gap_s <= 0
+                ? 'Physics model estimates are approximate — overall gap is negative, individual corners may still be directionally useful'
+                : 'Some per-corner estimates are approximate — the model is slower than your actual speed at a few corners'}
           </p>
         </div>
       )}
