@@ -1447,7 +1447,11 @@ def _resolve_curvature_and_elevation(
     return curvature_result, lidar_alt
 
 
-async def get_optimal_profile_data(session_data: SessionData) -> dict[str, object]:
+async def get_optimal_profile_data(
+    session_data: SessionData,
+    *,
+    stable_target: bool = False,
+) -> dict[str, object]:
     """Compute the physics-optimal velocity profile for a session.
 
     Uses the best lap's GPS data to derive track curvature, then runs the
@@ -1459,6 +1463,12 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
     track-level cache key (which includes calibrated_mu).  The track-level
     cache shares optimal profiles across sessions on the same track with the
     same equipment + grip, avoiding the ~8s velocity solver on repeat visits.
+
+    When *stable_target* is True, grip calibration and the solver-based sweep
+    are skipped entirely — the equipment's base mu is used as-is.  This
+    produces a session-independent target that only varies with equipment
+    and track geometry.  Bayesian C-factors and banking corrections still
+    apply (they are track properties, not driver-specific).
 
     Returns columnar data suitable for JSON serialisation.
     """
@@ -1472,101 +1482,114 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
     vehicle_params = resolve_vehicle_params(session_id)
     mu_cap = _get_compound_mu_cap(session_id)
 
-    # Hoist grip calibration BEFORE cache checks (~1ms, cheap) so we can
-    # include calibrated_mu in the track-level cache key.
-    def _calibrate_sync() -> VehicleParams | None:
-        calibration_data = _collect_independent_calibration_telemetry(
-            session_data,
-            target_lap=session_data.processed.best_lap,
-        )
-        if calibration_data is None:
-            return vehicle_params
-        lat_g, lon_g, calibration_laps = calibration_data
-        grip = calibrate_grip_from_telemetry(lat_g, lon_g)
-        if grip is None:
-            return vehicle_params
-        base = vehicle_params or default_vehicle_params()
-        calibrated = apply_calibration_to_params(base, grip, mu_cap=mu_cap)
-        logger.info(
-            "Grip calibration [profile] sid=%s laps=%s: mu=%.3f lat_g=%.3f "
-            "brake_g=%.3f accel_g=%.3f confidence=%s mu_cap=%s",
-            session_id,
-            calibration_laps,
-            calibrated.mu,
-            grip.max_lateral_g,
-            grip.max_brake_g,
-            grip.max_accel_g,
-            grip.confidence,
-            mu_cap,
-        )
-        return calibrated
+    # --- Stable target mode: skip all driver-specific calibration ---
+    # When stable_target=True we use the equipment's base mu directly,
+    # producing a session-independent optimal target.
+    if stable_target:
+        calibrated_vp = vehicle_params
+        key_suffix = "stable"
+    else:
+        # Hoist grip calibration BEFORE cache checks (~1ms, cheap) so we can
+        # include calibrated_mu in the track-level cache key.
+        def _calibrate_sync() -> VehicleParams | None:
+            calibration_data = _collect_independent_calibration_telemetry(
+                session_data,
+                target_lap=session_data.processed.best_lap,
+            )
+            if calibration_data is None:
+                return vehicle_params
+            lat_g, lon_g, calibration_laps = calibration_data
+            grip = calibrate_grip_from_telemetry(lat_g, lon_g)
+            if grip is None:
+                return vehicle_params
+            base = vehicle_params or default_vehicle_params()
+            calibrated = apply_calibration_to_params(base, grip, mu_cap=mu_cap)
+            logger.info(
+                "Grip calibration [profile] sid=%s laps=%s: mu=%.3f lat_g=%.3f "
+                "brake_g=%.3f accel_g=%.3f confidence=%s mu_cap=%s",
+                session_id,
+                calibration_laps,
+                calibrated.mu,
+                grip.max_lateral_g,
+                grip.max_brake_g,
+                grip.max_accel_g,
+                grip.confidence,
+                mu_cap,
+            )
+            return calibrated
 
-    calibrated_vp = await asyncio.to_thread(_calibrate_sync)
+        calibrated_vp = await asyncio.to_thread(_calibrate_sync)
 
-    # Solver-based grip calibration: binary search on mu using the full
-    # velocity solver.  Hoisted to async level (before cache key) so the
-    # sweep-adjusted mu is included in the track-level cache key.
-    # Runs ~48s (6 solver calls) on cache miss, but cached at track level.
-    if calibrated_vp is not None and session_data.corners:
+        # Solver-based grip calibration: binary search on mu using the full
+        # velocity solver.  Hoisted to async level (before cache key) so the
+        # sweep-adjusted mu is included in the track-level cache key.
+        # Runs ~48s (6 solver calls) on cache miss, but cached at track level.
+        if calibrated_vp is not None and session_data.corners:
 
-        def _sweep_sync() -> VehicleParams:
-            from cataclysm.curvature import compute_curvature
-            from cataclysm.grip_factor_sweep import solver_based_sweep
-            from cataclysm.track_reference import align_reference_to_session, get_track_reference
+            def _sweep_sync() -> VehicleParams:
+                from cataclysm.curvature import compute_curvature
+                from cataclysm.grip_factor_sweep import solver_based_sweep
+                from cataclysm.track_reference import (
+                    align_reference_to_session,
+                    get_track_reference,
+                )
 
-            # Safe: only called inside `if calibrated_vp is not None` guard
-            assert calibrated_vp is not None
-            vp = calibrated_vp
+                # Safe: only called inside `if calibrated_vp is not None`
+                assert calibrated_vp is not None
+                vp = calibrated_vp
 
-            processed = session_data.processed
-            best_lap_df = processed.resampled_laps[processed.best_lap]
+                processed = session_data.processed
+                best_lap_df = processed.resampled_laps[processed.best_lap]
 
-            # Resolve curvature (same logic as _compute)
-            layout = session_data.layout
-            curv = None
-            if layout is not None:
-                ref = get_track_reference(layout)
-                if ref is not None:
-                    curv, _ = align_reference_to_session(
-                        ref, best_lap_df["lap_distance_m"].to_numpy()
+                # Resolve curvature (same logic as _compute)
+                layout = session_data.layout
+                curv = None
+                if layout is not None:
+                    ref = get_track_reference(layout)
+                    if ref is not None:
+                        curv, _ = align_reference_to_session(
+                            ref,
+                            best_lap_df["lap_distance_m"].to_numpy(),
+                        )
+                if curv is None:
+                    curv = compute_curvature(best_lap_df, savgol_window=15)
+
+                # Collect corner apex distances and actual min speeds
+                apex_d: list[float] = []
+                actual_v: list[float] = []
+                for c in session_data.corners:
+                    if c.apex_distance_m is not None and c.min_speed_mps is not None:
+                        apex_d.append(c.apex_distance_m)
+                        actual_v.append(c.min_speed_mps)
+                if not apex_d:
+                    return vp
+
+                sweep_mu, sweep_iters = solver_based_sweep(
+                    curv,
+                    vp,
+                    np.array(apex_d),
+                    np.array(actual_v),
+                )
+                if abs(sweep_mu - vp.mu) > 0.01:
+                    old_mu = vp.mu
+                    adjusted = dataclasses.replace(
+                        vp,
+                        mu=sweep_mu,
+                        max_lateral_g=sweep_mu,
                     )
-            if curv is None:
-                curv = compute_curvature(best_lap_df, savgol_window=15)
-
-            # Collect corner apex distances and actual min speeds
-            apex_d: list[float] = []
-            actual_v: list[float] = []
-            for c in session_data.corners:
-                if c.apex_distance_m is not None and c.min_speed_mps is not None:
-                    apex_d.append(c.apex_distance_m)
-                    actual_v.append(c.min_speed_mps)
-            if not apex_d:
+                    logger.info(
+                        "Solver grip sweep: mu %.3f→%.3f (%d iters) for sid=%s",
+                        old_mu,
+                        sweep_mu,
+                        sweep_iters,
+                        session_id,
+                    )
+                    return adjusted
                 return vp
 
-            sweep_mu, sweep_iters = solver_based_sweep(
-                curv,
-                vp,
-                np.array(apex_d),
-                np.array(actual_v),
-            )
-            if abs(sweep_mu - vp.mu) > 0.01:
-                old_mu = vp.mu
-                adjusted = dataclasses.replace(
-                    vp,
-                    mu=sweep_mu,
-                    max_lateral_g=sweep_mu,
-                )
-                logger.info(
-                    "Solver grip sweep: mu %.3f→%.3f (%d iters) for sid=%s",
-                    old_mu,
-                    sweep_mu,
-                    sweep_iters,
-                    session_id,
-                )
-                return adjusted
-            return vp
+            calibrated_vp = await asyncio.to_thread(_sweep_sync)
 
-        calibrated_vp = await asyncio.to_thread(_sweep_sync)
+        key_suffix = "profile"
 
     calibrated_mu_str = f"{calibrated_vp.mu:.2f}" if calibrated_vp else "default"
     track_slug = track_slug_from_layout(session_data.layout) if session_data.layout else None
@@ -1575,45 +1598,45 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
     if track_slug is not None:
         track_hit = _get_track_cached(
             track_slug,
-            "profile",
+            key_suffix,
             profile_id,
             calibrated_mu_str,
         )
         if track_hit is not None:
             # Populate session-level cache for faster future lookups
-            _set_physics_cached(session_id, "profile", track_hit, profile_id)
+            _set_physics_cached(session_id, key_suffix, track_hit, profile_id)
             return track_hit
 
         db_track_hit = await db_get_cached_by_track(
             track_slug,
-            "profile",
+            key_suffix,
             profile_id,
             calibrated_mu_str,
         )
         if db_track_hit is not None:
             _set_track_cached(
                 track_slug,
-                "profile",
+                key_suffix,
                 db_track_hit,
                 profile_id,
                 calibrated_mu_str,
             )
             _set_physics_cached(
                 session_id,
-                "profile",
+                key_suffix,
                 db_track_hit,
                 profile_id,
             )
             return db_track_hit
 
     # --- Session-level cache (fallback, also serves unknown tracks) ---
-    cached = _get_physics_cached(session_id, "profile", profile_id)
+    cached = _get_physics_cached(session_id, key_suffix, profile_id)
     if cached is not None:
         return cached
 
-    db_cached = await db_get_cached(session_id, "profile", profile_id)
+    db_cached = await db_get_cached(session_id, key_suffix, profile_id)
     if db_cached is not None:
-        _set_physics_cached(session_id, "profile", db_cached, profile_id)
+        _set_physics_cached(session_id, key_suffix, db_cached, profile_id)
         return db_cached
 
     # Try LIDAR elevation (async, before entering sync thread)
@@ -1855,21 +1878,21 @@ async def get_optimal_profile_data(session_data: SessionData) -> dict[str, objec
     result = await asyncio.to_thread(_compute)
 
     # Cache at session level
-    _set_physics_cached(session_id, "profile", result, profile_id)
-    await db_set_cached(session_id, "profile", result, profile_id)
+    _set_physics_cached(session_id, key_suffix, result, profile_id)
+    await db_set_cached(session_id, key_suffix, result, profile_id)
 
     # Cache at track level (if known track)
     if track_slug is not None:
         _set_track_cached(
             track_slug,
-            "profile",
+            key_suffix,
             result,
             profile_id,
             calibrated_mu_str,
         )
         await db_set_cached_by_track(
             track_slug,
-            "profile",
+            key_suffix,
             result,
             profile_id,
             calibrated_mu_str,
