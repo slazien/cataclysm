@@ -567,22 +567,7 @@ async def _run_generation(
         )
 
         await store_coaching_report(session_id, response, skill_level)
-        physics_corners = (
-            [
-                o.corner_number
-                for o in optimal_comparison.corner_opportunities[:4]
-                if o.time_cost_s > 0
-            ]
-            if optimal_comparison
-            else []
-        )
-        llm_corners = [pc.corner for pc in priority_corners]
-        logger.info(
-            "Coaching generation COMPLETED for %s — physics=%s llm=%s",
-            session_id,
-            physics_corners,
-            llm_corners,
-        )
+        logger.info("Coaching generation COMPLETED for %s", session_id)
 
         # Persist scores to snapshot_json so sidebar shows them after restart
         try:
