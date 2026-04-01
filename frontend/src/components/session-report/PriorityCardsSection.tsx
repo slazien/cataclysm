@@ -57,12 +57,18 @@ function PriorityCard({
   const { resolveSpeed, formatSpeed } = useUnits();
   const coachingNav = useCoachingNav();
 
+  const hasLlmTip = p.tip != null;
   const displayTip = p.tip ?? (
     p.speed_gap_mph != null
       ? `${Math.abs(p.speed_gap_mph).toFixed(1)} mph below optimal${p.brake_gap_m != null ? `, brakes ${Math.abs(p.brake_gap_m).toFixed(0)}m ${p.brake_gap_m < 0 ? 'early' : 'late'}` : ''}`
       : 'Review corner data in Deep Dive'
   );
-  const displayIssue = p.issue ?? '';
+  const hasLlmIssue = Boolean(p.issue);
+  const displayIssue = p.issue || (
+    p.speed_gap_mph != null
+      ? `Turn ${p.corner} apex speed is ${formatSpeed(Math.abs(p.speed_gap_mph))} below the physics-optimal target${p.brake_gap_m != null ? `. Brake point is ${Math.abs(p.brake_gap_m).toFixed(0)}m ${p.brake_gap_m < 0 ? 'early — try braking later to carry more entry speed' : 'late — consider an earlier, lighter initial brake application'}` : ''}. This corner costs up to ${p.time_cost_s.toFixed(1)}s per lap${p.exit_straight_time_cost_s != null && p.exit_straight_time_cost_s > 0.01 ? `, plus ${p.exit_straight_time_cost_s.toFixed(2)}s on the following straight from reduced exit speed` : ''}.`
+      : ''
+  );
 
   const borderColorClass = gradeForCorner
     ? (GRADE_BORDER_COLORS[gradeForCorner] ?? 'border-l-[var(--cata-accent)]')
@@ -141,8 +147,9 @@ function PriorityCard({
           </button>
           {expanded && (
             <div className="mt-2 space-y-2 text-xs leading-relaxed text-[var(--text-secondary)]">
-              {/* Physics breakdown metrics */}
-              {(p.speed_gap_mph != null || p.brake_gap_m != null) && (
+              {/* Physics breakdown pills — only when LLM provided the issue text
+                  (auto-generated issue already includes these numbers inline) */}
+              {hasLlmIssue && (p.speed_gap_mph != null || p.brake_gap_m != null) && (
                 <div className="flex flex-wrap gap-2">
                   {p.speed_gap_mph != null && (
                     <span className="rounded bg-[var(--bg-elevated)] px-2 py-1 tabular-nums">
@@ -161,8 +168,8 @@ function PriorityCard({
                   )}
                 </div>
               )}
-              {/* Coaching tip */}
-              {displayTip && (
+              {/* Coaching tip — only show LLM tip (skip auto-generated fallback) */}
+              {hasLlmTip && (
                 <p className="text-[var(--text-primary)]">{formatCoachingText(resolveSpeed(displayTip))}</p>
               )}
               {/* Full issue text (unclamped) */}
