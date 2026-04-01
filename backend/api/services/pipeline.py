@@ -1967,8 +1967,22 @@ async def get_optimal_comparison_data(
         )
         return db_cached
 
-    # Get optimal profile (reuses track cache — near-instant if cached)
-    profile_data = await get_optimal_profile_data(session_data)
+    # Get BOTH the ranking profile (calibrated mu) and stable target profile
+    # (base equipment mu) in parallel.  The ranking profile feeds the per-corner
+    # comparison; the stable profile supplies a session-independent lap-time
+    # target for the MetricsGrid.
+    ranking_profile, stable_profile = await asyncio.gather(
+        get_optimal_profile_data(session_data, stable_target=False),
+        get_optimal_profile_data(session_data, stable_target=True),
+    )
+    profile_data = ranking_profile
+
+    # Extract the stable optimal lap time (session-independent target)
+    stable_optimal_lap_time_s: float | None = None
+    if stable_profile is not None:
+        raw_lap_time = stable_profile.get("lap_time_s")
+        if isinstance(raw_lap_time, (int, float)):
+            stable_optimal_lap_time_s = round(float(raw_lap_time), 3)
 
     def _compute() -> dict[str, object]:
         optimal = _reconstruct_optimal_profile(profile_data)
@@ -2021,6 +2035,7 @@ async def get_optimal_comparison_data(
         }
 
     result = await asyncio.to_thread(_compute)
+    result["stable_optimal_lap_time_s"] = stable_optimal_lap_time_s
     _set_physics_cached(session_id, "comparison", result, profile_id)
     await db_set_cached(session_id, "comparison", result, profile_id)
 
