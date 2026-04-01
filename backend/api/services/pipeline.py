@@ -1953,15 +1953,17 @@ async def get_optimal_comparison_data(
     profile_id = _current_profile_id(session_id)
 
     # --- Session-level comparison cache ---
-    cached = _get_physics_cached(session_id, "comparison", profile_id)
+    # Key suffix "comparison_v2" invalidates pre-stable-target cached results.
+    _COMPARISON_KEY = "comparison_v2"
+    cached = _get_physics_cached(session_id, _COMPARISON_KEY, profile_id)
     if cached is not None:
         return cached
 
-    db_cached = await db_get_cached(session_id, "comparison", profile_id)
+    db_cached = await db_get_cached(session_id, _COMPARISON_KEY, profile_id)
     if db_cached is not None:
         _set_physics_cached(
             session_id,
-            "comparison",
+            _COMPARISON_KEY,
             db_cached,
             profile_id,
         )
@@ -2036,8 +2038,8 @@ async def get_optimal_comparison_data(
 
     result = await asyncio.to_thread(_compute)
     result["stable_optimal_lap_time_s"] = stable_optimal_lap_time_s
-    _set_physics_cached(session_id, "comparison", result, profile_id)
-    await db_set_cached(session_id, "comparison", result, profile_id)
+    _set_physics_cached(session_id, _COMPARISON_KEY, result, profile_id)
+    await db_set_cached(session_id, _COMPARISON_KEY, result, profile_id)
 
     # Update Bayesian per-corner capability factors from comparison results.
     # Only for authenticated users on known tracks with valid comparison data.
