@@ -17,24 +17,30 @@ export function useMergedPriorities(
     const opportunities = optimalComparison?.corner_opportunities;
     const priorities = report.priority_corners;
 
-    // Physics path: rank by corner_opportunities, attach LLM text
+    // Physics path: rank by corner_opportunities, attach LLM text.
+    // Only include corners with meaningful time cost (>0) — corners where
+    // the driver matches/exceeds optimal shouldn't appear as priorities.
     if (opportunities && opportunities.length > 0) {
-      const priorityMap = new Map(
-        priorities?.map((p) => [p.corner, p]) ?? [],
-      );
-      return opportunities.slice(0, maxCorners).map((opp) => {
-        const llm = priorityMap.get(opp.corner_number);
-        return {
-          corner: opp.corner_number,
-          time_cost_s: opp.time_cost_s,
-          issue: llm?.issue ?? null,
-          tip: llm?.tip ?? null,
-          source: 'physics' as const,
-          speed_gap_mph: opp.speed_gap_mph,
-          brake_gap_m: opp.brake_gap_m ?? null,
-          exit_straight_time_cost_s: opp.exit_straight_time_cost_s,
-        };
-      });
+      const validOpps = opportunities.filter((opp) => opp.time_cost_s > 0);
+      if (validOpps.length > 0) {
+        const priorityMap = new Map(
+          priorities?.map((p) => [p.corner, p]) ?? [],
+        );
+        return validOpps.slice(0, maxCorners).map((opp) => {
+          const llm = priorityMap.get(opp.corner_number);
+          return {
+            corner: opp.corner_number,
+            time_cost_s: opp.time_cost_s,
+            issue: llm?.issue ?? null,
+            tip: llm?.tip ?? null,
+            source: 'physics' as const,
+            speed_gap_mph: opp.speed_gap_mph,
+            brake_gap_m: opp.brake_gap_m ?? null,
+            exit_straight_time_cost_s: opp.exit_straight_time_cost_s,
+          };
+        });
+      }
+      // All physics corners have zero time cost — fall through to LLM path
     }
 
     // Fallback: LLM-only (no physics available)

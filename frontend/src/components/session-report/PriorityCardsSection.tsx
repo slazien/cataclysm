@@ -54,7 +54,7 @@ function PriorityCard({
   feedbackPending: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const { resolveSpeed } = useUnits();
+  const { resolveSpeed, formatSpeed } = useUnits();
   const coachingNav = useCoachingNav();
 
   const displayTip = p.tip ?? (
@@ -122,7 +122,7 @@ function PriorityCard({
       )}
 
       {/* Expandable detail section — hidden for novice (tip above is sufficient) */}
-      {!isNovice && (
+      {!isNovice && (displayTip || p.speed_gap_mph != null || resolvedIssue) && (
         <div>
           <button
             type="button"
@@ -140,8 +140,35 @@ function PriorityCard({
             )}
           </button>
           {expanded && (
-            <div className="mt-2 text-xs leading-relaxed text-[var(--text-secondary)]">
-              <MarkdownText block linkHandlers={coachingNav}>{resolvedIssue}</MarkdownText>
+            <div className="mt-2 space-y-2 text-xs leading-relaxed text-[var(--text-secondary)]">
+              {/* Physics breakdown metrics */}
+              {(p.speed_gap_mph != null || p.brake_gap_m != null) && (
+                <div className="flex flex-wrap gap-2">
+                  {p.speed_gap_mph != null && (
+                    <span className="rounded bg-[var(--bg-elevated)] px-2 py-1 tabular-nums">
+                      {formatSpeed(Math.abs(p.speed_gap_mph))} below optimal apex
+                    </span>
+                  )}
+                  {p.brake_gap_m != null && (
+                    <span className="rounded bg-[var(--bg-elevated)] px-2 py-1 tabular-nums">
+                      Brakes {Math.abs(p.brake_gap_m).toFixed(0)}m {p.brake_gap_m < 0 ? 'early' : 'late'}
+                    </span>
+                  )}
+                  {p.exit_straight_time_cost_s != null && p.exit_straight_time_cost_s > 0.01 && (
+                    <span className="rounded bg-[var(--bg-elevated)] px-2 py-1 tabular-nums">
+                      {p.exit_straight_time_cost_s.toFixed(2)}s lost on exit
+                    </span>
+                  )}
+                </div>
+              )}
+              {/* Coaching tip */}
+              {displayTip && (
+                <p className="text-[var(--text-primary)]">{formatCoachingText(resolveSpeed(displayTip))}</p>
+              )}
+              {/* Full issue text (unclamped) */}
+              {resolvedIssue && (
+                <MarkdownText block linkHandlers={coachingNav}>{resolvedIssue}</MarkdownText>
+              )}
             </div>
           )}
         </div>
