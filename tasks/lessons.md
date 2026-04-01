@@ -1494,3 +1494,17 @@ el.getBoundingClientRect().right > window.innerWidth
 **Why**: User caught that a score backfill using `process_upload()` would also trigger LLM coaching regeneration for ~16 sessions, wasting tokens. The fix was safe (auto-coaching is called separately, not inside `process_upload()`), but the risk wasn't flagged proactively.
 
 **Error signature**: Unexpected LLM API calls / token spend after a backend restart. Check startup logs for coaching generation that shouldn't be happening.
+
+## Never Send Display-Formatted Strings in Programmatic API Fields (2026-03-31)
+
+**Pattern**: API fields used for sorting, grouping, or computation (like `session_date`) must be machine-parseable (ISO 8601). Display-formatted strings (`DD/MM/YYYY`, `"Mar 21, 2026 · 8:31 AM"`) go in separate `*_local` or `*_display` fields only.
+
+**Why**: Backend sent `session_date` as `"21/03/2026 18:07"` (DD/MM/YYYY). JS `Date()` parses slash-delimited dates as MM/DD/YYYY. Days >12 → `Invalid Date` → `NaN` → falls through to "Older". Days ≤12 → wrong month (e.g., `"11/01/2026"` → November 2026 → future → "This Week"). Two bugs from one design mistake: newest sessions labeled "Older", January sessions labeled "This Week".
+
+**Error signature**: Date grouping/sorting produces nonsensical results. `new Date("DD/MM/YYYY")` returns `Invalid Date` for days >12 or parses as wrong month for days ≤12.
+
+## Homepage Auto-Loads Most Recent Session (2026-03-31)
+
+**Pattern**: The authenticated homepage (`/`) auto-loads and displays the user's most recent session — it does NOT show the welcome/landing page. Only unauthenticated users see the landing page. Don't assume "no sessions visible" means sessions are missing when the user is logged in.
+
+**Why**: Incorrectly told user the homepage "doesn't show sessions unless you're on a session analysis page" — wrong twice. Caused friction and confusion during QA.
