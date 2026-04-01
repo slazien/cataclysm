@@ -470,11 +470,7 @@ def _build_priority_corner_instruction(
     max_priorities: int,
 ) -> str:
     """Build explicit corner list for priority_corners based on physics ranking."""
-    top = [
-        opp
-        for opp in optimal.corner_opportunities[:max_priorities]
-        if opp.time_cost_s > 0 and opp.speed_gap_mph > 0
-    ]
+    top = [opp for opp in optimal.corner_opportunities[:max_priorities] if opp.time_cost_s > 0]
     if not top:
         return ""
     lines = [
