@@ -5,23 +5,24 @@
     }
 }
 
-:80 {
-    # API routes → backend
+# === Production ===
+cataclysm.one {
+    # API routes → prod backend
     handle /api/* {
-        reverse_proxy backend:8000
+        reverse_proxy prod_backend:8000
     }
 
-    # Health check → backend
+    # Health check → prod backend
     handle /health {
-        reverse_proxy backend:8000
+        reverse_proxy prod_backend:8000
     }
 
-    # Metrics (internal only — blocked from external access)
+    # Metrics (internal only)
     handle /metrics {
         respond "Forbidden" 403
     }
 
-    # Grafana dashboard (basic auth protected)
+    # Grafana dashboard (basic auth)
     handle_path /grafana/* {
         basic_auth {
             {$CADDY_ADMIN_USER:admin} {$CADDY_ADMIN_HASH}
@@ -29,7 +30,7 @@
         reverse_proxy grafana:3000
     }
 
-    # Dozzle log viewer (basic auth protected)
+    # Dozzle log viewer (basic auth)
     handle_path /dozzle/* {
         basic_auth {
             {$CADDY_ADMIN_USER:admin} {$CADDY_ADMIN_HASH}
@@ -37,8 +38,27 @@
         reverse_proxy dozzle:8080
     }
 
-    # Everything else → frontend
+    # Everything else → prod frontend
     handle {
-        reverse_proxy frontend:3000
+        reverse_proxy prod_frontend:3000
+    }
+}
+
+# === Staging ===
+staging.cataclysm.one {
+    handle /api/* {
+        reverse_proxy staging_backend:8000
+    }
+
+    handle /health {
+        reverse_proxy staging_backend:8000
+    }
+
+    handle /metrics {
+        respond "Forbidden" 403
+    }
+
+    handle {
+        reverse_proxy staging_frontend:3000
     }
 }
