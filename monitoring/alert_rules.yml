@@ -47,3 +47,27 @@ groups:
           severity: warning
         annotations:
           summary: "Container {{ $labels.name }} restarted"
+
+      - alert: BackupMissed
+        expr: (time() - node_textfile_mtime_seconds{file="backup_prod.prom"}) > 50400
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prod backup not seen for 14h (expected every 12h)"
+
+      - alert: BackupStagingMissed
+        expr: (time() - node_textfile_mtime_seconds{file="backup_staging.prom"}) > 50400
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Staging backup not seen for 14h"
+
+      - alert: RestoreTestFailed
+        expr: (time() - node_textfile_mtime_seconds{file="restore_test.prom"}) > 691200
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Weekly restore test not seen for 8 days"
