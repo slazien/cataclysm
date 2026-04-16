@@ -1,0 +1,56 @@
+# Staging environment — runs alongside docker-compose.prod.yml
+# Shares the cataclysm_net network so Caddy routes staging.cataclysm.one here.
+# Separate Postgres, volumes, and container names for full isolation.
+
+services:
+  frontend:
+    container_name: staging_frontend
+    image: ghcr.io/slazien/cataclysm/frontend:staging
+    restart: unless-stopped
+    environment:
+      AUTH_SECRET: ${NEXTAUTH_SECRET}
+      AUTH_TRUST_HOST: "true"
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-https://staging.cataclysm.one}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+    depends_on:
+      - backend
+
+  backend:
+    container_name: staging_backend
+    image: ghcr.io/slazien/cataclysm/backend:staging
+    restart: unless-stopped
+    env_file: .env.staging
+    environment:
+      DATABASE_URL: postgresql+asyncpg://cataclysm:${DB_PASSWORD}@staging_postgres:5432/cataclysm
+      PORT: "8000"
+    volumes:
+      - staging_app_data:/app/data
+    depends_on:
+      staging_postgres:
+        condition: service_healthy
+
+  staging_postgres:
+    container_name: staging_postgres
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cataclysm
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: cataclysm
+    volumes:
+      - staging_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cataclysm"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  staging_pgdata:
+  staging_app_data:
+
+networks:
+  default:
+    name: cataclysm_net
+    external: true
