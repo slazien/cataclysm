@@ -16,18 +16,20 @@ services:
 
   # -- Application -------------------------------------------------------------
   frontend:
+    container_name: prod_frontend
     image: ghcr.io/slazien/cataclysm/frontend:latest
     restart: unless-stopped
     environment:
       AUTH_SECRET: ${NEXTAUTH_SECRET}
       AUTH_TRUST_HOST: "true"
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-https://cataclysm.one}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
     depends_on:
       - backend
 
   backend:
+    container_name: prod_backend
     image: ghcr.io/slazien/cataclysm/backend:latest
     restart: unless-stopped
     env_file: .env
@@ -41,6 +43,7 @@ services:
         condition: service_healthy
 
   postgres:
+    container_name: prod_postgres
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
@@ -92,11 +95,13 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
+      - /opt/cataclysm/metrics:/textfile:ro
     command:
       - "--path.procfs=/host/proc"
       - "--path.sysfs=/host/sys"
       - "--path.rootfs=/rootfs"
       - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+      - "--collector.textfile.directory=/textfile"
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
@@ -124,3 +129,7 @@ volumes:
   caddy_config:
   prometheus_data:
   grafana_data:
+
+networks:
+  default:
+    name: cataclysm_net
