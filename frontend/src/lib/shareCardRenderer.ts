@@ -348,5 +348,5 @@ export async function renderSessionCard(
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.font = "30px 'Barlow Semi Condensed', sans-serif";
   ctx.textAlign = 'center';
-  ctx.fillText('\u2500\u2500\u2500 cataclysm.app \u2500\u2500\u2500', CARD_W / 2, y);
+  ctx.fillText('\u2500\u2500\u2500 nolift.app \u2500\u2500\u2500', CARD_W / 2, y);
 }

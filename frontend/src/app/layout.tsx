@@ -11,7 +11,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Cataclysm — AI Track Coaching',
+  title: 'Nolift — AI Track Coaching',
   description: 'Post-session telemetry analysis and AI coaching for HPDE drivers',
 };
 

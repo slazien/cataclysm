@@ -21,7 +21,7 @@ export function AppFooter() {
             <span className="sm:hidden">Contact</span>
           </a>
           <a
-            href={`mailto:${EMAIL}?subject=Cataclysm%20Feedback`}
+            href={`mailto:${EMAIL}?subject=Nolift%20Feedback`}
             className="flex items-center gap-1 rounded-md bg-[var(--cata-accent)]/10 px-2 py-0.5 text-[var(--cata-accent)] transition-colors hover:bg-[var(--cata-accent)]/20"
           >
             <MessageSquare className="h-3 w-3" />

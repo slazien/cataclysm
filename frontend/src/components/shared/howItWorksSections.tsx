@@ -16,7 +16,7 @@ export const HOW_IT_WORKS_SECTIONS: HowItWorksSection[] = [
     body: (
       <>
         Every CSV you upload contains GPS coordinates sampled hundreds of times per lap, combined
-        with your car&apos;s speed and the forces your tires generate. Cataclysm processes all of
+        with your car&apos;s speed and the forces your tires generate. Nolift processes all of
         this in the <strong>distance domain</strong> — meaning every calculation is relative to your
         position on track, not the clock. This is how professional motorsport engineers analyze
         data, and it&apos;s why the analysis is specific to <em>your</em> lines on <em>this</em>{' '}
@@ -66,7 +66,7 @@ export const HOW_IT_WORKS_SECTIONS: HowItWorksSection[] = [
     title: 'Where your time went',
     body: (
       <>
-        For each corner, Cataclysm compares the speed you carried through to what your car and
+        For each corner, Nolift compares the speed you carried through to what your car and
         tires could physically achieve. The gap — converted to seconds — is your{' '}
         <strong>per-corner opportunity</strong>.
         <br />
@@ -123,7 +123,7 @@ export const HOW_IT_WORKS_SECTIONS: HowItWorksSection[] = [
         performance envelope than a stock street car on all-seasons.
         <br />
         <br />
-        This means the same lap time means different things depending on your setup. Cataclysm
+        This means the same lap time means different things depending on your setup. Nolift
         compares your driving against what <em>your</em> equipment can achieve — not a generic
         baseline — so the feedback is always relevant to the car you actually drove.
       </>

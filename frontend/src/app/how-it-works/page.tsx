@@ -3,9 +3,9 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 export const metadata = {
-  title: 'How It Works — Cataclysm',
+  title: 'How It Works — Nolift',
   description:
-    'Learn how Cataclysm uses physics simulation, grip analysis, and AI coaching to help you find lap time.',
+    'Learn how Nolift uses physics simulation, grip analysis, and AI coaching to help you find lap time.',
 };
 
 export default function HowItWorksPage() {
@@ -13,7 +13,7 @@ export default function HowItWorksPage() {
     <main className="mx-auto max-w-3xl px-4 py-12 lg:py-20">
       <header className="mb-12 text-center">
         <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)] lg:text-4xl font-[family-name:var(--font-display)]">
-          How Cataclysm Works
+          How Nolift Works
         </h1>
         <p className="mt-4 text-lg text-[var(--text-secondary)]">
           Physics-based coaching, not guesswork. Here&apos;s what happens when you upload a session.

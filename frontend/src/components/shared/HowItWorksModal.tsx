@@ -67,7 +67,7 @@ export function HowItWorksModal() {
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-[var(--cata-border)] px-6 py-4">
           <h2 className="font-[family-name:var(--font-display)] text-base font-bold text-[var(--text-primary)]">
-            How Cataclysm Works
+            How Nolift Works
           </h2>
           <button
             type="button"
@@ -82,7 +82,7 @@ export function HowItWorksModal() {
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5">
           <p className="mb-5 text-sm leading-relaxed text-[var(--text-secondary)]">
-            Cataclysm turns raw telemetry into coaching you can act on. Here&apos;s what the
+            Nolift turns raw telemetry into coaching you can act on. Here&apos;s what the
             numbers actually mean.
           </p>
 

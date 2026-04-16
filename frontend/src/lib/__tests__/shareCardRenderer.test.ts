@@ -313,7 +313,7 @@ describe('renderSessionCard', () => {
   it('draws footer CTA', async () => {
     await renderSessionCard(canvas, baseData);
     expect(mockCtx.fillText).toHaveBeenCalledWith(
-      expect.stringContaining('cataclysm.app'),
+      expect.stringContaining('nolift.app'),
       expect.any(Number),
       expect.any(Number),
     );

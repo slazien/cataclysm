@@ -104,7 +104,7 @@ export function TopBar() {
       <div className="relative flex h-12 items-center bg-[var(--bg-surface)] px-4">
         {/* Left: Logo */}
         <div className="flex items-center gap-2">
-          <span className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--text-primary)]">Cataclysm</span>
+          <span className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--text-primary)]">Nolift</span>
         </div>
 
         {/* Center: View tabs */}
