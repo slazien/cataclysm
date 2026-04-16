@@ -20,7 +20,9 @@ services:
     container_name: staging_backend
     image: ghcr.io/slazien/cataclysm/backend:staging
     restart: unless-stopped
-    env_file: .env.staging
+    env_file:
+      - path: .env.staging
+        required: false
     environment:
       DATABASE_URL: postgresql+asyncpg://cataclysm:${DB_PASSWORD}@staging_postgres:5432/cataclysm
       PORT: "8000"
