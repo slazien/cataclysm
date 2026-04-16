@@ -1,0 +1,51 @@
+name: "Ops: Restart Service"
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Environment"
+        required: true
+        type: choice
+        options: [prod, staging]
+      service:
+        description: "Service to restart (backend, frontend, postgres, or 'all')"
+        required: true
+        default: "backend"
+
+jobs:
+  restart:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restart service
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            ENV="${{ inputs.env }}"
+            SERVICE="${{ inputs.service }}"
+
+            if [ "$ENV" = "prod" ]; then
+              COMPOSE="/opt/cataclysm/prod/docker-compose.prod.yml"
+            else
+              COMPOSE="/opt/cataclysm/staging/docker-compose.staging.yml"
+            fi
+
+            if [ "$SERVICE" = "postgres" ] && [ "$ENV" = "staging" ]; then
+              SERVICE="staging_postgres"
+            fi
+
+            if [ "$SERVICE" = "all" ]; then
+              echo "Restarting all services in $ENV..."
+              docker compose -f "$COMPOSE" restart
+            else
+              echo "Restarting $SERVICE in $ENV..."
+              docker compose -f "$COMPOSE" restart "$SERVICE"
+            fi
+
+            echo ""
+            echo "=== Status after restart ==="
+            docker compose -f "$COMPOSE" ps

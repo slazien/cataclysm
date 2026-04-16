@@ -1,0 +1,51 @@
+name: "Ops: Health Check"
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Environment"
+        required: true
+        type: choice
+        options: [prod, staging]
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check health
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            ENV="${{ inputs.env }}"
+
+            echo "=== Container Status ==="
+            if [ "$ENV" = "prod" ]; then
+              docker compose -f /opt/cataclysm/prod/docker-compose.prod.yml ps
+            else
+              docker compose -f /opt/cataclysm/staging/docker-compose.staging.yml ps
+            fi
+
+            echo ""
+            echo "=== Health Endpoint ==="
+            if [ "$ENV" = "prod" ]; then
+              curl -sf https://cataclysm.one/health | python3 -m json.tool || echo "UNHEALTHY"
+            else
+              curl -sf https://staging.cataclysm.one/health | python3 -m json.tool || echo "UNHEALTHY"
+            fi
+
+            echo ""
+            echo "=== Disk Usage ==="
+            df -h / | tail -1
+
+            echo ""
+            echo "=== Memory ==="
+            free -h | head -2
+
+            echo ""
+            echo "=== Docker Disk ==="
+            docker system df

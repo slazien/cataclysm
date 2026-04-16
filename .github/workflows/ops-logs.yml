@@ -1,0 +1,46 @@
+name: "Ops: View Logs"
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Environment"
+        required: true
+        type: choice
+        options: [prod, staging]
+      service:
+        description: "Service name (backend, frontend, postgres)"
+        required: true
+        default: "backend"
+      lines:
+        description: "Number of log lines"
+        required: true
+        default: "100"
+
+jobs:
+  logs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch logs
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            ENV="${{ inputs.env }}"
+            SERVICE="${{ inputs.service }}"
+            LINES="${{ inputs.lines }}"
+
+            if [ "$ENV" = "prod" ]; then
+              COMPOSE="/opt/cataclysm/prod/docker-compose.prod.yml"
+            else
+              COMPOSE="/opt/cataclysm/staging/docker-compose.staging.yml"
+            fi
+
+            if [ "$SERVICE" = "postgres" ] && [ "$ENV" = "staging" ]; then
+              SERVICE="staging_postgres"
+            fi
+
+            docker compose -f "$COMPOSE" logs --tail="$LINES" --no-color "$SERVICE"

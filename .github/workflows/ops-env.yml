@@ -1,0 +1,50 @@
+name: "Ops: View Environment"
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Environment"
+        required: true
+        type: choice
+        options: [prod, staging]
+
+jobs:
+  env-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: View env (secrets masked)
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            ENV="${{ inputs.env }}"
+
+            if [ "$ENV" = "prod" ]; then
+              ENV_FILE="/opt/cataclysm/prod/.env"
+            else
+              ENV_FILE="/opt/cataclysm/staging/.env.staging"
+            fi
+
+            echo "=== Environment Variables (secrets masked) ==="
+            while IFS= read -r line; do
+              [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+              KEY="${line%%=*}"
+              VAL="${line#*=}"
+              if [ ${#VAL} -gt 8 ]; then
+                echo "$KEY=${VAL:0:4}****"
+              else
+                echo "$KEY=$VAL"
+              fi
+            done < "$ENV_FILE"
+
+            echo ""
+            echo "=== Docker Images ==="
+            if [ "$ENV" = "prod" ]; then
+              docker compose -f /opt/cataclysm/prod/docker-compose.prod.yml images
+            else
+              docker compose -f /opt/cataclysm/staging/docker-compose.staging.yml images
+            fi

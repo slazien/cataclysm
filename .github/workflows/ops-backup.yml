@@ -1,0 +1,28 @@
+name: "Ops: Run Backup"
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: "Environment to backup"
+        required: true
+        type: choice
+        options: [prod, staging]
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run backup
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            /opt/cataclysm/prod/scripts/pg_backup.sh "${{ inputs.env }}"
+
+            echo ""
+            echo "=== Backups on disk ==="
+            ls -lh /opt/backups/${{ inputs.env }}/ | tail -10
